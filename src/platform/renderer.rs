@@ -68,6 +68,31 @@ pub unsafe fn draw_frame(
     }
     for command in &frame.commands {
         match *command {
+            FrameCommand::PageArrow {
+                previous,
+                focused,
+                bounds,
+                fallback,
+            } => {
+                let texture = match (previous, focused) {
+                    (true, false) => theme.previous_arrow.as_ref(),
+                    (true, true) => theme.previous_arrow_focused.as_ref(),
+                    (false, false) => theme.next_arrow.as_ref(),
+                    (false, true) => theme.next_arrow_focused.as_ref(),
+                };
+                let Some(bounds) = map_rect(
+                    bounds,
+                    LOGICAL_WIDTH,
+                    LOGICAL_HEIGHT,
+                    info.width,
+                    info.height,
+                ) else {
+                    continue;
+                };
+                unsafe {
+                    draw_texture_or_fill(video, &mut textured_state, texture, bounds, fallback)?
+                };
+            }
             FrameCommand::AppCard {
                 grid,
                 focused,
@@ -89,27 +114,9 @@ pub unsafe fn draw_frame(
                 ) else {
                     continue;
                 };
-                if let Some(texture) = texture {
-                    if !textured_state {
-                        video.configure_textured_2d();
-                        textured_state = true;
-                    }
-                    unsafe {
-                        video.draw_texture(
-                            texture,
-                            bounds.x,
-                            bounds.y,
-                            bounds.width,
-                            bounds.height,
-                        )?;
-                    }
-                } else {
-                    if textured_state {
-                        video.configure_2d();
-                        textured_state = false;
-                    }
-                    unsafe { draw_solid_fill(video, bounds, fallback)? };
-                }
+                unsafe {
+                    draw_texture_or_fill(video, &mut textured_state, texture, bounds, fallback)?
+                };
             }
             FrameCommand::Fill(index) => {
                 if textured_state {
@@ -147,27 +154,15 @@ pub unsafe fn draw_frame(
                 ) else {
                     continue;
                 };
-                if let Some(icon) = icon {
-                    if !textured_state {
-                        video.configure_textured_2d();
-                        textured_state = true;
-                    }
-                    unsafe {
-                        video.draw_texture(
-                            &icon.texture,
-                            bounds.x,
-                            bounds.y,
-                            bounds.width,
-                            bounds.height,
-                        )?;
-                    }
-                } else {
-                    if textured_state {
-                        video.configure_2d();
-                        textured_state = false;
-                    }
-                    unsafe { draw_solid_fill(video, bounds, fallback)? };
-                }
+                unsafe {
+                    draw_texture_or_fill(
+                        video,
+                        &mut textured_state,
+                        icon.map(|icon| &icon.texture),
+                        bounds,
+                        fallback,
+                    )?
+                };
             }
         }
     }
@@ -186,4 +181,26 @@ unsafe fn draw_solid_fill(
         a: fill.color.alpha,
     };
     unsafe { video.draw_solid_rect(bounds.x, bounds.y, bounds.width, bounds.height, color) }
+}
+
+unsafe fn draw_texture_or_fill(
+    video: &VideoSystem,
+    textured_state: &mut bool,
+    texture: Option<&crate::png::GxRgba8Texture>,
+    bounds: crate::render::Rect,
+    fallback: crate::render::FillRect,
+) -> Result<(), VideoError> {
+    if let Some(texture) = texture {
+        if !*textured_state {
+            video.configure_textured_2d();
+            *textured_state = true;
+        }
+        unsafe { video.draw_texture(texture, bounds.x, bounds.y, bounds.width, bounds.height) }
+    } else {
+        if *textured_state {
+            video.configure_2d();
+            *textured_state = false;
+        }
+        unsafe { draw_solid_fill(video, bounds, fallback) }
+    }
 }

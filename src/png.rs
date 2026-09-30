@@ -975,4 +975,31 @@ mod tests {
             assert_eq!(texture.as_ptr() as usize & 31, 0);
         }
     }
+
+    #[test]
+    fn bundled_hbc_page_arrows_have_supported_dimensions_and_gx_layout() {
+        let images: [&[u8]; 4] = [
+            include_bytes!("../assets/apps_previous.png"),
+            include_bytes!("../assets/apps_previous_hover.png"),
+            include_bytes!("../assets/apps_next.png"),
+            include_bytes!("../assets/apps_next_hover.png"),
+        ];
+        for bytes in images {
+            let image = decode_png(
+                bytes,
+                PngLimits {
+                    max_width: 64,
+                    max_height: 64,
+                    max_pixels: 64 * 64,
+                    max_input_bytes: 8 * 1024 * 1024,
+                },
+            )
+            .unwrap();
+            assert_eq!((image.width, image.height), (64, 64));
+
+            let texture = GxRgba8Texture::from_image(&image).unwrap();
+            assert_eq!((texture.width, texture.height), (64, 64));
+            assert_eq!(texture.as_ptr() as usize & 31, 0);
+        }
+    }
 }

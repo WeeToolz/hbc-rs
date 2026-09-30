@@ -107,6 +107,12 @@ pub enum FrameCommand {
         bounds: Rect,
         fallback: FillRect,
     },
+    PageArrow {
+        previous: bool,
+        focused: bool,
+        bounds: Rect,
+        fallback: FillRect,
+    },
     Icon {
         catalog_index: usize,
         bounds: Rect,
@@ -130,6 +136,26 @@ impl Frame {
             focused,
             bounds,
             fallback: FillRect { bounds, color },
+        });
+    }
+
+    fn page_arrow(&mut self, bounds: Rect, previous: bool) {
+        if ![bounds.x, bounds.y, bounds.width, bounds.height]
+            .iter()
+            .all(|value| value.is_finite())
+            || bounds.width <= 0.0
+            || bounds.height <= 0.0
+        {
+            return;
+        }
+        self.commands.push(FrameCommand::PageArrow {
+            previous,
+            focused: false,
+            bounds,
+            fallback: FillRect {
+                bounds,
+                color: MUTED,
+            },
         });
     }
 
@@ -295,11 +321,18 @@ pub fn browser_frame_with_theme(
 
     let layout = controller.browser_layout();
     let page = controller.visible_page(catalog);
-    let page_start = controller.page_start();
+    let navigation = controller.page_navigation(catalog);
+    let page_start = navigation.start;
     let selected = controller.selected_index().saturating_sub(page_start);
 
     match controller.screen {
         Screen::Browser | Screen::AppDetails | Screen::DeleteConfirm => {
+            if navigation.has_previous() {
+                frame.page_arrow(rect(24, 192, 64, 64), true);
+            }
+            if navigation.has_next() {
+                frame.page_arrow(rect(552, 192, 64, 64), false);
+            }
             let columns = layout.columns.max(1);
             let rows = layout.rows.max(1);
             let grid = columns > 1;
@@ -412,9 +445,8 @@ pub fn browser_frame_with_theme(
     // Footer and page progress are common to the browser view and use only
     // controller-derived page data.
     frame.fill(rect(28, 436, 584, 20), HEADER);
-    let visible_count = controller.visible_apps(catalog).len();
-    let capacity = layout.columns.max(1).saturating_mul(layout.rows.max(1));
-    let pages = visible_count.saturating_add(capacity - 1) / capacity;
+    let capacity = navigation.capacity;
+    let pages = navigation.visible_count.saturating_add(capacity - 1) / capacity;
     if pages > 0 {
         let page_index = page_start / capacity;
         let segment_w = 520.0 / pages as f32;
@@ -630,6 +662,52 @@ mod tests {
                 bounds,
                 ..
             } if *bounds == rect(104, 128, 432, 64)
+        )));
+    }
+
+    #[test]
+    fn page_arrows_follow_visible_page_bounds() {
+        let catalog = vec![
+            app("one"),
+            app("two"),
+            app("three"),
+            app("four"),
+            app("five"),
+            app("six"),
+        ];
+        let mut controller = AppController::new();
+        let first_page = browser_frame(&controller, &catalog);
+        assert!(first_page.commands.iter().any(|command| matches!(
+            command,
+            FrameCommand::PageArrow {
+                previous: false,
+                bounds,
+                ..
+            } if *bounds == rect(552, 192, 64, 64)
+        )));
+        assert!(!first_page
+            .commands
+            .iter()
+            .any(|command| matches!(command, FrameCommand::PageArrow { previous: true, .. })));
+
+        for _ in 0..5 {
+            controller.handle(crate::app::Input::Down, &catalog);
+        }
+        let last_page = browser_frame(&controller, &catalog);
+        assert!(last_page.commands.iter().any(|command| matches!(
+            command,
+            FrameCommand::PageArrow {
+                previous: true,
+                bounds,
+                ..
+            } if *bounds == rect(24, 192, 64, 64)
+        )));
+        assert!(!last_page.commands.iter().any(|command| matches!(
+            command,
+            FrameCommand::PageArrow {
+                previous: false,
+                ..
+            }
         )));
     }
 

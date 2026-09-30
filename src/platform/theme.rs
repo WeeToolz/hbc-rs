@@ -20,6 +20,8 @@ const LIST_CARD_WIDTH: u32 = 432;
 const LIST_CARD_HEIGHT: u32 = 64;
 const GRID_CARD_WIDTH: u32 = 144;
 const GRID_CARD_HEIGHT: u32 = 64;
+const PAGE_ARROW_WIDTH: u32 = 64;
+const PAGE_ARROW_HEIGHT: u32 = 64;
 const THEME_IMAGE_MAX_BYTES: usize = 8 * 1024 * 1024;
 
 const DEFAULT_BACKGROUND: &[u8] = include_bytes!("../../assets/background.png");
@@ -28,6 +30,10 @@ const DEFAULT_LIST_CARD: &[u8] = include_bytes!("../../assets/apps_list.png");
 const DEFAULT_LIST_CARD_FOCUS: &[u8] = include_bytes!("../../assets/apps_list_hover.png");
 const DEFAULT_GRID_CARD: &[u8] = include_bytes!("../../assets/apps_grid.png");
 const DEFAULT_GRID_CARD_FOCUS: &[u8] = include_bytes!("../../assets/apps_grid_hover.png");
+const DEFAULT_PREVIOUS_ARROW: &[u8] = include_bytes!("../../assets/apps_previous.png");
+const DEFAULT_PREVIOUS_ARROW_FOCUS: &[u8] = include_bytes!("../../assets/apps_previous_hover.png");
+const DEFAULT_NEXT_ARROW: &[u8] = include_bytes!("../../assets/apps_next.png");
+const DEFAULT_NEXT_ARROW_FOCUS: &[u8] = include_bytes!("../../assets/apps_next_hover.png");
 
 pub struct ThemeTextures {
     pub background: Option<crate::png::GxRgba8Texture>,
@@ -36,6 +42,10 @@ pub struct ThemeTextures {
     pub list_card_focused: Option<crate::png::GxRgba8Texture>,
     pub grid_card: Option<crate::png::GxRgba8Texture>,
     pub grid_card_focused: Option<crate::png::GxRgba8Texture>,
+    pub previous_arrow: Option<crate::png::GxRgba8Texture>,
+    pub previous_arrow_focused: Option<crate::png::GxRgba8Texture>,
+    pub next_arrow: Option<crate::png::GxRgba8Texture>,
+    pub next_arrow_focused: Option<crate::png::GxRgba8Texture>,
 }
 
 impl ThemeTextures {
@@ -76,6 +86,34 @@ impl ThemeTextures {
                 GRID_CARD_WIDTH,
                 GRID_CARD_HEIGHT,
                 DEFAULT_GRID_CARD_FOCUS,
+            ),
+            previous_arrow: theme_image_texture(
+                package,
+                "apps_previous.png",
+                PAGE_ARROW_WIDTH,
+                PAGE_ARROW_HEIGHT,
+                DEFAULT_PREVIOUS_ARROW,
+            ),
+            previous_arrow_focused: theme_image_texture(
+                package,
+                "apps_previous_hover.png",
+                PAGE_ARROW_WIDTH,
+                PAGE_ARROW_HEIGHT,
+                DEFAULT_PREVIOUS_ARROW_FOCUS,
+            ),
+            next_arrow: theme_image_texture(
+                package,
+                "apps_next.png",
+                PAGE_ARROW_WIDTH,
+                PAGE_ARROW_HEIGHT,
+                DEFAULT_NEXT_ARROW,
+            ),
+            next_arrow_focused: theme_image_texture(
+                package,
+                "apps_next_hover.png",
+                PAGE_ARROW_WIDTH,
+                PAGE_ARROW_HEIGHT,
+                DEFAULT_NEXT_ARROW_FOCUS,
             ),
         }
     }

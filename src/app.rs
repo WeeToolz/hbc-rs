@@ -76,6 +76,23 @@ impl BrowserLayout {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct PageNavigation {
+    pub start: usize,
+    pub capacity: usize,
+    pub visible_count: usize,
+}
+
+impl PageNavigation {
+    pub fn has_previous(self) -> bool {
+        self.start > 0
+    }
+
+    pub fn has_next(self) -> bool {
+        self.start.saturating_add(self.capacity) < self.visible_count
+    }
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct AppController {
     pub screen: Screen,
@@ -168,6 +185,18 @@ impl AppController {
     /// Index of the first entry on the selected app's page.
     pub fn page_start(&self) -> usize {
         self.selected_index / self.layout.page_capacity() * self.layout.page_capacity()
+    }
+
+    pub fn page_navigation(&self, catalog: &[AppEntry]) -> PageNavigation {
+        self.page_navigation_for_count(self.visible_apps(catalog).len())
+    }
+
+    fn page_navigation_for_count(&self, visible_count: usize) -> PageNavigation {
+        PageNavigation {
+            start: self.page_start(),
+            capacity: self.layout.page_capacity(),
+            visible_count,
+        }
     }
 
     /// Return the current page in the active filter and sort order.
@@ -384,14 +413,18 @@ impl AppController {
         if visible.is_empty() {
             return Action::None;
         }
-        let capacity = self.layout.page_capacity();
-        let current_start = self.page_start();
+        let navigation = self.page_navigation_for_count(visible.len());
+        if (forward && !navigation.has_next()) || (!forward && !navigation.has_previous()) {
+            return Action::None;
+        }
+        let capacity = navigation.capacity;
+        let current_start = navigation.start;
         let next_start = if forward {
             current_start.saturating_add(capacity)
         } else {
             current_start.saturating_sub(capacity)
         };
-        if next_start == current_start || next_start >= visible.len() {
+        if next_start >= visible.len() {
             return Action::None;
         }
         self.selected_index = next_start;
