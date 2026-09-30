@@ -79,7 +79,11 @@ pub fn scan_apps<S: CatalogStorage>(
         let candidates = [
             ("boot.elf", AppKind::Elf, max_executable_size),
             ("boot.dol", AppKind::Dol, max_executable_size),
-            ("theme.zip", AppKind::Theme, max_theme_size),
+            (
+                "theme.zip",
+                AppKind::Theme,
+                core::cmp::min(max_executable_size, max_theme_size),
+            ),
         ];
         let selected = candidates.iter().find_map(|(name, kind, limit)| {
             let path = join_path(&folder_path, name);
@@ -329,5 +333,22 @@ mod tests {
         assert!(apps[0].has_icon);
         assert_eq!(apps[1].kind, AppKind::Dol);
         assert_eq!(apps[2].kind, AppKind::Theme);
+    }
+
+    #[test]
+    fn scan_rejects_theme_above_executable_size_limit() {
+        let root = "sd:/apps";
+        let mut fs = MemoryStorage::default();
+        fs.directories.insert(
+            root.into(),
+            vec![DirectoryEntry {
+                name: "large-theme".into(),
+                is_directory: true,
+            }],
+        );
+        fs.sizes.insert(format!("{root}/large-theme/theme.zip"), 51);
+
+        let apps = scan_apps(&mut fs, root, 50, 100).unwrap();
+        assert!(apps.is_empty());
     }
 }
