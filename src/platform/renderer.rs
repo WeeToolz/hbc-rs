@@ -92,6 +92,8 @@ pub unsafe fn draw_frame(
             } => {
                 let texture = match art {
                     ThemeArt::Dialog => theme.dialog.as_ref(),
+                    ThemeArt::Progress => theme.progress.as_ref(),
+                    ThemeArt::Throbber => theme.throbber.as_ref(),
                     ThemeArt::DialogIcon(DialogIcon::Info) => theme.dialog_info.as_ref(),
                     ThemeArt::DialogIcon(DialogIcon::Confirm) => theme.dialog_confirm.as_ref(),
                     ThemeArt::DialogIcon(DialogIcon::Warning) => theme.dialog_warning.as_ref(),

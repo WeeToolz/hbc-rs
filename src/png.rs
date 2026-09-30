@@ -926,6 +926,32 @@ mod tests {
     }
 
     #[test]
+    fn bundled_runtime_theme_art_has_expected_dimensions() {
+        for (bytes, expected) in [
+            (
+                include_bytes!("../assets/throbber.png").as_slice(),
+                (64, 64),
+            ),
+            (
+                include_bytes!("../assets/progress.png").as_slice(),
+                (400, 112),
+            ),
+        ] {
+            let image = decode_png(
+                bytes,
+                PngLimits {
+                    max_width: expected.0,
+                    max_height: expected.1,
+                    max_pixels: (expected.0 * expected.1) as usize,
+                    max_input_bytes: 8 * 1024 * 1024,
+                },
+            )
+            .unwrap();
+            assert_eq!((image.width, image.height), expected);
+        }
+    }
+
+    #[test]
     fn bundled_hbc_widescreen_background_has_supported_dimensions_and_gx_layout() {
         let bytes = include_bytes!("../assets/background_wide.png");
         let image = decode_png(

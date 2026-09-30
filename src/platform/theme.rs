@@ -31,6 +31,9 @@ const TINY_BUTTON_WIDTH: u32 = 132;
 const BUTTON_HEIGHT: u32 = 48;
 const ABOUT_WIDTH: u32 = 236;
 const ABOUT_HEIGHT: u32 = 104;
+const THROBBER_SIZE: u32 = 64;
+const PROGRESS_WIDTH: u32 = 400;
+const PROGRESS_HEIGHT: u32 = 112;
 const THEME_IMAGE_MAX_BYTES: usize = 8 * 1024 * 1024;
 
 const DEFAULT_BACKGROUND: &[u8] = include_bytes!("../../assets/background.png");
@@ -50,6 +53,8 @@ const DEFAULT_DIALOG_CONFIRM: &[u8] = include_bytes!("../../assets/dlg_confirm.p
 const DEFAULT_DIALOG_WARNING: &[u8] = include_bytes!("../../assets/dlg_warning.png");
 const DEFAULT_DIALOG_ERROR: &[u8] = include_bytes!("../../assets/dlg_error.png");
 const DEFAULT_ABOUT: &[u8] = include_bytes!("../../assets/about.png");
+const DEFAULT_THROBBER: &[u8] = include_bytes!("../../assets/throbber.png");
+const DEFAULT_PROGRESS: &[u8] = include_bytes!("../../assets/progress.png");
 const DEFAULT_LARGE_BUTTON: &[u8] = include_bytes!("../../assets/button.png");
 const DEFAULT_LARGE_BUTTON_FOCUS: &[u8] = include_bytes!("../../assets/button_focus.png");
 const DEFAULT_SMALL_BUTTON: &[u8] = include_bytes!("../../assets/button_small.png");
@@ -81,6 +86,8 @@ pub struct ThemeTextures {
     pub tiny_button: Option<crate::png::GxRgba8Texture>,
     pub tiny_button_focused: Option<crate::png::GxRgba8Texture>,
     pub about: Option<crate::png::GxRgba8Texture>,
+    pub throbber: Option<crate::png::GxRgba8Texture>,
+    pub progress: Option<crate::png::GxRgba8Texture>,
 }
 
 impl ThemeTextures {
@@ -232,6 +239,20 @@ impl ThemeTextures {
                 DEFAULT_TINY_BUTTON_FOCUS,
             ),
             about: theme_image_texture(None, "about.png", ABOUT_WIDTH, ABOUT_HEIGHT, DEFAULT_ABOUT),
+            throbber: theme_image_texture(
+                package,
+                "throbber.png",
+                THROBBER_SIZE,
+                THROBBER_SIZE,
+                DEFAULT_THROBBER,
+            ),
+            progress: theme_image_texture(
+                package,
+                "progress.png",
+                PROGRESS_WIDTH,
+                PROGRESS_HEIGHT,
+                DEFAULT_PROGRESS,
+            ),
         }
     }
 }

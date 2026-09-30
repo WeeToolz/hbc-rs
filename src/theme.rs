@@ -252,7 +252,15 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unsafe_unrelated_paths() {
+    fn accepts_hbc_assets_and_rejects_unsafe_unrelated_paths() {
+        let package = ThemePackage::parse(&zip(&[
+            ("theme.xml", THEME_XML),
+            ("throbber.png", b"image"),
+            ("progress.png", b"image"),
+            ("other.bin", b"x"),
+        ]))
+        .unwrap();
+        assert_eq!(package.theme_xml_name(), "theme.xml");
         assert!(matches!(
             ThemePackage::parse(&zip(&[("theme.xml", THEME_XML), ("../outside.bin", b"x")])),
             Err(ThemePackageError::InvalidArchive(_))

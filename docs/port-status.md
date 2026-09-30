@@ -62,18 +62,21 @@ deferred.
   hit bounds. App detail descriptions wrap and scroll by line with the Up and
   Down buttons, controller sticks, or pointer dragging. This artwork uses
   bundled defaults. HBC bundles the About image instead of loading it from
-  active themes. Pointer drag scrolling outside app details, other theme
-  textures, gradients, localized strings, and complete HBC widget behavior are
-  not ported.
+  active themes. The storage scan panel uses the theme throbber image, and the
+  Wiiload install dialog uses the theme progress frame. Both use bundled C
+  artwork when an active theme image is missing or has invalid dimensions.
+  Animated bubble backgrounds, network and USBGecko status indicators, memo
+  scroll arrows, localized strings, and complete HBC widget behavior are not
+  ported.
 - A pure Rust theme ZIP parser enforces a 20 MiB archive limit, a 64-entry
   limit, safe paths, supported ZIP entry types and compression, duplicate-name
   checks, a 64 MiB per-file limit, and a 128 MiB total extracted-size limit.
   Safe unrelated files are ignored. Theme metadata comes from root `theme.xml`,
-  and texture loading reads named root assets. The parser reads `theme.xml`
-  with the existing metadata parser. Applying a theme saves its validated ZIP
-  to NAND. It updates the background, app cards, and page arrows for the current
-  session. The native Rust bitmap glyph
-  renderer applies default and target-specific font colors and sizes to HBC's
+  and texture loading reads named root assets. Applying a theme saves its
+  validated ZIP to NAND. It updates the background, app cards, page arrows,
+  throbber, and progress images for the current session. The 320x64 logo always
+  uses the bundled image, as in HBC. The native Rust bitmap glyph renderer
+  applies default and target-specific font colors and sizes to HBC's
   `label`, `dlgtitle`, `memo`, `appname`, `appdesc`, `button`, and `button_desel`
   text roles. It uses scaled built-in glyphs; custom TTF files are parsed as
   metadata only and are not rasterized. Theme controls and custom fonts are not
@@ -118,7 +121,8 @@ deferred.
   below `apps/<folder>`, and saves and applies theme ZIPs through NAND. App
   extraction runs on a worker and displays a loading dialog. It does not show
   per-file progress.
-  Network status artwork and update behavior still need integration. Settings
+  There is no Rust per-device status UI yet, so the theme network and USBGecko
+  status images do not have a runtime consumer. Settings
   save when HBC exits, as in the original. Settings and theme replacement now
   write a temporary NAND file, rename with a backup, and recover an interrupted
   replacement at the next load. Hardware behavior of ISFS rename remains

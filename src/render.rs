@@ -115,6 +115,8 @@ pub enum DialogIcon {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ThemeArt {
     Dialog,
+    Progress,
+    Throbber,
     DialogIcon(DialogIcon),
     About,
     Button(ButtonSize),
@@ -193,11 +195,12 @@ impl Frame {
     }
 
     pub fn storage_loading(&mut self) {
-        let x = (f32::from(self.logical_width()) - 208.0) / 2.0;
-        self.fill(rect(x, 220.0, 208.0, 40.0), PANEL);
+        let x = (f32::from(self.logical_width()) - 272.0) / 2.0;
+        self.fill(rect(x, 220.0, 272.0, 64.0), PANEL);
+        self.theme_art(rect(x + 8.0, 220.0, 64.0, 64.0), ThemeArt::Throbber, false);
         self.text(
-            x + 16.0,
-            236.0,
+            x + 80.0,
+            250.0,
             "Scanning storage...",
             1.0,
             Color::rgb(213, 224, 233),
@@ -1016,7 +1019,6 @@ pub fn browser_frame_with_viewport(
             frame.set_text_style(theme_text_style(theme, "dlgtitle", text_color));
             frame.text(252.0, 124.0, "Installing ZIP", 1.0, text_color, 40);
             frame.set_text_style(theme_text_style(theme, "label", text_color));
-            frame.text(192.0, 190.0, "Please wait...", 1.0, text_color, 40);
             let percent = controller.wiiload_install_progress();
             let label = [
                 b'0' + percent / 100,
@@ -1025,13 +1027,13 @@ pub fn browser_frame_with_viewport(
                 b'%',
             ];
             let label = core::str::from_utf8(&label).unwrap_or("000%");
-            frame.text(304.0, 232.0, label, 1.0, text_color, 5);
-            frame.fill(rect(120, 256, 400, 16), HEADER);
             if percent > 0 {
                 let stops = theme
                     .and_then(|metadata| metadata.progress_gradient)
                     .unwrap_or([Rgba(63, 155, 211, 255); 4]);
-                let width = 400.0;
+                let x = 155.0;
+                let y = 255.0;
+                let width = 330.0;
                 // Four theme colors are gradient stops. Render short solid
                 // spans so this path works with the GX rectangle renderer.
                 const SPANS: usize = 32;
@@ -1042,11 +1044,14 @@ pub fn browser_frame_with_viewport(
                     }
                     let end = ((span + 1) as f32 / SPANS as f32).min(f32::from(percent) / 100.0);
                     frame.fill(
-                        rect(120.0 + width * start, 256, width * (end - start), 16),
+                        rect(x + width * start, y, width * (end - start), 42),
                         gradient_color(stops, start),
                     );
                 }
             }
+            frame.theme_art(rect(120, 220, 400, 112), ThemeArt::Progress, false);
+            frame.text(192.0, 190.0, "Please wait...", 1.0, text_color, 40);
+            frame.text(430.0, 292.0, label, 1.0, text_color, 5);
         }
     }
     if controller.screen == Screen::Notice {
@@ -1197,6 +1202,20 @@ mod tests {
     use super::*;
     use crate::catalog::{AppEntry, AppKind};
     use alloc::{string::String, vec};
+
+    #[test]
+    fn storage_loading_frame_uses_theme_throbber_art() {
+        let mut frame = Frame::default();
+        frame.storage_loading();
+        assert!(frame.commands.iter().any(|command| matches!(
+            command,
+            FrameCommand::ThemeArt {
+                art: ThemeArt::Throbber,
+                bounds,
+                ..
+            } if *bounds == rect(192, 220, 64, 64)
+        )));
+    }
 
     #[test]
     fn target_font_fields_override_default_fields_independently() {
@@ -1523,15 +1542,20 @@ mod tests {
         controller.show_wiiload_installing();
         controller.set_wiiload_install_progress(25);
         let frame = browser_frame(&controller, &[]);
+        assert!(frame.commands.iter().any(|command| matches!(
+            command,
+            FrameCommand::ThemeArt { art: ThemeArt::Progress, bounds, .. }
+                if *bounds == rect(120, 220, 400, 112)
+        )));
         let progress: Vec<_> = frame
             .fills
             .iter()
-            .filter(|fill| fill.bounds.y == 256.0 && fill.bounds.x >= 120.0 && fill.color != HEADER)
+            .filter(|fill| fill.bounds.y == 255.0 && fill.bounds.x >= 155.0 && fill.color != HEADER)
             .collect();
         assert!(!progress.is_empty());
         assert!(progress.iter().all(|fill| fill.color == ACCENT));
         assert!(
-            (progress.iter().map(|fill| fill.bounds.width).sum::<f32>() - 100.0).abs() < 0.01,
+            (progress.iter().map(|fill| fill.bounds.width).sum::<f32>() - 82.5).abs() < 0.01,
             "{progress:?}"
         );
     }
@@ -1554,7 +1578,7 @@ mod tests {
         let progress: Vec<_> = frame
             .fills
             .iter()
-            .filter(|fill| fill.bounds.y == 256.0 && fill.bounds.x >= 120.0 && fill.color != HEADER)
+            .filter(|fill| fill.bounds.y == 255.0 && fill.bounds.x >= 155.0 && fill.color != HEADER)
             .collect();
         assert_eq!(
             progress.first().unwrap().color,
@@ -1571,7 +1595,7 @@ mod tests {
         assert!(progress
             .iter()
             .any(|fill| fill.color.red > 70 && fill.color.red < 110));
-        assert!((progress.iter().map(|fill| fill.bounds.width).sum::<f32>() - 400.0).abs() < 0.01);
+        assert!((progress.iter().map(|fill| fill.bounds.width).sum::<f32>() - 330.0).abs() < 0.01);
     }
 
     #[test]
