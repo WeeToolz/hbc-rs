@@ -16,9 +16,9 @@ deferred.
   cache maintenance and a one-way branch.
 - VI/framebuffer setup and a minimal GX FIFO/display-copy path in the local
   `libogc-rs` copy. The Wii entry point now starts a frame loop that scans
-  input, updates the controller state, draws a solid-fill browser scene, and
-  waits for VI retrace. Return-to-menu and power-off actions save settings and
-  call the system reset service.
+  input, updates the controller state, draws the initial browser layout with a
+  native 5x7 bitmap font, and waits for VI retrace. Return-to-menu and power-off
+  actions save settings and call the system reset service.
 - Boot setup loads NAND settings, tries the preferred SD or USB volume followed
   by the other volume, scans `apps`, and keeps the mounted volume for later
   operations. Wii Remote setup matches HBC's 640x480 default IR range and
@@ -26,9 +26,10 @@ deferred.
 
 ## Remaining runtime work
 
-- The display scene is an initial solid-color layout with placeholder bars.
-  It has no text or glyph rasterization, icon and theme textures, gradients,
-  localized strings, or HBC widget and dialog behavior.
+- The display scene uses solid-color panels and a native 5x7 font for basic
+  app labels, descriptions, menus, About content, and confirmation dialogs.
+  App icons remain placeholders. Theme textures, gradients, localized
+  strings, and HBC widget and dialog behavior are not ported.
 - Device discovery scans one preferred volume synchronously at startup. There
   is no background mount worker, hotplug handling, 30-frame refresh, or SD and
   USB device status UI. GameCube memory cards are not supported. USB storage
