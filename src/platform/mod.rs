@@ -2,6 +2,7 @@
 
 pub mod allocator;
 pub mod input;
+pub mod nand;
 #[cfg(target_arch = "powerpc")]
 pub mod renderer;
 #[cfg(target_arch = "powerpc")]

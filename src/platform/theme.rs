@@ -7,7 +7,6 @@ use crate::{
     theme::MAX_THEME_ARCHIVE_BYTES,
 };
 
-use ogc_cache::dc_flush_range;
 use ogc_filesystem as isfs;
 
 const THEME_FILENAME: &str = "theme.zip";
@@ -203,6 +202,7 @@ pub fn load() -> Result<Option<Vec<u8>>, SettingsIoError> {
     if rc < 0 {
         return Err(SettingsIoError::Isfs(rc));
     }
+    super::nand::recover_wii(&path)?;
     let file = isfs::open(&path, isfs::ISFS_OPEN_READ).map_err(SettingsIoError::Isfs)?;
     let mut stats = AlignedStats(isfs::Fstats::default());
     let rc = isfs::get_file_stats(&file, &mut stats.0);
@@ -262,40 +262,7 @@ pub fn save(archive: &[u8]) -> Result<(), SettingsIoError> {
         return Err(SettingsIoError::Isfs(rc));
     }
 
-    // ISFS has no truncate open mode. Match HBC's delete, create, then write sequence.
-    let _ = isfs::delete(&path);
-    let rc = isfs::create_file(&path, 0, 3, 3, 0);
-    if rc < 0 {
-        return Err(SettingsIoError::Isfs(rc));
-    }
-    let file = match isfs::open(&path, isfs::ISFS_OPEN_RW) {
-        Ok(file) => file,
-        Err(rc) => {
-            let _ = isfs::delete(&path);
-            return Err(SettingsIoError::Isfs(rc));
-        }
-    };
-
-    let mut chunk = AlignedChunk([0; IO_CHUNK_SIZE]);
-    let mut result = Ok(());
-    for bytes in archive.chunks(IO_CHUNK_SIZE) {
-        chunk.0[..bytes.len()].copy_from_slice(bytes);
-        unsafe { dc_flush_range(chunk.0.as_ptr().cast(), bytes.len() as u32) };
-        if let Err(rc) = file.write_all(&chunk.0[..bytes.len()]) {
-            result = Err(rc);
-            break;
-        }
-    }
-    let close_rc = file.close();
-    if let Err(rc) = result {
-        let _ = isfs::delete(&path);
-        return Err(SettingsIoError::Isfs(rc));
-    }
-    if close_rc < 0 {
-        let _ = isfs::delete(&path);
-        return Err(SettingsIoError::Isfs(close_rc));
-    }
-    Ok(())
+    super::nand::save_wii(&path, archive)
 }
 
 #[repr(align(32))]

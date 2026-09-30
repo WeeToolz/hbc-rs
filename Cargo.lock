@@ -36,6 +36,7 @@ dependencies = [
  "ogc-gx",
  "ogc-input",
  "ogc-ios",
+ "ogc-ipc",
  "ogc-irq",
  "ogc-lwp",
  "ogc-network",

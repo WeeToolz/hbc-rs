@@ -43,10 +43,11 @@ deferred.
   PNG assets. Page arrows use HBC's 64x64 images and appear when a previous or
   next page exists. Main-menu rows use HBC large button images. About and modal
   screens use the HBC dialog background, About artwork, and size-specific
-  normal and focused buttons. This artwork uses bundled defaults; HBC bundles
-  the About image instead of loading it from active themes. Other theme
-  textures, gradients, localized strings, and complete HBC widget behavior
-  are not ported.
+  normal and focused buttons. Wii Remote IR pointer input now selects and
+  activates app cards, page arrows, menus, and dialog buttons using renderer
+  hit bounds. This artwork uses bundled defaults; HBC bundles the About image
+  instead of loading it from active themes. Other theme textures, gradients,
+  localized strings, and complete HBC widget behavior are not ported.
 - A pure Rust theme ZIP parser now enforces the HBC archive size, entry count,
   root filename allowlist, duplicate-name policy, and bounded extraction plan.
   It parses `theme.xml` with the existing metadata parser. Applying a theme
@@ -89,7 +90,11 @@ deferred.
   stack and install its own interrupt handlers before enabling interrupts.
 - Network receive/update behavior, theme installation UI, and periodic dirty
   settings save timing still need integration. Settings currently save on the
-  return-to-menu and power-off actions.
+  return-to-menu and power-off actions. Settings and theme replacement now
+  write a temporary NAND file, rename with a backup, and recover an interrupted
+  replacement at the next load. Hardware behavior of ISFS rename remains
+  unverified. Theme replacement needs enough free NAND space for both the old
+  and new archive during the write.
 
 ## Local checks
 

@@ -65,6 +65,7 @@ pub fn load() -> Result<UserSettings, SettingsIoError> {
     if rc < 0 {
         return Err(SettingsIoError::Isfs(rc));
     }
+    super::nand::recover_wii(&path)?;
     let file = isfs::open(&path, isfs::ISFS_OPEN_READ).map_err(SettingsIoError::Isfs)?;
     let mut stats = AlignedFstats(isfs::Fstats::default());
     let rc = isfs::get_file_stats(&file, &mut stats.0);
@@ -100,7 +101,7 @@ pub fn load() -> Result<UserSettings, SettingsIoError> {
     decode_settings_xml(&xml.0[..size]).map_err(|_| SettingsIoError::Codec)
 }
 
-/// Replace the settings XML file. ISFS has no truncate open flag.
+/// Replace the settings XML file without deleting the previous valid copy.
 pub fn save(settings: &UserSettings) -> Result<(), SettingsIoError> {
     let path = settings_path()?;
     let xml = encode_settings_xml(settings).map_err(|_| SettingsIoError::Codec)?;
@@ -108,30 +109,5 @@ pub fn save(settings: &UserSettings) -> Result<(), SettingsIoError> {
     if rc < 0 {
         return Err(SettingsIoError::Isfs(rc));
     }
-    // Match HBC isfs_put: remove the old file before creating the new file.
-    let _ = isfs::delete(&path);
-    let rc = isfs::create_file(&path, 0, 3, 3, 0);
-    if rc < 0 {
-        return Err(SettingsIoError::Isfs(rc));
-    }
-    let file = match isfs::open(&path, isfs::ISFS_OPEN_RW) {
-        Ok(file) => file,
-        Err(rc) => {
-            let _ = isfs::delete(&path);
-            return Err(SettingsIoError::Isfs(rc));
-        }
-    };
-    let mut buffer = AlignedXml([0; MAX_SETTINGS_XML_SIZE]);
-    buffer.0[..xml.len()].copy_from_slice(xml.as_bytes());
-    let write_result = file.write_all(&buffer.0[..xml.len()]);
-    let close_rc = file.close();
-    if let Err(rc) = write_result {
-        let _ = isfs::delete(&path);
-        return Err(SettingsIoError::Isfs(rc));
-    }
-    if close_rc < 0 {
-        let _ = isfs::delete(&path);
-        return Err(SettingsIoError::Isfs(close_rc));
-    }
-    Ok(())
+    super::nand::save_wii(&path, xml.as_bytes())
 }
