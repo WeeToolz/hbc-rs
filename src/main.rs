@@ -67,6 +67,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             frame.released.clear();
             frame.pointer = None;
             frame.pointer_pressed = false;
+            frame.stick_scroll_pixels = 0;
         }
         let pointer = frame.pointer;
         let pointer_pressed = frame.pointer_pressed;

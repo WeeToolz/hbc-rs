@@ -16,6 +16,8 @@ pub struct InputFrame {
     pub released: Vec<Input>,
     pub pointer: Option<PointerPosition>,
     pub pointer_pressed: bool,
+    /// Signed HBC-style vertical stick scroll in logical pixels for this frame.
+    pub stick_scroll_pixels: i16,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -79,6 +81,7 @@ impl ButtonsForTest {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Extension {
+    Nunchuk,
     Classic,
     GuitarHero3,
 }
@@ -91,6 +94,7 @@ static POINTER_OWNER: AtomicI32 = AtomicI32::new(-1);
 pub fn map_extension_buttons(mask: u32, extension: Extension) -> u32 {
     let mut result = mask;
     match extension {
+        Extension::Nunchuk => {}
         Extension::Classic => {
             for (source, target) in [
                 (0x0001 << 16, 0x0800),            // up
@@ -291,6 +295,17 @@ pub fn scan() -> InputFrame {
 
     let mut pointer = None;
     let mut pointer_pressed = false;
+    let mut stick_scroll = deadzone(i32::from(pad::stick_y(0)));
+    if let Some(owner) = owner {
+        if !data[owner].is_null() {
+            stick_scroll += extension_stick_y(unsafe { &*data[owner] });
+        }
+    } else {
+        for state in data.into_iter().filter(|state| !state.is_null()) {
+            stick_scroll += extension_stick_y(unsafe { &*state });
+        }
+    }
+    stick_scroll /= 8;
     for channel in 0..4 {
         if data[channel].is_null() || owner.is_some_and(|owner| owner != channel) {
             continue;
@@ -312,6 +327,37 @@ pub fn scan() -> InputFrame {
         released: inputs(up),
         pointer,
         pointer_pressed,
+        stick_scroll_pixels: stick_scroll.clamp(i32::from(i16::MIN), i32::from(i16::MAX)) as i16,
+    }
+}
+
+#[cfg(any(test, target_arch = "powerpc"))]
+fn deadzone(value: i32) -> i32 {
+    if value > 10 {
+        value - 10
+    } else if value < -10 {
+        value + 10
+    } else {
+        0
+    }
+}
+
+#[cfg(target_arch = "powerpc")]
+fn extension_stick_y(state: &wpad_sys::WpadData) -> i32 {
+    match state.exp.type_ {
+        value if value == wpad_sys::WPAD_EXP_NUNCHUK as i32 => {
+            let stick = unsafe { state.exp.u.nunchuk.js };
+            deadzone(i32::from(stick.pos.y) - i32::from(stick.center.y))
+        }
+        value if value == wpad_sys::WPAD_EXP_CLASSIC as i32 => {
+            let stick = unsafe { state.exp.u.classic.ljs };
+            deadzone((i32::from(stick.pos.y) - i32::from(stick.center.y)) * 4)
+        }
+        value if value == wpad_sys::WPAD_EXP_GUITARHERO3 as i32 => {
+            let stick = unsafe { state.exp.u.gh3.js };
+            deadzone((i32::from(stick.pos.y) - i32::from(stick.center.y)) * 4)
+        }
+        _ => 0,
     }
 }
 
@@ -404,6 +450,14 @@ mod tests {
             logical_pointer_position(63.5, 64.0),
             Some(PointerPosition { x: 0, y: 0 })
         );
+    }
+
+    #[test]
+    fn analog_scroll_matches_hbc_deadzone_and_scale() {
+        assert_eq!(deadzone(10), 0);
+        assert_eq!(deadzone(-10), 0);
+        assert_eq!(deadzone(18) / 8, 1);
+        assert_eq!(deadzone(-18) / 8, -1);
     }
 
     #[test]

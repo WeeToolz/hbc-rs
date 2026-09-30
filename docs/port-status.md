@@ -52,10 +52,10 @@ deferred.
   normal and focused buttons. Wii Remote IR pointer input now selects and
   activates app cards, page arrows, menus, and dialog buttons using renderer
   hit bounds. App detail descriptions wrap and scroll by line with the Up and
-  Down buttons. This artwork uses bundled defaults; HBC bundles the About image
-  instead of loading it from active themes. Analog stick and pointer drag
-  scrolling, other theme textures, gradients, localized strings, and complete
-  HBC widget behavior are not ported.
+  Down buttons or the controller sticks. This artwork uses bundled defaults.
+  HBC bundles the About image instead of loading it from active themes. Pointer
+  drag scrolling, other theme textures, gradients, localized strings, and
+  complete HBC widget behavior are not ported.
 - A pure Rust theme ZIP parser now enforces the HBC archive size, entry count,
   root filename allowlist, duplicate-name policy, and bounded extraction plan.
   It parses `theme.xml` with the existing metadata parser. Applying a theme

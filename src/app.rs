@@ -120,6 +120,7 @@ pub struct AppController {
     menu_focus: usize,
     detail_focus: usize,
     detail_description_scroll: usize,
+    detail_scroll_pixel_remainder: i16,
     delete_confirmation_yes: bool,
     notice: Option<String>,
     notice_return_screen: Screen,
@@ -156,6 +157,25 @@ impl AppController {
 
     pub fn detail_description_scroll(&self) -> usize {
         self.detail_description_scroll
+    }
+
+    pub fn scroll_detail_by_stick(&mut self, pixels: i16) {
+        if self.screen != Screen::AppDetails {
+            return;
+        }
+        self.detail_scroll_pixel_remainder =
+            self.detail_scroll_pixel_remainder.saturating_add(pixels);
+        let lines = self.detail_scroll_pixel_remainder / 9;
+        self.detail_scroll_pixel_remainder %= 9;
+        if lines > 0 {
+            self.detail_description_scroll = self
+                .detail_description_scroll
+                .saturating_sub(lines as usize);
+        } else if lines < 0 {
+            self.detail_description_scroll = self
+                .detail_description_scroll
+                .saturating_add(lines.unsigned_abs() as usize);
+        }
     }
 
     pub fn delete_confirmation_yes(&self) -> bool {
@@ -484,6 +504,7 @@ impl AppController {
                 self.screen = Screen::AppDetails;
                 self.detail_focus = 10;
                 self.detail_description_scroll = 0;
+                self.detail_scroll_pixel_remainder = 0;
                 Action::None
             }
             Input::ToggleBrowseMode => {
@@ -757,6 +778,20 @@ mod tests {
         controller.handle(Input::Up, &catalog);
         assert_eq!(controller.detail_description_scroll(), 0);
         assert_eq!(controller.detail_focus(), 10);
+    }
+
+    #[test]
+    fn detail_stick_scroll_accumulates_pixels_into_lines() {
+        let mut controller = AppController::new();
+        let catalog = vec![app("a", "A", false)];
+        controller.handle(Input::Confirm, &catalog);
+        controller.handle(Input::Down, &catalog);
+        controller.scroll_detail_by_stick(8);
+        assert_eq!(controller.detail_description_scroll(), 1);
+        controller.scroll_detail_by_stick(1);
+        assert_eq!(controller.detail_description_scroll(), 0);
+        controller.scroll_detail_by_stick(-18);
+        assert_eq!(controller.detail_description_scroll(), 2);
     }
 
     #[test]
