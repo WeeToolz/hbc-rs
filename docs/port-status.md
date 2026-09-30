@@ -17,7 +17,7 @@ deferred.
   decoder checks exact body length and bounded decompression. The worker queues
   one payload for the main thread. The entry point starts the worker and sends
   validated ELF or DOL uploads through the existing launch path. ZIP uploads
-  still need installation handling.
+  use a confirmation dialog, then install an app archive or apply a theme.
 - Input scanning for PAD and Wii Remotes, a frame-level application state
   driver, a bounded MEM2 allocator, and a Wii executable segment copier with
   cache maintenance and a one-way branch.
