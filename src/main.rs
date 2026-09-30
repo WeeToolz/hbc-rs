@@ -35,6 +35,11 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     video.configure_2d();
 
     let mut startup = hbc_rs::platform::startup::WiiStartup::initialize(view_width, 480);
+    if hbc_rs::platform::wiiload::start().is_err() {
+        startup
+            .runtime_mut()
+            .show_notice("Could not start the network receiver.");
+    }
     let mut display_ready = false;
     let mut frames_since_storage_scan = 0u8;
 
@@ -50,6 +55,43 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         }
 
         startup.poll_storage_scan();
+        if !startup.storage_scan_pending() {
+            if let Some(payload) = hbc_rs::platform::wiiload::take_payload() {
+                if payload.data.starts_with(b"PK\x03\x04") {
+                    startup
+                        .runtime_mut()
+                        .show_notice("Received ZIP installation is not available yet.");
+                } else {
+                    let plan = if payload.data.starts_with(b"\x7fELF") {
+                        hbc_rs::loader::parse_elf32_ppc(
+                            &payload.data,
+                            Some(hbc_rs::platform::startup::EXECUTABLE_MEMORY.clone()),
+                        )
+                    } else {
+                        hbc_rs::loader::parse_dol(
+                            &payload.data,
+                            Some(hbc_rs::platform::startup::EXECUTABLE_MEMORY.clone()),
+                        )
+                    };
+                    match plan {
+                        Ok(plan) => {
+                            if let Err(notice) = transfer_executable(
+                                &mut startup,
+                                &payload.data,
+                                &plan,
+                                &payload.args,
+                                "Could not prepare the received application.",
+                            ) {
+                                startup.runtime_mut().show_notice(notice);
+                            }
+                        }
+                        Err(_) => startup
+                            .runtime_mut()
+                            .show_notice("Received data is not a valid Wii application."),
+                    }
+                }
+            }
+        }
         frames_since_storage_scan += 1;
         if frames_since_storage_scan == 30 {
             frames_since_storage_scan = 0;
@@ -169,40 +211,16 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                         .show_notice("Could not read or validate this application.");
                     continue;
                 };
-                if unsafe {
-                    hbc_rs::loader::prepare_launch(
-                        &image.bytes,
-                        &image.plan,
-                        &image.arguments,
-                        hbc_rs::platform::startup::EXECUTABLE_MEMORY,
-                    )
-                }
-                .is_err()
-                {
-                    startup
-                        .runtime_mut()
-                        .show_notice("Could not prepare this application to run.");
+                if let Err(notice) = transfer_executable(
+                    &mut startup,
+                    &image.bytes,
+                    &image.plan,
+                    &image.arguments,
+                    "Could not prepare this application to run.",
+                ) {
+                    startup.runtime_mut().show_notice(notice);
                     continue;
                 }
-                if startup
-                    .runtime_mut()
-                    .save_settings_if_dirty(hbc_rs::platform::settings::save)
-                    .is_err()
-                {
-                    startup
-                        .runtime_mut()
-                        .show_notice("Could not save settings. Application launch stopped.");
-                    continue;
-                }
-                if startup.unmount_storage().is_err() {
-                    startup
-                        .runtime_mut()
-                        .show_notice("Could not stop storage. Application launch stopped.");
-                    continue;
-                }
-                let _ = wpad_sys::shutdown();
-                hbc_rs::platform::video::shutdown();
-                unsafe { hbc_rs::loader::transfer_control(image.plan.entry) };
             }
             if action == hbc_rs::app::Action::DeleteSelected {
                 if startup.delete_selected_app().is_err() {
@@ -229,6 +247,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                             .show_notice("Could not stop storage. BootMii launch stopped.");
                         continue;
                     }
+                    hbc_rs::platform::wiiload::stop();
                     let _ = wpad_sys::shutdown();
                     let _ = ogc_ios::launch_new_ios(254);
                 }
@@ -239,11 +258,48 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
 }
 
 #[cfg(target_arch = "powerpc")]
+fn transfer_executable(
+    startup: &mut hbc_rs::platform::startup::WiiStartup,
+    bytes: &[u8],
+    plan: &hbc_rs::loader::LoadPlan,
+    arguments: &[u8],
+    prepare_error: &'static str,
+) -> Result<(), &'static str> {
+    if unsafe {
+        hbc_rs::loader::prepare_launch(
+            bytes,
+            plan,
+            arguments,
+            hbc_rs::platform::startup::EXECUTABLE_MEMORY.clone(),
+        )
+    }
+    .is_err()
+    {
+        return Err(prepare_error);
+    }
+    if startup
+        .runtime_mut()
+        .save_settings_if_dirty(hbc_rs::platform::settings::save)
+        .is_err()
+    {
+        return Err("Could not save settings. Application launch stopped.");
+    }
+    if startup.unmount_storage().is_err() {
+        return Err("Could not stop storage. Application launch stopped.");
+    }
+    hbc_rs::platform::wiiload::stop();
+    let _ = wpad_sys::shutdown();
+    hbc_rs::platform::video::shutdown();
+    unsafe { hbc_rs::loader::transfer_control(plan.entry) }
+}
+
+#[cfg(target_arch = "powerpc")]
 fn exit_to_system(startup: &mut hbc_rs::platform::startup::WiiStartup, reset: u32) -> ! {
     let _ = startup
         .runtime_mut()
         .save_settings_if_dirty(hbc_rs::platform::settings::save);
     let _ = startup.unmount_storage();
+    hbc_rs::platform::wiiload::stop();
     let _ = wpad_sys::shutdown();
     hbc_rs::platform::video::shutdown();
     unsafe { ogc_system::reset_system(reset as i32, 0, 0) };

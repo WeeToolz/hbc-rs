@@ -15,7 +15,9 @@ deferred.
   retries, listens on port 4299, filters clients to HBC's local IPv4 `/16`, and
   validates complete uploads through the host-testable protocol decoder. The
   decoder checks exact body length and bounded decompression. The worker queues
-  one payload for the main thread. The entry point does not start it yet.
+  one payload for the main thread. The entry point starts the worker and sends
+  validated ELF or DOL uploads through the existing launch path. ZIP uploads
+  still need installation handling.
 - Input scanning for PAD and Wii Remotes, a frame-level application state
   driver, a bounded MEM2 allocator, and a Wii executable segment copier with
   cache maintenance and a one-way branch.
@@ -102,9 +104,9 @@ deferred.
   not restore an earlier IRQ exception vector, reload IOS for AHB access, or
   receive real hardware verification. The loaded program's crt0 must set the
   stack and install its own interrupt handlers before enabling interrupts.
-- Wiiload payload routing, network status artwork, update behavior, and incoming
-  theme installation still need integration. Settings save when HBC exits, as
-  in the original. Settings and theme replacement now
+- Wiiload ZIP routing, network status artwork, update behavior, and incoming
+  app and theme installation still need integration. Settings save when HBC
+  exits, as in the original. Settings and theme replacement now
   write a temporary NAND file, rename with a backup, and recover an interrupted
   replacement at the next load. Hardware behavior of ISFS rename remains
   unverified. Theme replacement needs enough free NAND space for both the old
