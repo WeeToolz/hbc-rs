@@ -124,6 +124,9 @@ has Rust crates for GX/video, input, FAT/filesystem, network, IOS/ES, cache, and
 system services. Some interfaces may still be incomplete for HBC, so record gaps
 as Rust implementation work rather than solving them with C wrappers.
 
+See [the current port status](docs/port-status.md) for implemented boundaries,
+open runtime work, and local verification limits.
+
 Before building from a fresh HBC checkout, copy the local `libogc-rs` workspace to
 `hbc-rs/libogc-rs/`. The dependency paths in `Cargo.toml` point to that location.
 
