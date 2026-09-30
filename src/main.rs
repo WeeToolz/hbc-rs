@@ -87,6 +87,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         }
 
         startup.poll_storage_scan();
+        startup.poll_device_availability();
         if let Some(succeeded) = startup.poll_received_zip_install() {
             startup.runtime_mut().show_notice(if succeeded {
                 "Received ZIP is complete."
@@ -156,6 +157,9 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         frames_since_storage_scan += 1;
         if frames_since_storage_scan == 30 {
             frames_since_storage_scan = 0;
+            if startup.runtime().controller().screen == hbc_rs::app::Screen::Options {
+                let _ = startup.refresh_device_availability();
+            }
             if startup.refresh_storage().is_err() {
                 startup
                     .runtime_mut()
@@ -168,7 +172,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         }
         let mut frame = hbc_rs::platform::input::scan();
         let storage_scan_pending = startup.storage_scan_pending();
-        if storage_scan_pending {
+        if storage_scan_pending || startup.device_probe_pending() {
             frame.pressed.clear();
             frame.held.clear();
             frame.released.clear();

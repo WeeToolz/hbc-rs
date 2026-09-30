@@ -35,6 +35,9 @@ const ZIP_INSTALL_IDLE: u8 = 0;
 const ZIP_INSTALL_REQUESTED: u8 = 1;
 const ZIP_INSTALL_RUNNING: u8 = 2;
 const ZIP_INSTALL_READY: u8 = 3;
+const DEVICE_PROBE_IDLE: u8 = 0;
+const DEVICE_PROBE_RUNNING: u8 = 1;
+const DEVICE_PROBE_READY: u8 = 2;
 pub const EXECUTABLE_MEMORY: core::ops::Range<u32> = 0x8000_3400..0x8132_fc00;
 
 struct StorageScanResult {
@@ -52,6 +55,10 @@ static STORAGE_SCAN_PREFERENCE: AtomicI32 = AtomicI32::new(0);
 static STORAGE_SCAN_SHUTDOWN_OLD: AtomicBool = AtomicBool::new(false);
 static mut STORAGE_SCAN_RESULT: MaybeUninit<StorageScanResult> = MaybeUninit::uninit();
 static mut STORAGE_SCAN_STACK: StorageScanStack = StorageScanStack([0; STORAGE_SCAN_STACK_SIZE]);
+static DEVICE_PROBE_STATE: AtomicU8 = AtomicU8::new(DEVICE_PROBE_IDLE);
+static DEVICE_PROBE_ACTIVE: AtomicU8 = AtomicU8::new(2);
+static mut DEVICE_PROBE_RESULT: MaybeUninit<[bool; 2]> = MaybeUninit::uninit();
+static mut DEVICE_PROBE_STACK: StorageScanStack = StorageScanStack([0; STORAGE_SCAN_STACK_SIZE]);
 
 struct ZipInstallRequest {
     storage: FatStorage,
@@ -117,6 +124,39 @@ unsafe fn zip_install_entry(_argument: *mut c_void) -> *mut c_void {
     null_mut()
 }
 
+fn probe_one_device(volume: Volume) -> bool {
+    let name = volume.mount_name();
+    if ogc_fat::is_mounted(name) {
+        return true;
+    }
+    let mounted = match volume {
+        Volume::Sd => ogc_fat::mount_sd().is_ok(),
+        Volume::Usb => ogc_fat::mount_usb().is_ok(),
+    };
+    if !mounted {
+        return false;
+    }
+    let available = ogc_fat::is_mounted(name);
+    let _ = ogc_fat::unmount(name);
+    available
+}
+
+unsafe fn device_probe_entry(_argument: *mut c_void) -> *mut c_void {
+    DEVICE_PROBE_STATE.store(DEVICE_PROBE_RUNNING, Ordering::Release);
+    let active = match DEVICE_PROBE_ACTIVE.load(Ordering::Acquire) {
+        0 if ogc_fat::is_mounted(Volume::Sd.mount_name()) => Some(0),
+        1 if ogc_fat::is_mounted(Volume::Usb.mount_name()) => Some(1),
+        _ => None,
+    };
+    let availability = crate::app::device_availability_snapshot(
+        active,
+        [probe_one_device(Volume::Sd), probe_one_device(Volume::Usb)],
+    );
+    unsafe { addr_of_mut!(DEVICE_PROBE_RESULT).write(MaybeUninit::new(availability)) };
+    DEVICE_PROBE_STATE.store(DEVICE_PROBE_READY, Ordering::Release);
+    null_mut()
+}
+
 unsafe fn storage_scan_entry(_argument: *mut c_void) -> *mut c_void {
     if STORAGE_SCAN_SHUTDOWN_OLD.load(Ordering::Acquire) {
         let _ = ogc_fat::shutdown_all();
@@ -150,6 +190,7 @@ pub struct WiiStartup {
     scan_previous_volume: Option<Volume>,
     scan_requested_volume: Option<Volume>,
     zip_install_thread: Option<ogc_lwp::ThreadHandle>,
+    device_probe_thread: Option<ogc_lwp::ThreadHandle>,
 }
 
 pub struct IconTexture {
@@ -184,7 +225,10 @@ impl WiiStartup {
                 kind: _,
                 extraction,
             } => {
-                if self.storage_scan_pending() || self.received_zip_install_pending() {
+                if self.storage_scan_pending()
+                    || self.received_zip_install_pending()
+                    || self.device_probe_pending()
+                {
                     return Err(StartupError::StorageScanPending);
                 }
                 if ZIP_INSTALL_STATE.load(Ordering::Acquire) != ZIP_INSTALL_IDLE {
@@ -324,6 +368,7 @@ impl WiiStartup {
             scan_previous_volume: None,
             scan_requested_volume: None,
             zip_install_thread: None,
+            device_probe_thread: None,
         };
         #[cfg(feature = "startup-diagnostics")]
         super::diagnostics::mark("STORAGE WORKER START");
@@ -369,7 +414,7 @@ impl WiiStartup {
         shutdown_previous_mount: bool,
         requested_volume: Option<Volume>,
     ) -> Result<(), StartupError> {
-        if self.scan_thread.is_some() {
+        if self.scan_thread.is_some() || self.device_probe_thread.is_some() {
             return Ok(());
         }
         if STORAGE_SCAN_STATE.load(Ordering::Acquire) != STORAGE_SCAN_IDLE {
@@ -444,6 +489,61 @@ impl WiiStartup {
         true
     }
 
+    pub fn refresh_device_availability(&mut self) -> Result<bool, StartupError> {
+        if self.device_probe_thread.is_some()
+            || self.storage_scan_pending()
+            || self.received_zip_install_pending()
+        {
+            return Ok(false);
+        }
+        if DEVICE_PROBE_STATE.load(Ordering::Acquire) != DEVICE_PROBE_IDLE {
+            return Ok(false);
+        }
+        DEVICE_PROBE_ACTIVE.store(
+            self.volume.map_or(2, Volume::settings_index) as u8,
+            Ordering::Release,
+        );
+        DEVICE_PROBE_STATE.store(DEVICE_PROBE_RUNNING, Ordering::Release);
+        let mut raw_thread = ogc_lwp::sys::LWP_THREAD_NULL;
+        let created = unsafe {
+            ogc_lwp::ThreadHandle::create(
+                &mut raw_thread,
+                Some(device_probe_entry),
+                null_mut(),
+                addr_of_mut!(DEVICE_PROBE_STACK.0).cast(),
+                STORAGE_SCAN_STACK_SIZE as u32,
+                STORAGE_SCAN_PRIORITY,
+            )
+        };
+        match created {
+            Ok(thread) => {
+                self.device_probe_thread = Some(thread);
+                Ok(true)
+            }
+            Err(error) => {
+                DEVICE_PROBE_STATE.store(DEVICE_PROBE_IDLE, Ordering::Release);
+                Err(StartupError::ScanWorker(error))
+            }
+        }
+    }
+
+    pub fn poll_device_availability(&mut self) -> bool {
+        if DEVICE_PROBE_STATE.load(Ordering::Acquire) != DEVICE_PROBE_READY {
+            return false;
+        }
+        if let Some(thread) = self.device_probe_thread.take() {
+            let _ = thread.join();
+        }
+        let availability = unsafe { addr_of_mut!(DEVICE_PROBE_RESULT).read().assume_init_read() };
+        self.runtime.set_device_availability(availability);
+        DEVICE_PROBE_STATE.store(DEVICE_PROBE_IDLE, Ordering::Release);
+        true
+    }
+
+    pub fn device_probe_pending(&self) -> bool {
+        self.device_probe_thread.is_some()
+    }
+
     pub fn icon_textures(&self) -> &[IconTexture] {
         &self.icon_textures
     }
@@ -455,7 +555,10 @@ impl WiiStartup {
     /// Decode visible HBC-sized icons once and retain their aligned GX data.
     /// Bad, missing, and oversized optional icons stay on the placeholder path.
     pub fn refresh_visible_icons(&mut self) {
-        if self.storage_scan_pending() || self.received_zip_install_pending() {
+        if self.storage_scan_pending()
+            || self.received_zip_install_pending()
+            || self.device_probe_pending()
+        {
             return;
         }
         let visible: Vec<(usize, alloc::string::String)> = {
@@ -512,7 +615,10 @@ impl WiiStartup {
     /// Retry device selection and catalog scanning after media removal or
     /// insertion. Call this every 30 frames, as HBC does.
     pub fn refresh_storage(&mut self) -> Result<bool, StartupError> {
-        if self.storage_scan_pending() || self.received_zip_install_pending() {
+        if self.storage_scan_pending()
+            || self.received_zip_install_pending()
+            || self.device_probe_pending()
+        {
             return Ok(false);
         }
         if self
@@ -651,6 +757,9 @@ impl WiiStartup {
 
     /// Apply the confirmed storage preference and refresh the app catalog.
     pub fn apply_options(&mut self) -> Result<bool, StartupError> {
+        if self.device_probe_pending() {
+            return Err(StartupError::StorageScanPending);
+        }
         let preferred = self.runtime.settings().current().device;
         let wanted = if preferred == 1 {
             Volume::Usb
@@ -688,7 +797,7 @@ impl WiiStartup {
 
     /// Unmount the selected volume before the one-way executable handoff.
     pub fn unmount_storage(&mut self) -> Result<(), StartupError> {
-        if self.storage_scan_pending() {
+        if self.storage_scan_pending() || self.device_probe_pending() {
             return Err(StartupError::StorageScanPending);
         }
         ogc_fat::shutdown_all().map_err(|error| StartupError::Storage(StorageError::Fat(error)))?;

@@ -155,6 +155,19 @@ impl PageNavigation {
     }
 }
 
+/// Build the two-device status snapshot. An already mounted active device is
+/// available even if an alternate-device probe failed.
+pub fn device_availability_snapshot(
+    active_mounted: Option<usize>,
+    detected: [bool; 2],
+) -> [bool; 2] {
+    let mut snapshot = detected;
+    if let Some(active) = active_mounted.filter(|index| *index < snapshot.len()) {
+        snapshot[active] = true;
+    }
+    snapshot
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct AppController {
     pub screen: Screen,
@@ -183,6 +196,7 @@ pub struct AppController {
     bootmii_available: bool,
     preferred_device: i32,
     active_device: Option<i32>,
+    device_available: [Option<bool>; 2],
     pending_device: i32,
     pending_sort: SortOrder,
     options_focus: usize,
@@ -356,6 +370,14 @@ impl AppController {
 
     pub fn set_active_device(&mut self, device: Option<i32>) {
         self.active_device = device;
+    }
+
+    pub fn device_available(&self, device: usize) -> Option<bool> {
+        self.device_available.get(device).copied().flatten()
+    }
+
+    pub fn set_device_availability(&mut self, availability: [bool; 2]) {
+        self.device_available = [Some(availability[0]), Some(availability[1])];
     }
 
     pub fn menu_item_count(&self) -> usize {
@@ -1553,5 +1575,26 @@ mod tests {
         controller.handle(Input::Up, &catalog);
         assert_eq!(controller.selected_app.as_deref(), Some("a"));
         assert_eq!(controller.selected_index(), 0);
+    }
+
+    #[test]
+    fn options_availability_is_a_snapshot_and_does_not_change_pending_choice() {
+        let mut controller = AppController::new();
+        let snapshot = device_availability_snapshot(Some(0), [false, true]);
+        assert_eq!(snapshot, [true, true]);
+        controller.set_device_availability([true, false]);
+        controller.set_preferred_device(0);
+        controller.handle(Input::OpenOptions, &[]);
+        assert_eq!(controller.device_available(0), Some(true));
+        assert_eq!(controller.device_available(1), Some(false));
+        assert_eq!(controller.pending_device(), 0);
+        controller.handle(Input::Up, &[]);
+        controller.handle(Input::Up, &[]);
+        controller.handle(Input::Confirm, &[]);
+        assert_eq!(controller.pending_device(), 1);
+        assert_eq!(controller.device_available(1), Some(false));
+        controller.handle(Input::Back, &[]);
+        controller.handle(Input::OpenOptions, &[]);
+        assert_eq!(controller.pending_device(), 0);
     }
 }

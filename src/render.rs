@@ -832,6 +832,13 @@ pub fn browser_frame_with_viewport(
                 },
             );
             frame.hit_target(PointerTarget::Option(1), bounds);
+            let status = |index| match controller.device_available(index) {
+                Some(true) => "Available",
+                Some(false) => "Unavailable",
+                None => "Checking",
+            };
+            frame.text(133.0, 145.0, status(0), 0.8, MUTED, 18);
+            frame.text(349.0, 145.0, status(1), 0.8, MUTED, 18);
             frame.button(112.0, 172.0, ButtonSize::Small, false, "SD Gecko A", MUTED);
             frame.button(328.0, 172.0, ButtonSize::Small, false, "SD Gecko B", MUTED);
             frame.set_text_style(theme_text_style(theme, "label", text_color));

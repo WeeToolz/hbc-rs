@@ -41,7 +41,10 @@ deferred.
   the selected volume and refresh the catalog. The two GameCube memory card
   choices are shown as disabled because the current FAT backends do not support
   them. HBC also updates device availability while its dialog is open; Rust
-  reports an unavailable SD or USB choice after the user confirms it.
+  reports an unavailable SD or USB choice after the user confirms it. Rust now
+  probes SD and USB availability on a worker while Options is open, and displays
+  the completed availability snapshot without blocking the main loop. The worker
+  leaves existing mounts registered and unmounts only a volume it mounted itself.
 
 ## Remaining runtime work
 

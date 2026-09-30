@@ -79,6 +79,10 @@ impl AppRuntime {
         self.controller.set_active_device(device);
     }
 
+    pub fn set_device_availability(&mut self, availability: [bool; 2]) {
+        self.controller.set_device_availability(availability);
+    }
+
     pub fn set_widescreen(&mut self, widescreen: bool) {
         self.controller
             .set_grid_columns(if widescreen { 4 } else { 3 }, &self.catalog);
