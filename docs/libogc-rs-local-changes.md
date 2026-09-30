@@ -119,12 +119,13 @@ specific HBC/libogc commands; the startup diagnostic still reports
 `GX XFB BLACK` in Dolphin, so the GX rendering failure is not resolved.
 
 The GX work is incomplete. The FIFO setup is a minimal single-owner path. It
-does not install CP or PE interrupt handlers, provide overflow/underflow
-recovery, reset and abort handling, or wait for draw completion. HBC sprite and
-text rendering also needs vertex descriptor and format commands, texture
-coordinate generation, TEV and blend state, texture and palette upload, and
-texture-cache invalidation. Treat FIFO flow control as unverified until it has
-hardware testing. Do not use the display functions before FIFO initialization.
+installs a PE finish handler and waits for completion before it schedules a
+frame for VI scanout. It does not install CP token/overflow handlers or provide
+FIFO recovery, reset, and abort handling. HBC sprite and text rendering also
+needs vertex descriptor and format commands, texture-coordinate generation,
+TEV and blend state, texture and palette upload, and texture-cache
+invalidation. Treat FIFO flow control as unverified until it has hardware
+testing. Do not use the display functions before FIFO initialization.
 The rectangle path does not load textures or support HBC sprite, icon, or text
 rendering.
 

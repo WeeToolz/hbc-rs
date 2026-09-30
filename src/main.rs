@@ -261,7 +261,11 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         if !display_ready {
             hbc_rs::platform::diagnostics::mark("GX COPY START");
         }
-        unsafe { video.present() };
+        if unsafe { video.present() }.is_err() {
+            #[cfg(feature = "startup-diagnostics")]
+            hbc_rs::platform::diagnostics::fail("GX DRAW DONE TIMEOUT");
+            return -4;
+        }
         if !display_ready {
             #[cfg(feature = "startup-diagnostics")]
             {

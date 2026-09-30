@@ -131,15 +131,18 @@ impl VideoSystem {
         .map_err(VideoError::GxTexture)
     }
 
-    /// Queue an EFB-to-XFB copy and schedule the framebuffer for VI scanout.
+    /// Copy EFB to XFB, wait for GX to finish, and schedule the framebuffer for VI scanout.
     ///
     /// # Safety
     /// The caller must finish drawing the frame and keep all referenced graphics
-    /// resources alive until GX has completed the copy.
-    pub unsafe fn present(&self) {
-        unsafe { ogc_gx::present_frame(self.config) };
+    /// resources alive until this function returns.
+    pub unsafe fn present(&self) -> Result<(), VideoError> {
+        if !unsafe { ogc_gx::present_frame_and_wait(self.config) } {
+            return Err(VideoError::GxDrawTimeout);
+        }
         unsafe { ogc_video::set_next_framebuffer(self.framebuffer) };
         ogc_video::flush();
+        Ok(())
     }
 }
 
@@ -149,6 +152,7 @@ pub enum VideoError {
     FramebufferAllocationFailed,
     InvalidFrameConfig,
     GxFifo(ogc_gx::GxFifoError),
+    GxDrawTimeout,
     GxRect(ogc_gx::GxRectError),
     GxTexture(ogc_gx::GxTextureError),
 }
