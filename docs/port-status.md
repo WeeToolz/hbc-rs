@@ -106,9 +106,9 @@ deferred.
   returning to the System Menu if the IOS launch returns. This path is not
   hardware-tested. App deletion asks for an explicit yes response and uses the
   safe folder remover. A canceled delete returns to app details.
-- The GX FIFO path has no interrupt-based flow control, overflow recovery, or
-  draw-completion wait. Its register setup and display output are unverified on
-  hardware. A native GX RGBA8 texture path now configures textured 2D state,
+- The GX FIFO path has no interrupt-based flow control or overflow recovery.
+  It uses a bounded draw-completion wait. Its register setup and display output
+  are unverified on hardware. A native GX RGBA8 texture path now configures textured 2D state,
   loads texture-map registers, invalidates texture cache, and draws textured
   quads. Icon allocations remain alive for the current catalog and are released
   after catalog refresh or app deletion. This output is also unverified on
@@ -116,11 +116,14 @@ deferred.
 - ELF/DOL launch now reads the selected file, validates and applies its load
   plan, patches the HBC crt0 byte when present, and writes argv data into the
   reserved area. It saves settings, unmounts storage, shuts down WPAD and system
-  services, disables IRQ masks and external interrupts, clears HBC's runtime
-  memory through an Arena2 trampoline, and branches to the entry point. It does
-  not restore an earlier IRQ exception vector, reload IOS for AHB access, or
-  receive real hardware verification. The loaded program's crt0 must set the
-  stack and install its own interrupt handlers before enabling interrupts.
+  services, reloads the preferred IOS for apps that do not request AHB access,
+  disables IRQ masks and external interrupts, clears HBC's runtime memory
+  through an Arena2 trampoline, and branches to the entry point. Apps that
+  request AHB access keep the current IOS because the local libogc-rs API does
+  not provide HBC's post-reload ES patch. The local API also has no safe
+  exception-vector close operation, so the Rust IRQ vector remains installed.
+  The loaded program's crt0 must set the stack and install its own interrupt
+  handlers before enabling interrupts. This path is not verified on hardware.
 - Wiiload now accepts ELF and DOL uploads through the launch path. It checks
   received app and theme ZIPs, asks before applying them, extracts app files
   below `apps/<folder>`, and saves and applies theme ZIPs through NAND. App

@@ -708,6 +708,10 @@ impl WiiStartup {
             bytes,
             plan,
             arguments: launch_arguments,
+            ahb_access: entry
+                .metadata
+                .as_ref()
+                .is_some_and(|metadata| metadata.ahb_access),
         })
     }
 
@@ -853,6 +857,8 @@ pub struct LaunchImage {
     pub bytes: Vec<u8>,
     pub plan: LoadPlan,
     pub arguments: Vec<u8>,
+    /// The app metadata requests access to hardware registers after launch.
+    pub ahb_access: bool,
 }
 
 pub struct PreparedTheme {

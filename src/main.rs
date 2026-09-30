@@ -141,6 +141,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                                     &payload.data,
                                     &plan,
                                     &payload.args,
+                                    false,
                                     "Could not prepare the received application.",
                                 ) {
                                     startup.runtime_mut().show_notice(notice);
@@ -390,6 +391,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                     &image.bytes,
                     &image.plan,
                     &image.arguments,
+                    image.ahb_access,
                     "Could not prepare this application to run.",
                 ) {
                     startup.runtime_mut().show_notice(notice);
@@ -437,6 +439,7 @@ fn transfer_executable(
     bytes: &[u8],
     plan: &hbc_rs::loader::LoadPlan,
     arguments: &[u8],
+    ahb_access: bool,
     prepare_error: &'static str,
 ) -> Result<(), &'static str> {
     if unsafe {
@@ -464,7 +467,9 @@ fn transfer_executable(
     hbc_rs::platform::wiiload::stop();
     let _ = wpad_sys::shutdown();
     hbc_rs::platform::video::shutdown();
-    unsafe { hbc_rs::loader::transfer_control(plan.entry) }
+    unsafe {
+        hbc_rs::loader::transfer_control(plan.entry, hbc_rs::loader::should_reload_ios(ahb_access))
+    }
 }
 
 #[cfg(target_arch = "powerpc")]

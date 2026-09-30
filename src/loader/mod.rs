@@ -48,6 +48,14 @@ pub enum ParseError {
 
 pub const MAX_LAUNCH_ARGUMENT_BYTES: usize = 1024;
 
+/// Decide whether launch must preserve the current IOS state for AHB access.
+///
+/// HBC patches ES after an IOS reload to restore AHB access. libogc-rs does not
+/// expose that patch, so apps that request AHB access must keep the current IOS.
+pub const fn should_reload_ios(ahb_access: bool) -> bool {
+    !ahb_access
+}
+
 /// Build the Wii `__argv.commandLine` byte sequence used by HBC.
 ///
 /// The executable path is the first NUL-terminated argument. Metadata values
@@ -381,6 +389,12 @@ fn be32(bytes: &[u8], offset: usize) -> Result<u32, ParseError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn launch_ios_policy_preserves_ahb_access() {
+        assert!(should_reload_ios(false));
+        assert!(!should_reload_ios(true));
+    }
     use alloc::vec;
     #[test]
     fn rejects_short_dol_and_bad_section_ranges() {

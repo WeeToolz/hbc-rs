@@ -167,10 +167,11 @@ pub unsafe fn prepare_launch(
 ///
 /// `entry` must point to initialized executable Wii RAM. The caller must stop
 /// HBC-owned worker threads and unmount storage first. The current Rust IRQ
-/// vector remains installed while all IRQ sources and external interrupts are
-/// disabled; the executable's crt0 must install its own handlers and set its
-/// stack before it enables interrupts.
-pub unsafe fn transfer_control(entry: u32) -> ! {
+/// vector remains installed because libogc-rs has no safe close operation; the
+/// executable's crt0 must install its own handlers and set its stack before it
+/// enables interrupts. Reload preferred IOS only when the app does not request
+/// AHB access, because the required HBC ES patch is not available here.
+pub unsafe fn transfer_control(entry: u32, reload_ios: bool) -> ! {
     const EXEC_STUB: [u32; 8] = [
         0x7c69_03a6, // mtctr r3
         0x3d20_8133, // lis r9, 0x8133
@@ -199,6 +200,9 @@ pub unsafe fn transfer_control(entry: u32) -> ! {
         ogc_cache::dc_flush_range(stub.cast::<c_void>(), stub_len as u32);
         ogc_cache::ic_invalidate_range(stub.cast::<c_void>(), stub_len as u32);
         ogc_system::reset_system(ogc_system::SYS_SHUTDOWN as i32, 0, 0);
+        if reload_ios {
+            let _ = ogc_ios::launch_new_ios(ogc_ios::get_preferred_version());
+        }
         ogc_irq::disable(u32::MAX);
         core::arch::asm!(
             "mfmsr 3",
