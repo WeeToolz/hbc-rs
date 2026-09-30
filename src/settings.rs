@@ -2,7 +2,7 @@
 
 use alloc::{format, string::String};
 
-use crate::metadata::{parse_settings_xml, UserSettings};
+use crate::metadata::{parse_settings_xml, truncate_utf8_bytes, UserSettings};
 
 pub const SETTINGS_PATH: &str = "settings.xml";
 pub const MAX_SETTINGS_XML_SIZE: usize = 16 * 1024;
@@ -20,7 +20,12 @@ pub fn encode_settings_xml(settings: &UserSettings) -> Result<String, SettingsCo
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?><hbc><device>{}</device><sort_order>{}</sort_order><browse_mode>{}</browse_mode>",
         settings.device, settings.sort_order, settings.browse_mode
     );
-    if let Some(selected_app) = settings.selected_app.as_deref().filter(|v| !v.is_empty()) {
+    if let Some(selected_app) = settings
+        .selected_app
+        .as_deref()
+        .filter(|v| !v.is_empty())
+        .map(|value| truncate_utf8_bytes(value, 63))
+    {
         xml.push_str("<app_sel>");
         for character in selected_app.chars() {
             match character {
@@ -114,6 +119,17 @@ mod tests {
         let xml = encode_settings_xml(&settings).unwrap();
         assert!(xml.contains("a&lt;&amp;&quot;b"));
         assert_eq!(decode_settings_xml(xml.as_bytes()).unwrap(), settings);
+    }
+
+    #[test]
+    fn settings_encoder_matches_the_fixed_c_buffer_byte_limit() {
+        let settings = UserSettings {
+            selected_app: Some("é".repeat(40)),
+            ..UserSettings::default()
+        };
+        let decoded =
+            decode_settings_xml(encode_settings_xml(&settings).unwrap().as_bytes()).unwrap();
+        assert_eq!(decoded.selected_app.as_deref().unwrap().len(), 62);
     }
 
     #[test]

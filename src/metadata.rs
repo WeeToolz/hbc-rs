@@ -98,8 +98,16 @@ pub fn parse_settings_xml(xml: &str) -> Result<UserSettings, String> {
         device: number(node, "device", -1),
         sort_order: number(node, "sort_order", 0),
         browse_mode: number(node, "browse_mode", 0),
-        selected_app: node.text("app_sel").map(|s| s.chars().take(63).collect()),
+        selected_app: node.text("app_sel").map(|s| truncate_utf8_bytes(&s, 63)),
     })
+}
+
+pub(crate) fn truncate_utf8_bytes(value: &str, max_bytes: usize) -> String {
+    let mut end = value.len().min(max_bytes);
+    while !value.is_char_boundary(end) {
+        end -= 1;
+    }
+    value[..end].into()
 }
 
 pub fn parse_theme_xml(xml: &str) -> Result<ThemeMetadata, String> {
@@ -408,5 +416,13 @@ mod tests {
     fn rejects_bad_xml_and_invalid_dates() {
         assert!(parse_app_xml("<app><name>x</app>").is_err());
         assert_eq!(parse_date("20241332"), None);
+    }
+
+    #[test]
+    fn settings_selection_limit_matches_the_c_byte_buffer() {
+        let selected = "é".repeat(40);
+        let xml = format!("<hbc><app_sel>{selected}</app_sel></hbc>");
+        let settings = parse_settings_xml(&xml).unwrap();
+        assert_eq!(settings.selected_app.as_deref().unwrap().len(), 62);
     }
 }
