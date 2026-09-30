@@ -126,6 +126,25 @@ pub struct Frame {
     pub commands: Vec<FrameCommand>,
     pub hit_targets: Vec<HitTarget>,
     logical_width: u16,
+    text_scale: f32,
+    text_color: Option<Color>,
+    focused_button_style: TextStyle,
+    unfocused_button_style: TextStyle,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct TextStyle {
+    scale: f32,
+    color: Option<Color>,
+}
+
+impl Default for TextStyle {
+    fn default() -> Self {
+        Self {
+            scale: 1.0,
+            color: None,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -135,6 +154,10 @@ pub struct HitTarget {
 }
 
 impl Frame {
+    fn set_text_style(&mut self, style: TextStyle) {
+        self.text_scale = style.scale;
+        self.text_color = style.color;
+    }
     pub fn logical_width(&self) -> u16 {
         if self.logical_width == 0 {
             LOGICAL_WIDTH
@@ -342,14 +365,20 @@ impl Frame {
         };
         let bounds = rect(x, y, width, 48.0);
         self.theme_art(bounds, ThemeArt::Button(size), focused);
-        let text_width = label.chars().count() as f32 * 6.0;
+        let style = if focused {
+            self.focused_button_style
+        } else {
+            self.unfocused_button_style
+        };
+        self.set_text_style(style);
+        let text_width = label.chars().count() as f32 * 6.0 * self.text_scale;
         self.text(
             x + ((width - text_width).max(0.0) / 2.0),
             y + 20.0,
             label,
             1.0,
             color,
-            (width / 6.0) as usize,
+            (width / (6.0 * self.text_scale)).max(1.0) as usize,
         );
         bounds
     }
@@ -388,6 +417,13 @@ impl Frame {
     }
 
     fn text(&mut self, x: f32, y: f32, value: &str, scale: f32, color: Color, max_chars: usize) {
+        let style_scale = if self.text_scale == 0.0 {
+            1.0
+        } else {
+            self.text_scale
+        };
+        let scale = scale * style_scale;
+        let color = self.text_color.unwrap_or(color);
         if !scale.is_finite() || scale <= 0.0 {
             return;
         }
@@ -434,16 +470,23 @@ impl Frame {
         if max_chars == 0 || max_lines == 0 || !scale.is_finite() || scale <= 0.0 {
             return;
         }
-        let lines = wrap_lines(value, max_chars);
+        let style_scale = if self.text_scale == 0.0 {
+            1.0
+        } else {
+            self.text_scale
+        };
+        let line_scale = scale * style_scale;
+        let styled_max_chars = ((max_chars as f32) / style_scale).max(1.0) as usize;
+        let lines = wrap_lines(value, styled_max_chars);
         let visible_lines = wrapped_line_window(&lines, max_lines, scroll_lines);
         for (line_index, line) in visible_lines.iter().enumerate() {
             self.text(
                 x,
-                y + line_index as f32 * 9.0 * scale,
+                y + line_index as f32 * 9.0 * line_scale,
                 line,
                 scale,
                 color,
-                max_chars,
+                styled_max_chars,
             );
         }
     }
@@ -558,6 +601,9 @@ pub fn browser_frame_with_viewport(
         .and_then(|theme| theme.default_font.color)
         .map(color_from_rgba)
         .unwrap_or(Color::rgb(213, 224, 233));
+    frame.set_text_style(theme_text_style(theme, "label", text_color));
+    frame.focused_button_style = theme_text_style(theme, "button", text_color);
+    frame.unfocused_button_style = theme_text_style(theme, "button_desel", text_color);
     frame.fill(rect(0, 0, 640, 480), BACKGROUND);
     frame.fill(rect(0, 0, 640, 64), HEADER);
     frame.fill(rect(28, 23, 5, 28), ACCENT);
@@ -646,7 +692,8 @@ pub fn browser_frame_with_viewport(
                 }
                 let (text_x, name_y, description_y, text_width) =
                     (x + 156.0, y + 8.0, y + 54.0, cell_w - 168.0);
-                let max_chars = (text_width.max(6.0) / 6.0) as usize;
+                frame.set_text_style(theme_text_style(theme, "appname", text_color));
+                let max_chars = (text_width.max(6.0) / (6.0 * frame.text_scale)) as usize;
                 frame.text(text_x, name_y, name, 1.0, text_color, max_chars);
                 if app
                     .metadata
@@ -659,7 +706,9 @@ pub fn browser_frame_with_viewport(
                         .as_ref()
                         .and_then(|meta| meta.short_description.as_deref())
                         .unwrap_or_default();
-                    frame.text(text_x, description_y, description, 1.0, MUTED, max_chars);
+                    frame.set_text_style(theme_text_style(theme, "appdesc", MUTED));
+                    let desc_chars = (text_width.max(6.0) / (6.0 * frame.text_scale)) as usize;
+                    frame.text(text_x, description_y, description, 1.0, MUTED, desc_chars);
                 }
             }
         }
@@ -697,6 +746,7 @@ pub fn browser_frame_with_viewport(
         Screen::About => {
             frame.theme_art(rect(60, 44, 520, 360), ThemeArt::Dialog, false);
             frame.theme_art(rect(202, 60, 236, 104), ThemeArt::About, false);
+            frame.set_text_style(theme_text_style(theme, "label", text_color));
             frame.text(144.0, 190.0, "Homebrew Channel", 1.0, text_color, 36);
             frame.text(
                 144.0,
@@ -749,7 +799,9 @@ pub fn browser_frame_with_viewport(
         frame.fill(rect(0, 0, 640, 480), MODAL_SHADE);
         frame.theme_art(rect(60, 44, 520, 360), ThemeArt::Dialog, false);
         if controller.screen == Screen::Options {
+            frame.set_text_style(theme_text_style(theme, "dlgtitle", text_color));
             frame.text(299.0, 60.0, "Options", 1.0, text_color, 24);
+            frame.set_text_style(theme_text_style(theme, "label", text_color));
             frame.text(92.0, 104.0, "Storage device", 1.0, text_color, 32);
             let bounds = frame.button(
                 112.0,
@@ -779,6 +831,7 @@ pub fn browser_frame_with_viewport(
             frame.hit_target(PointerTarget::Option(1), bounds);
             frame.button(112.0, 172.0, ButtonSize::Small, false, "SD Gecko A", MUTED);
             frame.button(328.0, 172.0, ButtonSize::Small, false, "SD Gecko B", MUTED);
+            frame.set_text_style(theme_text_style(theme, "label", text_color));
             frame.text(92.0, 252.0, "Sort by", 1.0, text_color, 32);
             let bounds = frame.button(
                 112.0,
@@ -835,8 +888,18 @@ pub fn browser_frame_with_viewport(
                     .as_ref()
                     .and_then(|meta| meta.name.as_deref())
                     .unwrap_or(app.directory.as_str());
-                let name_width = name.chars().count().min(76) as f32 * 6.0;
-                frame.text(320.0 - name_width / 2.0, 60.0, name, 1.0, text_color, 76);
+                frame.set_text_style(theme_text_style(theme, "appname", text_color));
+                let max_chars = (76.0 / frame.text_scale).max(1.0) as usize;
+                let name_width =
+                    name.chars().count().min(max_chars) as f32 * 6.0 * frame.text_scale;
+                frame.text(
+                    320.0 - name_width / 2.0,
+                    60.0,
+                    name,
+                    1.0,
+                    text_color,
+                    max_chars,
+                );
                 if app.has_icon {
                     if let Some(catalog_index) = catalog
                         .iter()
@@ -850,6 +913,7 @@ pub fn browser_frame_with_viewport(
                     .as_ref()
                     .and_then(|meta| meta.version.as_deref())
                 {
+                    frame.set_text_style(theme_text_style(theme, "label", text_color));
                     frame.text(268.0, 116.0, version, 1.0, text_color, 42);
                 }
                 if let Some(author) = app
@@ -857,6 +921,7 @@ pub fn browser_frame_with_viewport(
                     .as_ref()
                     .and_then(|meta| meta.author.as_deref())
                 {
+                    frame.set_text_style(theme_text_style(theme, "label", text_color));
                     frame.text(268.0, 128.0, author, 1.0, text_color, 42);
                 }
                 let description = app
@@ -864,6 +929,7 @@ pub fn browser_frame_with_viewport(
                     .as_ref()
                     .and_then(|meta| meta.long_description.as_deref())
                     .unwrap_or("No description available.");
+                frame.set_text_style(theme_text_style(theme, "memo", text_color));
                 frame.text_wrapped_scrolled(
                     92.0,
                     148.0,
@@ -899,6 +965,7 @@ pub fn browser_frame_with_viewport(
                 ThemeArt::DialogIcon(DialogIcon::Confirm),
                 false,
             );
+            frame.set_text_style(theme_text_style(theme, "dlgtitle", text_color));
             frame.text(
                 190.0,
                 100.0,
@@ -924,6 +991,7 @@ pub fn browser_frame_with_viewport(
                 ThemeArt::DialogIcon(DialogIcon::Confirm),
                 false,
             );
+            frame.set_text_style(theme_text_style(theme, "dlgtitle", text_color));
             frame.text(
                 190.0,
                 100.0,
@@ -945,7 +1013,9 @@ pub fn browser_frame_with_viewport(
             }
         } else {
             frame.theme_art(rect(60, 44, 520, 360), ThemeArt::Dialog, false);
+            frame.set_text_style(theme_text_style(theme, "dlgtitle", text_color));
             frame.text(252.0, 124.0, "Installing ZIP", 1.0, text_color, 40);
+            frame.set_text_style(theme_text_style(theme, "label", text_color));
             frame.text(192.0, 190.0, "Please wait...", 1.0, text_color, 40);
             let percent = controller.wiiload_install_progress();
             let label = [
@@ -968,8 +1038,10 @@ pub fn browser_frame_with_viewport(
     if controller.screen == Screen::Notice {
         frame.fill(rect(0, 0, 640, 480), MODAL_SHADE);
         frame.theme_art(rect(60, 44, 520, 360), ThemeArt::Dialog, false);
+        frame.set_text_style(theme_text_style(theme, "dlgtitle", text_color));
         frame.text(286.0, 76.0, "Notice", 1.0, text_color, 24);
         if let Some(message) = controller.notice() {
+            frame.set_text_style(theme_text_style(theme, "label", text_color));
             frame.text(92.0, 148.0, message, 1.0, text_color, 74);
         }
         let bounds = frame.button(
@@ -994,6 +1066,35 @@ fn color_from_rgba(Rgba(red, green, blue, alpha): Rgba) -> Color {
         green,
         blue,
         alpha,
+    }
+}
+
+/// Resolve one HBC font target. Target values override only fields they define;
+/// missing values inherit from `default_font`, then from the renderer defaults.
+fn theme_text_style(theme: Option<&ThemeMetadata>, target: &str, fallback: Color) -> TextStyle {
+    let default = theme.map(|theme| &theme.default_font);
+    let specific = theme.and_then(|theme| {
+        theme.fonts.iter().find_map(|(targets, font)| {
+            targets
+                .iter()
+                .any(|candidate| candidate.eq_ignore_ascii_case(target))
+                .then_some(font)
+        })
+    });
+    let size = specific
+        .and_then(|font| font.size)
+        .or_else(|| default.and_then(|font| font.size));
+    // The built-in glyph is seven pixels high. Keep metadata sizes readable
+    // in the fixed HBC layout while allowing modest scaling in either direction.
+    let scale = size.map_or(1.0, |size| (size as f32 / 7.0).clamp(0.5, 2.5));
+    let color = specific
+        .and_then(|font| font.color)
+        .or_else(|| default.and_then(|font| font.color))
+        .map(color_from_rgba)
+        .unwrap_or(fallback);
+    TextStyle {
+        scale,
+        color: Some(color),
     }
 }
 
@@ -1065,6 +1166,72 @@ mod tests {
     use super::*;
     use crate::catalog::{AppEntry, AppKind};
     use alloc::{string::String, vec};
+
+    #[test]
+    fn target_font_fields_override_default_fields_independently() {
+        let theme = ThemeMetadata {
+            default_font: crate::metadata::ThemeFont {
+                size: Some(14),
+                color: Some(Rgba(1, 2, 3, 255)),
+                ..Default::default()
+            },
+            fonts: vec![(
+                vec![String::from("APPNAME")],
+                crate::metadata::ThemeFont {
+                    size: Some(7),
+                    ..Default::default()
+                },
+            )],
+            ..Default::default()
+        };
+        let style = theme_text_style(Some(&theme), "appname", Color::rgb(9, 8, 7));
+        assert_eq!(style.scale, 1.0);
+        assert_eq!(style.color, Some(Color::rgb(1, 2, 3)));
+        let fallback = theme_text_style(Some(&theme), "memo", Color::rgb(9, 8, 7));
+        assert_eq!(fallback.scale, 2.0);
+        assert_eq!(fallback.color, Some(Color::rgb(1, 2, 3)));
+    }
+
+    #[test]
+    fn target_matching_is_case_insensitive_and_does_not_match_other_roles() {
+        let theme = ThemeMetadata {
+            fonts: vec![(
+                vec![String::from("button_desel")],
+                crate::metadata::ThemeFont {
+                    color: Some(Rgba(30, 20, 10, 255)),
+                    ..Default::default()
+                },
+            )],
+            ..Default::default()
+        };
+        let style = theme_text_style(Some(&theme), "BUTTON_DESEL", Color::rgb(0, 0, 0));
+        assert_eq!(style.color, Some(Color::rgb(30, 20, 10)));
+        let other = theme_text_style(Some(&theme), "button", Color::rgb(0, 0, 0));
+        assert_eq!(other.color, Some(Color::rgb(0, 0, 0)));
+    }
+
+    #[test]
+    fn font_size_scales_native_seven_pixel_glyphs_with_safe_bounds() {
+        let make_theme = |size| ThemeMetadata {
+            default_font: crate::metadata::ThemeFont {
+                size: Some(size),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        assert_eq!(
+            theme_text_style(Some(&make_theme(14)), "label", Color::rgb(1, 1, 1)).scale,
+            2.0
+        );
+        assert_eq!(
+            theme_text_style(Some(&make_theme(1)), "label", Color::rgb(1, 1, 1)).scale,
+            0.5
+        );
+        assert_eq!(
+            theme_text_style(Some(&make_theme(100)), "label", Color::rgb(1, 1, 1)).scale,
+            2.5
+        );
+    }
 
     fn app(name: &str) -> AppEntry {
         AppEntry {

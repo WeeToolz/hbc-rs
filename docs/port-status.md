@@ -67,12 +67,16 @@ deferred.
 - A pure Rust theme ZIP parser now enforces the HBC archive size, entry count,
   root filename allowlist, duplicate-name policy, and bounded extraction plan.
   It parses `theme.xml` with the existing metadata parser. Applying a theme
-  saves its validated ZIP to NAND and updates its default font color and
-  background, logo, app card, and page arrow images for the current session.
+  saves its validated ZIP to NAND and updates its background, logo, app card,
+  and page arrow images for the current session. The native Rust bitmap glyph
+  renderer applies default and target-specific font colors and sizes to HBC's
+  `label`, `dlgtitle`, `memo`, `appname`, `appdesc`, `button`, and `button_desel`
+  text roles. It uses scaled built-in glyphs; custom TTF files are parsed as
+  metadata only and are not rasterized. Theme controls, custom fonts, and
+  progress gradients are not yet drawn.
   Startup loads and validates that archive again. Theme PNG resources use the bounded pure
   Rust decoder for grayscale, RGB, indexed, gray-alpha, and RGBA images, including
   Adam7 interlacing. The decoder can convert RGBA output to GX RGBA8 tile order.
-  Theme controls, fonts, and progress gradients are not yet drawn.
 - Device discovery mounts and scans one preferred volume on a worker at startup
   and retries SD/USB selection every 30 frames. The main loop pauses browser
   input during a scan and displays a loading panel. It unmounts an offline volume,
