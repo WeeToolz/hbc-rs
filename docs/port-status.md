@@ -48,8 +48,8 @@ deferred.
   list and grid app cards draw from built-in HBC images or matching active-theme
   PNG assets. Page arrows use HBC's 64x64 images and appear when a previous or
   next page exists. Main-menu rows use HBC large button images. About and modal
-  screens use the HBC dialog background, About artwork, and size-specific
-  normal and focused buttons. Wii Remote IR pointer input now selects and
+  screens use the HBC dialog background, confirmation icon, About artwork, and
+  size-specific normal and focused buttons. Wii Remote IR pointer input now selects and
   activates app cards, page arrows, menus, and dialog buttons using renderer
   hit bounds. App detail descriptions wrap and scroll by line with the Up and
   Down buttons, controller sticks, or pointer dragging. This artwork uses
@@ -97,8 +97,12 @@ deferred.
   not restore an earlier IRQ exception vector, reload IOS for AHB access, or
   receive real hardware verification. The loaded program's crt0 must set the
   stack and install its own interrupt handlers before enabling interrupts.
-- Network receive/update behavior, theme installation UI, and periodic dirty
-  settings save timing still need integration. Settings currently save on the
+- A host-testable Wiiload TCP header and body decoder enforces the `HAXX`
+  signature, protocol and payload bounds, checked body length, exact body size,
+  bounded zlib output, and argument separation. Socket setup, peer filtering,
+  payload routing, network status artwork, update behavior, and incoming theme
+  installation still need integration. Periodic dirty settings save timing
+  still needs integration. Settings currently save on the
   return-to-menu and power-off actions. Settings and theme replacement now
   write a temporary NAND file, rename with a backup, and recover an interrupted
   replacement at the next load. Hardware behavior of ISFS rename remains

@@ -24,6 +24,7 @@ const PAGE_ARROW_WIDTH: u32 = 64;
 const PAGE_ARROW_HEIGHT: u32 = 64;
 const DIALOG_WIDTH: u32 = 520;
 const DIALOG_HEIGHT: u32 = 360;
+const DIALOG_ICON_SIZE: u32 = 32;
 const LARGE_BUTTON_WIDTH: u32 = 340;
 const SMALL_BUTTON_WIDTH: u32 = 200;
 const TINY_BUTTON_WIDTH: u32 = 132;
@@ -44,6 +45,10 @@ const DEFAULT_PREVIOUS_ARROW_FOCUS: &[u8] = include_bytes!("../../assets/apps_pr
 const DEFAULT_NEXT_ARROW: &[u8] = include_bytes!("../../assets/apps_next.png");
 const DEFAULT_NEXT_ARROW_FOCUS: &[u8] = include_bytes!("../../assets/apps_next_hover.png");
 const DEFAULT_DIALOG: &[u8] = include_bytes!("../../assets/dialog_background.png");
+const DEFAULT_DIALOG_INFO: &[u8] = include_bytes!("../../assets/dlg_info.png");
+const DEFAULT_DIALOG_CONFIRM: &[u8] = include_bytes!("../../assets/dlg_confirm.png");
+const DEFAULT_DIALOG_WARNING: &[u8] = include_bytes!("../../assets/dlg_warning.png");
+const DEFAULT_DIALOG_ERROR: &[u8] = include_bytes!("../../assets/dlg_error.png");
 const DEFAULT_ABOUT: &[u8] = include_bytes!("../../assets/about.png");
 const DEFAULT_LARGE_BUTTON: &[u8] = include_bytes!("../../assets/button.png");
 const DEFAULT_LARGE_BUTTON_FOCUS: &[u8] = include_bytes!("../../assets/button_focus.png");
@@ -65,6 +70,10 @@ pub struct ThemeTextures {
     pub next_arrow: Option<crate::png::GxRgba8Texture>,
     pub next_arrow_focused: Option<crate::png::GxRgba8Texture>,
     pub dialog: Option<crate::png::GxRgba8Texture>,
+    pub dialog_info: Option<crate::png::GxRgba8Texture>,
+    pub dialog_confirm: Option<crate::png::GxRgba8Texture>,
+    pub dialog_warning: Option<crate::png::GxRgba8Texture>,
+    pub dialog_error: Option<crate::png::GxRgba8Texture>,
     pub large_button: Option<crate::png::GxRgba8Texture>,
     pub large_button_focused: Option<crate::png::GxRgba8Texture>,
     pub small_button: Option<crate::png::GxRgba8Texture>,
@@ -150,6 +159,34 @@ impl ThemeTextures {
                 DIALOG_WIDTH,
                 DIALOG_HEIGHT,
                 DEFAULT_DIALOG,
+            ),
+            dialog_info: theme_image_texture(
+                package,
+                "dlg_info.png",
+                DIALOG_ICON_SIZE,
+                DIALOG_ICON_SIZE,
+                DEFAULT_DIALOG_INFO,
+            ),
+            dialog_confirm: theme_image_texture(
+                package,
+                "dlg_confirm.png",
+                DIALOG_ICON_SIZE,
+                DIALOG_ICON_SIZE,
+                DEFAULT_DIALOG_CONFIRM,
+            ),
+            dialog_warning: theme_image_texture(
+                package,
+                "dlg_warning.png",
+                DIALOG_ICON_SIZE,
+                DIALOG_ICON_SIZE,
+                DEFAULT_DIALOG_WARNING,
+            ),
+            dialog_error: theme_image_texture(
+                package,
+                "dlg_error.png",
+                DIALOG_ICON_SIZE,
+                DIALOG_ICON_SIZE,
+                DEFAULT_DIALOG_ERROR,
             ),
             large_button: theme_image_texture(
                 package,

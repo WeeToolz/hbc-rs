@@ -6,7 +6,7 @@ use crate::{
         theme::ThemeTextures,
         video::{VideoError, VideoSystem},
     },
-    render::{map_rect, ButtonSize, Frame, FrameCommand, ThemeArt, LOGICAL_HEIGHT},
+    render::{map_rect, ButtonSize, DialogIcon, Frame, FrameCommand, ThemeArt, LOGICAL_HEIGHT},
 };
 
 /// Submit the theme background and logo, solid fills, and app icons through GX.
@@ -92,6 +92,10 @@ pub unsafe fn draw_frame(
             } => {
                 let texture = match art {
                     ThemeArt::Dialog => theme.dialog.as_ref(),
+                    ThemeArt::DialogIcon(DialogIcon::Info) => theme.dialog_info.as_ref(),
+                    ThemeArt::DialogIcon(DialogIcon::Confirm) => theme.dialog_confirm.as_ref(),
+                    ThemeArt::DialogIcon(DialogIcon::Warning) => theme.dialog_warning.as_ref(),
+                    ThemeArt::DialogIcon(DialogIcon::Error) => theme.dialog_error.as_ref(),
                     ThemeArt::About => theme.about.as_ref(),
                     ThemeArt::Button(ButtonSize::Large) if focused => {
                         theme.large_button_focused.as_ref()

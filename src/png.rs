@@ -1026,7 +1026,7 @@ mod tests {
 
     #[test]
     fn bundled_hbc_dialog_buttons_and_about_art_have_supported_dimensions() {
-        let images: [(&[u8], u32, u32); 8] = [
+        let images: [(&[u8], u32, u32); 12] = [
             (include_bytes!("../assets/dialog_background.png"), 520, 360),
             (include_bytes!("../assets/button.png"), 340, 48),
             (include_bytes!("../assets/button_focus.png"), 340, 48),
@@ -1035,6 +1035,10 @@ mod tests {
             (include_bytes!("../assets/button_tiny.png"), 132, 48),
             (include_bytes!("../assets/button_tiny_focus.png"), 132, 48),
             (include_bytes!("../assets/about.png"), 236, 104),
+            (include_bytes!("../assets/dlg_info.png"), 32, 32),
+            (include_bytes!("../assets/dlg_confirm.png"), 32, 32),
+            (include_bytes!("../assets/dlg_warning.png"), 32, 32),
+            (include_bytes!("../assets/dlg_error.png"), 32, 32),
         ];
         for (bytes, width, height) in images {
             let image = decode_png(

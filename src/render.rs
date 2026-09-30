@@ -105,8 +105,17 @@ pub enum ButtonSize {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DialogIcon {
+    Info,
+    Confirm,
+    Warning,
+    Error,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ThemeArt {
     Dialog,
+    DialogIcon(DialogIcon),
     About,
     Button(ButtonSize),
 }
@@ -877,6 +886,11 @@ pub fn browser_frame_with_viewport(
                 frame.hit_target(PointerTarget::Detail(*action), bounds);
             }
         } else {
+            frame.theme_art(
+                rect(188, 68, 32, 32),
+                ThemeArt::DialogIcon(DialogIcon::Confirm),
+                false,
+            );
             frame.text(
                 190.0,
                 100.0,
@@ -1234,6 +1248,35 @@ mod tests {
             command,
             FrameCommand::ThemeArt { art: ThemeArt::About, bounds, .. }
                 if *bounds == rect(202, 60, 236, 104)
+        )));
+    }
+
+    #[test]
+    fn delete_confirmation_uses_hbc_confirm_icon() {
+        let mut controller = AppController::new();
+        controller.screen = Screen::DeleteConfirm;
+        let frame = browser_frame(&controller, &[]);
+        assert!(frame.commands.iter().any(|command| matches!(
+            command,
+            FrameCommand::ThemeArt {
+                art: ThemeArt::DialogIcon(DialogIcon::Confirm),
+                bounds,
+                ..
+            } if *bounds == rect(188, 68, 32, 32)
+        )));
+    }
+
+    #[test]
+    fn options_dialog_does_not_show_a_message_icon() {
+        let mut controller = AppController::new();
+        controller.screen = Screen::Options;
+        let frame = browser_frame(&controller, &[]);
+        assert!(!frame.commands.iter().any(|command| matches!(
+            command,
+            FrameCommand::ThemeArt {
+                art: ThemeArt::DialogIcon(_),
+                ..
+            }
         )));
     }
 
