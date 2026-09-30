@@ -51,6 +51,9 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         for action in actions {
             if action == hbc_rs::app::Action::LaunchSelected {
                 let Ok(image) = startup.prepare_selected_executable() else {
+                    startup
+                        .runtime_mut()
+                        .show_notice("Could not read or validate this application.");
                     continue;
                 };
                 if unsafe {
@@ -63,11 +66,22 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 }
                 .is_err()
                 {
+                    startup
+                        .runtime_mut()
+                        .show_notice("Could not prepare this application to run.");
                     continue;
                 }
                 let settings = startup.runtime().settings().current();
-                let _ = hbc_rs::platform::settings::save(settings);
+                if hbc_rs::platform::settings::save(settings).is_err() {
+                    startup
+                        .runtime_mut()
+                        .show_notice("Could not save settings. Application launch stopped.");
+                    continue;
+                }
                 if startup.unmount_storage().is_err() {
+                    startup
+                        .runtime_mut()
+                        .show_notice("Could not stop storage. Application launch stopped.");
                     continue;
                 }
                 let _ = wpad_sys::shutdown();
@@ -75,7 +89,11 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 unsafe { hbc_rs::loader::transfer_control(image.plan.entry) };
             }
             if action == hbc_rs::app::Action::DeleteSelected {
-                let _ = startup.delete_selected_app();
+                if startup.delete_selected_app().is_err() {
+                    startup
+                        .runtime_mut()
+                        .show_notice("Could not delete this application.");
+                }
                 continue;
             }
             let reset = match action {

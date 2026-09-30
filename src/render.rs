@@ -359,6 +359,7 @@ pub fn browser_frame(controller: &AppController, catalog: &[AppEntry]) -> Frame 
                 32,
             );
         }
+        Screen::Notice => {}
     }
 
     // Footer and page progress are common to the browser view and use only
@@ -462,6 +463,16 @@ pub fn browser_frame(controller: &AppController, catalog: &[AppEntry]) -> Frame 
                 );
             }
         }
+    }
+    if controller.screen == Screen::Notice {
+        frame.fill(rect(0, 0, 640, 480), MODAL_SHADE);
+        frame.fill(rect(112, 164, 416, 152), PANEL);
+        frame.fill(rect(136, 184, 368, 24), HEADER);
+        frame.text(148.0, 192.0, "Notice", 1.0, Color::rgb(213, 224, 233), 24);
+        if let Some(message) = controller.notice() {
+            frame.text(144.0, 232.0, message, 1.0, Color::rgb(213, 224, 233), 58);
+        }
+        frame.text(144.0, 286.0, "Press A or B to continue", 1.0, MUTED, 36);
     }
     frame
 }

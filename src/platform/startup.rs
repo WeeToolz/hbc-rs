@@ -40,11 +40,17 @@ impl WiiStartup {
         let mut runtime = AppRuntime::new(catalog);
         runtime.load_settings(loaded_settings);
 
-        Self {
+        let mut startup = Self {
             runtime,
             volume,
             storage,
+        };
+        if !startup.has_storage() {
+            startup
+                .runtime
+                .show_notice("No SD or USB storage device is available.");
         }
+        startup
     }
 
     pub fn runtime(&self) -> &AppRuntime {

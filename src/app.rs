@@ -12,6 +12,7 @@ pub enum Screen {
     AppDetails,
     DeleteConfirm,
     About,
+    Notice,
 }
 
 /// Input after the platform layer maps controller buttons to logical actions.
@@ -85,6 +86,8 @@ pub struct AppController {
     menu_focus: usize,
     detail_focus: usize,
     delete_confirmation_yes: bool,
+    notice: Option<String>,
+    notice_return_screen: Screen,
 }
 
 impl AppController {
@@ -111,6 +114,17 @@ impl AppController {
 
     pub fn delete_confirmation_yes(&self) -> bool {
         self.delete_confirmation_yes
+    }
+
+    pub fn notice(&self) -> Option<&str> {
+        self.notice.as_deref()
+    }
+
+    /// Show a message and return to the current screen after dismissal.
+    pub fn show_notice(&mut self, message: String) {
+        self.notice_return_screen = self.screen;
+        self.notice = Some(message);
+        self.screen = Screen::Notice;
     }
 
     /// Keep the selected app identity valid after a catalog refresh.
@@ -188,7 +202,7 @@ impl AppController {
                     Action::None
                 }
                 Input::Back => {
-                    self.screen = Screen::Browser;
+                    self.screen = Screen::AppDetails;
                     Action::None
                 }
                 Input::Confirm if self.delete_confirmation_yes => {
@@ -196,7 +210,7 @@ impl AppController {
                     Action::DeleteSelected
                 }
                 Input::Confirm => {
-                    self.screen = Screen::Browser;
+                    self.screen = Screen::AppDetails;
                     Action::None
                 }
                 _ => Action::None,
@@ -204,6 +218,14 @@ impl AppController {
             Screen::About => match input {
                 Input::Back | Input::Confirm => {
                     self.screen = Screen::MainMenu;
+                    Action::None
+                }
+                _ => Action::None,
+            },
+            Screen::Notice => match input {
+                Input::Back | Input::Confirm | Input::Home => {
+                    self.notice = None;
+                    self.screen = self.notice_return_screen;
                     Action::None
                 }
                 _ => Action::None,
@@ -430,7 +452,8 @@ mod tests {
         assert_eq!(controller.handle(Input::Confirm, &catalog), Action::None);
         assert_eq!(controller.screen, Screen::DeleteConfirm);
         controller.handle(Input::Back, &catalog);
-        assert_eq!(controller.screen, Screen::Browser);
+        assert_eq!(controller.screen, Screen::AppDetails);
+        assert_eq!(controller.detail_focus(), 8);
         assert_eq!(controller.selected_app.as_deref(), Some("two"));
     }
 
@@ -445,13 +468,16 @@ mod tests {
         assert_eq!(controller.handle(Input::Confirm, &catalog), Action::None);
         assert_eq!(controller.screen, Screen::DeleteConfirm);
         assert_eq!(controller.handle(Input::Confirm, &catalog), Action::None);
-        assert_eq!(controller.screen, Screen::Browser);
+        assert_eq!(controller.screen, Screen::AppDetails);
+        assert_eq!(controller.detail_focus(), 8);
+        controller.handle(Input::Confirm, &catalog);
+        assert_eq!(controller.screen, Screen::DeleteConfirm);
+        controller.handle(Input::Back, &catalog);
+        assert_eq!(controller.screen, Screen::AppDetails);
+        assert_eq!(controller.detail_focus(), 8);
 
         controller.handle(Input::Confirm, &catalog);
-        controller.handle(Input::Left, &catalog);
-        controller.handle(Input::Left, &catalog);
-        controller.handle(Input::Confirm, &catalog);
-        assert_eq!(controller.handle(Input::Right, &catalog), Action::None);
+        controller.handle(Input::Right, &catalog);
         assert_eq!(
             controller.handle(Input::Confirm, &catalog),
             Action::DeleteSelected
@@ -499,6 +525,19 @@ mod tests {
         );
         controller.handle(Input::Down, &[]);
         assert_eq!(controller.handle(Input::Confirm, &[]), Action::Exit);
+    }
+
+    #[test]
+    fn notice_dismissal_restores_the_screen_that_opened_it() {
+        let catalog = [app("one", "One", true)];
+        let mut controller = AppController::new();
+        controller.handle(Input::Confirm, &catalog);
+        controller.show_notice("Load failed".into());
+        assert_eq!(controller.screen, Screen::Notice);
+        assert_eq!(controller.notice(), Some("Load failed"));
+        assert_eq!(controller.handle(Input::Confirm, &catalog), Action::None);
+        assert_eq!(controller.screen, Screen::AppDetails);
+        assert_eq!(controller.notice(), None);
     }
 
     #[test]

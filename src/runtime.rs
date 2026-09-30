@@ -1,6 +1,6 @@
 //! Hardware-independent frame orchestration for HBC application state.
 
-use alloc::vec::Vec;
+use alloc::{string::String, vec::Vec};
 
 use crate::{
     app::{Action, AppController, Input},
@@ -38,6 +38,11 @@ impl AppRuntime {
 
     pub fn settings(&self) -> &SettingsState {
         &self.settings
+    }
+
+    /// Show a platform action failure in the shared notice dialog.
+    pub fn show_notice(&mut self, message: &str) {
+        self.controller.show_notice(String::from(message));
     }
 
     /// Apply settings loaded from NAND before the first rendered frame.

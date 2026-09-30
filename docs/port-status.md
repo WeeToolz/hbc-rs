@@ -28,8 +28,10 @@ deferred.
 
 - The display scene uses solid-color panels and a native 5x7 font for basic
   app labels, descriptions, menus, About content, and confirmation dialogs.
-  App icons remain placeholders. Theme textures, gradients, localized
-  strings, and HBC widget and dialog behavior are not ported.
+  Startup reports missing SD or USB storage; launch, delete, settings-save,
+  and storage-stop failures use a dismissible notice. App icons remain
+  placeholders. Theme textures, gradients, localized strings, and HBC widget
+  behavior are not ported.
 - Device discovery scans one preferred volume synchronously at startup. There
   is no background mount worker, hotplug handling, 30-frame refresh, or SD and
   USB device status UI. GameCube memory cards are not supported. USB storage
@@ -37,8 +39,7 @@ deferred.
   bound in the ignored `libogc-rs` copy; the reported NAND/HID hang still needs
   hardware confirmation.
 - BootMii is not connected. App deletion now asks for an explicit yes response
-  and uses the safe folder remover, but it does not show an on-screen error
-  when storage deletion fails. Launch errors also have no on-screen message.
+  and uses the safe folder remover. A canceled delete returns to app details.
 - The GX FIFO path has no interrupt-based flow control, overflow recovery, or
   draw-completion wait. Its register setup and display output are unverified on
   hardware.
