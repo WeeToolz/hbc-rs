@@ -101,9 +101,8 @@ deferred.
   signature, protocol and payload bounds, checked body length, exact body size,
   bounded zlib output, and argument separation. Socket setup, peer filtering,
   payload routing, network status artwork, update behavior, and incoming theme
-  installation still need integration. Periodic dirty settings save timing
-  still needs integration. Settings currently save on the
-  return-to-menu and power-off actions. Settings and theme replacement now
+  installation still need integration. Settings save when HBC exits, as in the
+  original. Settings and theme replacement now
   write a temporary NAND file, rename with a backup, and recover an interrupted
   replacement at the next load. Hardware behavior of ISFS rename remains
   unverified. Theme replacement needs enough free NAND space for both the old
