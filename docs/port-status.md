@@ -15,24 +15,36 @@ deferred.
   driver, a bounded MEM2 allocator, and a Wii executable segment copier with
   cache maintenance and a one-way branch.
 - VI/framebuffer setup and a minimal GX FIFO/display-copy path in the local
-  `libogc-rs` copy.
+  `libogc-rs` copy. The Wii entry point now starts a frame loop that scans
+  input, updates the controller state, draws a solid-fill browser scene, and
+  waits for VI retrace. Return-to-menu and power-off actions save settings and
+  call the system reset service.
+- Boot setup loads NAND settings, tries the preferred SD or USB volume followed
+  by the other volume, scans `apps`, and keeps the mounted volume for later
+  operations. Wii Remote setup matches HBC's 640x480 default IR range and
+  pointer-owner button priority.
 
 ## Remaining runtime work
 
-- `main` does not yet start the full application loop. It initializes the Rust
-  heap and returns.
-- There is no HBC browser renderer, theme image/font decoder, widget system,
-  dialog rendering, or localized text output.
-- Device discovery and refresh policy are not connected to runtime startup.
-  USB storage candidates now exclude HID devices in the ignored local
-  `libogc-rs` copy, but the reported NAND/HID hang needs hardware confirmation.
+- The display scene is an initial solid-color layout with placeholder bars.
+  It has no text or glyph rasterization, icon and theme textures, gradients,
+  localized strings, or HBC widget and dialog behavior.
+- Device discovery scans one preferred volume synchronously at startup. There
+  is no background mount worker, hotplug handling, 30-frame refresh, or SD and
+  USB device status UI. GameCube memory cards are not supported. USB storage
+  candidates exclude HID devices, and v5 watcher startup has a 100 ms per-host
+  bound in the ignored `libogc-rs` copy; the reported NAND/HID hang still needs
+  hardware confirmation.
+- Browser launch and delete actions are not connected to the runtime loop.
+  The loader still lacks HBC's complete cleanup and launch trampoline.
 - The GX FIFO path has no interrupt-based flow control, overflow recovery, or
   draw-completion wait. Its register setup and display output are unverified on
   hardware.
 - Executable launch does not yet stop services, restore exception state, set a
   target stack, clear the HBC runtime area, or use HBC's launch trampoline.
-- Network receive/update behavior, theme installation UI, and persistent
-  settings save timing still need integration.
+- Network receive/update behavior, theme installation UI, and periodic dirty
+  settings save timing still need integration. Settings currently save on the
+  return-to-menu and power-off actions.
 
 ## Local checks
 

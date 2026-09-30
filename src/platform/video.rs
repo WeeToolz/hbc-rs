@@ -31,6 +31,11 @@ impl VideoSystem {
         ogc_video::flush();
     }
 
+    /// Wait for one VI retrace before drawing the next frame.
+    pub fn wait_vsync(&self) {
+        ogc_video::wait_vsync();
+    }
+
     /// Configure direct-color 2D drawing in pixel coordinates with a y-down axis.
     ///
     /// Call this after GX initialization and again after any code changes GX

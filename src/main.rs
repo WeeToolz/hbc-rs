@@ -10,14 +10,60 @@ fn main() {
 #[cfg(target_arch = "powerpc")]
 #[unsafe(no_mangle)]
 pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
-    match unsafe {
+    let heap_result = unsafe {
         hbc_rs::platform::allocator::initialize_wii(
             hbc_rs::platform::allocator::DEFAULT_MAX_MEM2_HEAP_BYTES,
             hbc_rs::platform::allocator::DEFAULT_MEM2_RESERVE_BYTES,
         )
-    } {
-        Ok(()) => 0,
-        Err(_) => -1,
+    };
+    if heap_result.is_err() {
+        return -1;
+    }
+
+    let video = match hbc_rs::platform::video::initialize() {
+        Ok(video) => video,
+        Err(_) => return -2,
+    };
+    video.configure_2d();
+
+    // HBC's default logical UI space is 640 by 480. Widescreen mode and its
+    // aspect setting will select an 852 by 480 space when that policy lands.
+    let mut startup = hbc_rs::platform::startup::WiiStartup::initialize(640, 480);
+    let mut display_ready = false;
+
+    loop {
+        let frame = hbc_rs::platform::input::scan();
+        let actions = startup.runtime_mut().update(&frame);
+        let scene = hbc_rs::render::browser_frame(
+            startup.runtime().controller(),
+            startup.runtime().catalog(),
+        );
+        if unsafe { hbc_rs::platform::renderer::draw_frame(&video, &scene) }.is_err() {
+            return -3;
+        }
+        unsafe { video.present() };
+        if !display_ready {
+            video.show();
+            display_ready = true;
+        }
+        video.wait_vsync();
+
+        for action in actions {
+            let reset = match action {
+                hbc_rs::app::Action::Exit => Some(ogc_system::SYS_RETURNTOMENU),
+                hbc_rs::app::Action::Shutdown => Some(ogc_system::SYS_POWEROFF),
+                _ => None,
+            };
+            if let Some(reset) = reset {
+                let settings = startup.runtime().settings().current();
+                let _ = hbc_rs::platform::settings::save(settings);
+                hbc_rs::platform::video::shutdown();
+                unsafe { ogc_system::reset_system(reset as i32, 0, 0) };
+                loop {
+                    core::hint::spin_loop();
+                }
+            }
+        }
     }
 }
 
