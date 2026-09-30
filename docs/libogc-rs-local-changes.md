@@ -40,14 +40,15 @@ The local implementation now provides GX opcode constants, primitive and
 vertex FIFO writes, viewport and scissor setup, projection matrix loading, and
 display copy setup/presentation (`FrameConfig`, `configure_frame`,
 `initialize_display`, `present_frame`, and `finish_frame`). These APIs emit
-commands to GX registers in Rust. The target crate passes `cargo check` with
-warnings denied. Hardware output still needs validation.
+commands to GX registers in Rust. `GxFifo::initialize_default_mem2` reserves a
+bounded 256 KiB command ring from MEM2 and sets the PI FIFO, CP FIFO, WPAR, and
+HID2 write-gather state. The target crate passes `cargo check` with warnings
+denied. Hardware output still needs validation.
 
-The GX work is incomplete. The display API requires a live GP FIFO and enabled
-CPU write-gather pipe. `ogc-gx` does not yet provide the equivalent of
-`GX_Init`/`GX_InitFifoBase`/`GX_SetGPFifo`, reset and abort handling, CP and PE
-interrupts, or a blocking draw-completion wait. It also does not configure
-vertex descriptors and formats, texture coordinate generators, TEV and blend
-state, texture and palette upload, or texture-cache invalidation in the form
-needed by the HBC sprite renderer. Implement and test these in Rust before HBC
-uses the display functions on hardware.
+The GX work is incomplete. The FIFO setup is a minimal single-owner path. It
+does not install CP or PE interrupt handlers, provide overflow/underflow
+recovery, reset and abort handling, or wait for draw completion. HBC sprite and
+text rendering also needs vertex descriptor and format commands, texture
+coordinate generation, TEV and blend state, texture and palette upload, and
+texture-cache invalidation. Treat FIFO flow control as unverified until it has
+hardware testing. Do not use the display functions before FIFO initialization.

@@ -12,10 +12,43 @@ pub struct FramebufferInfo {
     pub byte_len: u32,
 }
 
+/// Owns the VI framebuffer and the GX FIFO for the lifetime of the display.
+pub struct VideoSystem {
+    _fifo: ogc_gx::GxFifo,
+    config: ogc_gx::FrameConfig,
+    framebuffer: *mut core::ffi::c_void,
+    info: FramebufferInfo,
+}
+
+impl VideoSystem {
+    pub fn info(&self) -> FramebufferInfo {
+        self.info
+    }
+
+    /// Show the cleared framebuffer after the renderer has drawn its first frame.
+    pub fn show(&self) {
+        ogc_video::set_black(false);
+        ogc_video::flush();
+    }
+
+    /// Queue an EFB-to-XFB copy and schedule the framebuffer for VI scanout.
+    ///
+    /// # Safety
+    /// The caller must finish drawing the frame and keep all referenced graphics
+    /// resources alive until GX has completed the copy.
+    pub unsafe fn present(&self) {
+        unsafe { ogc_gx::present_frame(self.config) };
+        unsafe { ogc_video::set_next_framebuffer(self.framebuffer) };
+        ogc_video::flush();
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum VideoError {
     NoPreferredMode,
     FramebufferAllocationFailed,
+    InvalidFrameConfig,
+    GxFifo(ogc_gx::GxFifoError),
 }
 
 /// Initialize VI and select a cleared framebuffer.
@@ -23,7 +56,7 @@ pub enum VideoError {
 /// Width and height describe the selected XFB mode. HBC's separate 640x480
 /// or 852x480 logical UI dimensions require aspect-ratio configuration and
 /// remain caller policy.
-pub fn initialize() -> Result<FramebufferInfo, VideoError> {
+pub fn initialize() -> Result<VideoSystem, VideoError> {
     ogc_video::init();
     ogc_video::set_black(true);
 
@@ -47,6 +80,17 @@ pub fn initialize() -> Result<FramebufferInfo, VideoError> {
         ogc_cache::dc_invalidate_range(framebuffer.cast_const(), byte_len);
         // COLOR_BLACK from HBC is a zero-valued YUYV framebuffer color.
         ogc_video::clear_frame_buffer(&mut mode, framebuffer, 0);
+    }
+
+    // GX uses the low arena2 boundary for its FIFO. The HBC allocator reserves
+    // its heap first, so this FIFO cannot overlap Rust allocations.
+    let fifo = unsafe { ogc_gx::GxFifo::initialize_default_mem2() }.map_err(VideoError::GxFifo)?;
+    let config =
+        ogc_gx::FrameConfig::new(framebuffer, mode.fb_width, mode.efb_height, mode.xfb_height)
+            .ok_or(VideoError::InvalidFrameConfig)?;
+    unsafe {
+        ogc_gx::initialize_display(config, ogc_gx::GxColor::default());
+        ogc_gx::present_frame(config);
         ogc_video::set_next_framebuffer(framebuffer);
     }
     ogc_video::flush();
@@ -54,10 +98,15 @@ pub fn initialize() -> Result<FramebufferInfo, VideoError> {
         ogc_video::wait_vsync();
     }
 
-    Ok(FramebufferInfo {
-        width: mode.fb_width,
-        height: mode.xfb_height,
-        byte_len,
+    Ok(VideoSystem {
+        _fifo: fifo,
+        config,
+        framebuffer,
+        info: FramebufferInfo {
+            width: mode.fb_width,
+            height: mode.xfb_height,
+            byte_len,
+        },
     })
 }
 
@@ -68,10 +117,4 @@ pub fn shutdown() {
     for _ in 0..4 {
         ogc_video::wait_vsync();
     }
-}
-
-/// Show the configured framebuffer after the renderer has drawn its first frame.
-pub fn show() {
-    ogc_video::set_black(false);
-    ogc_video::flush();
 }
