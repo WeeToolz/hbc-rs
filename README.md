@@ -2,8 +2,9 @@
 
 This crate is a native Rust port of the HBC channel application in `../hbc/channel/channelapp`.
 It does not call or wrap the C implementation. Port each behavior in Rust, and use
-`libogc-rs` for Wii services and hardware access where its Rust APIs provide the
-required operation.
+the vendored `libogc-rs/` workspace for Wii services and hardware access where its
+Rust APIs provide the required operation. The vendored checkout is ignored by this
+repository so library changes remain local and do not enlarge HBC commits.
 
 ## Scope
 
@@ -117,11 +118,14 @@ hbc-rs/
 
 Start as one crate. Split crates only when an independent boundary has stable
 ownership or a separate build target. Add dependencies by exact capability after
-checking their current Rust API in `/Volumes/SSD/projects/Wii/libogc-rs`; do not
-assume a crate has the same API or feature set as C libogc. The workspace currently
+checking their current Rust API in `libogc-rs/`; do not assume a crate has the same
+API or feature set as C libogc. The workspace currently
 has Rust crates for GX/video, input, FAT/filesystem, network, IOS/ES, cache, and
 system services. Some interfaces may still be incomplete for HBC, so record gaps
 as Rust implementation work rather than solving them with C wrappers.
+
+Before building from a fresh HBC checkout, copy the local `libogc-rs` workspace to
+`hbc-rs/libogc-rs/`. The dependency paths in `Cargo.toml` point to that location.
 
 ## Early bug candidates
 
@@ -147,6 +151,13 @@ implemented:
 - `channel/channelapp/source/tex.c`: PNG decoding assumes allocation succeeds
   and that dimensions/layout fit the hard-coded 4x4 tiled conversion. Keep strict
   dimension and length validation and handle allocation/decode errors explicitly.
+- A reported hardware issue is that HBC can freeze when it runs from NAND with a
+  USB HID controller connected and no USB storage device. The source scans device
+  interfaces from a worker thread and attempts USB storage startup when no storage
+  device is active (`channel/channelapp/source/main.c` and `appentry.c`). This is a
+  plausible USB enumeration interaction, but it is not reproduced or confirmed.
+  The Rust scan should avoid blocking the UI and should test that unrelated USB
+  devices do not prevent NAND startup or input processing.
 
 The repository README says the published source differs from the official build
 and excludes the installer. Preserve that provenance context when comparing

@@ -5,5 +5,15 @@ edition = "2021"
 publish = false
 
 [dependencies]
-# Add local libogc-rs crates when each platform boundary is selected.
-# Use Rust APIs directly. Do not add C wrappers for ported HBC code.
+
+[target.'cfg(target_arch = "powerpc")'.dependencies]
+ogc-fat = { path = "libogc-rs/crates/services/ogc-fat" }
+ogc-filesystem = { path = "libogc-rs/crates/services/ogc-filesystem" }
+ogc-gx = { path = "libogc-rs/crates/hardware/ogc-gx" }
+ogc-input = { path = "libogc-rs/crates/services/ogc-input" }
+ogc-ios = { path = "libogc-rs/crates/core/ogc-ios" }
+ogc-lwp = { path = "libogc-rs/crates/core/ogc-lwp" }
+ogc-network = { path = "libogc-rs/crates/services/ogc-network" }
+ogc-system = { path = "libogc-rs/crates/core/ogc-system" }
+ogc-video = { path = "libogc-rs/crates/hardware/ogc-video" }
+ogc-wiilaunch = { path = "libogc-rs/crates/core/ogc-wiilaunch" }

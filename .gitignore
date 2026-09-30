@@ -22,8 +22,10 @@ $RECYCLE.BIN/
 # Rust build output and local configuration
 /target/
 **/target/
-Cargo.lock
 .cargo/config.toml
+
+# Vendored dependency checkout; keep local fixes out of this repository's commits
+/libogc-rs/
 
 # Editor and local tool state
 .vscode/
