@@ -15,6 +15,13 @@ hang when HBC runs from NAND with a HID controller attached and no USB drive.
 The target code compiles and a pure selection test covers the class filter, but
 the behavior still needs hardware verification.
 
+USB v5 watcher startup now waits cooperatively for at most 100 ms per detected
+host. It polls IPC and sleeps in 1 ms LWP timebase increments instead of busy
+spinning. A missing watcher snapshot does not fail USB initialization. With
+both vendor and HID hosts detected, this wait can add up to 200 ms. This timeout
+does not cover synchronous IOS open/ioctl calls made while starting a host, and
+the behavior still needs hardware verification.
+
 ## Empty network poll must accept a null descriptor pointer
 
 In `crates/services/ogc-network`, `poll` must accept `nfds == 0` with a null
@@ -42,8 +49,11 @@ display copy setup/presentation (`FrameConfig`, `configure_frame`,
 `initialize_display`, `present_frame`, and `finish_frame`). These APIs emit
 commands to GX registers in Rust. `GxFifo::initialize_default_mem2` reserves a
 bounded 256 KiB command ring from MEM2 and sets the PI FIFO, CP FIFO, WPAR, and
-HID2 write-gather state. The target crate passes `cargo check` with warnings
-denied. Hardware output still needs validation.
+HID2 write-gather state. `configure_solid_2d` sets direct XYZ/F32 and RGBA8
+vertex inputs, one vertex color channel, a pass-color TEV stage, and alpha
+blending. `draw_solid_rect` emits a four-vertex solid rectangle. The target
+crate passes `cargo check` with warnings denied. Hardware output still needs
+validation.
 
 The GX work is incomplete. The FIFO setup is a minimal single-owner path. It
 does not install CP or PE interrupt handlers, provide overflow/underflow
@@ -52,3 +62,5 @@ text rendering also needs vertex descriptor and format commands, texture
 coordinate generation, TEV and blend state, texture and palette upload, and
 texture-cache invalidation. Treat FIFO flow control as unverified until it has
 hardware testing. Do not use the display functions before FIFO initialization.
+The rectangle path does not load textures or support HBC sprite, icon, or text
+rendering.

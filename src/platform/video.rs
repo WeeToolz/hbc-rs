@@ -31,6 +31,39 @@ impl VideoSystem {
         ogc_video::flush();
     }
 
+    /// Configure direct-color 2D drawing in pixel coordinates with a y-down axis.
+    ///
+    /// Call this after GX initialization and again after any code changes GX
+    /// vertex, channel, TEV, or blend state.
+    pub fn configure_2d(&self) {
+        let width = f32::from(self.info.width);
+        let height = f32::from(self.info.height);
+        let projection: ogc_gx::Mtx44 = [
+            [2.0 / width, 0.0, 0.0, -1.0],
+            [0.0, -2.0 / height, 0.0, 1.0],
+            [0.0, 0.0, -1.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ];
+        unsafe { ogc_gx::configure_solid_2d(&projection) };
+    }
+
+    /// Draw one filled rectangle in framebuffer pixel coordinates.
+    ///
+    /// # Safety
+    /// The solid 2D GX state must be configured and no other code may change
+    /// its vertex state until this call returns.
+    pub unsafe fn draw_solid_rect(
+        &self,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        color: ogc_gx::GxColor,
+    ) -> Result<(), VideoError> {
+        unsafe { ogc_gx::draw_solid_rect(x, y, width, height, 0.0, color) }
+            .map_err(VideoError::GxRect)
+    }
+
     /// Queue an EFB-to-XFB copy and schedule the framebuffer for VI scanout.
     ///
     /// # Safety
@@ -49,6 +82,7 @@ pub enum VideoError {
     FramebufferAllocationFailed,
     InvalidFrameConfig,
     GxFifo(ogc_gx::GxFifoError),
+    GxRect(ogc_gx::GxRectError),
 }
 
 /// Initialize VI and select a cleared framebuffer.
