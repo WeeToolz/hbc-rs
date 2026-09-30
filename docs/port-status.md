@@ -63,10 +63,9 @@ deferred.
   selected app where possible. It does not use HBC's background mount worker
   or show per-device status. A missing `apps` directory is treated as an empty
   catalog; other top-level scan errors show a notice. GameCube memory cards are
-  not supported. USB storage candidates exclude HID devices. USB startup also
-  starts the vendor and HID watchers; the readiness wait is bounded to 100 ms
-  per host, but the IOS open and ioctl calls remain synchronous. The reported
-  NAND/HID hang still needs hardware confirmation.
+  not supported. USB storage candidates exclude HID devices. USB storage now
+  starts and stops only the vendor watcher. Its IOS open and ioctl calls remain
+  synchronous. The reported NAND/HID hang still needs hardware confirmation.
 - BootMii IOS availability now uses HBC's bounded TMD-view `BM` marker check.
   Its menu item appears only when the check succeeds; selecting it saves
   settings, stops storage and Wii Remote services, then requests IOS 254 before
@@ -111,11 +110,10 @@ target has no `test` crate.
   its buffer. The Rust decoder bounds every chunk and verifies its CRC.
 - The reported NAND startup hang with a HID controller and no USB drive enters
   HBC's USB storage startup path after SD probing fails. The local `libogc-rs`
-  copy filters storage candidates by interface class, so it should not open a
-  HID device as mass storage. USB startup still opens both vendor and HID host
-  services synchronously, however, and an IOS call can block before the
-  bounded watcher wait. The precise cause and any fix need hardware
-  confirmation.
+  copy filters storage candidates by interface class and now starts only the
+  vendor host for storage. The vendor host still makes synchronous IOS calls.
+  This change removes unrelated HID-host startup work; it does not prove the
+  reported hang is fixed. The cause needs hardware confirmation.
 
 ## Out of scope for the first runtime target
 
