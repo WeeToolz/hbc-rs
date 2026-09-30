@@ -96,7 +96,8 @@ impl ThemeTextures {
         Self {
             background,
             background_width,
-            logo: theme_image_texture(package, "logo.png", LOGO_WIDTH, LOGO_HEIGHT, DEFAULT_LOGO),
+            // HBC reads its logo from the bundled data and does not load it from themes.
+            logo: decode_fixed_size_image(DEFAULT_LOGO, LOGO_WIDTH, LOGO_HEIGHT),
             list_card: theme_image_texture(
                 package,
                 "apps_list.png",

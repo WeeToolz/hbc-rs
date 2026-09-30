@@ -14,43 +14,6 @@ pub const MAX_THEME_XML_BYTES: usize = 1024 * 1024;
 const MAX_THEME_FILE_BYTES: u64 = 64 * 1024 * 1024;
 const MAX_THEME_TOTAL_BYTES: u64 = 128 * 1024 * 1024;
 
-const THEME_IMAGES: &[&str] = &[
-    "background.png",
-    "background_wide.png",
-    "logo.png",
-    "bubble1.png",
-    "bubble2.png",
-    "bubble3.png",
-    "apps_previous.png",
-    "apps_previous_hover.png",
-    "apps_next.png",
-    "apps_next_hover.png",
-    "icon_usbgecko.png",
-    "icon_usbgecko_active.png",
-    "icon_network.png",
-    "icon_network_active.png",
-    "throbber.png",
-    "about.png",
-    "dialog_background.png",
-    "dlg_info.png",
-    "dlg_confirm.png",
-    "dlg_warning.png",
-    "dlg_error.png",
-    "button.png",
-    "button_focus.png",
-    "button_small.png",
-    "button_small_focus.png",
-    "button_tiny.png",
-    "button_tiny_focus.png",
-    "apps_list.png",
-    "apps_list_hover.png",
-    "apps_grid.png",
-    "apps_grid_hover.png",
-    "progress.png",
-    "content_arrow_up.png",
-    "content_arrow_down.png",
-];
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ThemePackageError {
     TooLarge,
@@ -77,8 +40,8 @@ pub struct ThemePackage {
 }
 
 impl ThemePackage {
-    /// Parse an HBC theme ZIP with the same 20 MiB, 64-entry, root-file, and
-    /// filename policy as HBC. The full extraction plan is bounded first.
+    /// Parse an HBC theme ZIP with 20 MiB and 64-entry archive limits.
+    /// All paths and extraction resources are validated before metadata is read.
     pub fn parse(data: &[u8]) -> Result<Self, ThemePackageError> {
         if data.len() > MAX_THEME_ARCHIVE_BYTES {
             return Err(ThemePackageError::TooLarge);
@@ -108,10 +71,7 @@ impl ThemePackage {
             if entry.is_directory || entry.uncompressed_size == 0 {
                 continue;
             }
-            if entry.name.contains('/') || !valid_theme_filename(&entry.name) {
-                return Err(ThemePackageError::InvalidEntry);
-            }
-            if entry.name.eq_ignore_ascii_case("theme.xml") {
+            if !entry.name.contains('/') && entry.name.eq_ignore_ascii_case("theme.xml") {
                 theme_xml_name = Some(entry.name.clone());
             }
         }
@@ -155,23 +115,6 @@ impl ThemePackage {
             .extract(data, &entry.name, max_output_bytes)
             .map_err(ThemePackageError::InvalidArchive)
     }
-}
-
-fn valid_theme_filename(name: &str) -> bool {
-    !name.contains('/')
-        && (name.eq_ignore_ascii_case("theme.xml")
-            || THEME_IMAGES
-                .iter()
-                .any(|valid_name| name.eq_ignore_ascii_case(valid_name))
-            || has_extension(name, "ttf")
-            || has_extension(name, "txt"))
-}
-
-fn has_extension(name: &str, extension: &str) -> bool {
-    let Some((stem, suffix)) = name.rsplit_once('.') else {
-        return false;
-    };
-    !stem.is_empty() && suffix.eq_ignore_ascii_case(extension)
 }
 
 #[cfg(test)]
@@ -247,17 +190,22 @@ mod tests {
     }
 
     #[test]
-    fn requires_theme_xml_and_rejects_unknown_nested_and_folded_duplicate_files() {
+    fn requires_theme_xml_and_ignores_safe_unrelated_files() {
         assert_eq!(
             ThemePackage::parse(&zip(&[("button.png", b"image")])),
             Err(ThemePackageError::MissingThemeXml)
         );
-        for bad_name in ["folder/button.png", "other.bin"] {
-            assert_eq!(
-                ThemePackage::parse(&zip(&[("theme.xml", THEME_XML), (bad_name, b"x")])),
-                Err(ThemePackageError::InvalidEntry)
-            );
-        }
+        assert_eq!(
+            ThemePackage::parse(&zip(&[("folder/theme.xml", THEME_XML)])),
+            Err(ThemePackageError::MissingThemeXml)
+        );
+        let package = ThemePackage::parse(&zip(&[
+            ("theme.xml", THEME_XML),
+            ("other.bin", b"x"),
+            ("folder/unrelated.dat", b"y"),
+        ]))
+        .unwrap();
+        assert_eq!(package.theme_xml_name(), "theme.xml");
         assert!(matches!(
             ThemePackage::parse(&zip(&[("theme.xml", THEME_XML), ("../evil.txt", b"x")])),
             Err(ThemePackageError::InvalidArchive(_))
@@ -304,13 +252,10 @@ mod tests {
     }
 
     #[test]
-    fn allows_only_root_theme_resources_and_supported_text_extensions() {
-        for name in ["font.ttf", "README.TXT", "background_wide.png"] {
-            assert!(valid_theme_filename(name));
-        }
-        for name in ["../font.ttf", "assets/background.png", "texture.bin"] {
-            assert!(!valid_theme_filename(name));
-        }
-        assert_eq!(THEME_IMAGES.len(), 34);
+    fn rejects_unsafe_unrelated_paths() {
+        assert!(matches!(
+            ThemePackage::parse(&zip(&[("theme.xml", THEME_XML), ("../outside.bin", b"x")])),
+            Err(ThemePackageError::InvalidArchive(_))
+        ));
     }
 }

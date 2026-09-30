@@ -51,10 +51,11 @@ deferred.
   and storage-stop failures use a dismissible notice. Missing, invalid,
   oversized, or out-of-memory app icons use placeholders.
   HBC-sized 128x48 app icons load through the native PNG decoder and draw as GX
-  RGBA8 textures. The 640x480 background, 320x64 logo, and focused or normal
-  list and grid app cards draw from built-in HBC images or matching active-theme
-  PNG assets. Page arrows use HBC's 64x64 images and appear when a previous or
-  next page exists. Main-menu rows use HBC large button images. About and modal
+  RGBA8 textures. The 640x480 background and focused or normal list and grid app
+  cards draw from built-in HBC images or matching active-theme PNG assets. The
+  320x64 logo always uses the bundled image, as in HBC. Page arrows use HBC's
+  64x64 images and appear when a previous or next page exists. Main-menu rows
+  use HBC large button images. About and modal
   screens use the HBC dialog background, confirmation icon, About artwork, and
   size-specific normal and focused buttons. Wii Remote IR pointer input now selects and
   activates app cards, page arrows, menus, and dialog buttons using renderer
@@ -64,11 +65,14 @@ deferred.
   active themes. Pointer drag scrolling outside app details, other theme
   textures, gradients, localized strings, and complete HBC widget behavior are
   not ported.
-- A pure Rust theme ZIP parser now enforces the HBC archive size, entry count,
-  root filename allowlist, duplicate-name policy, and bounded extraction plan.
-  It parses `theme.xml` with the existing metadata parser. Applying a theme
-  saves its validated ZIP to NAND and updates its background, logo, app card,
-  and page arrow images for the current session. The native Rust bitmap glyph
+- A pure Rust theme ZIP parser enforces a 20 MiB archive limit, a 64-entry
+  limit, safe paths, supported ZIP entry types and compression, duplicate-name
+  checks, a 64 MiB per-file limit, and a 128 MiB total extracted-size limit.
+  Safe unrelated files are ignored. Theme metadata comes from root `theme.xml`,
+  and texture loading reads named root assets. The parser reads `theme.xml`
+  with the existing metadata parser. Applying a theme saves its validated ZIP
+  to NAND. It updates the background, app cards, and page arrows for the current
+  session. The native Rust bitmap glyph
   renderer applies default and target-specific font colors and sizes to HBC's
   `label`, `dlgtitle`, `memo`, `appname`, `appdesc`, `button`, and `button_desel`
   text roles. It uses scaled built-in glyphs; custom TTF files are parsed as
