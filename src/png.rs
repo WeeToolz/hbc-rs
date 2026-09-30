@@ -924,4 +924,25 @@ mod tests {
         assert_eq!(texture.len(), 640 * 480 * 4);
         assert_eq!(texture.as_ptr() as usize & 31, 0);
     }
+
+    #[test]
+    fn bundled_hbc_logo_has_supported_dimensions_and_gx_layout() {
+        let bytes = include_bytes!("../assets/logo.png");
+        let image = decode_png(
+            bytes,
+            PngLimits {
+                max_width: 320,
+                max_height: 64,
+                max_pixels: 320 * 64,
+                max_input_bytes: 8 * 1024 * 1024,
+            },
+        )
+        .unwrap();
+        assert_eq!((image.width, image.height), (320, 64));
+
+        let texture = GxRgba8Texture::from_image(&image).unwrap();
+        assert_eq!((texture.width, texture.height), (320, 64));
+        assert_eq!(texture.len(), 320 * 64 * 4);
+        assert_eq!(texture.as_ptr() as usize & 31, 0);
+    }
 }

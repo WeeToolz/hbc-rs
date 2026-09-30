@@ -14,9 +14,12 @@ const THEME_FILENAME: &str = "theme.zip";
 const IO_CHUNK_SIZE: usize = 16 * 1024;
 const BACKGROUND_WIDTH: u32 = 640;
 const BACKGROUND_HEIGHT: u32 = 480;
+const LOGO_WIDTH: u32 = 320;
+const LOGO_HEIGHT: u32 = 64;
 const THEME_IMAGE_MAX_BYTES: usize = 8 * 1024 * 1024;
 
 const DEFAULT_BACKGROUND: &[u8] = include_bytes!("../../assets/background.png");
+const DEFAULT_LOGO: &[u8] = include_bytes!("../../assets/logo.png");
 
 #[repr(align(32))]
 struct AlignedChunk([u8; IO_CHUNK_SIZE]);
@@ -131,28 +134,55 @@ struct AlignedStats(isfs::Fstats);
 pub fn background_texture(
     package: Option<(&crate::theme::ThemePackage, &[u8])>,
 ) -> Option<crate::png::GxRgba8Texture> {
+    theme_image_texture(
+        package,
+        "background.png",
+        BACKGROUND_WIDTH,
+        BACKGROUND_HEIGHT,
+        DEFAULT_BACKGROUND,
+    )
+}
+
+/// Decode a theme logo, or use HBC's built-in logo when it is unavailable.
+pub fn logo_texture(
+    package: Option<(&crate::theme::ThemePackage, &[u8])>,
+) -> Option<crate::png::GxRgba8Texture> {
+    theme_image_texture(package, "logo.png", LOGO_WIDTH, LOGO_HEIGHT, DEFAULT_LOGO)
+}
+
+fn theme_image_texture(
+    package: Option<(&crate::theme::ThemePackage, &[u8])>,
+    filename: &str,
+    width: u32,
+    height: u32,
+    fallback: &[u8],
+) -> Option<crate::png::GxRgba8Texture> {
     package
         .and_then(|(package, archive)| {
             package
-                .extract_file(archive, "background.png", THEME_IMAGE_MAX_BYTES)
+                .extract_file(archive, filename, THEME_IMAGE_MAX_BYTES)
                 .ok()
-                .and_then(|bytes| decode_background(&bytes))
+                .and_then(|bytes| decode_fixed_size_image(&bytes, width, height))
         })
-        .or_else(|| decode_background(DEFAULT_BACKGROUND))
+        .or_else(|| decode_fixed_size_image(fallback, width, height))
 }
 
-fn decode_background(data: &[u8]) -> Option<crate::png::GxRgba8Texture> {
+fn decode_fixed_size_image(
+    data: &[u8],
+    width: u32,
+    height: u32,
+) -> Option<crate::png::GxRgba8Texture> {
     let image = crate::png::decode_png(
         data,
         crate::png::PngLimits {
-            max_width: BACKGROUND_WIDTH,
-            max_height: BACKGROUND_HEIGHT,
-            max_pixels: (BACKGROUND_WIDTH * BACKGROUND_HEIGHT) as usize,
+            max_width: width,
+            max_height: height,
+            max_pixels: (width * height) as usize,
             max_input_bytes: crate::theme::MAX_THEME_ARCHIVE_BYTES,
         },
     )
     .ok()?;
-    if image.width != BACKGROUND_WIDTH || image.height != BACKGROUND_HEIGHT {
+    if image.width != width || image.height != height {
         return None;
     }
     let texture = crate::png::GxRgba8Texture::from_image(&image).ok()?;

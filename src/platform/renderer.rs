@@ -8,7 +8,7 @@ use crate::{
     render::{map_rect, Frame, FrameCommand, LOGICAL_HEIGHT, LOGICAL_WIDTH},
 };
 
-/// Submit the theme background, solid fills, and app icons through GX.
+/// Submit the theme background and logo, solid fills, and app icons through GX.
 ///
 /// Text remains native bitmap-font rectangles. App icons use the RGBA8 texture path.
 ///
@@ -20,6 +20,7 @@ pub unsafe fn draw_frame(
     frame: &Frame,
     icons: &[IconTexture],
     background: Option<&crate::png::GxRgba8Texture>,
+    logo: Option<&crate::png::GxRgba8Texture>,
 ) -> Result<(), VideoError> {
     let info = video.info();
     let mut textured_state = false;
@@ -40,6 +41,28 @@ pub unsafe fn draw_frame(
             textured_state = true;
             unsafe {
                 video.draw_texture(background, bounds.x, bounds.y, bounds.width, bounds.height)?;
+            }
+        }
+    }
+    if let Some(logo) = logo {
+        if !textured_state {
+            video.configure_textured_2d();
+            textured_state = true;
+        }
+        if let Some(bounds) = map_rect(
+            crate::render::Rect {
+                x: 0.0,
+                y: 416.0,
+                width: 320.0,
+                height: 64.0,
+            },
+            LOGICAL_WIDTH,
+            LOGICAL_HEIGHT,
+            info.width,
+            info.height,
+        ) {
+            unsafe {
+                video.draw_texture(logo, bounds.x, bounds.y, bounds.width, bounds.height)?;
             }
         }
     }

@@ -56,6 +56,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 &scene,
                 startup.icon_textures(),
                 startup.background_texture(),
+                startup.logo_texture(),
             )
         }
         .is_err()
