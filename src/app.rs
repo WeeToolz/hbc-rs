@@ -12,6 +12,7 @@ pub enum Screen {
     AppDetails,
     DeleteConfirm,
     WiiloadConfirm,
+    WiiloadInstalling,
     Options,
     About,
     Notice,
@@ -175,6 +176,16 @@ impl AppController {
 
     pub fn wiiload_confirmation_yes(&self) -> bool {
         self.wiiload_confirmation_yes
+    }
+
+    pub fn show_wiiload_installing(&mut self) {
+        self.screen = Screen::WiiloadInstalling;
+    }
+
+    pub fn finish_wiiload_installing(&mut self) {
+        if self.screen == Screen::WiiloadInstalling {
+            self.screen = Screen::Browser;
+        }
     }
 
     pub fn detail_description_scroll(&self) -> usize {
@@ -433,6 +444,7 @@ impl AppController {
                 }
                 _ => Action::None,
             },
+            Screen::WiiloadInstalling => Action::None,
             Screen::Options => self.handle_options(input, catalog),
             Screen::About => match input {
                 Input::Back | Input::Confirm => {
@@ -529,6 +541,7 @@ impl AppController {
                     Action::None
                 }
             }
+            (Screen::WiiloadInstalling, _) => Action::None,
             (Screen::Options, PointerTarget::Option(index)) if index < 6 => {
                 self.options_focus = index;
                 if pressed {
@@ -1155,6 +1168,20 @@ mod tests {
             controller.handle_pointer(Some(PointerTarget::WiiloadChoice { yes: false }), true, &[]),
             Action::RejectWiiloadZip
         );
+    }
+
+    #[test]
+    fn zip_install_screen_ignores_controller_and_pointer_input() {
+        let mut controller = AppController::new();
+        controller.show_wiiload_installing();
+        assert_eq!(controller.screen, Screen::WiiloadInstalling);
+        assert_eq!(controller.handle(Input::Home, &[]), Action::None);
+        assert_eq!(
+            controller.handle_pointer(Some(PointerTarget::NoticeConfirm), true, &[]),
+            Action::None
+        );
+        controller.finish_wiiload_installing();
+        assert_eq!(controller.screen, Screen::Browser);
     }
 
     #[test]

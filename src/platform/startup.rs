@@ -31,6 +31,10 @@ const STORAGE_SCAN_PRIORITY: u8 = 30;
 const STORAGE_SCAN_IDLE: u8 = 0;
 const STORAGE_SCAN_RUNNING: u8 = 1;
 const STORAGE_SCAN_READY: u8 = 2;
+const ZIP_INSTALL_IDLE: u8 = 0;
+const ZIP_INSTALL_REQUESTED: u8 = 1;
+const ZIP_INSTALL_RUNNING: u8 = 2;
+const ZIP_INSTALL_READY: u8 = 3;
 pub const EXECUTABLE_MEMORY: core::ops::Range<u32> = 0x8000_3400..0x8132_fc00;
 
 struct StorageScanResult {
@@ -48,6 +52,57 @@ static STORAGE_SCAN_PREFERENCE: AtomicI32 = AtomicI32::new(0);
 static STORAGE_SCAN_SHUTDOWN_OLD: AtomicBool = AtomicBool::new(false);
 static mut STORAGE_SCAN_RESULT: MaybeUninit<StorageScanResult> = MaybeUninit::uninit();
 static mut STORAGE_SCAN_STACK: StorageScanStack = StorageScanStack([0; STORAGE_SCAN_STACK_SIZE]);
+
+struct ZipInstallRequest {
+    storage: FatStorage,
+    bytes: Vec<u8>,
+    directory: alloc::string::String,
+    plan: crate::management::ExtractionPlan,
+}
+
+struct ZipInstallResult {
+    storage: FatStorage,
+    catalog: Option<Vec<AppEntry>>,
+}
+
+static ZIP_INSTALL_STATE: AtomicU8 = AtomicU8::new(ZIP_INSTALL_IDLE);
+static mut ZIP_INSTALL_REQUEST: MaybeUninit<ZipInstallRequest> = MaybeUninit::uninit();
+static mut ZIP_INSTALL_RESULT: MaybeUninit<ZipInstallResult> = MaybeUninit::uninit();
+static mut ZIP_INSTALL_THREAD: ogc_lwp::sys::LwpThread = ogc_lwp::sys::LWP_THREAD_NULL;
+static mut ZIP_INSTALL_STACK: StorageScanStack = StorageScanStack([0; STORAGE_SCAN_STACK_SIZE]);
+
+unsafe fn zip_install_entry(_argument: *mut c_void) -> *mut c_void {
+    ZIP_INSTALL_STATE.store(ZIP_INSTALL_RUNNING, Ordering::Release);
+    let request = unsafe { addr_of_mut!(ZIP_INSTALL_REQUEST).read().assume_init_read() };
+    let mut storage = request.storage;
+    let archive = crate::archive::ZipArchive::parse_limited(
+        &request.bytes,
+        crate::wiiload_zip::WIILOAD_ZIP_MAX_ENTRIES,
+    );
+    let catalog = archive.ok().and_then(|archive| {
+        storage
+            .ensure_directory("apps")
+            .and_then(|()| {
+                let destination = alloc::format!("apps/{}", request.directory);
+                storage.ensure_directory(&destination)?;
+                storage.extract_archive(&request.bytes, &archive, &request.plan, &destination)
+            })
+            .ok()
+            .and_then(|()| {
+                scan_apps(
+                    &mut storage,
+                    "apps",
+                    EXECUTABLE_SIZE_LIMIT,
+                    THEME_SIZE_LIMIT,
+                )
+                .ok()
+            })
+    });
+    let result = ZipInstallResult { storage, catalog };
+    unsafe { addr_of_mut!(ZIP_INSTALL_RESULT).write(MaybeUninit::new(result)) };
+    ZIP_INSTALL_STATE.store(ZIP_INSTALL_READY, Ordering::Release);
+    null_mut()
+}
 
 unsafe fn storage_scan_entry(_argument: *mut c_void) -> *mut c_void {
     if STORAGE_SCAN_SHUTDOWN_OLD.load(Ordering::Acquire) {
@@ -81,6 +136,7 @@ pub struct WiiStartup {
     scan_thread: Option<ogc_lwp::ThreadHandle>,
     scan_previous_volume: Option<Volume>,
     scan_requested_volume: Option<Volume>,
+    zip_install_thread: Option<ogc_lwp::ThreadHandle>,
 }
 
 pub struct IconTexture {
@@ -89,10 +145,10 @@ pub struct IconTexture {
 }
 
 impl WiiStartup {
-    /// Install an app ZIP or save and apply a validated theme ZIP received by Wiiload.
-    pub fn apply_received_zip(&mut self, bytes: &[u8]) -> Result<(), StartupError> {
+    /// Start a validated Wiiload app install on a worker, or apply a theme ZIP.
+    pub fn start_received_zip(&mut self, bytes: Vec<u8>) -> Result<(), StartupError> {
         use crate::wiiload_zip::{classify_received_zip, WiiloadZipClassification};
-        match classify_received_zip(bytes).map_err(|error| match error {
+        match classify_received_zip(&bytes).map_err(|error| match error {
             crate::wiiload_zip::WiiloadZipError::InvalidTheme(error) => StartupError::Theme(error),
             crate::wiiload_zip::WiiloadZipError::InvalidArchive(error) => {
                 StartupError::Storage(StorageError::Archive(error))
@@ -101,10 +157,10 @@ impl WiiStartup {
         })? {
             WiiloadZipClassification::Theme { package } => {
                 let textures = super::theme::ThemeTextures::load_for_viewport(
-                    Some((&package, bytes)),
+                    Some((&package, &bytes)),
                     self.widescreen,
                 );
-                super::theme::save(bytes).map_err(StartupError::ThemeStorage)?;
+                super::theme::save(&bytes).map_err(StartupError::ThemeStorage)?;
                 self.apply_theme(PreparedTheme {
                     metadata: package.metadata,
                     textures,
@@ -115,31 +171,74 @@ impl WiiStartup {
                 kind: _,
                 extraction,
             } => {
-                let archive = crate::archive::ZipArchive::parse_limited(
+                if self.storage_scan_pending() || self.received_zip_install_pending() {
+                    return Err(StartupError::StorageScanPending);
+                }
+                if ZIP_INSTALL_STATE.load(Ordering::Acquire) != ZIP_INSTALL_IDLE {
+                    return Err(StartupError::ScanWorker(-1));
+                }
+                let storage = self.storage.take().ok_or(StartupError::NoStorage)?;
+                let request = ZipInstallRequest {
+                    storage,
                     bytes,
-                    crate::wiiload_zip::WIILOAD_ZIP_MAX_ENTRIES,
-                )
-                .map_err(|error| StartupError::Storage(StorageError::Archive(error)))?;
-                let storage = self.storage.as_mut().ok_or(StartupError::NoStorage)?;
-                storage
-                    .ensure_directory("apps")
-                    .map_err(StartupError::Storage)?;
-                let destination = alloc::format!("apps/{directory}");
-                storage
-                    .ensure_directory(&destination)
-                    .map_err(StartupError::Storage)?;
-                storage
-                    .extract_archive(bytes, &archive, &extraction, &destination)
-                    .map_err(StartupError::Storage)?;
-                let storage = self.storage.as_mut().ok_or(StartupError::NoStorage)?;
-                let catalog = scan_apps(storage, "apps", EXECUTABLE_SIZE_LIMIT, THEME_SIZE_LIMIT)
-                    .map_err(|_| StartupError::CatalogScan)?;
-                self.runtime.replace_catalog(catalog);
-                self.icon_textures.clear();
-                self.attempted_icon_indices.clear();
+                    directory,
+                    plan: extraction,
+                };
+                unsafe { addr_of_mut!(ZIP_INSTALL_REQUEST).write(MaybeUninit::new(request)) };
+                ZIP_INSTALL_STATE.store(ZIP_INSTALL_REQUESTED, Ordering::Release);
+                let created = unsafe {
+                    ogc_lwp::ThreadHandle::create(
+                        &mut *addr_of_mut!(ZIP_INSTALL_THREAD),
+                        Some(zip_install_entry),
+                        null_mut(),
+                        addr_of_mut!(ZIP_INSTALL_STACK.0).cast(),
+                        STORAGE_SCAN_STACK_SIZE as u32,
+                        STORAGE_SCAN_PRIORITY,
+                    )
+                };
+                match created {
+                    Ok(thread) => {
+                        self.zip_install_thread = Some(thread);
+                        self.runtime.show_wiiload_installing();
+                    }
+                    Err(error) => {
+                        let request =
+                            unsafe { addr_of_mut!(ZIP_INSTALL_REQUEST).read().assume_init_read() };
+                        self.storage = Some(request.storage);
+                        ZIP_INSTALL_STATE.store(ZIP_INSTALL_IDLE, Ordering::Release);
+                        return Err(StartupError::ScanWorker(error));
+                    }
+                }
             }
         }
         Ok(())
+    }
+
+    /// Join a completed ZIP install, restore storage ownership, and report success.
+    pub fn poll_received_zip_install(&mut self) -> Option<bool> {
+        if ZIP_INSTALL_STATE.load(Ordering::Acquire) != ZIP_INSTALL_READY {
+            return None;
+        }
+        if let Some(thread) = self.zip_install_thread.take() {
+            let _ = thread.join();
+        }
+        let result = unsafe { addr_of_mut!(ZIP_INSTALL_RESULT).read().assume_init_read() };
+        self.storage = Some(result.storage);
+        let succeeded = if let Some(catalog) = result.catalog {
+            self.runtime.replace_catalog(catalog);
+            self.icon_textures.clear();
+            self.attempted_icon_indices.clear();
+            true
+        } else {
+            false
+        };
+        ZIP_INSTALL_STATE.store(ZIP_INSTALL_IDLE, Ordering::Release);
+        self.runtime.finish_wiiload_installing();
+        Some(succeeded)
+    }
+
+    pub fn received_zip_install_pending(&self) -> bool {
+        self.zip_install_thread.is_some()
     }
 
     /// Initialize controller services, load NAND settings, and scan the
@@ -189,6 +288,7 @@ impl WiiStartup {
             scan_thread: None,
             scan_previous_volume: None,
             scan_requested_volume: None,
+            zip_install_thread: None,
         };
         if startup.start_storage_scan(preference, false, None).is_err() {
             startup
@@ -318,7 +418,7 @@ impl WiiStartup {
     /// Decode visible HBC-sized icons once and retain their aligned GX data.
     /// Bad, missing, and oversized optional icons stay on the placeholder path.
     pub fn refresh_visible_icons(&mut self) {
-        if self.storage_scan_pending() {
+        if self.storage_scan_pending() || self.received_zip_install_pending() {
             return;
         }
         let visible: Vec<(usize, alloc::string::String)> = {
@@ -375,7 +475,7 @@ impl WiiStartup {
     /// Retry device selection and catalog scanning after media removal or
     /// insertion. Call this every 30 frames, as HBC does.
     pub fn refresh_storage(&mut self) -> Result<bool, StartupError> {
-        if self.storage_scan_pending() {
+        if self.storage_scan_pending() || self.received_zip_install_pending() {
             return Ok(false);
         }
         if self

@@ -107,7 +107,8 @@ deferred.
 - Wiiload now accepts ELF and DOL uploads through the launch path. It checks
   received app and theme ZIPs, asks before applying them, extracts app files
   below `apps/<folder>`, and saves and applies theme ZIPs through NAND. App
-  extraction currently runs on the main thread and has no progress dialog.
+  extraction runs on a worker and displays a loading dialog. It does not show
+  per-file progress.
   Network status artwork and update behavior still need integration. Settings
   save when HBC exits, as in the original. Settings and theme replacement now
   write a temporary NAND file, rename with a backup, and recover an interrupted

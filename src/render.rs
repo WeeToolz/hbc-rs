@@ -569,7 +569,11 @@ pub fn browser_frame_with_viewport(
     let selected = controller.selected_index().saturating_sub(page_start);
 
     match controller.screen {
-        Screen::Browser | Screen::AppDetails | Screen::DeleteConfirm | Screen::WiiloadConfirm => {
+        Screen::Browser
+        | Screen::AppDetails
+        | Screen::DeleteConfirm
+        | Screen::WiiloadConfirm
+        | Screen::WiiloadInstalling => {
             if navigation.has_previous() {
                 frame.page_arrow(
                     rect(24, 192, 64, 64),
@@ -736,7 +740,11 @@ pub fn browser_frame_with_viewport(
     }
     if matches!(
         controller.screen,
-        Screen::AppDetails | Screen::DeleteConfirm | Screen::WiiloadConfirm | Screen::Options
+        Screen::AppDetails
+            | Screen::DeleteConfirm
+            | Screen::WiiloadConfirm
+            | Screen::WiiloadInstalling
+            | Screen::Options
     ) {
         frame.fill(rect(0, 0, 640, 480), MODAL_SHADE);
         frame.theme_art(rect(60, 44, 520, 360), ThemeArt::Dialog, false);
@@ -910,7 +918,7 @@ pub fn browser_frame_with_viewport(
                 );
                 frame.hit_target(PointerTarget::DeleteChoice { yes: *yes }, bounds);
             }
-        } else {
+        } else if controller.screen == Screen::WiiloadConfirm {
             frame.theme_art(
                 rect(188, 68, 32, 32),
                 ThemeArt::DialogIcon(DialogIcon::Confirm),
@@ -935,6 +943,10 @@ pub fn browser_frame_with_viewport(
                 );
                 frame.hit_target(PointerTarget::WiiloadChoice { yes: *yes }, bounds);
             }
+        } else {
+            frame.theme_art(rect(60, 44, 520, 360), ThemeArt::Dialog, false);
+            frame.text(252.0, 124.0, "Installing ZIP", 1.0, text_color, 40);
+            frame.text(192.0, 190.0, "Please wait...", 1.0, text_color, 40);
         }
     }
     if controller.screen == Screen::Notice {

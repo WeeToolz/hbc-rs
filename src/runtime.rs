@@ -38,6 +38,14 @@ impl AppRuntime {
         self.controller.request_wiiload_zip_confirmation();
     }
 
+    pub fn show_wiiload_installing(&mut self) {
+        self.controller.show_wiiload_installing();
+    }
+
+    pub fn finish_wiiload_installing(&mut self) {
+        self.controller.finish_wiiload_installing();
+    }
+
     pub fn catalog(&self) -> &[AppEntry] {
         &self.catalog
     }

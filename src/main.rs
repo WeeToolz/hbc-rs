@@ -48,21 +48,44 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     let mut display_ready = false;
     let mut frames_since_storage_scan = 0u8;
     let mut pending_zip: Option<Vec<u8>> = None;
+    let mut deferred_exit: Option<hbc_rs::platform::lifecycle::ExitRequest> = None;
 
     loop {
         if let Some(request) = hbc_rs::platform::lifecycle::take_request() {
-            let reset = match request {
-                hbc_rs::platform::lifecycle::ExitRequest::ReturnToMenu => {
-                    ogc_system::SYS_RETURNTOMENU
-                }
-                hbc_rs::platform::lifecycle::ExitRequest::PowerOff => ogc_system::SYS_POWEROFF,
-            };
-            exit_to_system(&mut startup, reset);
+            if startup.received_zip_install_pending() {
+                deferred_exit = Some(request);
+            } else {
+                let reset = match request {
+                    hbc_rs::platform::lifecycle::ExitRequest::ReturnToMenu => {
+                        ogc_system::SYS_RETURNTOMENU
+                    }
+                    hbc_rs::platform::lifecycle::ExitRequest::PowerOff => ogc_system::SYS_POWEROFF,
+                };
+                exit_to_system(&mut startup, reset);
+            }
         }
 
         startup.poll_storage_scan();
+        if let Some(succeeded) = startup.poll_received_zip_install() {
+            startup.runtime_mut().show_notice(if succeeded {
+                "Received ZIP is complete."
+            } else {
+                "Could not install the received ZIP."
+            });
+        }
+        if !startup.received_zip_install_pending() {
+            if let Some(request) = deferred_exit.take() {
+                let reset = match request {
+                    hbc_rs::platform::lifecycle::ExitRequest::ReturnToMenu => {
+                        ogc_system::SYS_RETURNTOMENU
+                    }
+                    hbc_rs::platform::lifecycle::ExitRequest::PowerOff => ogc_system::SYS_POWEROFF,
+                };
+                exit_to_system(&mut startup, reset);
+            }
+        }
         if !startup.storage_scan_pending() {
-            if pending_zip.is_none() {
+            if pending_zip.is_none() && !startup.received_zip_install_pending() {
                 if let Some(payload) = hbc_rs::platform::wiiload::take_payload() {
                     if payload.data.starts_with(b"PK\x03\x04") {
                         match hbc_rs::wiiload_zip::classify_received_zip(&payload.data) {
@@ -186,14 +209,10 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         for action in actions {
             if action == hbc_rs::app::Action::AcceptWiiloadZip {
                 if let Some(bytes) = pending_zip.take() {
-                    if startup.apply_received_zip(&bytes).is_err() {
+                    if startup.start_received_zip(bytes).is_err() {
                         startup
                             .runtime_mut()
                             .show_notice("Could not install the app or apply the theme.");
-                    } else {
-                        startup
-                            .runtime_mut()
-                            .show_notice("Received ZIP is complete.");
                     }
                 }
                 continue;
