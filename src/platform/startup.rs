@@ -1,15 +1,20 @@
 //! Boot-time HBC service and application catalog setup.
 //!
-//! Device access is synchronous in the current FAT adapter. This module scans
-//! one preferred volume and retains it for later browser actions. It does not
-//! start a background rescan worker.
+//! The FAT mount and initial catalog scan run on a worker. The app thread owns
+//! the mounted adapter after the worker returns and performs later file access.
 
 use alloc::vec::Vec;
+use core::{
+    ffi::c_void,
+    mem::MaybeUninit,
+    ptr::{addr_of_mut, null_mut},
+    sync::atomic::{AtomicBool, AtomicI32, AtomicU8, Ordering},
+};
 
 use crate::{
     catalog::{scan_apps, AppEntry, AppKind, CatalogStorage},
     loader::{build_launch_arguments, parse_dol, parse_elf32_ppc, LoadPlan, ParseError},
-    metadata::ThemeMetadata,
+    metadata::{ThemeMetadata, UserSettings},
     platform::{
         input, settings,
         storage::{FatStorage, StorageError, Volume},
@@ -21,7 +26,47 @@ use crate::{
 const EXECUTABLE_SIZE_LIMIT: u64 = (0x8133_0000 - 1 - 1024) - 0x8000_3400;
 const THEME_SIZE_LIMIT: u64 = 20 * 1024 * 1024;
 const BOOTMII_TITLE_ID: u64 = 0x0000_0001_0000_00fe;
+const STORAGE_SCAN_STACK_SIZE: usize = 12 * 1024;
+const STORAGE_SCAN_PRIORITY: u8 = 30;
+const STORAGE_SCAN_IDLE: u8 = 0;
+const STORAGE_SCAN_RUNNING: u8 = 1;
+const STORAGE_SCAN_READY: u8 = 2;
 pub const EXECUTABLE_MEMORY: core::ops::Range<u32> = 0x8000_3400..0x8132_fc00;
+
+struct StorageScanResult {
+    volume: Option<Volume>,
+    storage: Option<FatStorage>,
+    catalog: Vec<AppEntry>,
+    scan_failed: bool,
+}
+
+#[repr(align(32))]
+struct StorageScanStack([u8; STORAGE_SCAN_STACK_SIZE]);
+
+static STORAGE_SCAN_STATE: AtomicU8 = AtomicU8::new(STORAGE_SCAN_IDLE);
+static STORAGE_SCAN_PREFERENCE: AtomicI32 = AtomicI32::new(0);
+static STORAGE_SCAN_SHUTDOWN_OLD: AtomicBool = AtomicBool::new(false);
+static mut STORAGE_SCAN_RESULT: MaybeUninit<StorageScanResult> = MaybeUninit::uninit();
+static mut STORAGE_SCAN_STACK: StorageScanStack = StorageScanStack([0; STORAGE_SCAN_STACK_SIZE]);
+
+unsafe fn storage_scan_entry(_argument: *mut c_void) -> *mut c_void {
+    if STORAGE_SCAN_SHUTDOWN_OLD.load(Ordering::Acquire) {
+        let _ = ogc_fat::shutdown_all();
+    }
+    let preference = STORAGE_SCAN_PREFERENCE.load(Ordering::Acquire);
+    let (volume, storage, catalog, scan_failed) = mount_preferred_volume(preference);
+    let result = StorageScanResult {
+        volume,
+        storage,
+        catalog,
+        scan_failed,
+    };
+    unsafe {
+        addr_of_mut!(STORAGE_SCAN_RESULT).write(MaybeUninit::new(result));
+    }
+    STORAGE_SCAN_STATE.store(STORAGE_SCAN_READY, Ordering::Release);
+    null_mut()
+}
 
 /// The result of native Wii startup, ready for the browser loop.
 pub struct WiiStartup {
@@ -32,6 +77,10 @@ pub struct WiiStartup {
     attempted_icon_indices: Vec<usize>,
     theme_textures: super::theme::ThemeTextures,
     widescreen: bool,
+    pending_settings: Option<UserSettings>,
+    scan_thread: Option<ogc_lwp::ThreadHandle>,
+    scan_previous_volume: Option<Volume>,
+    scan_requested_volume: Option<Volume>,
 }
 
 pub struct IconTexture {
@@ -47,13 +96,10 @@ impl WiiStartup {
         input::initialize(view_width, view_height);
 
         let loaded_settings = settings::load().unwrap_or_default();
-        let (volume, storage, catalog, scan_failed) =
-            mount_preferred_volume(loaded_settings.device);
-        let mut runtime = AppRuntime::new(catalog);
-        runtime.load_settings(loaded_settings);
+        let preference = loaded_settings.device;
+        let mut runtime = AppRuntime::new(Vec::new());
         let widescreen = view_width > crate::render::LOGICAL_WIDTH;
         runtime.set_widescreen(widescreen);
-        runtime.set_active_device(volume.map(Volume::settings_index));
         let (loaded_theme, theme_textures) = match super::theme::load() {
             Ok(Some(archive)) => match crate::theme::ThemePackage::parse(&archive) {
                 Ok(package) => {
@@ -80,21 +126,21 @@ impl WiiStartup {
 
         let mut startup = Self {
             runtime,
-            volume,
-            storage,
+            volume: None,
+            storage: None,
             icon_textures: Vec::new(),
             attempted_icon_indices: Vec::new(),
             theme_textures,
             widescreen,
+            pending_settings: Some(loaded_settings),
+            scan_thread: None,
+            scan_previous_volume: None,
+            scan_requested_volume: None,
         };
-        if scan_failed {
+        if startup.start_storage_scan(preference, false, None).is_err() {
             startup
                 .runtime
-                .show_notice("Could not read the apps folder on this device.");
-        } else if !startup.has_storage() {
-            startup
-                .runtime
-                .show_notice("No SD or USB storage device is available.");
+                .show_notice("Could not start storage discovery.");
         }
         startup
     }
@@ -123,6 +169,91 @@ impl WiiStartup {
         self.storage.is_some()
     }
 
+    pub fn storage_scan_pending(&self) -> bool {
+        self.scan_thread.is_some()
+    }
+
+    fn start_storage_scan(
+        &mut self,
+        preference: i32,
+        shutdown_previous_mount: bool,
+        requested_volume: Option<Volume>,
+    ) -> Result<(), StartupError> {
+        if self.scan_thread.is_some() {
+            return Ok(());
+        }
+        if STORAGE_SCAN_STATE.load(Ordering::Acquire) != STORAGE_SCAN_IDLE {
+            return Err(StartupError::ScanWorker(-1));
+        }
+
+        STORAGE_SCAN_PREFERENCE.store(preference, Ordering::Release);
+        STORAGE_SCAN_SHUTDOWN_OLD.store(shutdown_previous_mount, Ordering::Release);
+        self.scan_requested_volume = requested_volume;
+        STORAGE_SCAN_STATE.store(STORAGE_SCAN_RUNNING, Ordering::Release);
+        let mut raw_thread = ogc_lwp::sys::LWP_THREAD_NULL;
+        let created = unsafe {
+            ogc_lwp::ThreadHandle::create(
+                &mut raw_thread,
+                Some(storage_scan_entry),
+                null_mut(),
+                addr_of_mut!(STORAGE_SCAN_STACK.0).cast(),
+                STORAGE_SCAN_STACK_SIZE as u32,
+                STORAGE_SCAN_PRIORITY,
+            )
+        };
+        match created {
+            Ok(thread) => {
+                self.scan_thread = Some(thread);
+                Ok(())
+            }
+            Err(error) => {
+                STORAGE_SCAN_STATE.store(STORAGE_SCAN_IDLE, Ordering::Release);
+                Err(StartupError::ScanWorker(error))
+            }
+        }
+    }
+
+    /// Join a completed mount-and-scan task and install its owned result.
+    pub fn poll_storage_scan(&mut self) -> bool {
+        if STORAGE_SCAN_STATE.load(Ordering::Acquire) != STORAGE_SCAN_READY {
+            return false;
+        }
+        if let Some(thread) = self.scan_thread.take() {
+            let _ = thread.join();
+        }
+        let result = unsafe { addr_of_mut!(STORAGE_SCAN_RESULT).read().assume_init_read() };
+        STORAGE_SCAN_STATE.store(STORAGE_SCAN_IDLE, Ordering::Release);
+
+        let previous_volume = self.scan_previous_volume.take();
+        let requested_volume = self.scan_requested_volume.take();
+        self.volume = result.volume;
+        self.storage = result.storage;
+        self.runtime.replace_catalog(result.catalog);
+        if let Some(settings) = self.pending_settings.take() {
+            self.runtime.load_settings(settings);
+        }
+        self.runtime.set_widescreen(self.widescreen);
+        self.runtime
+            .set_active_device(self.volume.map(Volume::settings_index));
+        self.icon_textures.clear();
+        self.attempted_icon_indices.clear();
+
+        if result.scan_failed {
+            self.runtime
+                .show_notice("Could not read the apps folder on this device.");
+        } else if requested_volume.is_some() && self.volume != requested_volume {
+            self.runtime
+                .show_notice("The selected storage device is not available.");
+        } else if previous_volume.is_some() && self.volume.is_none() {
+            self.runtime
+                .show_notice("Storage was removed. Connect an SD or USB device.");
+        } else if self.volume.is_none() {
+            self.runtime
+                .show_notice("No SD or USB storage device is available.");
+        }
+        true
+    }
+
     pub fn icon_textures(&self) -> &[IconTexture] {
         &self.icon_textures
     }
@@ -134,6 +265,9 @@ impl WiiStartup {
     /// Decode visible HBC-sized icons once and retain their aligned GX data.
     /// Bad, missing, and oversized optional icons stay on the placeholder path.
     pub fn refresh_visible_icons(&mut self) {
+        if self.storage_scan_pending() {
+            return;
+        }
         let visible: Vec<(usize, alloc::string::String)> = {
             let catalog = self.runtime.catalog();
             self.runtime
@@ -188,6 +322,9 @@ impl WiiStartup {
     /// Retry device selection and catalog scanning after media removal or
     /// insertion. Call this every 30 frames, as HBC does.
     pub fn refresh_storage(&mut self) -> Result<bool, StartupError> {
+        if self.storage_scan_pending() {
+            return Ok(false);
+        }
         if self
             .volume
             .is_some_and(|volume| ogc_fat::is_mounted(volume.mount_name()))
@@ -196,29 +333,10 @@ impl WiiStartup {
         }
 
         let previous_volume = self.volume;
-        if previous_volume.is_some() {
-            ogc_fat::shutdown_all()
-                .map_err(|error| StartupError::Storage(StorageError::Fat(error)))?;
-        }
-
         let preference = self.runtime.settings().current().device;
-        let (volume, storage, catalog, scan_failed) = mount_preferred_volume(preference);
-        self.volume = volume;
-        self.storage = storage;
-        self.runtime
-            .set_active_device(volume.map(Volume::settings_index));
-        self.runtime.replace_catalog(catalog);
-        self.icon_textures.clear();
-        self.attempted_icon_indices.clear();
-
-        if scan_failed {
-            self.runtime
-                .show_notice("Could not read the apps folder on this device.");
-        } else if previous_volume.is_some() && volume.is_none() {
-            self.runtime
-                .show_notice("Storage was removed. Connect an SD or USB device.");
-        }
-        Ok(previous_volume != volume)
+        self.scan_previous_volume = previous_volume;
+        self.start_storage_scan(preference, previous_volume.is_some(), None)?;
+        Ok(true)
     }
 
     /// Delete the selected app folder and remove it from the live catalog.
@@ -380,6 +498,9 @@ impl WiiStartup {
 
     /// Unmount the selected volume before the one-way executable handoff.
     pub fn unmount_storage(&mut self) -> Result<(), StartupError> {
+        if self.storage_scan_pending() {
+            return Err(StartupError::StorageScanPending);
+        }
         ogc_fat::shutdown_all().map_err(|error| StartupError::Storage(StorageError::Fat(error)))?;
         self.storage = None;
         self.volume = None;
@@ -449,6 +570,8 @@ pub enum StartupError {
     NotExecutable,
     TooLarge,
     Storage(StorageError),
+    ScanWorker(i32),
+    StorageScanPending,
     Loader(ParseError),
     Theme(crate::theme::ThemePackageError),
     ThemeStorage(super::settings::SettingsIoError),

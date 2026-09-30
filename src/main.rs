@@ -49,6 +49,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             exit_to_system(&mut startup, reset);
         }
 
+        startup.poll_storage_scan();
         frames_since_storage_scan += 1;
         if frames_since_storage_scan == 30 {
             frames_since_storage_scan = 0;
@@ -59,6 +60,14 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             }
         }
         let mut frame = hbc_rs::platform::input::scan();
+        let storage_scan_pending = startup.storage_scan_pending();
+        if storage_scan_pending {
+            frame.pressed.clear();
+            frame.held.clear();
+            frame.released.clear();
+            frame.pointer = None;
+            frame.pointer_pressed = false;
+        }
         let pointer = frame.pointer;
         let pointer_pressed = frame.pointer_pressed;
         if pointer_pressed {
@@ -91,6 +100,9 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         );
         if let Some(pointer) = pointer {
             scene.pointer_cursor(f32::from(pointer.x), f32::from(pointer.y));
+        }
+        if storage_scan_pending {
+            scene.storage_loading();
         }
         if unsafe {
             hbc_rs::platform::renderer::draw_frame(

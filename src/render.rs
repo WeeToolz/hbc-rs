@@ -156,6 +156,19 @@ impl Frame {
         self.fill(rect(x - 1.0, y - 5.0, 2.0, 10.0), ACCENT);
     }
 
+    pub fn storage_loading(&mut self) {
+        let x = (f32::from(self.logical_width()) - 208.0) / 2.0;
+        self.fill(rect(x, 220.0, 208.0, 40.0), PANEL);
+        self.text(
+            x + 16.0,
+            236.0,
+            "Scanning storage...",
+            1.0,
+            Color::rgb(213, 224, 233),
+            30,
+        );
+    }
+
     fn widen_canvas(&mut self) {
         // Existing layout constants use a centered 640-pixel design canvas.
         // Extend full-width fills and move its contents into the 852-pixel view.

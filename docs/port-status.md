@@ -63,11 +63,12 @@ deferred.
   Rust decoder for grayscale, RGB, indexed, gray-alpha, and RGBA images, including
   Adam7 interlacing. The decoder can convert RGBA output to GX RGBA8 tile order.
   Theme controls, fonts, and progress gradients are not yet drawn.
-- Device discovery scans one preferred volume synchronously at startup and
-  retries SD/USB selection every 30 frames. It unmounts an offline volume,
+- Device discovery mounts and scans one preferred volume on a worker at startup
+  and retries SD/USB selection every 30 frames. The main loop pauses browser
+  input during a scan and displays a loading panel. It unmounts an offline volume,
   remounts available media, and replaces the catalog while preserving the
-  selected app where possible. It does not use HBC's background mount worker
-  or show per-device status. A missing `apps` directory is treated as an empty
+  selected app where possible. It does not show per-device status. A missing
+  `apps` directory is treated as an empty
   catalog; other top-level scan errors show a notice. GameCube memory cards are
   not supported. USB storage candidates exclude HID devices. USB storage now
   starts and stops only the vendor watcher. Its IOS open and ioctl calls remain
@@ -117,9 +118,10 @@ target has no `test` crate.
 - The reported NAND startup hang with a HID controller and no USB drive enters
   HBC's USB storage startup path after SD probing fails. The local `libogc-rs`
   copy filters storage candidates by interface class and now starts only the
-  vendor host for storage. The vendor host still makes synchronous IOS calls.
-  This change removes unrelated HID-host startup work; it does not prove the
-  reported hang is fixed. The cause needs hardware confirmation.
+  vendor host for storage. HBC-rs now mounts and scans on an LWP worker so a
+  stalled IOS storage call does not freeze drawing and input on the main loop.
+  The vendor host still makes synchronous IOS calls, so storage discovery may
+  still stall and the reported hardware hang needs confirmation.
 
 ## Out of scope for the first runtime target
 
