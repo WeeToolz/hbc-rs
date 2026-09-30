@@ -13,6 +13,7 @@ pub mod catalog;
 pub mod loader;
 pub mod management;
 pub mod metadata;
+pub mod runtime;
 pub mod settings;
 
 pub mod platform;
