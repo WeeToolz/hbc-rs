@@ -1111,13 +1111,17 @@ pub fn browser_frame_with_viewport(
 }
 
 fn gradient_color(stops: [Rgba; 4], position: f32) -> Color {
-    let scaled = position.clamp(0.0, 1.0) * 3.0;
-    let index = (scaled.floor() as usize).min(2);
-    let amount = scaled - index as f32;
+    // Convert the bounded position to 8-bit fixed point. Avoid float floor and
+    // round, which are unavailable in the Wii no_std target.
+    let scaled = (position * 768.0) as u16;
+    let index = ((scaled / 256) as usize).min(2);
+    let amount = scaled - index as u16 * 256;
     let a = stops[index];
     let b = stops[index + 1];
     let mix = |left: u8, right: u8| {
-        (f32::from(left) + (f32::from(right) - f32::from(left)) * amount).round() as u8
+        let left = u16::from(left);
+        let right = u16::from(right);
+        ((left * (256 - amount) + right * amount + 128) / 256) as u8
     };
     Color {
         red: mix(a.0, b.0),
@@ -1627,6 +1631,15 @@ mod tests {
             .iter()
             .any(|fill| fill.color.red > 70 && fill.color.red < 110));
         assert!((progress.iter().map(|fill| fill.bounds.width).sum::<f32>() - 330.0).abs() < 0.01);
+        assert_eq!(
+            gradient_color(theme.progress_gradient.unwrap(), 1.0),
+            Color {
+                red: 110,
+                green: 120,
+                blue: 130,
+                alpha: 255
+            }
+        );
     }
 
     #[test]
@@ -1635,9 +1648,17 @@ mod tests {
         controller.show_wiiload_receiving();
         controller.set_wiiload_install_progress(35);
         let frame = browser_frame(&controller, &[]);
-        assert!(frame.fills.iter().any(|fill| {
-            fill.bounds.y == 256.0 && fill.bounds.width == 140.0 && fill.color == ACCENT
-        }));
+        assert!(frame.commands.iter().any(|command| matches!(
+            command,
+            FrameCommand::ThemeArt { art: ThemeArt::Progress, .. }
+        )));
+        let progress: Vec<_> = frame
+            .fills
+            .iter()
+            .filter(|fill| fill.bounds.y == 255.0 && fill.bounds.x >= 155.0 && fill.color != HEADER)
+            .collect();
+        assert!(progress.iter().all(|fill| fill.color == ACCENT));
+        assert!((progress.iter().map(|fill| fill.bounds.width).sum::<f32>() - 115.5).abs() < 0.01);
     }
 
     #[test]
