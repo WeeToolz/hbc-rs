@@ -4,6 +4,8 @@
 //! events for one-shot actions and hold events for repeatable navigation.
 
 use alloc::vec::Vec;
+#[cfg(target_arch = "powerpc")]
+use core::sync::atomic::{AtomicI32, Ordering};
 
 use crate::app::Input;
 
@@ -55,6 +57,9 @@ pub enum Extension {
     Classic,
     GuitarHero3,
 }
+
+#[cfg(target_arch = "powerpc")]
+static POINTER_OWNER: AtomicI32 = AtomicI32::new(-1);
 
 /// Convert supported extension buttons to the matching Remote buttons.
 /// Nunchuk buttons do not map to HBC actions in the original controls layer.
@@ -205,13 +210,20 @@ fn inputs(mask: Buttons) -> Vec<Input> {
 }
 
 #[cfg(target_arch = "powerpc")]
-pub fn initialize() {
+pub fn initialize(view_width: u16, view_height: u16) {
     ogc_input::init();
     wpad_sys::init();
     wpad_sys::set_idle_timeout(120);
+    let ir_width = u32::from(view_width).saturating_add(128);
+    let ir_height = u32::from(view_height).saturating_add(128);
+    for channel in 0..4 {
+        wpad_sys::set_data_format(channel, wpad_sys::WPAD_FMT_BTNS_ACC_IR);
+        wpad_sys::set_v_res(channel, ir_width, ir_height);
+    }
+    POINTER_OWNER.store(-1, Ordering::Release);
 }
 
-/// Scan all four GameCube ports and Wii Remote channels, combining buttons.
+/// Scan GameCube port zero and Wii Remote channels using HBC pointer ownership.
 #[cfg(target_arch = "powerpc")]
 pub fn scan() -> InputFrame {
     use ogc_input as pad;
@@ -221,27 +233,62 @@ pub fn scan() -> InputFrame {
     let mut down = Buttons::default();
     let mut held = Buttons::default();
     let mut up = Buttons::default();
-    for channel in 0..4 {
-        let channel = channel as i32;
-        let pressed_pad = pad::buttons_down(channel);
-        let held_pad = pad::buttons_held(channel);
-        let released_pad = pad::buttons_up(channel);
-        map_pad(pressed_pad, &mut down);
-        map_pad(held_pad, &mut held);
-        map_pad(released_pad, &mut up);
-    }
     wpad::scan_pads();
+    // HBC reads only PAD channel zero. Other controller buttons are accepted
+    // only when no Wii Remote owns the IR pointer; then they are combined.
+    let pressed_pad = pad::buttons_down(0);
+    let held_pad = pad::buttons_held(0);
+    let released_pad = pad::buttons_up(0);
+    map_pad(pressed_pad, &mut down);
+    map_pad(held_pad, &mut held);
+    map_pad(released_pad, &mut up);
+
+    let mut data = [core::ptr::null_mut(); 4];
+    let mut ir_valid = [false; 4];
     for channel in 0..4 {
         let channel = channel as i32;
-        map_wpad_channel(channel, wpad::buttons_down(channel), &mut down);
-        map_wpad_channel(channel, wpad::buttons_held(channel), &mut held);
-        map_wpad_channel(channel, wpad::buttons_up(channel), &mut up);
+        let mut expansion = 0;
+        if unsafe { wpad::probe(channel, &mut expansion) } != wpad::WPAD_ERR_NONE as i32 {
+            continue;
+        }
+        let state = wpad::data(channel);
+        if state.is_null() {
+            continue;
+        }
+        data[channel as usize] = state;
+        ir_valid[channel as usize] = unsafe { (*state).ir.valid != 0 };
+    }
+    let owner = select_pointer_owner(&ir_valid, POINTER_OWNER.load(Ordering::Acquire));
+    POINTER_OWNER.store(
+        owner.map_or(-1, |channel| channel as i32),
+        Ordering::Release,
+    );
+
+    for channel in 0..4 {
+        if data[channel].is_null() || owner.is_some_and(|owner| owner != channel) {
+            continue;
+        }
+        let channel_id = channel as i32;
+        map_wpad_channel(channel_id, wpad::buttons_down(channel_id), &mut down);
+        map_wpad_channel(channel_id, wpad::buttons_held(channel_id), &mut held);
+        map_wpad_channel(channel_id, wpad::buttons_up(channel_id), &mut up);
     }
     InputFrame {
         pressed: inputs(down),
         held: inputs(held),
         released: inputs(up),
     }
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+fn select_pointer_owner(ir_valid: &[bool; 4], previous: i32) -> Option<usize> {
+    if previous >= 0 {
+        let previous = previous as usize;
+        if ir_valid.get(previous).copied().unwrap_or(false) {
+            return Some(previous);
+        }
+    }
+    ir_valid.iter().position(|valid| *valid)
 }
 
 #[cfg(target_arch = "powerpc")]
@@ -284,6 +331,23 @@ mod tests {
         let classic = map_buttons(0, classic_mask);
         assert!(classic.contains(Input::Confirm));
         assert!(classic.contains(Input::Right));
+    }
+
+    #[test]
+    fn pointer_owner_is_stable_until_ir_is_lost() {
+        assert_eq!(
+            select_pointer_owner(&[true, true, false, false], 1),
+            Some(1)
+        );
+        assert_eq!(
+            select_pointer_owner(&[true, false, false, false], 1),
+            Some(0)
+        );
+        assert_eq!(select_pointer_owner(&[false, false, false, false], 1), None);
+        assert_eq!(
+            select_pointer_owner(&[true, false, false, false], -1),
+            Some(0)
+        );
     }
 
     #[test]
