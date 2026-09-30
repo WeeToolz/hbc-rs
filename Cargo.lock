@@ -211,6 +211,7 @@ dependencies = [
  "ogc-core",
  "ogc-gu",
  "ogc-gx-sys",
+ "ogc-irq",
  "ogc-system",
 ]
 
