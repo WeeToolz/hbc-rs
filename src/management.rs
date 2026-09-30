@@ -42,6 +42,13 @@ pub struct ExtractionPlan {
 }
 
 impl ExtractionPlan {
+    pub(crate) fn from_operations(operations: Vec<ExtractionOperation>, total_bytes: u64) -> Self {
+        Self {
+            operations,
+            total_bytes,
+        }
+    }
+
     pub fn operations(&self) -> &[ExtractionOperation] {
         &self.operations
     }

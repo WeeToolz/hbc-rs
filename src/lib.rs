@@ -20,5 +20,6 @@ pub mod settings;
 pub mod text_layout;
 pub mod theme;
 pub mod wiiload;
+pub mod wiiload_zip;
 
 pub mod platform;
