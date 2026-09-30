@@ -94,10 +94,13 @@ blending. `draw_solid_rect` emits a four-vertex solid rectangle. The target
 crate passes `cargo check` with warnings denied. Hardware output still needs
 validation.
 
-GX vertex setup must also write `XF_NUMCOLORS` at XF register `0x1009`. The
-CP vertex descriptor can request color 0 while XF reports zero color channels;
-Dolphin reports this as a CP/XF mismatch and pauses emulation. The local setup
-now sets one XF color channel to match the VCD and BP generation mode.
+GX vertex setup must write `INVTXSPEC` at XF register `0x1008` to match the CP
+vertex descriptor. Color 0 uses value `0x01`; color 0 plus direct TEX0 uses
+`0x11`. `XF_NUMCOLORS` at register `0x1009` is a separate output setting.
+Dolphin reported that the prior setup sent one CP color and zero XF colors, and
+the textured path sent one CP texture coordinate and zero XF coordinates. It
+warns that this mismatch can hang real hardware. A regression test checks both
+vertex-spec values.
 
 The GX work is incomplete. The FIFO setup is a minimal single-owner path. It
 does not install CP or PE interrupt handlers, provide overflow/underflow

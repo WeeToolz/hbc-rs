@@ -25,6 +25,13 @@ impl VideoSystem {
         self.info
     }
 
+    #[cfg(feature = "startup-diagnostics")]
+    pub fn framebuffer_has_nonzero_bytes(&self) -> bool {
+        let framebuffer = ogc_core::mem_k0_to_k1(self.framebuffer as usize) as *const u8;
+        (0..self.info.byte_len as usize)
+            .any(|offset| unsafe { core::ptr::read_volatile(framebuffer.add(offset)) != 0 })
+    }
+
     /// Show the cleared framebuffer after the renderer has drawn its first frame.
     pub fn show(&self) {
         unsafe { ogc_video::set_next_framebuffer(self.framebuffer) };

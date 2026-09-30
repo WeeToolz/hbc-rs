@@ -247,6 +247,14 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             {
                 hbc_rs::platform::diagnostics::mark("GX COPY QUEUED");
                 hbc_rs::platform::diagnostics::hold();
+                if !video.framebuffer_has_nonzero_bytes() {
+                    hbc_rs::platform::diagnostics::fail("GX XFB EMPTY");
+                    loop {
+                        hbc_rs::platform::diagnostics::hold();
+                    }
+                }
+                hbc_rs::platform::diagnostics::mark("GX XFB DATA READY");
+                hbc_rs::platform::diagnostics::hold();
             }
             video.show();
             display_ready = true;
