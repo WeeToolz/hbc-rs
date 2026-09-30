@@ -107,6 +107,11 @@ impl AppController {
         self.detail_focus
     }
 
+    /// Keep the selected app identity valid after a catalog refresh.
+    pub fn reconcile_catalog(&mut self, catalog: &[AppEntry]) {
+        self.reconcile_selection(catalog);
+    }
+
     pub fn browser_layout(&self) -> BrowserLayout {
         self.layout
     }

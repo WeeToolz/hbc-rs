@@ -5,7 +5,9 @@ use alloc::vec::Vec;
 use crate::{
     app::{Action, AppController, Input},
     catalog::AppEntry,
+    metadata::UserSettings,
     platform::input::InputFrame,
+    settings::SettingsState,
 };
 
 /// Owns the current catalog and applies platform input to the app controller.
@@ -14,6 +16,7 @@ use crate::{
 pub struct AppRuntime {
     controller: AppController,
     catalog: Vec<AppEntry>,
+    settings: SettingsState,
 }
 
 impl AppRuntime {
@@ -21,6 +24,7 @@ impl AppRuntime {
         Self {
             controller: AppController::new(),
             catalog,
+            settings: SettingsState::default(),
         }
     }
 
@@ -32,16 +36,39 @@ impl AppRuntime {
         &self.catalog
     }
 
-    /// Replace a device-scan snapshot. Selection is reconciled on the next
-    /// input update so the controller remains the single policy owner.
+    pub fn settings(&self) -> &SettingsState {
+        &self.settings
+    }
+
+    /// Apply settings loaded from NAND before the first rendered frame.
+    pub fn load_settings(&mut self, settings: UserSettings) {
+        self.controller.sort = if settings.sort_order == 1 {
+            crate::catalog::SortOrder::ReleaseDate
+        } else {
+            crate::catalog::SortOrder::Name
+        };
+        self.controller.selected_app = settings.selected_app.clone();
+        self.controller.set_browser_layout(
+            crate::app::BrowserLayout {
+                columns: if settings.browse_mode == 1 { 3 } else { 1 },
+                rows: 5,
+            },
+            &self.catalog,
+        );
+        self.settings.load(settings);
+    }
+
+    /// Replace a device-scan snapshot and keep selection inside the new list.
     pub fn replace_catalog(&mut self, catalog: Vec<AppEntry>) {
         self.catalog = catalog;
+        self.controller.reconcile_catalog(&self.catalog);
     }
 
     /// Apply one input frame and return actions for storage or platform code.
     /// Held directional and page inputs repeat. A newly pressed input is not
     /// applied twice when the platform reports it as both pressed and held.
     pub fn update(&mut self, frame: &InputFrame) -> Vec<Action> {
+        self.controller.reconcile_catalog(&self.catalog);
         let mut actions = Vec::new();
         for &input in &frame.pressed {
             push_action(&mut actions, self.controller.handle(input, &self.catalog));
@@ -51,7 +78,22 @@ impl AppRuntime {
                 push_action(&mut actions, self.controller.handle(input, &self.catalog));
             }
         }
+        self.sync_settings();
         actions
+    }
+
+    fn sync_settings(&mut self) {
+        let current = self.settings.current_mut();
+        current.sort_order = match self.controller.sort {
+            crate::catalog::SortOrder::Name => 0,
+            crate::catalog::SortOrder::ReleaseDate => 1,
+        };
+        current.selected_app = self.controller.selected_app.clone();
+        current.browse_mode = if self.controller.browser_layout().columns > 1 {
+            1
+        } else {
+            0
+        };
     }
 }
 
@@ -118,5 +160,48 @@ mod tests {
             released: vec![],
         };
         assert!(runtime.update(&frame).is_empty());
+    }
+
+    #[test]
+    fn settings_load_and_frame_updates_keep_sort_and_selection_persistent() {
+        let mut runtime = AppRuntime::new(vec![app("a"), app("b")]);
+        runtime.load_settings(UserSettings {
+            sort_order: 1,
+            browse_mode: 1,
+            selected_app: Some("b".into()),
+            ..UserSettings::default()
+        });
+        assert_eq!(runtime.controller().browser_layout().columns, 3);
+        assert!(!runtime.settings().is_dirty());
+
+        let frame = InputFrame {
+            pressed: vec![Input::CycleSort],
+            held: vec![],
+            released: vec![],
+        };
+        runtime.update(&frame);
+        assert!(runtime.settings().is_dirty());
+        assert_eq!(runtime.settings().current().sort_order, 0);
+        assert_eq!(
+            runtime.settings().current().selected_app.as_deref(),
+            Some("b")
+        );
+    }
+
+    #[test]
+    fn catalog_refresh_reconciles_selection_before_settings_sync() {
+        let mut runtime = AppRuntime::new(vec![app("a"), app("b")]);
+        runtime.load_settings(UserSettings {
+            selected_app: Some("b".into()),
+            ..UserSettings::default()
+        });
+        runtime.replace_catalog(vec![app("a")]);
+        let idle = InputFrame::default();
+        runtime.update(&idle);
+        assert_eq!(runtime.controller().selected_app.as_deref(), Some("a"));
+        assert_eq!(
+            runtime.settings().current().selected_app.as_deref(),
+            Some("a")
+        );
     }
 }
