@@ -12,6 +12,11 @@ use ogc_filesystem as isfs;
 
 const THEME_FILENAME: &str = "theme.zip";
 const IO_CHUNK_SIZE: usize = 16 * 1024;
+const BACKGROUND_WIDTH: u32 = 640;
+const BACKGROUND_HEIGHT: u32 = 480;
+const THEME_IMAGE_MAX_BYTES: usize = 8 * 1024 * 1024;
+
+const DEFAULT_BACKGROUND: &[u8] = include_bytes!("../../assets/background.png");
 
 #[repr(align(32))]
 struct AlignedChunk([u8; IO_CHUNK_SIZE]);
@@ -120,3 +125,41 @@ pub fn save(archive: &[u8]) -> Result<(), SettingsIoError> {
 
 #[repr(align(32))]
 struct AlignedStats(isfs::Fstats);
+
+/// Decode a theme background, or use HBC's built-in background when the theme
+/// does not contain a valid image.
+pub fn background_texture(
+    package: Option<(&crate::theme::ThemePackage, &[u8])>,
+) -> Option<crate::png::GxRgba8Texture> {
+    package
+        .and_then(|(package, archive)| {
+            package
+                .extract_file(archive, "background.png", THEME_IMAGE_MAX_BYTES)
+                .ok()
+                .and_then(|bytes| decode_background(&bytes))
+        })
+        .or_else(|| decode_background(DEFAULT_BACKGROUND))
+}
+
+fn decode_background(data: &[u8]) -> Option<crate::png::GxRgba8Texture> {
+    let image = crate::png::decode_png(
+        data,
+        crate::png::PngLimits {
+            max_width: BACKGROUND_WIDTH,
+            max_height: BACKGROUND_HEIGHT,
+            max_pixels: (BACKGROUND_WIDTH * BACKGROUND_HEIGHT) as usize,
+            max_input_bytes: crate::theme::MAX_THEME_ARCHIVE_BYTES,
+        },
+    )
+    .ok()?;
+    if image.width != BACKGROUND_WIDTH || image.height != BACKGROUND_HEIGHT {
+        return None;
+    }
+    let texture = crate::png::GxRgba8Texture::from_image(&image).ok()?;
+    if let Ok(byte_len) = u32::try_from(texture.len()) {
+        unsafe { ogc_cache::dc_flush_range(texture.as_ptr().cast(), byte_len) };
+        Some(texture)
+    } else {
+        None
+    }
+}

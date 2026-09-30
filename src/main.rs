@@ -51,7 +51,12 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             startup.runtime().theme(),
         );
         if unsafe {
-            hbc_rs::platform::renderer::draw_frame(&video, &scene, startup.icon_textures())
+            hbc_rs::platform::renderer::draw_frame(
+                &video,
+                &scene,
+                startup.icon_textures(),
+                startup.background_texture(),
+            )
         }
         .is_err()
         {
@@ -67,7 +72,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         for action in actions {
             if action == hbc_rs::app::Action::ApplyTheme {
                 match startup.prepare_selected_theme() {
-                    Ok(theme) => startup.runtime_mut().apply_theme(theme),
+                    Ok(theme) => startup.apply_theme(theme),
                     Err(hbc_rs::platform::startup::StartupError::ThemeStorage(_)) => startup
                         .runtime_mut()
                         .show_notice("Could not save this theme to NAND."),

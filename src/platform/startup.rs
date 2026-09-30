@@ -30,6 +30,7 @@ pub struct WiiStartup {
     storage: Option<FatStorage>,
     icon_textures: Vec<IconTexture>,
     attempted_icon_indices: Vec<usize>,
+    background_texture: Option<crate::png::GxRgba8Texture>,
 }
 
 pub struct IconTexture {
@@ -49,10 +50,18 @@ impl WiiStartup {
             mount_preferred_volume(loaded_settings.device);
         let mut runtime = AppRuntime::new(catalog);
         runtime.load_settings(loaded_settings);
-        if let Ok(Some(archive)) = super::theme::load() {
-            if let Ok(package) = crate::theme::ThemePackage::parse(&archive) {
-                runtime.apply_theme(package.metadata);
-            }
+        let (loaded_theme, background_texture) = match super::theme::load() {
+            Ok(Some(archive)) => match crate::theme::ThemePackage::parse(&archive) {
+                Ok(package) => {
+                    let background = super::theme::background_texture(Some((&package, &archive)));
+                    (Some(package.metadata), background)
+                }
+                Err(_) => (None, super::theme::background_texture(None)),
+            },
+            _ => (None, super::theme::background_texture(None)),
+        };
+        if let Some(theme) = loaded_theme {
+            runtime.apply_theme(theme);
         }
         runtime.set_bootmii_available(bootmii_ios_available());
 
@@ -62,6 +71,7 @@ impl WiiStartup {
             storage,
             icon_textures: Vec::new(),
             attempted_icon_indices: Vec::new(),
+            background_texture,
         };
         if scan_failed {
             startup
@@ -93,6 +103,10 @@ impl WiiStartup {
 
     pub fn icon_textures(&self) -> &[IconTexture] {
         &self.icon_textures
+    }
+
+    pub fn background_texture(&self) -> Option<&crate::png::GxRgba8Texture> {
+        self.background_texture.as_ref()
     }
 
     /// Decode visible HBC-sized icons once and retain their aligned GX data.
@@ -260,7 +274,7 @@ impl WiiStartup {
     }
 
     /// Read a selected theme ZIP and parse its bounded metadata.
-    pub fn prepare_selected_theme(&mut self) -> Result<ThemeMetadata, StartupError> {
+    pub fn prepare_selected_theme(&mut self) -> Result<PreparedTheme, StartupError> {
         let entry = self
             .runtime
             .catalog()
@@ -287,8 +301,17 @@ impl WiiStartup {
             return Err(StartupError::MissingExecutable);
         }
         let package = crate::theme::ThemePackage::parse(&bytes).map_err(StartupError::Theme)?;
+        let background = super::theme::background_texture(Some((&package, &bytes)));
         super::theme::save(&bytes).map_err(StartupError::ThemeStorage)?;
-        Ok(package.metadata)
+        Ok(PreparedTheme {
+            metadata: package.metadata,
+            background,
+        })
+    }
+
+    pub fn apply_theme(&mut self, theme: PreparedTheme) {
+        self.runtime.apply_theme(theme.metadata);
+        self.background_texture = theme.background;
     }
 
     /// Unmount the selected volume before the one-way executable handoff.
@@ -339,6 +362,17 @@ pub struct LaunchImage {
     pub bytes: Vec<u8>,
     pub plan: LoadPlan,
     pub arguments: Vec<u8>,
+}
+
+pub struct PreparedTheme {
+    pub metadata: ThemeMetadata,
+    background: Option<crate::png::GxRgba8Texture>,
+}
+
+impl PreparedTheme {
+    pub fn background_texture(&self) -> Option<&crate::png::GxRgba8Texture> {
+        self.background.as_ref()
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

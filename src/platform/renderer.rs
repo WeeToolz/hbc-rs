@@ -8,7 +8,7 @@ use crate::{
     render::{map_rect, Frame, FrameCommand, LOGICAL_HEIGHT, LOGICAL_WIDTH},
 };
 
-/// Submit the frame's solid fills and app icons through GX.
+/// Submit the theme background, solid fills, and app icons through GX.
 ///
 /// Text remains native bitmap-font rectangles. App icons use the RGBA8 texture path.
 ///
@@ -19,9 +19,30 @@ pub unsafe fn draw_frame(
     video: &VideoSystem,
     frame: &Frame,
     icons: &[IconTexture],
+    background: Option<&crate::png::GxRgba8Texture>,
 ) -> Result<(), VideoError> {
     let info = video.info();
     let mut textured_state = false;
+    if let Some(background) = background {
+        if let Some(bounds) = map_rect(
+            crate::render::Rect {
+                x: 0.0,
+                y: 0.0,
+                width: f32::from(LOGICAL_WIDTH),
+                height: f32::from(LOGICAL_HEIGHT),
+            },
+            LOGICAL_WIDTH,
+            LOGICAL_HEIGHT,
+            info.width,
+            info.height,
+        ) {
+            video.configure_textured_2d();
+            textured_state = true;
+            unsafe {
+                video.draw_texture(background, bounds.x, bounds.y, bounds.width, bounds.height)?;
+            }
+        }
+    }
     for command in &frame.commands {
         match *command {
             FrameCommand::Fill(index) => {
