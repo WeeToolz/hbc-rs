@@ -5,7 +5,7 @@ use alloc::{string::String, vec::Vec};
 use crate::{
     app::{Action, AppController, Input},
     catalog::AppEntry,
-    metadata::UserSettings,
+    metadata::{ThemeMetadata, UserSettings},
     platform::input::InputFrame,
     settings::SettingsState,
 };
@@ -17,6 +17,7 @@ pub struct AppRuntime {
     controller: AppController,
     catalog: Vec<AppEntry>,
     settings: SettingsState,
+    theme: Option<ThemeMetadata>,
 }
 
 impl AppRuntime {
@@ -25,6 +26,7 @@ impl AppRuntime {
             controller: AppController::new(),
             catalog,
             settings: SettingsState::default(),
+            theme: None,
         }
     }
 
@@ -38,6 +40,14 @@ impl AppRuntime {
 
     pub fn settings(&self) -> &SettingsState {
         &self.settings
+    }
+
+    pub fn theme(&self) -> Option<&ThemeMetadata> {
+        self.theme.as_ref()
+    }
+
+    pub fn apply_theme(&mut self, theme: ThemeMetadata) {
+        self.theme = Some(theme);
     }
 
     /// Show a platform action failure in the shared notice dialog.

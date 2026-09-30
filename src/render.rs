@@ -11,6 +11,7 @@ use alloc::vec::Vec;
 use crate::{
     app::{AppController, Screen},
     catalog::AppEntry,
+    metadata::{Rgba, ThemeMetadata},
 };
 
 pub const LOGICAL_WIDTH: u16 = 640;
@@ -218,7 +219,20 @@ const MODAL_SHADE: Color = Color {
 /// uses controller identity and page policy, so rendering does not duplicate
 /// filtering, sorting, or page calculations.
 pub fn browser_frame(controller: &AppController, catalog: &[AppEntry]) -> Frame {
+    browser_frame_with_theme(controller, catalog, None)
+}
+
+/// Build a browser frame with metadata colors from an active HBC theme.
+pub fn browser_frame_with_theme(
+    controller: &AppController,
+    catalog: &[AppEntry],
+    theme: Option<&ThemeMetadata>,
+) -> Frame {
     let mut frame = Frame::default();
+    let text_color = theme
+        .and_then(|theme| theme.default_font.color)
+        .map(color_from_rgba)
+        .unwrap_or(Color::rgb(213, 224, 233));
     frame.fill(rect(0, 0, 640, 480), BACKGROUND);
     frame.fill(rect(0, 0, 640, 64), HEADER);
     frame.fill(rect(28, 23, 5, 28), ACCENT);
@@ -269,7 +283,7 @@ pub fn browser_frame(controller: &AppController, catalog: &[AppEntry]) -> Frame 
                     y + 12.0,
                     name,
                     1.0,
-                    Color::rgb(213, 224, 233),
+                    text_color,
                     ((cell_w - 70.0).max(6.0) / 6.0) as usize,
                 );
                 if app
@@ -296,14 +310,7 @@ pub fn browser_frame(controller: &AppController, catalog: &[AppEntry]) -> Frame 
         }
         Screen::MainMenu => {
             frame.fill(rect(162, 122, 316, 248), ROW);
-            frame.text(
-                190.0,
-                130.0,
-                "Homebrew Channel",
-                1.0,
-                Color::rgb(213, 224, 233),
-                32,
-            );
+            frame.text(190.0, 130.0, "Homebrew Channel", 1.0, text_color, 32);
             let labels: &[&str] = if controller.bootmii_available() {
                 &[
                     "Back",
@@ -324,21 +331,14 @@ pub fn browser_frame(controller: &AppController, catalog: &[AppEntry]) -> Frame 
                 };
                 frame.fill(rect(184, y, 272, 30), color);
                 let label = labels[index];
-                frame.text(198.0, y + 11.0, label, 1.0, Color::rgb(213, 224, 233), 36);
+                frame.text(198.0, y + 11.0, label, 1.0, text_color, 36);
             }
         }
         Screen::About => {
             frame.fill(rect(108, 92, 424, 324), ROW);
             frame.fill(rect(136, 120, 180, 40), ACCENT);
-            frame.text(142.0, 136.0, "HBC-RS", 2.0, Color::rgb(213, 224, 233), 12);
-            frame.text(
-                144.0,
-                190.0,
-                "Homebrew Channel",
-                1.0,
-                Color::rgb(213, 224, 233),
-                36,
-            );
+            frame.text(142.0, 136.0, "HBC-RS", 2.0, text_color, 12);
+            frame.text(144.0, 190.0, "Homebrew Channel", 1.0, text_color, 36);
             frame.text(
                 144.0,
                 218.0,
@@ -355,14 +355,7 @@ pub fn browser_frame(controller: &AppController, catalog: &[AppEntry]) -> Frame 
                 MUTED,
                 56,
             );
-            frame.text(
-                144.0,
-                386.0,
-                "Press B to return",
-                1.0,
-                Color::rgb(213, 224, 233),
-                32,
-            );
+            frame.text(144.0, 386.0, "Press B to return", 1.0, text_color, 32);
         }
         Screen::Notice => {}
     }
@@ -404,22 +397,21 @@ pub fn browser_frame(controller: &AppController, catalog: &[AppEntry]) -> Frame 
                     .as_ref()
                     .and_then(|meta| meta.name.as_deref())
                     .unwrap_or(app.directory.as_str());
-                frame.text(160.0, 140.0, name, 1.0, Color::rgb(213, 224, 233), 52);
+                frame.text(160.0, 140.0, name, 1.0, text_color, 52);
                 if let Some(description) = app
                     .metadata
                     .as_ref()
                     .and_then(|meta| meta.long_description.as_deref())
                 {
-                    frame.text(
-                        152.0,
-                        176.0,
-                        description,
-                        1.0,
-                        Color::rgb(213, 224, 233),
-                        54,
-                    );
+                    frame.text(152.0, 176.0, description, 1.0, text_color, 54);
                 }
             }
+            let load_label = controller
+                .selected_app
+                .as_deref()
+                .and_then(|selected| catalog.iter().find(|entry| entry.directory == selected))
+                .filter(|app| app.kind == crate::catalog::AppKind::Theme)
+                .map_or("Load", |_| "Apply");
             for (index, action) in [8usize, 9, 10].iter().enumerate() {
                 frame.fill(
                     rect(152.0 + index as f32 * 108.0, 326, 96, 34),
@@ -432,9 +424,9 @@ pub fn browser_frame(controller: &AppController, catalog: &[AppEntry]) -> Frame 
                 frame.text(
                     174.0 + index as f32 * 108.0,
                     340.0,
-                    ["Delete", "Load", "Return"][index],
+                    ["Delete", load_label, "Return"][index],
                     1.0,
-                    Color::rgb(213, 224, 233),
+                    text_color,
                     14,
                 );
             }
@@ -446,7 +438,7 @@ pub fn browser_frame(controller: &AppController, catalog: &[AppEntry]) -> Frame 
                 194.0,
                 "Delete this application?",
                 1.0,
-                Color::rgb(213, 224, 233),
+                text_color,
                 48,
             );
             for (index, yes) in [true, false].iter().enumerate() {
@@ -463,7 +455,7 @@ pub fn browser_frame(controller: &AppController, catalog: &[AppEntry]) -> Frame 
                     272.0,
                     if *yes { "Yes" } else { "No" },
                     1.0,
-                    Color::rgb(213, 224, 233),
+                    text_color,
                     3,
                 );
             }
@@ -473,13 +465,22 @@ pub fn browser_frame(controller: &AppController, catalog: &[AppEntry]) -> Frame 
         frame.fill(rect(0, 0, 640, 480), MODAL_SHADE);
         frame.fill(rect(112, 164, 416, 152), PANEL);
         frame.fill(rect(136, 184, 368, 24), HEADER);
-        frame.text(148.0, 192.0, "Notice", 1.0, Color::rgb(213, 224, 233), 24);
+        frame.text(148.0, 192.0, "Notice", 1.0, text_color, 24);
         if let Some(message) = controller.notice() {
-            frame.text(144.0, 232.0, message, 1.0, Color::rgb(213, 224, 233), 58);
+            frame.text(144.0, 232.0, message, 1.0, text_color, 58);
         }
         frame.text(144.0, 286.0, "Press A or B to continue", 1.0, MUTED, 36);
     }
     frame
+}
+
+fn color_from_rgba(Rgba(red, green, blue, alpha): Rgba) -> Color {
+    Color {
+        red,
+        green,
+        blue,
+        alpha,
+    }
 }
 
 /// Clip one logical rectangle to the viewport and scale it to framebuffer pixels.
@@ -604,6 +605,24 @@ mod tests {
             .fills
             .iter()
             .any(|fill| fill.bounds == rect(162, 122, 316, 248)));
+    }
+
+    #[test]
+    fn applies_theme_default_font_color_to_rendered_text() {
+        let mut controller = AppController::new();
+        controller.screen = Screen::About;
+        let theme = ThemeMetadata {
+            default_font: crate::metadata::ThemeFont {
+                color: Some(Rgba(240, 180, 40, 255)),
+                ..crate::metadata::ThemeFont::default()
+            },
+            ..ThemeMetadata::default()
+        };
+        let frame = browser_frame_with_theme(&controller, &[], Some(&theme));
+        assert!(frame
+            .fills
+            .iter()
+            .any(|fill| { fill.color == Color::rgb(240, 180, 40) && fill.bounds.width <= 5.0 }));
     }
 
     #[test]

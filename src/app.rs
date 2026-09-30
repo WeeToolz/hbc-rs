@@ -37,6 +37,7 @@ pub enum Action {
     #[default]
     None,
     LaunchSelected,
+    ApplyTheme,
     DeleteSelected,
     LaunchBootMii,
     Exit,
@@ -206,7 +207,21 @@ impl AppController {
                         self.screen = Screen::DeleteConfirm;
                         Action::None
                     }
-                    9 => Action::LaunchSelected,
+                    9 => {
+                        let is_theme = self
+                            .selected_app
+                            .as_deref()
+                            .and_then(|selected| {
+                                catalog.iter().find(|entry| entry.directory == selected)
+                            })
+                            .is_some_and(|entry| entry.kind == crate::catalog::AppKind::Theme);
+                        if is_theme {
+                            self.screen = Screen::Browser;
+                            Action::ApplyTheme
+                        } else {
+                            Action::LaunchSelected
+                        }
+                    }
                     10 => {
                         self.screen = Screen::Browser;
                         Action::None
@@ -502,6 +517,23 @@ mod tests {
         assert_eq!(
             controller.handle(Input::Confirm, &catalog),
             Action::DeleteSelected
+        );
+        assert_eq!(controller.screen, Screen::Browser);
+    }
+
+    #[test]
+    fn theme_detail_action_applies_the_theme_instead_of_launching_it() {
+        let mut theme = app("ocean", "Ocean", true);
+        theme.kind = AppKind::Theme;
+        let catalog = [theme];
+        let mut controller = AppController::new();
+        controller.handle(Input::Confirm, &catalog);
+        assert_eq!(controller.screen, Screen::AppDetails);
+        controller.handle(Input::Left, &catalog);
+        assert_eq!(controller.detail_focus(), 9);
+        assert_eq!(
+            controller.handle(Input::Confirm, &catalog),
+            Action::ApplyTheme
         );
         assert_eq!(controller.screen, Screen::Browser);
     }

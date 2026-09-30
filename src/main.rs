@@ -44,9 +44,10 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         }
         let frame = hbc_rs::platform::input::scan();
         let actions = startup.runtime_mut().update(&frame);
-        let scene = hbc_rs::render::browser_frame(
+        let scene = hbc_rs::render::browser_frame_with_theme(
             startup.runtime().controller(),
             startup.runtime().catalog(),
+            startup.runtime().theme(),
         );
         if unsafe { hbc_rs::platform::renderer::draw_frame(&video, &scene) }.is_err() {
             return -3;
@@ -59,6 +60,15 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         video.wait_vsync();
 
         for action in actions {
+            if action == hbc_rs::app::Action::ApplyTheme {
+                match startup.prepare_selected_theme() {
+                    Ok(theme) => startup.runtime_mut().apply_theme(theme),
+                    Err(_) => startup
+                        .runtime_mut()
+                        .show_notice("Could not read or validate this theme."),
+                }
+                continue;
+            }
             if action == hbc_rs::app::Action::LaunchSelected {
                 let Ok(image) = startup.prepare_selected_executable() else {
                     startup

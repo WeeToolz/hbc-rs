@@ -34,9 +34,10 @@ deferred.
   behavior are not ported.
 - A pure Rust theme ZIP parser now enforces the HBC archive size, entry count,
   root filename allowlist, duplicate-name policy, and bounded extraction plan.
-  It parses `theme.xml` with the existing metadata parser. Theme assets are not
-  decoded or shown, and theme ZIP installation or NAND persistence is not
-  connected to the UI.
+  It parses `theme.xml` with the existing metadata parser. The Details action
+  can apply the theme's default font color for the current session. Theme
+  images and fonts are not decoded or shown, progress gradients are not drawn,
+  and theme ZIP persistence to NAND is not connected to the UI.
 - Device discovery scans one preferred volume synchronously at startup and
   retries SD/USB selection every 30 frames. It unmounts an offline volume,
   remounts available media, and replaces the catalog while preserving the

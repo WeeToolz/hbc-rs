@@ -9,6 +9,7 @@ use alloc::vec::Vec;
 use crate::{
     catalog::{scan_apps, AppEntry, AppKind, CatalogStorage},
     loader::{build_launch_arguments, parse_dol, parse_elf32_ppc, LoadPlan, ParseError},
+    metadata::ThemeMetadata,
     platform::{
         input, settings,
         storage::{FatStorage, StorageError, Volume},
@@ -182,6 +183,37 @@ impl WiiStartup {
         })
     }
 
+    /// Read a selected theme ZIP and parse its bounded metadata.
+    pub fn prepare_selected_theme(&mut self) -> Result<ThemeMetadata, StartupError> {
+        let entry = self
+            .runtime
+            .catalog()
+            .iter()
+            .find(|entry| {
+                self.runtime.controller().selected_app.as_deref() == Some(&entry.directory)
+            })
+            .cloned()
+            .ok_or(StartupError::NoSelection)?;
+        if entry.kind != AppKind::Theme {
+            return Err(StartupError::NotExecutable);
+        }
+        let size = usize::try_from(entry.size).map_err(|_| StartupError::TooLarge)?;
+        if size > crate::theme::MAX_THEME_ARCHIVE_BYTES {
+            return Err(StartupError::TooLarge);
+        }
+        let relative_path = alloc::format!("apps/{}/theme.zip", entry.directory);
+        let storage = self.storage.as_mut().ok_or(StartupError::NoStorage)?;
+        let bytes = storage
+            .read_file(&relative_path, size)
+            .map_err(StartupError::Storage)?
+            .ok_or(StartupError::MissingExecutable)?;
+        if bytes.len() != size {
+            return Err(StartupError::MissingExecutable);
+        }
+        let package = crate::theme::ThemePackage::parse(&bytes).map_err(StartupError::Theme)?;
+        Ok(package.metadata)
+    }
+
     /// Unmount the selected volume before the one-way executable handoff.
     pub fn unmount_storage(&mut self) -> Result<(), StartupError> {
         ogc_fat::shutdown_all().map_err(|error| StartupError::Storage(StorageError::Fat(error)))?;
@@ -241,6 +273,7 @@ pub enum StartupError {
     TooLarge,
     Storage(StorageError),
     Loader(ParseError),
+    Theme(crate::theme::ThemePackageError),
 }
 
 fn mount_preferred_volume(
