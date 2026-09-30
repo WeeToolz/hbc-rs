@@ -42,14 +42,38 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                     .show_notice("Could not refresh storage devices.");
             }
         }
-        let frame = hbc_rs::platform::input::scan();
-        let actions = startup.runtime_mut().update(&frame);
-        startup.refresh_visible_icons();
-        let scene = hbc_rs::render::browser_frame_with_theme(
+        let mut frame = hbc_rs::platform::input::scan();
+        let pointer = frame.pointer;
+        let pointer_pressed = frame.pointer_pressed;
+        if pointer_pressed {
+            // HBC applies Confirm from the pointer owner or GameCube pad to
+            // the widget under the pointer. Delay it until after hit-testing.
+            frame
+                .pressed
+                .retain(|input| *input != hbc_rs::app::Input::Confirm);
+        }
+        let mut actions = startup.runtime_mut().update(&frame);
+        let hit_frame = hbc_rs::render::browser_frame_with_theme(
             startup.runtime().controller(),
             startup.runtime().catalog(),
             startup.runtime().theme(),
         );
+        let pointer_target = pointer
+            .and_then(|position| hit_frame.hit_test(f32::from(position.x), f32::from(position.y)));
+        actions.extend(
+            startup
+                .runtime_mut()
+                .update_pointer(pointer_target, pointer_pressed),
+        );
+        startup.refresh_visible_icons();
+        let mut scene = hbc_rs::render::browser_frame_with_theme(
+            startup.runtime().controller(),
+            startup.runtime().catalog(),
+            startup.runtime().theme(),
+        );
+        if let Some(pointer) = pointer {
+            scene.pointer_cursor(f32::from(pointer.x), f32::from(pointer.y));
+        }
         if unsafe {
             hbc_rs::platform::renderer::draw_frame(
                 &video,

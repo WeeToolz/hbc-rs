@@ -9,7 +9,7 @@
 use alloc::{string::String, vec::Vec};
 
 use crate::{
-    app::{AppController, Screen},
+    app::{AppController, PointerTarget, Screen},
     catalog::AppEntry,
     metadata::{Rgba, ThemeMetadata},
 };
@@ -110,6 +110,41 @@ pub enum ThemeArt {
 pub struct Frame {
     pub fills: Vec<FillRect>,
     pub commands: Vec<FrameCommand>,
+    pub hit_targets: Vec<HitTarget>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct HitTarget {
+    pub target: PointerTarget,
+    pub bounds: Rect,
+}
+
+impl Frame {
+    /// Return the topmost interactive item at this logical UI coordinate.
+    pub fn hit_test(&self, x: f32, y: f32) -> Option<PointerTarget> {
+        if !x.is_finite() || !y.is_finite() {
+            return None;
+        }
+        self.hit_targets.iter().rev().find_map(|hit| {
+            (x >= hit.bounds.x
+                && y >= hit.bounds.y
+                && x <= hit.bounds.right()
+                && y <= hit.bounds.bottom())
+            .then_some(hit.target)
+        })
+    }
+
+    pub fn hit_target(&mut self, target: PointerTarget, bounds: Rect) {
+        self.hit_targets.push(HitTarget { target, bounds });
+    }
+
+    /// Add a compact native cursor above the frame's existing artwork.
+    pub fn pointer_cursor(&mut self, x: f32, y: f32) {
+        self.fill(rect(x - 1.0, y - 9.0, 2.0, 18.0), Color::rgb(255, 255, 255));
+        self.fill(rect(x - 9.0, y - 1.0, 18.0, 2.0), Color::rgb(255, 255, 255));
+        self.fill(rect(x - 5.0, y - 1.0, 10.0, 2.0), ACCENT);
+        self.fill(rect(x - 1.0, y - 5.0, 2.0, 10.0), ACCENT);
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -159,7 +194,7 @@ impl Frame {
         });
     }
 
-    fn page_arrow(&mut self, bounds: Rect, previous: bool) {
+    fn page_arrow(&mut self, bounds: Rect, previous: bool, focused: bool) {
         if ![bounds.x, bounds.y, bounds.width, bounds.height]
             .iter()
             .all(|value| value.is_finite())
@@ -170,7 +205,7 @@ impl Frame {
         }
         self.commands.push(FrameCommand::PageArrow {
             previous,
-            focused: false,
+            focused,
             bounds,
             fallback: FillRect {
                 bounds,
@@ -205,7 +240,7 @@ impl Frame {
         focused: bool,
         label: &str,
         color: Color,
-    ) {
+    ) -> Rect {
         let width = match size {
             ButtonSize::Large => 340.0,
             ButtonSize::Small => 200.0,
@@ -222,6 +257,7 @@ impl Frame {
             color,
             (width / 6.0) as usize,
         );
+        bounds
     }
 
     fn fill(&mut self, bounds: Rect, color: Color) {
@@ -456,10 +492,30 @@ pub fn browser_frame_with_theme(
     match controller.screen {
         Screen::Browser | Screen::AppDetails | Screen::DeleteConfirm => {
             if navigation.has_previous() {
-                frame.page_arrow(rect(24, 192, 64, 64), true);
+                frame.page_arrow(
+                    rect(24, 192, 64, 64),
+                    true,
+                    controller.pointer_target() == Some(PointerTarget::Page { forward: false }),
+                );
+                if controller.screen == Screen::Browser {
+                    frame.hit_target(
+                        PointerTarget::Page { forward: false },
+                        rect(24, 192, 64, 64),
+                    );
+                }
             }
             if navigation.has_next() {
-                frame.page_arrow(rect(552, 192, 64, 64), false);
+                frame.page_arrow(
+                    rect(552, 192, 64, 64),
+                    false,
+                    controller.pointer_target() == Some(PointerTarget::Page { forward: true }),
+                );
+                if controller.screen == Screen::Browser {
+                    frame.hit_target(
+                        PointerTarget::Page { forward: true },
+                        rect(552, 192, 64, 64),
+                    );
+                }
             }
             let columns = layout.columns.max(1);
             let rows = layout.rows.max(1);
@@ -478,6 +534,12 @@ pub fn browser_frame_with_theme(
                 let is_selected = index == selected
                     && controller.selected_app.as_deref() == Some(app.directory.as_str());
                 frame.app_card(rect(x, y, cell_w, cell_h), grid, is_selected);
+                if controller.screen == Screen::Browser {
+                    frame.hit_target(
+                        PointerTarget::App(page_start + index),
+                        rect(x, y, cell_w, cell_h),
+                    );
+                }
                 let icon_bounds = rect(x + 8.0, y + 8.0, 128.0, 48.0);
                 if app.has_icon {
                     if let Some(catalog_index) = catalog
@@ -538,7 +600,7 @@ pub fn browser_frame_with_theme(
                         } else {
                             80.0
                         };
-                frame.button(
+                let bounds = frame.button(
                     150.0,
                     y,
                     ButtonSize::Large,
@@ -546,6 +608,7 @@ pub fn browser_frame_with_theme(
                     labels[index],
                     text_color,
                 );
+                frame.hit_target(PointerTarget::Menu(index), bounds);
             }
         }
         Screen::About => {
@@ -601,7 +664,7 @@ pub fn browser_frame_with_theme(
         if controller.screen == Screen::Options {
             frame.text(299.0, 60.0, "Options", 1.0, text_color, 24);
             frame.text(92.0, 104.0, "Storage device", 1.0, text_color, 32);
-            frame.button(
+            let bounds = frame.button(
                 112.0,
                 108.0,
                 ButtonSize::Small,
@@ -613,7 +676,8 @@ pub fn browser_frame_with_theme(
                     text_color
                 },
             );
-            frame.button(
+            frame.hit_target(PointerTarget::Option(0), bounds);
+            let bounds = frame.button(
                 328.0,
                 108.0,
                 ButtonSize::Small,
@@ -625,10 +689,11 @@ pub fn browser_frame_with_theme(
                     text_color
                 },
             );
+            frame.hit_target(PointerTarget::Option(1), bounds);
             frame.button(112.0, 172.0, ButtonSize::Small, false, "SD Gecko A", MUTED);
             frame.button(328.0, 172.0, ButtonSize::Small, false, "SD Gecko B", MUTED);
             frame.text(92.0, 252.0, "Sort by", 1.0, text_color, 32);
-            frame.button(
+            let bounds = frame.button(
                 112.0,
                 260.0,
                 ButtonSize::Small,
@@ -640,7 +705,8 @@ pub fn browser_frame_with_theme(
                     text_color
                 },
             );
-            frame.button(
+            frame.hit_target(PointerTarget::Option(2), bounds);
+            let bounds = frame.button(
                 328.0,
                 260.0,
                 ButtonSize::Small,
@@ -652,7 +718,8 @@ pub fn browser_frame_with_theme(
                     text_color
                 },
             );
-            frame.button(
+            frame.hit_target(PointerTarget::Option(3), bounds);
+            let bounds = frame.button(
                 92.0,
                 340.0,
                 ButtonSize::Small,
@@ -660,7 +727,8 @@ pub fn browser_frame_with_theme(
                 "OK",
                 text_color,
             );
-            frame.button(
+            frame.hit_target(PointerTarget::Option(4), bounds);
+            let bounds = frame.button(
                 348.0,
                 340.0,
                 ButtonSize::Small,
@@ -668,6 +736,7 @@ pub fn browser_frame_with_theme(
                 "Back",
                 text_color,
             );
+            frame.hit_target(PointerTarget::Option(5), bounds);
         } else if controller.screen == Screen::AppDetails {
             if let Some(app) = controller
                 .selected_app
@@ -717,7 +786,7 @@ pub fn browser_frame_with_theme(
                 .filter(|app| app.kind == crate::catalog::AppKind::Theme)
                 .map_or("Load", |_| "Apply");
             for (index, action) in [8usize, 9, 10].iter().enumerate() {
-                frame.button(
+                let bounds = frame.button(
                     91.0 + index as f32 * 163.0,
                     340.0,
                     ButtonSize::Tiny,
@@ -725,6 +794,7 @@ pub fn browser_frame_with_theme(
                     ["Delete", load_label, "Return"][index],
                     text_color,
                 );
+                frame.hit_target(PointerTarget::Detail(*action), bounds);
             }
         } else {
             frame.text(
@@ -736,7 +806,7 @@ pub fn browser_frame_with_theme(
                 48,
             );
             for (index, yes) in [true, false].iter().enumerate() {
-                frame.button(
+                let bounds = frame.button(
                     100.0 + index as f32 * 240.0,
                     324.0,
                     ButtonSize::Small,
@@ -744,6 +814,7 @@ pub fn browser_frame_with_theme(
                     if *yes { "Yes" } else { "No" },
                     text_color,
                 );
+                frame.hit_target(PointerTarget::DeleteChoice { yes: *yes }, bounds);
             }
         }
     }
@@ -754,7 +825,15 @@ pub fn browser_frame_with_theme(
         if let Some(message) = controller.notice() {
             frame.text(92.0, 148.0, message, 1.0, text_color, 74);
         }
-        frame.button(220.0, 324.0, ButtonSize::Small, false, "OK", text_color);
+        let bounds = frame.button(
+            220.0,
+            324.0,
+            ButtonSize::Small,
+            controller.pointer_target() == Some(PointerTarget::NoticeConfirm),
+            "OK",
+            text_color,
+        );
+        frame.hit_target(PointerTarget::NoticeConfirm, bounds);
     }
     frame
 }
@@ -870,6 +949,21 @@ mod tests {
     }
 
     #[test]
+    fn frame_hit_test_uses_the_drawn_app_bounds_and_topmost_target() {
+        let catalog = vec![app("one"), app("two")];
+        let frame = browser_frame(&AppController::new(), &catalog);
+        assert_eq!(frame.hit_test(110.0, 70.0), Some(PointerTarget::App(0)));
+        assert_eq!(frame.hit_test(110.0, 130.0), Some(PointerTarget::App(1)));
+        assert_eq!(frame.hit_test(100.0, 100.0), None);
+
+        let mut frame = Frame::default();
+        frame.hit_target(PointerTarget::Menu(0), rect(0, 0, 20, 20));
+        frame.hit_target(PointerTarget::Menu(1), rect(0, 0, 20, 20));
+        assert_eq!(frame.hit_test(10.0, 10.0), Some(PointerTarget::Menu(1)));
+        assert_eq!(frame.hit_test(20.0, 20.0), Some(PointerTarget::Menu(1)));
+    }
+
+    #[test]
     fn page_arrows_follow_visible_page_bounds() {
         let catalog = vec![
             app("one"),
@@ -910,6 +1004,19 @@ mod tests {
             command,
             FrameCommand::PageArrow {
                 previous: false,
+                ..
+            }
+        )));
+
+        let target = last_page.hit_test(24.0, 256.0);
+        assert_eq!(target, Some(PointerTarget::Page { forward: false }));
+        controller.handle_pointer(target, false, &catalog);
+        let focused_page = browser_frame(&controller, &catalog);
+        assert!(focused_page.commands.iter().any(|command| matches!(
+            command,
+            FrameCommand::PageArrow {
+                previous: true,
+                focused: true,
                 ..
             }
         )));
@@ -1044,6 +1151,8 @@ mod tests {
                     if *bounds == expected
             )));
         }
+        assert_eq!(frame.hit_test(120.0, 120.0), Some(PointerTarget::Option(0)));
+        assert_eq!(frame.hit_test(120.0, 80.0), None);
     }
 
     #[test]

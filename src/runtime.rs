@@ -3,7 +3,7 @@
 use alloc::{string::String, vec::Vec};
 
 use crate::{
-    app::{Action, AppController, Input},
+    app::{Action, AppController, Input, PointerTarget},
     catalog::AppEntry,
     metadata::{ThemeMetadata, UserSettings},
     platform::input::InputFrame,
@@ -119,6 +119,19 @@ impl AppRuntime {
         actions
     }
 
+    /// Apply pointer focus after the current screen's frame has supplied its
+    /// hit target. Pointer activation uses the controller's normal Confirm
+    /// transition, so it shares the same action behavior as button input.
+    pub fn update_pointer(&mut self, target: Option<PointerTarget>, activate: bool) -> Vec<Action> {
+        let action = self
+            .controller
+            .handle_pointer(target, activate, &self.catalog);
+        self.sync_settings();
+        let mut actions = Vec::new();
+        push_action(&mut actions, action);
+        actions
+    }
+
     fn sync_settings(&mut self) {
         let current = self.settings.current_mut();
         current.sort_order = match self.controller.sort {
@@ -176,6 +189,7 @@ mod tests {
             pressed: vec![Input::Down],
             held: vec![Input::Down],
             released: vec![],
+            ..InputFrame::default()
         };
         assert!(runtime.update(&first).is_empty());
         assert_eq!(runtime.controller().selected_app.as_deref(), Some("b"));
@@ -184,6 +198,7 @@ mod tests {
             pressed: vec![],
             held: vec![Input::Down],
             released: vec![],
+            ..InputFrame::default()
         };
         runtime.update(&held);
         assert_eq!(runtime.controller().selected_app.as_deref(), Some("c"));
@@ -196,6 +211,7 @@ mod tests {
             pressed: vec![],
             held: vec![Input::Home, Input::Confirm],
             released: vec![],
+            ..InputFrame::default()
         };
         assert!(runtime.update(&frame).is_empty());
     }
@@ -227,6 +243,7 @@ mod tests {
             ],
             held: vec![],
             released: vec![],
+            ..InputFrame::default()
         };
         runtime.update(&frame);
         assert!(runtime.settings().is_dirty());

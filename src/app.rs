@@ -32,6 +32,19 @@ pub enum Input {
     NextPage,
 }
 
+/// An interactive item under the Wii Remote pointer. Targets are semantic;
+/// the renderer supplies their bounds from the same layout it draws.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PointerTarget {
+    App(usize),
+    Page { forward: bool },
+    Menu(usize),
+    Detail(usize),
+    DeleteChoice { yes: bool },
+    Option(usize),
+    NoticeConfirm,
+}
+
 /// Work for a hardware or service layer to perform after a state transition.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum Action {
@@ -114,6 +127,7 @@ pub struct AppController {
     pending_device: i32,
     pending_sort: SortOrder,
     options_focus: usize,
+    pointer_target: Option<PointerTarget>,
 }
 
 impl AppController {
@@ -169,6 +183,10 @@ impl AppController {
 
     pub fn options_focus(&self) -> usize {
         self.options_focus
+    }
+
+    pub fn pointer_target(&self) -> Option<PointerTarget> {
+        self.pointer_target
     }
 
     pub fn pending_device(&self) -> i32 {
@@ -325,6 +343,77 @@ impl AppController {
                 }
                 _ => Action::None,
             },
+        }
+    }
+
+    /// Move focus to an item selected by the renderer's hit map. A click then
+    /// reuses the same Confirm and page actions as physical buttons.
+    pub fn handle_pointer(
+        &mut self,
+        target: Option<PointerTarget>,
+        activate: bool,
+        catalog: &[AppEntry],
+    ) -> Action {
+        self.pointer_target = target;
+        let Some(target) = target else {
+            return Action::None;
+        };
+        self.reconcile_selection(catalog);
+        match (self.screen, target) {
+            (Screen::Browser, PointerTarget::App(index)) => {
+                let visible = self.visible_apps(catalog);
+                if let Some(entry) = visible.get(index) {
+                    self.selected_app = Some(entry.directory.clone());
+                    self.reconcile_selection(catalog);
+                    if activate {
+                        return self.handle(Input::Confirm, catalog);
+                    }
+                }
+                Action::None
+            }
+            (Screen::Browser, PointerTarget::Page { forward }) => {
+                if activate {
+                    self.move_page(catalog, forward)
+                } else {
+                    Action::None
+                }
+            }
+            (Screen::MainMenu, PointerTarget::Menu(index)) if index < self.menu_item_count() => {
+                self.menu_focus = index;
+                if activate {
+                    self.handle(Input::Confirm, catalog)
+                } else {
+                    Action::None
+                }
+            }
+            (Screen::AppDetails, PointerTarget::Detail(index)) if (8..=10).contains(&index) => {
+                self.detail_focus = index;
+                if activate {
+                    self.handle(Input::Confirm, catalog)
+                } else {
+                    Action::None
+                }
+            }
+            (Screen::DeleteConfirm, PointerTarget::DeleteChoice { yes }) => {
+                self.delete_confirmation_yes = yes;
+                if activate {
+                    self.handle(Input::Confirm, catalog)
+                } else {
+                    Action::None
+                }
+            }
+            (Screen::Options, PointerTarget::Option(index)) if index < 6 => {
+                self.options_focus = index;
+                if activate {
+                    self.handle(Input::Confirm, catalog)
+                } else {
+                    Action::None
+                }
+            }
+            (Screen::Notice, PointerTarget::NoticeConfirm) if activate => {
+                self.handle(Input::Confirm, catalog)
+            }
+            _ => Action::None,
         }
     }
 
@@ -614,6 +703,100 @@ mod tests {
         assert_eq!(controller.screen, Screen::AppDetails);
         assert_eq!(controller.detail_focus(), 8);
         assert_eq!(controller.selected_app.as_deref(), Some("two"));
+    }
+
+    #[test]
+    fn pointer_selects_and_activates_the_same_items_as_confirm() {
+        let catalog = [app("one", "One", false), app("two", "Two", false)];
+        let mut controller = AppController::new();
+        assert_eq!(
+            controller.handle_pointer(Some(PointerTarget::App(1)), false, &catalog),
+            Action::None
+        );
+        assert_eq!(controller.selected_app.as_deref(), Some("two"));
+        assert_eq!(
+            controller.handle_pointer(Some(PointerTarget::App(1)), true, &catalog),
+            Action::None
+        );
+        assert_eq!(controller.screen, Screen::AppDetails);
+        assert_eq!(controller.selected_app.as_deref(), Some("two"));
+    }
+
+    #[test]
+    fn pointer_app_indexes_follow_the_filtered_visible_list() {
+        let mut hidden = app("hidden", "Hidden", false);
+        hidden.metadata = None;
+        let catalog = [hidden, app("visible", "Visible", false)];
+        let mut controller = AppController::new();
+        controller.filter = crate::catalog::Filter::MetadataOnly;
+        controller.sort = SortOrder::ReleaseDate;
+        controller.handle_pointer(Some(PointerTarget::App(0)), false, &catalog);
+        assert_eq!(controller.selected_app.as_deref(), Some("visible"));
+    }
+
+    #[test]
+    fn pointer_focuses_modal_buttons_and_uses_normal_actions() {
+        let catalog = [app("one", "One", false)];
+        let mut controller = AppController::new();
+        controller.handle(Input::OpenOptions, &catalog);
+        assert_eq!(
+            controller.handle_pointer(Some(PointerTarget::Option(2)), true, &catalog),
+            Action::None
+        );
+        assert_eq!(controller.pending_sort(), SortOrder::Name);
+        assert_eq!(controller.options_focus(), 2);
+        assert_eq!(
+            controller.handle_pointer(Some(PointerTarget::Option(4)), true, &catalog),
+            Action::ApplyOptions
+        );
+        assert_eq!(controller.screen, Screen::Browser);
+    }
+
+    #[test]
+    fn pointer_activates_menu_details_delete_notice_and_page_targets() {
+        let catalog = [
+            app("one", "One", false),
+            app("two", "Two", false),
+            app("three", "Three", false),
+            app("four", "Four", false),
+            app("five", "Five", false),
+            app("six", "Six", false),
+        ];
+        let mut controller = AppController::new();
+
+        assert_eq!(
+            controller.handle_pointer(Some(PointerTarget::Page { forward: true }), true, &catalog),
+            Action::NextPage
+        );
+        assert_eq!(controller.selected_app.as_deref(), Some("two"));
+        controller.handle(Input::Home, &catalog);
+        assert_eq!(
+            controller.handle_pointer(Some(PointerTarget::Menu(1)), true, &catalog),
+            Action::None
+        );
+        assert_eq!(controller.screen, Screen::About);
+        controller.handle(Input::Back, &catalog);
+        controller.handle_pointer(Some(PointerTarget::Menu(0)), true, &catalog);
+        controller.handle_pointer(Some(PointerTarget::App(5)), true, &catalog);
+        assert_eq!(
+            controller.handle_pointer(Some(PointerTarget::Detail(8)), true, &catalog),
+            Action::None
+        );
+        assert_eq!(controller.screen, Screen::DeleteConfirm);
+        assert_eq!(
+            controller.handle_pointer(
+                Some(PointerTarget::DeleteChoice { yes: true }),
+                true,
+                &catalog
+            ),
+            Action::DeleteSelected
+        );
+        controller.show_notice("Issue".into());
+        assert_eq!(
+            controller.handle_pointer(Some(PointerTarget::NoticeConfirm), true, &catalog),
+            Action::None
+        );
+        assert_eq!(controller.screen, Screen::Browser);
     }
 
     #[test]

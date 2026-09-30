@@ -14,6 +14,31 @@ pub struct InputFrame {
     pub pressed: Vec<Input>,
     pub held: Vec<Input>,
     pub released: Vec<Input>,
+    pub pointer: Option<PointerPosition>,
+    pub pointer_pressed: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct PointerPosition {
+    pub x: i16,
+    pub y: i16,
+}
+
+/// Convert padded Wii Remote IR coordinates to the logical HBC viewport.
+/// HBC sets the sensor resolution to the viewport plus 128 pixels and removes
+/// 64 pixels from each axis when it reads the pointer.
+pub fn logical_pointer_position(ir_x: f32, ir_y: f32) -> Option<PointerPosition> {
+    let x = ir_x - 64.0;
+    let y = ir_y - 64.0;
+    (x.is_finite() && y.is_finite()).then_some(PointerPosition {
+        x: x as i16,
+        y: y as i16,
+    })
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+fn pointer_confirm_pressed(owner_present: bool, pressed: Buttons) -> bool {
+    owner_present && pressed.0 & Buttons::CONFIRM != 0
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -264,12 +289,20 @@ pub fn scan() -> InputFrame {
         Ordering::Release,
     );
 
+    let mut pointer = None;
+    let mut pointer_pressed = false;
     for channel in 0..4 {
         if data[channel].is_null() || owner.is_some_and(|owner| owner != channel) {
             continue;
         }
         let channel_id = channel as i32;
-        map_wpad_channel(channel_id, wpad::buttons_down(channel_id), &mut down);
+        let pressed = wpad::buttons_down(channel_id);
+        map_wpad_channel(channel_id, pressed, &mut down);
+        if owner == Some(channel) {
+            let state = unsafe { &*data[channel] };
+            pointer = logical_pointer_position(state.ir.x, state.ir.y);
+            pointer_pressed = pointer_confirm_pressed(owner.is_some(), down);
+        }
         map_wpad_channel(channel_id, wpad::buttons_held(channel_id), &mut held);
         map_wpad_channel(channel_id, wpad::buttons_up(channel_id), &mut up);
     }
@@ -277,6 +310,8 @@ pub fn scan() -> InputFrame {
         pressed: inputs(down),
         held: inputs(held),
         released: inputs(up),
+        pointer,
+        pointer_pressed,
     }
 }
 
@@ -352,6 +387,32 @@ mod tests {
             select_pointer_owner(&[true, false, false, false], -1),
             Some(0)
         );
+    }
+
+    #[test]
+    fn ir_coordinates_remove_hbc_padding_and_reject_non_finite_values() {
+        assert_eq!(
+            logical_pointer_position(64.0, 64.0),
+            Some(PointerPosition { x: 0, y: 0 })
+        );
+        assert_eq!(
+            logical_pointer_position(384.0, 304.0),
+            Some(PointerPosition { x: 320, y: 240 })
+        );
+        assert_eq!(logical_pointer_position(f32::NAN, 64.0), None);
+        assert_eq!(
+            logical_pointer_position(63.5, 64.0),
+            Some(PointerPosition { x: 0, y: 0 })
+        );
+    }
+
+    #[test]
+    fn pointer_confirmation_uses_the_combined_pad_and_pointer_owner_buttons() {
+        let mut pressed = Buttons::default();
+        map_pad(0x0100, &mut pressed);
+        map_wiimote(0x0008, &mut pressed);
+        assert!(pointer_confirm_pressed(true, pressed));
+        assert!(!pointer_confirm_pressed(false, pressed));
     }
 
     #[test]
