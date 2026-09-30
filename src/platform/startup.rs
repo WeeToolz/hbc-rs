@@ -49,6 +49,11 @@ impl WiiStartup {
             mount_preferred_volume(loaded_settings.device);
         let mut runtime = AppRuntime::new(catalog);
         runtime.load_settings(loaded_settings);
+        if let Ok(Some(archive)) = super::theme::load() {
+            if let Ok(package) = crate::theme::ThemePackage::parse(&archive) {
+                runtime.apply_theme(package.metadata);
+            }
+        }
         runtime.set_bootmii_available(bootmii_ios_available());
 
         let mut startup = Self {
@@ -282,6 +287,7 @@ impl WiiStartup {
             return Err(StartupError::MissingExecutable);
         }
         let package = crate::theme::ThemePackage::parse(&bytes).map_err(StartupError::Theme)?;
+        super::theme::save(&bytes).map_err(StartupError::ThemeStorage)?;
         Ok(package.metadata)
     }
 
@@ -345,6 +351,7 @@ pub enum StartupError {
     Storage(StorageError),
     Loader(ParseError),
     Theme(crate::theme::ThemePackageError),
+    ThemeStorage(super::settings::SettingsIoError),
 }
 
 fn mount_preferred_volume(

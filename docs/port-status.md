@@ -29,21 +29,20 @@ deferred.
 - The display scene uses solid-color panels and a native 5x7 font for basic
   app labels, descriptions, menus, About content, and confirmation dialogs.
   Startup reports missing SD or USB storage; launch, delete, settings-save,
-  and storage-stop failures use a dismissible notice. App icons remain
-  placeholders when they are missing, invalid, oversized, or cannot fit in the
-  available memory.
+  and storage-stop failures use a dismissible notice. Missing, invalid,
+  oversized, or out-of-memory app icons use placeholders.
   HBC-sized 128x48 app icons load through the native PNG decoder and draw as GX
   RGBA8 textures. Theme textures, gradients, localized strings, and complete
   HBC widget behavior are not ported.
 - A pure Rust theme ZIP parser now enforces the HBC archive size, entry count,
   root filename allowlist, duplicate-name policy, and bounded extraction plan.
-  It parses `theme.xml` with the existing metadata parser. The Details action
-  can apply the theme's default font color for the current session. Theme
-  PNG resources now have a bounded pure Rust decoder for grayscale, RGB,
-  indexed, gray-alpha, and RGBA images, including Adam7 interlacing. The decoder
-  can convert RGBA output to GX RGBA8 tile order. Theme images and fonts are not
-  yet loaded or shown, progress gradients are not drawn, and theme ZIP
-  persistence to NAND is not connected to the UI.
+  It parses `theme.xml` with the existing metadata parser. Applying a theme
+  saves its validated ZIP to NAND and updates its default font color for the
+  current session. Startup loads and validates that archive again. Theme PNG
+  resources use the bounded pure Rust decoder for grayscale, RGB, indexed,
+  gray-alpha, and RGBA images, including Adam7 interlacing. The decoder can
+  convert RGBA output to GX RGBA8 tile order. Theme artwork, fonts, and progress
+  gradients are not yet drawn.
 - Device discovery scans one preferred volume synchronously at startup and
   retries SD/USB selection every 30 frames. It unmounts an offline volume,
   remounts available media, and replaces the catalog while preserving the

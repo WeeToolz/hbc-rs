@@ -31,7 +31,10 @@ pub enum SettingsIoError {
     Codec,
 }
 
-fn settings_path() -> Result<CString, SettingsIoError> {
+pub(crate) fn title_data_file_path(name: &str) -> Result<CString, SettingsIoError> {
+    if name.is_empty() || name.contains('/') || name.contains('\\') {
+        return Err(SettingsIoError::InvalidPath);
+    }
     let mut title_id = AlignedTitleId(0);
     let rc = unsafe { es::get_title_id(&mut title_id.0) };
     if rc < 0 {
@@ -48,8 +51,11 @@ fn settings_path() -> Result<CString, SettingsIoError> {
         .position(|byte| *byte == 0)
         .ok_or(SettingsIoError::InvalidPath)?;
     let directory = str::from_utf8(&data_dir.0[..end]).map_err(|_| SettingsIoError::InvalidPath)?;
-    CString::new(alloc::format!("{directory}/{SETTINGS_PATH}"))
-        .map_err(|_| SettingsIoError::InvalidPath)
+    CString::new(alloc::format!("{directory}/{name}")).map_err(|_| SettingsIoError::InvalidPath)
+}
+
+fn settings_path() -> Result<CString, SettingsIoError> {
+    title_data_file_path(SETTINGS_PATH)
 }
 
 /// Load the settings file from the running channel's ES data directory.

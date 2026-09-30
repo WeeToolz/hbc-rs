@@ -68,6 +68,9 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             if action == hbc_rs::app::Action::ApplyTheme {
                 match startup.prepare_selected_theme() {
                     Ok(theme) => startup.runtime_mut().apply_theme(theme),
+                    Err(hbc_rs::platform::startup::StartupError::ThemeStorage(_)) => startup
+                        .runtime_mut()
+                        .show_notice("Could not save this theme to NAND."),
                     Err(_) => startup
                         .runtime_mut()
                         .show_notice("Could not read or validate this theme."),

@@ -10,4 +10,6 @@ pub mod settings;
 pub mod startup;
 pub mod storage;
 #[cfg(target_arch = "powerpc")]
+pub mod theme;
+#[cfg(target_arch = "powerpc")]
 pub mod video;
