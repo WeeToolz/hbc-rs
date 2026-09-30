@@ -35,6 +35,7 @@ pub enum ZipError {
     InvalidPath(ArchivePathError),
     InvalidUtf8Path,
     UnsupportedEncryption,
+    UnsupportedEntryType,
     UnsupportedCompression(u16),
     OutputTooLarge,
     AllocationFailed,
@@ -54,6 +55,8 @@ pub struct ZipEntry {
     pub uncompressed_size: u32,
     pub local_header_offset: u32,
     pub is_directory: bool,
+    /// False for Unix symbolic links and other special file types.
+    pub is_supported_type: bool,
 }
 
 /// A parsed ZIP archive. The parser owns the names and does not retain `data`.
@@ -64,6 +67,14 @@ pub struct ZipArchive {
 }
 
 impl ZipArchive {
+    #[cfg(test)]
+    pub(crate) fn from_entries_for_test(entries: Vec<ZipEntry>) -> Self {
+        Self {
+            entries,
+            directory_start: 0,
+        }
+    }
+
     /// Read classic ZIP central-directory metadata from a complete archive.
     ///
     /// It rejects split archives, ZIP64 sentinels, malformed central-directory
@@ -94,6 +105,7 @@ impl ZipArchive {
             }
 
             let flags = read_u16(fixed, 8)?;
+            let version_made_by = read_u16(fixed, 4)?;
             let compression_method = read_u16(fixed, 10)?;
             let crc32 = read_u32(fixed, 16)?;
             let compressed_size = read_u32(fixed, 20)?;
@@ -102,6 +114,7 @@ impl ZipArchive {
             let extra_length = read_u16(fixed, 30)? as usize;
             let comment_length = read_u16(fixed, 32)? as usize;
             let disk_start = read_u16(fixed, 34)?;
+            let external_attributes = read_u32(fixed, 38)?;
             let local_header_offset = read_u32(fixed, 42)?;
 
             if disk_start != 0 {
@@ -132,6 +145,9 @@ impl ZipArchive {
             )
             .map_err(|_| ZipError::InvalidUtf8Path)?;
             validate_archive_path(name).map_err(ZipError::InvalidPath)?;
+            let is_directory = name.ends_with('/');
+            let is_supported_type =
+                zip_entry_type_supported(version_made_by, external_attributes, is_directory);
             let _ = local_compressed_range(
                 data,
                 directory_start,
@@ -150,7 +166,8 @@ impl ZipArchive {
                 compressed_size,
                 uncompressed_size,
                 local_header_offset,
-                is_directory: name.ends_with('/'),
+                is_directory,
+                is_supported_type,
             });
             cursor = variable_end;
         }
@@ -188,6 +205,9 @@ impl ZipArchive {
         let entry = self.entry(name).ok_or(ZipError::InvalidEntry)?;
         if entry.is_directory {
             return Err(ZipError::InvalidEntry);
+        }
+        if !entry.is_supported_type {
+            return Err(ZipError::UnsupportedEntryType);
         }
         if entry.flags & (0x0001 | 0x0040 | 0x2000) != 0 {
             return Err(ZipError::UnsupportedEncryption);
@@ -235,6 +255,24 @@ impl ZipArchive {
         }
         Ok(output)
     }
+}
+
+fn zip_entry_type_supported(
+    version_made_by: u16,
+    external_attributes: u32,
+    is_directory: bool,
+) -> bool {
+    let host_system = version_made_by >> 8;
+    if host_system == 3 || host_system == 19 {
+        let unix_type = (external_attributes >> 16) & 0o170000;
+        return match unix_type {
+            0 => true,
+            0o100000 => !is_directory,
+            0o040000 => is_directory,
+            _ => false,
+        };
+    }
+    true
 }
 
 /// Validate a ZIP entry path before joining it to an installation directory.
@@ -374,6 +412,25 @@ fn read_u32(data: &[u8], offset: usize) -> Result<u32, ZipError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn identifies_unix_regular_files_and_directories_but_rejects_special_types() {
+        assert!(zip_entry_type_supported(3 << 8, 0o100644 << 16, false));
+        assert!(zip_entry_type_supported(3 << 8, 0o040755 << 16, true));
+        assert!(!zip_entry_type_supported(3 << 8, 0o120777 << 16, false));
+        assert!(!zip_entry_type_supported(3 << 8, 0o040755 << 16, false));
+    }
+
+    #[test]
+    fn direct_extract_rejects_unsupported_file_types() {
+        let data = zip_with_entries(&["link"]);
+        let mut archive = ZipArchive::parse(&data).unwrap();
+        archive.entries[0].is_supported_type = false;
+        assert_eq!(
+            archive.extract(&data, "link", 8),
+            Err(ZipError::UnsupportedEntryType)
+        );
+    }
 
     fn zip_with_entries(names: &[&str]) -> Vec<u8> {
         let mut data = Vec::new();

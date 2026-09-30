@@ -46,6 +46,32 @@ pub enum Action {
 /// Main menu focus follows HBC's main view order: browser, about, BootMii,
 /// exit, shutdown.
 const MENU_ITEMS: usize = 5;
+const DEFAULT_BROWSER_ROWS: usize = 5;
+
+/// Number of app columns and rows shown by the browser.
+///
+/// HBC uses five rows in both list and grid modes. A one-column layout is a
+/// list; wider layouts use directional grid movement.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct BrowserLayout {
+    pub columns: usize,
+    pub rows: usize,
+}
+
+impl Default for BrowserLayout {
+    fn default() -> Self {
+        Self {
+            columns: 1,
+            rows: DEFAULT_BROWSER_ROWS,
+        }
+    }
+}
+
+impl BrowserLayout {
+    fn page_capacity(self) -> usize {
+        self.columns.max(1).saturating_mul(self.rows.max(1))
+    }
+}
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct AppController {
@@ -54,6 +80,7 @@ pub struct AppController {
     pub filter: Filter,
     pub sort: SortOrder,
     selected_index: usize,
+    layout: BrowserLayout,
     menu_focus: usize,
     detail_focus: usize,
 }
@@ -78,6 +105,34 @@ impl AppController {
 
     pub fn detail_focus(&self) -> usize {
         self.detail_focus
+    }
+
+    pub fn browser_layout(&self) -> BrowserLayout {
+        self.layout
+    }
+
+    /// Set list or grid dimensions without losing the selected app identity.
+    pub fn set_browser_layout(&mut self, layout: BrowserLayout, catalog: &[AppEntry]) {
+        self.layout = BrowserLayout {
+            columns: layout.columns.max(1),
+            rows: layout.rows.max(1),
+        };
+        self.reconcile_selection(catalog);
+    }
+
+    /// Index of the first entry on the selected app's page.
+    pub fn page_start(&self) -> usize {
+        self.selected_index / self.layout.page_capacity() * self.layout.page_capacity()
+    }
+
+    /// Return the current page in the active filter and sort order.
+    pub fn visible_page<'a>(&self, catalog: &'a [AppEntry]) -> Vec<&'a AppEntry> {
+        let visible = self.visible_apps(catalog);
+        let start = self.page_start().min(visible.len());
+        let end = start
+            .saturating_add(self.layout.page_capacity())
+            .min(visible.len());
+        visible[start..end].to_vec()
     }
 
     /// Apply one logical input and keep the selected identity valid for the
@@ -129,12 +184,30 @@ impl AppController {
                 self.menu_focus = 0;
                 Action::None
             }
-            Input::Up | Input::Left => {
-                self.move_selection(catalog, false);
+            Input::Up => {
+                let step = if self.layout.columns == 1 {
+                    1
+                } else {
+                    self.layout.columns
+                };
+                self.move_selection(catalog, false, step);
                 Action::None
             }
-            Input::Down | Input::Right => {
-                self.move_selection(catalog, true);
+            Input::Down => {
+                let step = if self.layout.columns == 1 {
+                    1
+                } else {
+                    self.layout.columns
+                };
+                self.move_selection(catalog, true, step);
+                Action::None
+            }
+            Input::Left if self.layout.columns > 1 => {
+                self.move_selection(catalog, false, 1);
+                Action::None
+            }
+            Input::Right if self.layout.columns > 1 => {
+                self.move_selection(catalog, true, 1);
                 Action::None
             }
             Input::Confirm if self.selected_app.is_some() => {
@@ -159,8 +232,8 @@ impl AppController {
                 self.reconcile_selection(catalog);
                 Action::None
             }
-            Input::PreviousPage => Action::PreviousPage,
-            Input::NextPage => Action::NextPage,
+            Input::PreviousPage => self.move_page(catalog, false),
+            Input::NextPage => self.move_page(catalog, true),
             _ => Action::None,
         }
     }
@@ -197,7 +270,7 @@ impl AppController {
         }
     }
 
-    fn move_selection(&mut self, catalog: &[AppEntry], forward: bool) {
+    fn move_selection(&mut self, catalog: &[AppEntry], forward: bool, step: usize) {
         let visible = self.visible_apps(catalog);
         if visible.is_empty() {
             self.selected_index = 0;
@@ -205,11 +278,37 @@ impl AppController {
             return;
         }
         self.selected_index = if forward {
-            (self.selected_index + 1).min(visible.len() - 1)
+            self.selected_index
+                .saturating_add(step)
+                .min(visible.len() - 1)
         } else {
-            self.selected_index.saturating_sub(1)
+            self.selected_index.saturating_sub(step)
         };
         self.selected_app = Some(visible[self.selected_index].directory.clone());
+    }
+
+    fn move_page(&mut self, catalog: &[AppEntry], forward: bool) -> Action {
+        let visible = self.visible_apps(catalog);
+        if visible.is_empty() {
+            return Action::None;
+        }
+        let capacity = self.layout.page_capacity();
+        let current_start = self.page_start();
+        let next_start = if forward {
+            current_start.saturating_add(capacity)
+        } else {
+            current_start.saturating_sub(capacity)
+        };
+        if next_start == current_start || next_start >= visible.len() {
+            return Action::None;
+        }
+        self.selected_index = next_start;
+        self.selected_app = Some(visible[next_start].directory.clone());
+        if forward {
+            Action::NextPage
+        } else {
+            Action::PreviousPage
+        }
     }
 
     fn move_menu_focus(&mut self, forward: bool) {
@@ -246,7 +345,9 @@ impl AppController {
         {
             self.selected_index = index;
         } else {
-            self.selected_index = self.selected_index.min(visible.len() - 1);
+            // HBC focuses the first entry when the selected app is not in the
+            // current filtered view or has disappeared from the catalog.
+            self.selected_index = 0;
             self.selected_app = Some(visible[self.selected_index].directory.clone());
         }
     }
@@ -257,7 +358,6 @@ mod tests {
     use super::*;
     use crate::catalog::AppKind;
     use crate::metadata::AppMetadata;
-    use alloc::vec;
 
     fn app(directory: &str, name: &str, icon: bool) -> AppEntry {
         AppEntry {
@@ -345,15 +445,78 @@ mod tests {
     }
 
     #[test]
-    fn browser_page_inputs_return_actions() {
+    fn page_inputs_move_selection_and_stop_at_page_boundaries() {
+        let catalog = [
+            app("a", "A", true),
+            app("b", "B", true),
+            app("c", "C", true),
+            app("d", "D", true),
+            app("e", "E", true),
+            app("f", "F", true),
+            app("g", "G", true),
+        ];
         let mut controller = AppController::new();
         assert_eq!(
-            controller.handle(Input::NextPage, &vec![]),
+            controller.handle(Input::NextPage, &catalog),
             Action::NextPage
         );
+        assert_eq!(controller.selected_index(), 5);
+        assert_eq!(controller.selected_app.as_deref(), Some("f"));
+        assert_eq!(controller.page_start(), 5);
+        assert_eq!(controller.visible_page(&catalog).len(), 2);
+        assert_eq!(controller.handle(Input::NextPage, &catalog), Action::None);
         assert_eq!(
-            controller.handle(Input::PreviousPage, &[]),
+            controller.handle(Input::PreviousPage, &catalog),
             Action::PreviousPage
         );
+        assert_eq!(controller.selected_index(), 0);
+        assert_eq!(controller.selected_app.as_deref(), Some("a"));
+        assert_eq!(
+            controller.handle(Input::PreviousPage, &catalog),
+            Action::None
+        );
+    }
+
+    #[test]
+    fn grid_controls_move_by_row_and_keep_identity_after_resort() {
+        let catalog = [
+            app("a", "A", true),
+            app("b", "B", true),
+            app("c", "C", true),
+            app("d", "D", true),
+            app("e", "E", true),
+            app("f", "F", true),
+        ];
+        let mut controller = AppController::new();
+        controller.set_browser_layout(
+            BrowserLayout {
+                columns: 3,
+                rows: 2,
+            },
+            &catalog,
+        );
+        controller.handle(Input::Right, &catalog);
+        assert_eq!(controller.selected_app.as_deref(), Some("b"));
+        controller.handle(Input::Down, &catalog);
+        assert_eq!(controller.selected_app.as_deref(), Some("e"));
+        controller.handle(Input::CycleSort, &catalog);
+        assert_eq!(controller.selected_app.as_deref(), Some("e"));
+        assert_eq!(controller.selected_index(), 4);
+    }
+
+    #[test]
+    fn missing_selection_uses_first_visible_app() {
+        let catalog = [
+            app("a", "A", true),
+            app("b", "B", true),
+            app("c", "C", true),
+        ];
+        let mut controller = AppController::new();
+        controller.handle(Input::Down, &catalog);
+        controller.handle(Input::Down, &catalog);
+        let catalog = [app("a", "A", true), app("c", "C", true)];
+        controller.handle(Input::Up, &catalog);
+        assert_eq!(controller.selected_app.as_deref(), Some("a"));
+        assert_eq!(controller.selected_index(), 0);
     }
 }

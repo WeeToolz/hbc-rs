@@ -11,6 +11,7 @@ pub mod app;
 pub mod archive;
 pub mod catalog;
 pub mod loader;
+pub mod management;
 pub mod metadata;
 pub mod settings;
 
