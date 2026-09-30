@@ -11,6 +11,7 @@ pub enum Screen {
     MainMenu,
     AppDetails,
     DeleteConfirm,
+    WiiloadConfirm,
     Options,
     About,
     Notice,
@@ -42,6 +43,7 @@ pub enum PointerTarget {
     Detail(usize),
     DetailMemo,
     DeleteChoice { yes: bool },
+    WiiloadChoice { yes: bool },
     Option(usize),
     NoticeConfirm,
 }
@@ -60,6 +62,8 @@ pub enum Action {
     PreviousPage,
     NextPage,
     ApplyOptions,
+    AcceptWiiloadZip,
+    RejectWiiloadZip,
 }
 
 /// Main menu focus follows the options available on this console.
@@ -130,6 +134,7 @@ pub struct AppController {
     detail_drag_last_y: Option<i16>,
     detail_dragging: bool,
     delete_confirmation_yes: bool,
+    wiiload_confirmation_yes: bool,
     notice: Option<String>,
     notice_return_screen: Screen,
     bootmii_available: bool,
@@ -161,6 +166,15 @@ impl AppController {
 
     pub fn detail_focus(&self) -> usize {
         self.detail_focus
+    }
+
+    pub fn request_wiiload_zip_confirmation(&mut self) {
+        self.wiiload_confirmation_yes = false;
+        self.screen = Screen::WiiloadConfirm;
+    }
+
+    pub fn wiiload_confirmation_yes(&self) -> bool {
+        self.wiiload_confirmation_yes
     }
 
     pub fn detail_description_scroll(&self) -> usize {
@@ -395,6 +409,30 @@ impl AppController {
                 }
                 _ => Action::None,
             },
+            Screen::WiiloadConfirm => match input {
+                Input::Left | Input::Right => {
+                    self.wiiload_confirmation_yes = !self.wiiload_confirmation_yes;
+                    Action::None
+                }
+                Input::Back => {
+                    self.screen = Screen::Browser;
+                    Action::RejectWiiloadZip
+                }
+                Input::Home => {
+                    self.screen = Screen::MainMenu;
+                    self.menu_focus = 0;
+                    Action::RejectWiiloadZip
+                }
+                Input::Confirm if self.wiiload_confirmation_yes => {
+                    self.screen = Screen::Browser;
+                    Action::AcceptWiiloadZip
+                }
+                Input::Confirm => {
+                    self.screen = Screen::Browser;
+                    Action::RejectWiiloadZip
+                }
+                _ => Action::None,
+            },
             Screen::Options => self.handle_options(input, catalog),
             Screen::About => match input {
                 Input::Back | Input::Confirm => {
@@ -477,6 +515,14 @@ impl AppController {
             (Screen::AppDetails, PointerTarget::DetailMemo) => Action::None,
             (Screen::DeleteConfirm, PointerTarget::DeleteChoice { yes }) => {
                 self.delete_confirmation_yes = yes;
+                if pressed {
+                    self.handle(Input::Confirm, catalog)
+                } else {
+                    Action::None
+                }
+            }
+            (Screen::WiiloadConfirm, PointerTarget::WiiloadChoice { yes }) => {
+                self.wiiload_confirmation_yes = yes;
                 if pressed {
                     self.handle(Input::Confirm, catalog)
                 } else {
@@ -1065,6 +1111,50 @@ mod tests {
             Action::DeleteSelected
         );
         assert_eq!(controller.screen, Screen::Browser);
+    }
+
+    #[test]
+    fn received_zip_requires_yes_and_no_or_back_discards_it() {
+        let mut controller = AppController::new();
+        controller.request_wiiload_zip_confirmation();
+        assert_eq!(controller.screen, Screen::WiiloadConfirm);
+        assert_eq!(
+            controller.handle(Input::Confirm, &[]),
+            Action::RejectWiiloadZip
+        );
+        controller.request_wiiload_zip_confirmation();
+        controller.handle(Input::Right, &[]);
+        assert_eq!(controller.wiiload_confirmation_yes(), true);
+        assert_eq!(
+            controller.handle(Input::Confirm, &[]),
+            Action::AcceptWiiloadZip
+        );
+        controller.request_wiiload_zip_confirmation();
+        assert_eq!(
+            controller.handle(Input::Back, &[]),
+            Action::RejectWiiloadZip
+        );
+        controller.request_wiiload_zip_confirmation();
+        assert_eq!(
+            controller.handle(Input::Home, &[]),
+            Action::RejectWiiloadZip
+        );
+        assert_eq!(controller.screen, Screen::MainMenu);
+    }
+
+    #[test]
+    fn received_zip_pointer_choices_use_the_same_yes_no_actions() {
+        let mut controller = AppController::new();
+        controller.request_wiiload_zip_confirmation();
+        assert_eq!(
+            controller.handle_pointer(Some(PointerTarget::WiiloadChoice { yes: true }), true, &[]),
+            Action::AcceptWiiloadZip
+        );
+        controller.request_wiiload_zip_confirmation();
+        assert_eq!(
+            controller.handle_pointer(Some(PointerTarget::WiiloadChoice { yes: false }), true, &[]),
+            Action::RejectWiiloadZip
+        );
     }
 
     #[test]

@@ -104,9 +104,12 @@ deferred.
   not restore an earlier IRQ exception vector, reload IOS for AHB access, or
   receive real hardware verification. The loaded program's crt0 must set the
   stack and install its own interrupt handlers before enabling interrupts.
-- Wiiload ZIP routing, network status artwork, update behavior, and incoming
-  app and theme installation still need integration. Settings save when HBC
-  exits, as in the original. Settings and theme replacement now
+- Wiiload now accepts ELF and DOL uploads through the launch path. It checks
+  received app and theme ZIPs, asks before applying them, extracts app files
+  below `apps/<folder>`, and saves and applies theme ZIPs through NAND. App
+  extraction currently runs on the main thread and has no progress dialog.
+  Network status artwork and update behavior still need integration. Settings
+  save when HBC exits, as in the original. Settings and theme replacement now
   write a temporary NAND file, rename with a backup, and recover an interrupted
   replacement at the next load. Hardware behavior of ISFS rename remains
   unverified. Theme replacement needs enough free NAND space for both the old

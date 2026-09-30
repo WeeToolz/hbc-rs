@@ -569,7 +569,7 @@ pub fn browser_frame_with_viewport(
     let selected = controller.selected_index().saturating_sub(page_start);
 
     match controller.screen {
-        Screen::Browser | Screen::AppDetails | Screen::DeleteConfirm => {
+        Screen::Browser | Screen::AppDetails | Screen::DeleteConfirm | Screen::WiiloadConfirm => {
             if navigation.has_previous() {
                 frame.page_arrow(
                     rect(24, 192, 64, 64),
@@ -736,7 +736,7 @@ pub fn browser_frame_with_viewport(
     }
     if matches!(
         controller.screen,
-        Screen::AppDetails | Screen::DeleteConfirm | Screen::Options
+        Screen::AppDetails | Screen::DeleteConfirm | Screen::WiiloadConfirm | Screen::Options
     ) {
         frame.fill(rect(0, 0, 640, 480), MODAL_SHADE);
         frame.theme_art(rect(60, 44, 520, 360), ThemeArt::Dialog, false);
@@ -885,7 +885,7 @@ pub fn browser_frame_with_viewport(
                 );
                 frame.hit_target(PointerTarget::Detail(*action), bounds);
             }
-        } else {
+        } else if controller.screen == Screen::DeleteConfirm {
             frame.theme_art(
                 rect(188, 68, 32, 32),
                 ThemeArt::DialogIcon(DialogIcon::Confirm),
@@ -909,6 +909,31 @@ pub fn browser_frame_with_viewport(
                     text_color,
                 );
                 frame.hit_target(PointerTarget::DeleteChoice { yes: *yes }, bounds);
+            }
+        } else {
+            frame.theme_art(
+                rect(188, 68, 32, 32),
+                ThemeArt::DialogIcon(DialogIcon::Confirm),
+                false,
+            );
+            frame.text(
+                190.0,
+                100.0,
+                "Install received ZIP? Existing files may be replaced.",
+                1.0,
+                text_color,
+                54,
+            );
+            for (index, yes) in [true, false].iter().enumerate() {
+                let bounds = frame.button(
+                    100.0 + index as f32 * 240.0,
+                    324.0,
+                    ButtonSize::Small,
+                    controller.wiiload_confirmation_yes() == *yes,
+                    if *yes { "Yes" } else { "No" },
+                    text_color,
+                );
+                frame.hit_target(PointerTarget::WiiloadChoice { yes: *yes }, bounds);
             }
         }
     }

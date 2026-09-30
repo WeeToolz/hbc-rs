@@ -34,6 +34,10 @@ impl AppRuntime {
         &self.controller
     }
 
+    pub fn request_wiiload_zip_confirmation(&mut self) {
+        self.controller.request_wiiload_zip_confirmation();
+    }
+
     pub fn catalog(&self) -> &[AppEntry] {
         &self.catalog
     }

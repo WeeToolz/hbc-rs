@@ -89,6 +89,59 @@ pub struct IconTexture {
 }
 
 impl WiiStartup {
+    /// Install an app ZIP or save and apply a validated theme ZIP received by Wiiload.
+    pub fn apply_received_zip(&mut self, bytes: &[u8]) -> Result<(), StartupError> {
+        use crate::wiiload_zip::{classify_received_zip, WiiloadZipClassification};
+        match classify_received_zip(bytes).map_err(|error| match error {
+            crate::wiiload_zip::WiiloadZipError::InvalidTheme(error) => StartupError::Theme(error),
+            crate::wiiload_zip::WiiloadZipError::InvalidArchive(error) => {
+                StartupError::Storage(StorageError::Archive(error))
+            }
+            crate::wiiload_zip::WiiloadZipError::InvalidApp => StartupError::NotExecutable,
+        })? {
+            WiiloadZipClassification::Theme { package } => {
+                let textures = super::theme::ThemeTextures::load_for_viewport(
+                    Some((&package, bytes)),
+                    self.widescreen,
+                );
+                super::theme::save(bytes).map_err(StartupError::ThemeStorage)?;
+                self.apply_theme(PreparedTheme {
+                    metadata: package.metadata,
+                    textures,
+                });
+            }
+            WiiloadZipClassification::App {
+                directory,
+                kind: _,
+                extraction,
+            } => {
+                let archive = crate::archive::ZipArchive::parse_limited(
+                    bytes,
+                    crate::wiiload_zip::WIILOAD_ZIP_MAX_ENTRIES,
+                )
+                .map_err(|error| StartupError::Storage(StorageError::Archive(error)))?;
+                let storage = self.storage.as_mut().ok_or(StartupError::NoStorage)?;
+                storage
+                    .ensure_directory("apps")
+                    .map_err(StartupError::Storage)?;
+                let destination = alloc::format!("apps/{directory}");
+                storage
+                    .ensure_directory(&destination)
+                    .map_err(StartupError::Storage)?;
+                storage
+                    .extract_archive(bytes, &archive, &extraction, &destination)
+                    .map_err(StartupError::Storage)?;
+                let storage = self.storage.as_mut().ok_or(StartupError::NoStorage)?;
+                let catalog = scan_apps(storage, "apps", EXECUTABLE_SIZE_LIMIT, THEME_SIZE_LIMIT)
+                    .map_err(|_| StartupError::CatalogScan)?;
+                self.runtime.replace_catalog(catalog);
+                self.icon_textures.clear();
+                self.attempted_icon_indices.clear();
+            }
+        }
+        Ok(())
+    }
+
     /// Initialize controller services, load NAND settings, and scan the
     /// preferred SD or USB volume once. Missing settings and volumes use the
     /// same empty/default state as HBC.

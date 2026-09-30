@@ -1,6 +1,11 @@
 #![cfg_attr(target_arch = "powerpc", no_std)]
 #![cfg_attr(target_arch = "powerpc", no_main)]
 
+extern crate alloc;
+
+#[cfg(target_arch = "powerpc")]
+use alloc::vec::Vec;
+
 #[cfg(not(target_arch = "powerpc"))]
 fn main() {
     // Wii startup and service initialization will be added with the first
@@ -42,6 +47,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     }
     let mut display_ready = false;
     let mut frames_since_storage_scan = 0u8;
+    let mut pending_zip: Option<Vec<u8>> = None;
 
     loop {
         if let Some(request) = hbc_rs::platform::lifecycle::take_request() {
@@ -56,38 +62,46 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
 
         startup.poll_storage_scan();
         if !startup.storage_scan_pending() {
-            if let Some(payload) = hbc_rs::platform::wiiload::take_payload() {
-                if payload.data.starts_with(b"PK\x03\x04") {
-                    startup
-                        .runtime_mut()
-                        .show_notice("Received ZIP installation is not available yet.");
-                } else {
-                    let plan = if payload.data.starts_with(b"\x7fELF") {
-                        hbc_rs::loader::parse_elf32_ppc(
-                            &payload.data,
-                            Some(hbc_rs::platform::startup::EXECUTABLE_MEMORY.clone()),
-                        )
-                    } else {
-                        hbc_rs::loader::parse_dol(
-                            &payload.data,
-                            Some(hbc_rs::platform::startup::EXECUTABLE_MEMORY.clone()),
-                        )
-                    };
-                    match plan {
-                        Ok(plan) => {
-                            if let Err(notice) = transfer_executable(
-                                &mut startup,
-                                &payload.data,
-                                &plan,
-                                &payload.args,
-                                "Could not prepare the received application.",
-                            ) {
-                                startup.runtime_mut().show_notice(notice);
+            if pending_zip.is_none() {
+                if let Some(payload) = hbc_rs::platform::wiiload::take_payload() {
+                    if payload.data.starts_with(b"PK\x03\x04") {
+                        match hbc_rs::wiiload_zip::classify_received_zip(&payload.data) {
+                            Ok(_) => {
+                                pending_zip = Some(payload.data);
+                                startup.runtime_mut().request_wiiload_zip_confirmation();
                             }
+                            Err(_) => startup
+                                .runtime_mut()
+                                .show_notice("Received ZIP is not a valid app or theme."),
                         }
-                        Err(_) => startup
-                            .runtime_mut()
-                            .show_notice("Received data is not a valid Wii application."),
+                    } else {
+                        let plan = if payload.data.starts_with(b"\x7fELF") {
+                            hbc_rs::loader::parse_elf32_ppc(
+                                &payload.data,
+                                Some(hbc_rs::platform::startup::EXECUTABLE_MEMORY.clone()),
+                            )
+                        } else {
+                            hbc_rs::loader::parse_dol(
+                                &payload.data,
+                                Some(hbc_rs::platform::startup::EXECUTABLE_MEMORY.clone()),
+                            )
+                        };
+                        match plan {
+                            Ok(plan) => {
+                                if let Err(notice) = transfer_executable(
+                                    &mut startup,
+                                    &payload.data,
+                                    &plan,
+                                    &payload.args,
+                                    "Could not prepare the received application.",
+                                ) {
+                                    startup.runtime_mut().show_notice(notice);
+                                }
+                            }
+                            Err(_) => startup
+                                .runtime_mut()
+                                .show_notice("Received data is not a valid Wii application."),
+                        }
                     }
                 }
             }
@@ -170,6 +184,24 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         video.wait_vsync();
 
         for action in actions {
+            if action == hbc_rs::app::Action::AcceptWiiloadZip {
+                if let Some(bytes) = pending_zip.take() {
+                    if startup.apply_received_zip(&bytes).is_err() {
+                        startup
+                            .runtime_mut()
+                            .show_notice("Could not install the app or apply the theme.");
+                    } else {
+                        startup
+                            .runtime_mut()
+                            .show_notice("Received ZIP is complete.");
+                    }
+                }
+                continue;
+            }
+            if action == hbc_rs::app::Action::RejectWiiloadZip {
+                pending_zip = None;
+                continue;
+            }
             if action == hbc_rs::app::Action::ApplyOptions {
                 let (persist, mut notice) = match startup.apply_options() {
                     Ok(true) => (true, None),

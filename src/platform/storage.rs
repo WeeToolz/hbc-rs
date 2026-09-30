@@ -45,6 +45,25 @@ impl FatStorage {
         self.prefix
     }
 
+    /// Create a directory, accepting an existing directory at the same path.
+    pub fn ensure_directory(&self, path: &str) -> Result<(), StorageError> {
+        let full = self.full_path(path)?;
+        match ogc_fat::create_directory(&full) {
+            Ok(()) => Ok(()),
+            Err(ogc_fat::FatError::AlreadyExists)
+                if ogc_fat::stat(&full)
+                    .map(|stat| stat.is_directory)
+                    .unwrap_or(false) =>
+            {
+                Ok(())
+            }
+            Err(ogc_fat::FatError::AlreadyExists) => {
+                Err(StorageError::Fat(ogc_fat::FatError::PathError))
+            }
+            Err(error) => Err(StorageError::Fat(error)),
+        }
+    }
+
     pub fn unmount(self) -> Result<(), StorageError> {
         let name = match self.prefix {
             "sd:" => c"sd",
@@ -71,18 +90,7 @@ impl FatStorage {
             match operation {
                 crate::management::ExtractionOperation::CreateDirectory { path } => {
                     let relative = join_safe_path(destination, path)?;
-                    let full = self.full_path(&relative)?;
-                    match ogc_fat::create_directory(&full) {
-                        Ok(()) => {}
-                        Err(ogc_fat::FatError::AlreadyExists)
-                            if ogc_fat::stat(&full)
-                                .map(|stat| stat.is_directory)
-                                .unwrap_or(false) => {}
-                        Err(ogc_fat::FatError::AlreadyExists) => {
-                            return Err(StorageError::Fat(ogc_fat::FatError::PathError))
-                        }
-                        Err(error) => return Err(StorageError::Fat(error)),
-                    }
+                    self.ensure_directory(&relative)?;
                 }
                 crate::management::ExtractionOperation::WriteFile {
                     path,
