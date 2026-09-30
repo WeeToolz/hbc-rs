@@ -10,6 +10,7 @@ miniz_oxide = { version = "0.8.9", default-features = false, features = ["with-a
 
 [target.'cfg(target_arch = "powerpc")'.dependencies]
 ogc-cache = { path = "libogc-rs/crates/core/ogc-cache" }
+ogc-conf = { path = "libogc-rs/crates/core/ogc-conf" }
 ogc-fat = { path = "libogc-rs/crates/services/ogc-fat" }
 ogc-filesystem = { path = "libogc-rs/crates/services/ogc-filesystem" }
 ogc-es-sys = { path = "libogc-rs/crates/core/ogc-es-sys" }

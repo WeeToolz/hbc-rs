@@ -6,7 +6,7 @@ use crate::{
         theme::ThemeTextures,
         video::{VideoError, VideoSystem},
     },
-    render::{map_rect, ButtonSize, Frame, FrameCommand, ThemeArt, LOGICAL_HEIGHT, LOGICAL_WIDTH},
+    render::{map_rect, ButtonSize, Frame, FrameCommand, ThemeArt, LOGICAL_HEIGHT},
 };
 
 /// Submit the theme background and logo, solid fills, and app icons through GX.
@@ -24,15 +24,31 @@ pub unsafe fn draw_frame(
 ) -> Result<(), VideoError> {
     let info = video.info();
     let mut textured_state = false;
+    if let Some(background_fill) = frame.fills.first() {
+        if let Some(bounds) = map_rect(
+            background_fill.bounds,
+            frame.logical_width(),
+            LOGICAL_HEIGHT,
+            info.width,
+            info.height,
+        ) {
+            video.configure_2d();
+            unsafe { draw_solid_fill(video, bounds, *background_fill)? };
+        }
+    }
     if let Some(background) = theme.background.as_ref() {
         if let Some(bounds) = map_rect(
             crate::render::Rect {
-                x: 0.0,
+                x: f32::from(
+                    frame
+                        .logical_width()
+                        .saturating_sub(theme.background_width as u16),
+                ) / 2.0,
                 y: 0.0,
-                width: f32::from(LOGICAL_WIDTH),
+                width: theme.background_width as f32,
                 height: f32::from(LOGICAL_HEIGHT),
             },
-            LOGICAL_WIDTH,
+            frame.logical_width(),
             LOGICAL_HEIGHT,
             info.width,
             info.height,
@@ -56,7 +72,7 @@ pub unsafe fn draw_frame(
                 width: 320.0,
                 height: 64.0,
             },
-            LOGICAL_WIDTH,
+            frame.logical_width(),
             LOGICAL_HEIGHT,
             info.width,
             info.height,
@@ -92,7 +108,7 @@ pub unsafe fn draw_frame(
                 };
                 let Some(bounds) = map_rect(
                     bounds,
-                    LOGICAL_WIDTH,
+                    frame.logical_width(),
                     LOGICAL_HEIGHT,
                     info.width,
                     info.height,
@@ -117,7 +133,7 @@ pub unsafe fn draw_frame(
                 };
                 let Some(bounds) = map_rect(
                     bounds,
-                    LOGICAL_WIDTH,
+                    frame.logical_width(),
                     LOGICAL_HEIGHT,
                     info.width,
                     info.height,
@@ -142,7 +158,7 @@ pub unsafe fn draw_frame(
                 };
                 let Some(bounds) = map_rect(
                     bounds,
-                    LOGICAL_WIDTH,
+                    frame.logical_width(),
                     LOGICAL_HEIGHT,
                     info.width,
                     info.height,
@@ -158,12 +174,15 @@ pub unsafe fn draw_frame(
                     video.configure_2d();
                     textured_state = false;
                 }
+                if index == 0 {
+                    continue;
+                }
                 let Some(fill) = frame.fills.get(index) else {
                     continue;
                 };
                 let Some(bounds) = map_rect(
                     fill.bounds,
-                    LOGICAL_WIDTH,
+                    frame.logical_width(),
                     LOGICAL_HEIGHT,
                     info.width,
                     info.height,
@@ -182,7 +201,7 @@ pub unsafe fn draw_frame(
                     .find(|icon| icon.catalog_index == catalog_index);
                 let Some(bounds) = map_rect(
                     bounds,
-                    LOGICAL_WIDTH,
+                    frame.logical_width(),
                     LOGICAL_HEIGHT,
                     info.width,
                     info.height,

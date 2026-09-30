@@ -12,6 +12,7 @@ use ogc_filesystem as isfs;
 const THEME_FILENAME: &str = "theme.zip";
 const IO_CHUNK_SIZE: usize = 16 * 1024;
 const BACKGROUND_WIDTH: u32 = 640;
+const WIDE_BACKGROUND_WIDTH: u32 = 852;
 const BACKGROUND_HEIGHT: u32 = 480;
 const LOGO_WIDTH: u32 = 320;
 const LOGO_HEIGHT: u32 = 64;
@@ -32,6 +33,7 @@ const ABOUT_HEIGHT: u32 = 104;
 const THEME_IMAGE_MAX_BYTES: usize = 8 * 1024 * 1024;
 
 const DEFAULT_BACKGROUND: &[u8] = include_bytes!("../../assets/background.png");
+const DEFAULT_WIDE_BACKGROUND: &[u8] = include_bytes!("../../assets/background_wide.png");
 const DEFAULT_LOGO: &[u8] = include_bytes!("../../assets/logo.png");
 const DEFAULT_LIST_CARD: &[u8] = include_bytes!("../../assets/apps_list.png");
 const DEFAULT_LIST_CARD_FOCUS: &[u8] = include_bytes!("../../assets/apps_list_hover.png");
@@ -52,6 +54,7 @@ const DEFAULT_TINY_BUTTON_FOCUS: &[u8] = include_bytes!("../../assets/button_tin
 
 pub struct ThemeTextures {
     pub background: Option<crate::png::GxRgba8Texture>,
+    pub background_width: u32,
     pub logo: Option<crate::png::GxRgba8Texture>,
     pub list_card: Option<crate::png::GxRgba8Texture>,
     pub list_card_focused: Option<crate::png::GxRgba8Texture>,
@@ -73,14 +76,17 @@ pub struct ThemeTextures {
 
 impl ThemeTextures {
     pub fn load(package: Option<(&crate::theme::ThemePackage, &[u8])>) -> Self {
+        Self::load_for_viewport(package, false)
+    }
+
+    pub fn load_for_viewport(
+        package: Option<(&crate::theme::ThemePackage, &[u8])>,
+        widescreen: bool,
+    ) -> Self {
+        let (background, background_width) = load_background(package, widescreen);
         Self {
-            background: theme_image_texture(
-                package,
-                "background.png",
-                BACKGROUND_WIDTH,
-                BACKGROUND_HEIGHT,
-                DEFAULT_BACKGROUND,
-            ),
+            background,
+            background_width,
             logo: theme_image_texture(package, "logo.png", LOGO_WIDTH, LOGO_HEIGHT, DEFAULT_LOGO),
             list_card: theme_image_texture(
                 package,
@@ -192,6 +198,49 @@ impl ThemeTextures {
     }
 }
 
+fn load_background(
+    package: Option<(&crate::theme::ThemePackage, &[u8])>,
+    widescreen: bool,
+) -> (Option<crate::png::GxRgba8Texture>, u32) {
+    if widescreen {
+        if let Some(texture) = package_image(
+            package,
+            "background_wide.png",
+            WIDE_BACKGROUND_WIDTH,
+            BACKGROUND_HEIGHT,
+        ) {
+            return (Some(texture), WIDE_BACKGROUND_WIDTH);
+        }
+        if let Some(texture) = package_image(
+            package,
+            "background.png",
+            BACKGROUND_WIDTH,
+            BACKGROUND_HEIGHT,
+        ) {
+            return (Some(texture), BACKGROUND_WIDTH);
+        }
+        return (
+            decode_fixed_size_image(
+                DEFAULT_WIDE_BACKGROUND,
+                WIDE_BACKGROUND_WIDTH,
+                BACKGROUND_HEIGHT,
+            ),
+            WIDE_BACKGROUND_WIDTH,
+        );
+    }
+
+    (
+        theme_image_texture(
+            package,
+            "background.png",
+            BACKGROUND_WIDTH,
+            BACKGROUND_HEIGHT,
+            DEFAULT_BACKGROUND,
+        ),
+        BACKGROUND_WIDTH,
+    )
+}
+
 #[repr(align(32))]
 struct AlignedChunk([u8; IO_CHUNK_SIZE]);
 
@@ -283,6 +332,20 @@ fn theme_image_texture(
                 .and_then(|bytes| decode_fixed_size_image(&bytes, width, height))
         })
         .or_else(|| decode_fixed_size_image(fallback, width, height))
+}
+
+fn package_image(
+    package: Option<(&crate::theme::ThemePackage, &[u8])>,
+    filename: &str,
+    width: u32,
+    height: u32,
+) -> Option<crate::png::GxRgba8Texture> {
+    package.and_then(|(package, archive)| {
+        package
+            .extract_file(archive, filename, THEME_IMAGE_MAX_BYTES)
+            .ok()
+            .and_then(|bytes| decode_fixed_size_image(&bytes, width, height))
+    })
 }
 
 fn decode_fixed_size_image(

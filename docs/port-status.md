@@ -17,15 +17,18 @@ deferred.
 - VI/framebuffer setup and a minimal GX FIFO/display-copy path in the local
   `libogc-rs` copy. The Wii entry point now starts a frame loop that scans
   input, updates the controller state, draws the initial browser layout with a
-  native 5x7 bitmap font, and waits for VI retrace. Return-to-menu and power-off
-  actions save settings and call the system reset service. Physical Reset and
-  Power callbacks queue exit requests for the main loop, which saves settings,
-  unmounts storage, stops Wii Remote services, and requests the matching system
-  action.
+  native 5x7 bitmap font, and waits for VI retrace. The logical viewport now
+  follows the Wii 4:3 or 16:9 setting (640x480 or 852x480), with the matching
+  bundled or theme background and four grid columns in widescreen mode. The
+  video setup also applies HBC's vWii pillarbox register settings.
+  Return-to-menu and power-off actions save settings and call the system reset
+  service. Physical Reset and Power callbacks queue exit requests. The main loop
+  saves settings, unmounts storage, stops Wii Remote services, and requests the
+  matching system action.
 - Boot setup loads NAND settings, tries the preferred SD or USB volume followed
   by the other volume, scans `apps`, and keeps the mounted volume for later
-  operations. Wii Remote setup matches HBC's 640x480 default IR range and
-  pointer-owner button priority.
+  operations. Wii Remote setup matches the active HBC viewport's padded IR
+  range and pointer-owner button priority.
 - Wii Remote 1 opens an Options dialog for SD or USB preference and Name or
   Date sorting. Changes stay pending until OK. Confirmed device changes remount
   the selected volume and refresh the catalog. The two GameCube memory card

@@ -63,6 +63,11 @@ impl AppRuntime {
         self.controller.set_active_device(device);
     }
 
+    pub fn set_widescreen(&mut self, widescreen: bool) {
+        self.controller
+            .set_grid_columns(if widescreen { 4 } else { 3 }, &self.catalog);
+    }
+
     pub fn set_preferred_device(&mut self, device: i32) {
         self.controller.set_preferred_device(device);
         self.sync_settings();
@@ -255,6 +260,20 @@ mod tests {
             runtime.settings().current().selected_app.as_deref(),
             Some("b")
         );
+    }
+
+    #[test]
+    fn widescreen_policy_selects_four_grid_columns_and_tracks_mode_changes() {
+        let mut runtime = AppRuntime::new(vec![app("a"), app("b"), app("c"), app("d")]);
+        runtime.set_widescreen(true);
+        runtime.update(&InputFrame {
+            pressed: vec![Input::ToggleBrowseMode],
+            ..InputFrame::default()
+        });
+        assert_eq!(runtime.controller().browser_layout().columns, 4);
+
+        runtime.set_widescreen(false);
+        assert_eq!(runtime.controller().browser_layout().columns, 3);
     }
 
     #[test]

@@ -116,6 +116,7 @@ pub struct AppController {
     pub sort: SortOrder,
     selected_index: usize,
     layout: BrowserLayout,
+    grid_columns: usize,
     menu_focus: usize,
     detail_focus: usize,
     delete_confirmation_yes: bool,
@@ -229,6 +230,20 @@ impl AppController {
             rows: layout.rows.max(1),
         };
         self.reconcile_selection(catalog);
+    }
+
+    /// Set the grid width used when the user toggles from list mode.
+    pub fn set_grid_columns(&mut self, columns: usize, catalog: &[AppEntry]) {
+        self.grid_columns = columns.max(3);
+        if self.layout.columns > 1 {
+            self.set_browser_layout(
+                BrowserLayout {
+                    columns: self.grid_columns,
+                    rows: self.layout.rows,
+                },
+                catalog,
+            );
+        }
     }
 
     /// Index of the first entry on the selected app's page.
@@ -456,7 +471,11 @@ impl AppController {
                 Action::None
             }
             Input::ToggleBrowseMode => {
-                self.layout.columns = if self.layout.columns == 1 { 3 } else { 1 };
+                self.layout.columns = if self.layout.columns == 1 {
+                    self.grid_columns.max(3)
+                } else {
+                    1
+                };
                 self.reconcile_selection(catalog);
                 Action::None
             }

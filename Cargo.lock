@@ -30,6 +30,7 @@ dependencies = [
  "crc32fast",
  "miniz_oxide",
  "ogc-cache",
+ "ogc-conf",
  "ogc-es-sys",
  "ogc-fat",
  "ogc-filesystem",

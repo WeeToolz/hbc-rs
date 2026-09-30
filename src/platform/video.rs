@@ -134,10 +134,9 @@ pub enum VideoError {
 
 /// Initialize VI and select a cleared framebuffer.
 ///
-/// Width and height describe the selected XFB mode. HBC's separate 640x480
-/// or 852x480 logical UI dimensions require aspect-ratio configuration and
-/// remain caller policy.
-pub fn initialize() -> Result<VideoSystem, VideoError> {
+/// Width and height describe the selected XFB mode. The caller chooses HBC's
+/// 640x480 or 852x480 logical viewport and supplies its aspect ratio here.
+pub fn initialize(widescreen: bool) -> Result<VideoSystem, VideoError> {
     ogc_video::init();
     ogc_video::set_black(true);
 
@@ -146,6 +145,8 @@ pub fn initialize() -> Result<VideoSystem, VideoError> {
         return Err(VideoError::NoPreferredMode);
     }
     let mut mode = unsafe { *preferred };
+    mode.vi_width = 672;
+    configure_vwii_aspect(widescreen);
 
     unsafe { ogc_video::configure(&mut mode) };
     ogc_video::flush();
@@ -189,6 +190,46 @@ pub fn initialize() -> Result<VideoSystem, VideoError> {
             byte_len,
         },
     })
+}
+
+fn configure_vwii_aspect(widescreen: bool) {
+    const VWII_MENU_TITLE_ID: u64 = 0x0000_0001_0000_0200;
+    let mut content_count = 0;
+    let result =
+        unsafe { ogc_es_sys::get_title_contents_count(VWII_MENU_TITLE_ID, &mut content_count) };
+    if result < 0 || content_count == 0 {
+        return;
+    }
+
+    unsafe {
+        wii_mmio_write32(
+            0x0d80_06a0,
+            if widescreen { 0x3000_0004 } else { 0x1000_0002 },
+        );
+        let state = wii_mmio_read32(0x0d80_06a8);
+        wii_mmio_write32(0x0d80_06a8, state | 2);
+    }
+}
+
+/// Read a Wii MMIO register through the uncached hardware alias.
+///
+/// # Safety
+/// `address` must identify a readable Wii register.
+unsafe fn wii_mmio_read32(address: u32) -> u32 {
+    let register = (0xc000_0000 | address) as *const u32;
+    let value = unsafe { core::ptr::read_volatile(register) };
+    unsafe { core::arch::asm!("sync", options(nostack, preserves_flags)) };
+    value
+}
+
+/// Write a Wii MMIO register through the uncached hardware alias.
+///
+/// # Safety
+/// `address` must identify a writable Wii register.
+unsafe fn wii_mmio_write32(address: u32, value: u32) {
+    let register = (0xc000_0000 | address) as *mut u32;
+    unsafe { core::ptr::write_volatile(register, value) };
+    unsafe { core::arch::asm!("eieio", options(nostack, preserves_flags)) };
 }
 
 /// Hide the display before shutdown, following HBC's video teardown sequence.

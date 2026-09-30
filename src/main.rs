@@ -21,15 +21,20 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         return -1;
     }
 
-    let video = match hbc_rs::platform::video::initialize() {
-        Ok(video) => video,
-        Err(_) => return -2,
+    let _ = ogc_conf::init();
+    let view_width = if ogc_conf::get_aspect_ratio() == ogc_conf::CONF_ASPECT_16_9 as i32 {
+        hbc_rs::render::WIDE_LOGICAL_WIDTH
+    } else {
+        hbc_rs::render::LOGICAL_WIDTH
     };
+    let video =
+        match hbc_rs::platform::video::initialize(view_width > hbc_rs::render::LOGICAL_WIDTH) {
+            Ok(video) => video,
+            Err(_) => return -2,
+        };
     video.configure_2d();
 
-    // HBC's default logical UI space is 640 by 480. Widescreen mode and its
-    // aspect setting will select an 852 by 480 space when that policy lands.
-    let mut startup = hbc_rs::platform::startup::WiiStartup::initialize(640, 480);
+    let mut startup = hbc_rs::platform::startup::WiiStartup::initialize(view_width, 480);
     let mut display_ready = false;
     let mut frames_since_storage_scan = 0u8;
 
@@ -64,10 +69,11 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 .retain(|input| *input != hbc_rs::app::Input::Confirm);
         }
         let mut actions = startup.runtime_mut().update(&frame);
-        let hit_frame = hbc_rs::render::browser_frame_with_theme(
+        let hit_frame = hbc_rs::render::browser_frame_with_viewport(
             startup.runtime().controller(),
             startup.runtime().catalog(),
             startup.runtime().theme(),
+            startup.logical_width(),
         );
         let pointer_target = pointer
             .and_then(|position| hit_frame.hit_test(f32::from(position.x), f32::from(position.y)));
@@ -77,10 +83,11 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 .update_pointer(pointer_target, pointer_pressed),
         );
         startup.refresh_visible_icons();
-        let mut scene = hbc_rs::render::browser_frame_with_theme(
+        let mut scene = hbc_rs::render::browser_frame_with_viewport(
             startup.runtime().controller(),
             startup.runtime().catalog(),
             startup.runtime().theme(),
+            startup.logical_width(),
         );
         if let Some(pointer) = pointer {
             scene.pointer_cursor(f32::from(pointer.x), f32::from(pointer.y));

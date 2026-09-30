@@ -31,6 +31,7 @@ pub struct WiiStartup {
     icon_textures: Vec<IconTexture>,
     attempted_icon_indices: Vec<usize>,
     theme_textures: super::theme::ThemeTextures,
+    widescreen: bool,
 }
 
 pub struct IconTexture {
@@ -50,16 +51,27 @@ impl WiiStartup {
             mount_preferred_volume(loaded_settings.device);
         let mut runtime = AppRuntime::new(catalog);
         runtime.load_settings(loaded_settings);
+        let widescreen = view_width > crate::render::LOGICAL_WIDTH;
+        runtime.set_widescreen(widescreen);
         runtime.set_active_device(volume.map(Volume::settings_index));
         let (loaded_theme, theme_textures) = match super::theme::load() {
             Ok(Some(archive)) => match crate::theme::ThemePackage::parse(&archive) {
                 Ok(package) => {
-                    let textures = super::theme::ThemeTextures::load(Some((&package, &archive)));
+                    let textures = super::theme::ThemeTextures::load_for_viewport(
+                        Some((&package, &archive)),
+                        widescreen,
+                    );
                     (Some(package.metadata), textures)
                 }
-                Err(_) => (None, super::theme::ThemeTextures::load(None)),
+                Err(_) => (
+                    None,
+                    super::theme::ThemeTextures::load_for_viewport(None, widescreen),
+                ),
             },
-            _ => (None, super::theme::ThemeTextures::load(None)),
+            _ => (
+                None,
+                super::theme::ThemeTextures::load_for_viewport(None, widescreen),
+            ),
         };
         if let Some(theme) = loaded_theme {
             runtime.apply_theme(theme);
@@ -73,6 +85,7 @@ impl WiiStartup {
             icon_textures: Vec::new(),
             attempted_icon_indices: Vec::new(),
             theme_textures,
+            widescreen,
         };
         if scan_failed {
             startup
@@ -96,6 +109,14 @@ impl WiiStartup {
 
     pub fn mounted_volume(&self) -> Option<Volume> {
         self.volume
+    }
+
+    pub fn logical_width(&self) -> u16 {
+        if self.widescreen {
+            crate::render::WIDE_LOGICAL_WIDTH
+        } else {
+            crate::render::LOGICAL_WIDTH
+        }
     }
 
     pub fn has_storage(&self) -> bool {
@@ -304,7 +325,10 @@ impl WiiStartup {
             return Err(StartupError::MissingExecutable);
         }
         let package = crate::theme::ThemePackage::parse(&bytes).map_err(StartupError::Theme)?;
-        let textures = super::theme::ThemeTextures::load(Some((&package, &bytes)));
+        let textures = super::theme::ThemeTextures::load_for_viewport(
+            Some((&package, &bytes)),
+            self.widescreen,
+        );
         super::theme::save(&bytes).map_err(StartupError::ThemeStorage)?;
         Ok(PreparedTheme {
             metadata: package.metadata,

@@ -15,6 +15,7 @@ use crate::{
 };
 
 pub const LOGICAL_WIDTH: u16 = 640;
+pub const WIDE_LOGICAL_WIDTH: u16 = 852;
 pub const LOGICAL_HEIGHT: u16 = 480;
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -111,6 +112,7 @@ pub struct Frame {
     pub fills: Vec<FillRect>,
     pub commands: Vec<FrameCommand>,
     pub hit_targets: Vec<HitTarget>,
+    logical_width: u16,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -120,6 +122,14 @@ pub struct HitTarget {
 }
 
 impl Frame {
+    pub fn logical_width(&self) -> u16 {
+        if self.logical_width == 0 {
+            LOGICAL_WIDTH
+        } else {
+            self.logical_width
+        }
+    }
+
     /// Return the topmost interactive item at this logical UI coordinate.
     pub fn hit_test(&self, x: f32, y: f32) -> Option<PointerTarget> {
         if !x.is_finite() || !y.is_finite() {
@@ -144,6 +154,64 @@ impl Frame {
         self.fill(rect(x - 9.0, y - 1.0, 18.0, 2.0), Color::rgb(255, 255, 255));
         self.fill(rect(x - 5.0, y - 1.0, 10.0, 2.0), ACCENT);
         self.fill(rect(x - 1.0, y - 5.0, 2.0, 10.0), ACCENT);
+    }
+
+    fn widen_canvas(&mut self) {
+        // Existing layout constants use a centered 640-pixel design canvas.
+        // Extend full-width fills and move its contents into the 852-pixel view.
+        let offset = f32::from(WIDE_LOGICAL_WIDTH - LOGICAL_WIDTH) / 2.0;
+        for fill in &mut self.fills {
+            if fill.bounds.x == 0.0
+                && fill.bounds.width == f32::from(LOGICAL_WIDTH)
+                && (fill.bounds.height == 64.0 || fill.bounds.height == 480.0)
+            {
+                fill.bounds.width = f32::from(WIDE_LOGICAL_WIDTH);
+            } else {
+                fill.bounds.x += offset;
+            }
+        }
+        for command in &mut self.commands {
+            match command {
+                FrameCommand::Fill(_) => {}
+                FrameCommand::PageArrow {
+                    previous,
+                    bounds,
+                    fallback,
+                    ..
+                } => {
+                    bounds.x = if *previous {
+                        24.0
+                    } else {
+                        f32::from(WIDE_LOGICAL_WIDTH) - 88.0
+                    };
+                    fallback.bounds.x = bounds.x;
+                }
+                FrameCommand::AppCard {
+                    bounds, fallback, ..
+                }
+                | FrameCommand::ThemeArt {
+                    bounds, fallback, ..
+                } => {
+                    bounds.x += offset;
+                    fallback.bounds.x += offset;
+                }
+                FrameCommand::Icon {
+                    bounds, fallback, ..
+                } => {
+                    bounds.x += offset;
+                    fallback.bounds.x += offset;
+                }
+            }
+        }
+        for hit in &mut self.hit_targets {
+            match hit.target {
+                PointerTarget::Page { forward: false } => hit.bounds.x = 24.0,
+                PointerTarget::Page { forward: true } => {
+                    hit.bounds.x = f32::from(WIDE_LOGICAL_WIDTH) - 88.0
+                }
+                _ => hit.bounds.x += offset,
+            }
+        }
     }
 }
 
@@ -474,7 +542,23 @@ pub fn browser_frame_with_theme(
     catalog: &[AppEntry],
     theme: Option<&ThemeMetadata>,
 ) -> Frame {
+    browser_frame_with_viewport(controller, catalog, theme, LOGICAL_WIDTH)
+}
+
+/// Build a browser frame for the HBC 4:3 or 16:9 logical viewport.
+pub fn browser_frame_with_viewport(
+    controller: &AppController,
+    catalog: &[AppEntry],
+    theme: Option<&ThemeMetadata>,
+    logical_width: u16,
+) -> Frame {
+    let logical_width = if logical_width > LOGICAL_WIDTH {
+        WIDE_LOGICAL_WIDTH
+    } else {
+        LOGICAL_WIDTH
+    };
     let mut frame = Frame::default();
+    frame.logical_width = logical_width;
     let text_color = theme
         .and_then(|theme| theme.default_font.color)
         .map(color_from_rgba)
@@ -835,6 +919,9 @@ pub fn browser_frame_with_theme(
         );
         frame.hit_target(PointerTarget::NoticeConfirm, bounds);
     }
+    if logical_width > LOGICAL_WIDTH {
+        frame.widen_canvas();
+    }
     frame
 }
 
@@ -946,6 +1033,43 @@ mod tests {
                 ..
             } if *bounds == rect(104, 128, 432, 64)
         )));
+    }
+
+    #[test]
+    fn widescreen_frame_uses_the_852_viewport_and_wide_edge_arrow() {
+        let catalog: Vec<_> = (0..21).map(|index| app(&format!("app{index}"))).collect();
+        let mut controller = AppController::new();
+        controller.set_browser_layout(
+            crate::app::BrowserLayout {
+                columns: 4,
+                rows: 5,
+            },
+            &catalog,
+        );
+
+        let frame = browser_frame_with_viewport(&controller, &catalog, None, WIDE_LOGICAL_WIDTH);
+        assert_eq!(frame.logical_width(), WIDE_LOGICAL_WIDTH);
+        assert_eq!(frame.fills[0].bounds, rect(0, 0, 852, 480));
+        assert!(frame.commands.iter().any(|command| matches!(
+            command,
+            FrameCommand::AppCard {
+                grid: true,
+                bounds,
+                ..
+            } if *bounds == rect(138, 64, 144, 64)
+        )));
+        assert!(frame.commands.iter().any(|command| matches!(
+            command,
+            FrameCommand::PageArrow {
+                previous: false,
+                bounds,
+                ..
+            } if *bounds == rect(764, 192, 64, 64)
+        )));
+        assert_eq!(
+            frame.hit_test(770.0, 200.0),
+            Some(PointerTarget::Page { forward: true })
+        );
     }
 
     #[test]
