@@ -246,8 +246,14 @@ fn inputs(mask: Buttons) -> Vec<Input> {
 
 #[cfg(target_arch = "powerpc")]
 pub fn initialize(view_width: u16, view_height: u16) {
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("PAD INIT");
     ogc_input::init();
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("WPAD INIT");
     wpad_sys::init();
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("WPAD SETTINGS");
     wpad_sys::set_idle_timeout(120);
     let ir_width = u32::from(view_width).saturating_add(128);
     let ir_height = u32::from(view_height).saturating_add(128);

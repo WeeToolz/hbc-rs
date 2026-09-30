@@ -18,7 +18,13 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     // Seed the libogc-rs arena bounds and initialize runtime services before
     // reserving the Rust heap from MEM2 or registering hardware callbacks.
     ogc_system::init();
+    #[cfg(feature = "startup-diagnostics")]
+    if hbc_rs::platform::diagnostics::initialize().is_err() {
+        return -4;
+    }
     hbc_rs::platform::lifecycle::register_callbacks();
+    #[cfg(feature = "startup-diagnostics")]
+    hbc_rs::platform::diagnostics::mark("HEAP START");
     let heap_result = unsafe {
         hbc_rs::platform::allocator::initialize_wii(
             hbc_rs::platform::allocator::DEFAULT_MAX_MEM2_HEAP_BYTES,
@@ -26,9 +32,13 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         )
     };
     if heap_result.is_err() {
+        #[cfg(feature = "startup-diagnostics")]
+        hbc_rs::platform::diagnostics::fail("HEAP ERROR");
         return -1;
     }
 
+    #[cfg(feature = "startup-diagnostics")]
+    hbc_rs::platform::diagnostics::mark("CONF START");
     let _ = ogc_conf::init();
     let view_width = if ogc_conf::get_aspect_ratio() == ogc_conf::CONF_ASPECT_16_9 as i32 {
         hbc_rs::render::WIDE_LOGICAL_WIDTH
@@ -38,11 +48,19 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     let video =
         match hbc_rs::platform::video::initialize(view_width > hbc_rs::render::LOGICAL_WIDTH) {
             Ok(video) => video,
-            Err(_) => return -2,
+            Err(_) => {
+                #[cfg(feature = "startup-diagnostics")]
+                hbc_rs::platform::diagnostics::fail("VIDEO OR GX FIFO ERROR");
+                return -2;
+            }
         };
+    #[cfg(feature = "startup-diagnostics")]
+    hbc_rs::platform::diagnostics::mark("GX 2D SETUP");
     video.configure_2d();
 
     let mut startup = hbc_rs::platform::startup::WiiStartup::initialize(view_width, 480);
+    #[cfg(feature = "startup-diagnostics")]
+    hbc_rs::platform::diagnostics::mark("NETWORK WORKER START");
     if hbc_rs::platform::wiiload::start().is_err() {
         startup
             .runtime_mut()
@@ -144,6 +162,10 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                     .show_notice("Could not refresh storage devices.");
             }
         }
+        #[cfg(feature = "startup-diagnostics")]
+        if !display_ready {
+            hbc_rs::platform::diagnostics::mark("FIRST INPUT SCAN");
+        }
         let mut frame = hbc_rs::platform::input::scan();
         let storage_scan_pending = startup.storage_scan_pending();
         if storage_scan_pending {
@@ -180,6 +202,10 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             pointer_pressed,
             pointer_held,
         ));
+        #[cfg(feature = "startup-diagnostics")]
+        if !display_ready {
+            hbc_rs::platform::diagnostics::mark("FIRST ICON LOAD");
+        }
         startup.refresh_visible_icons();
         let mut scene = hbc_rs::render::browser_frame_with_viewport(
             startup.runtime().controller(),
@@ -193,6 +219,10 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         if storage_scan_pending {
             scene.storage_loading();
         }
+        #[cfg(feature = "startup-diagnostics")]
+        if !display_ready {
+            hbc_rs::platform::diagnostics::mark("FIRST GX FRAME");
+        }
         if unsafe {
             hbc_rs::platform::renderer::draw_frame(
                 &video,
@@ -203,10 +233,21 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         }
         .is_err()
         {
+            #[cfg(feature = "startup-diagnostics")]
+            hbc_rs::platform::diagnostics::fail("GX RENDER ERROR");
             return -3;
+        }
+        #[cfg(feature = "startup-diagnostics")]
+        if !display_ready {
+            hbc_rs::platform::diagnostics::mark("GX COPY START");
         }
         unsafe { video.present() };
         if !display_ready {
+            #[cfg(feature = "startup-diagnostics")]
+            {
+                hbc_rs::platform::diagnostics::mark("GX COPY QUEUED");
+                hbc_rs::platform::diagnostics::hold();
+            }
             video.show();
             display_ready = true;
         }
@@ -368,6 +409,8 @@ fn exit_to_system(startup: &mut hbc_rs::platform::startup::WiiStartup, reset: u3
 #[cfg(target_arch = "powerpc")]
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo<'_>) -> ! {
+    #[cfg(feature = "startup-diagnostics")]
+    hbc_rs::platform::diagnostics::fail("RUST PANIC");
     loop {
         core::hint::spin_loop();
     }

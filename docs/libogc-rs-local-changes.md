@@ -10,8 +10,20 @@ In `crates/abi/ogc-sys/src/lib.rs`, native `_start` must set `MSR_FP` while
 preserving the other MSR bits before it calls Rust code. DOL entry does not
 guarantee that the loader enabled the FPU, and normal Rust `f32` operations
 can otherwise raise a program exception. Use a nonzero GPR such as `r12` to
-read, update, and write the MSR. Do not use `r0` as the source of `ori`; for
-that instruction, `r0` reads as zero.
+read, update, and write the MSR. The `ori` instruction uses `r0` as a normal
+source register; instructions such as `addi` have special behavior for `r0`.
+
+## Restore the floating point enable bit after IPC and cache locks
+
+In `crates/core/ogc-ipc/src/lib.rs` and `crates/core/ogc-cache/src/lib.rs`,
+`lock_by_msr` must save both `MSR_EE` and `MSR_FP`, because it clears both bits.
+`unlock_by_msr` must clear both bits from the current MSR and restore only the
+saved values. The old code restored `MSR_EE` but left `MSR_FP` disabled after
+each lock. HBC configures video aspect through IPC before it uses GX floating
+point commands, so that bug stopped the startup diagnostic in GX frame setup.
+Both crates use the shared mask helpers in `crates/abi/ogc-sys/src/lib.rs`;
+the host regression test checks enabled and disabled states and preserves all
+unrelated MSR bits.
 
 ## Tetris example video startup
 
@@ -81,6 +93,11 @@ vertex inputs, one vertex color channel, a pass-color TEV stage, and alpha
 blending. `draw_solid_rect` emits a four-vertex solid rectangle. The target
 crate passes `cargo check` with warnings denied. Hardware output still needs
 validation.
+
+GX vertex setup must also write `XF_NUMCOLORS` at XF register `0x1009`. The
+CP vertex descriptor can request color 0 while XF reports zero color channels;
+Dolphin reports this as a CP/XF mismatch and pauses emulation. The local setup
+now sets one XF color channel to match the VCD and BP generation mode.
 
 The GX work is incomplete. The FIFO setup is a minimal single-owner path. It
 does not install CP or PE interrupt handlers, provide overflow/underflow

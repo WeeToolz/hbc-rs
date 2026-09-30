@@ -27,6 +27,7 @@ impl VideoSystem {
 
     /// Show the cleared framebuffer after the renderer has drawn its first frame.
     pub fn show(&self) {
+        unsafe { ogc_video::set_next_framebuffer(self.framebuffer) };
         ogc_video::set_black(false);
         ogc_video::flush();
     }
@@ -138,6 +139,7 @@ pub enum VideoError {
 /// 640x480 or 852x480 logical viewport and supplies its aspect ratio here.
 pub fn initialize(widescreen: bool) -> Result<VideoSystem, VideoError> {
     ogc_video::init();
+    #[cfg(not(feature = "startup-diagnostics"))]
     ogc_video::set_black(true);
 
     let preferred = unsafe { ogc_video::get_preferred_mode(core::ptr::null_mut()) };
@@ -146,12 +148,16 @@ pub fn initialize(widescreen: bool) -> Result<VideoSystem, VideoError> {
     }
     let mut mode = unsafe { *preferred };
     mode.vi_width = 672;
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("VIDEO ASPECT CHECK");
     configure_vwii_aspect(widescreen);
 
     unsafe { ogc_video::configure(&mut mode) };
     ogc_video::flush();
     ogc_video::wait_vsync();
 
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("GX FRAMEBUFFER ALLOCATE");
     let framebuffer = unsafe { ogc_system::allocate_framebuffer(&mut mode) };
     if framebuffer.is_null() {
         return Err(VideoError::FramebufferAllocationFailed);
@@ -169,13 +175,18 @@ pub fn initialize(widescreen: bool) -> Result<VideoSystem, VideoError> {
 
     // GX uses the low arena2 boundary for its FIFO. The HBC allocator reserves
     // its heap first, so this FIFO cannot overlap Rust allocations.
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("GX FIFO START");
     let fifo = unsafe { ogc_gx::GxFifo::initialize_default_mem2() }.map_err(VideoError::GxFifo)?;
     let config =
         ogc_gx::FrameConfig::new(framebuffer, mode.fb_width, mode.efb_height, mode.xfb_height)
             .ok_or(VideoError::InvalidFrameConfig)?;
     unsafe {
+        #[cfg(feature = "startup-diagnostics")]
+        super::diagnostics::mark("GX DISPLAY COMMANDS");
         ogc_gx::initialize_display(config, ogc_gx::GxColor::default());
         ogc_gx::present_frame(config);
+        #[cfg(not(feature = "startup-diagnostics"))]
         ogc_video::set_next_framebuffer(framebuffer);
     }
     ogc_video::flush();

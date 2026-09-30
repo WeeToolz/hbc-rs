@@ -497,7 +497,7 @@ fn wrapped_line_window(lines: &[String], visible_lines: usize, scroll_lines: usi
     &lines[start..lines.len().min(start.saturating_add(visible_lines))]
 }
 
-fn glyph_rows(character: char) -> [u8; 7] {
+pub(crate) fn glyph_rows(character: char) -> [u8; 7] {
     match character.to_ascii_uppercase() {
         'A' => [14, 17, 17, 31, 17, 17, 17],
         'B' => [30, 17, 17, 30, 17, 17, 30],

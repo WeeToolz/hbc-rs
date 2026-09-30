@@ -274,11 +274,15 @@ impl WiiStartup {
     pub fn initialize(view_width: u16, view_height: u16) -> Self {
         input::initialize(view_width, view_height);
 
+        #[cfg(feature = "startup-diagnostics")]
+        super::diagnostics::mark("NAND SETTINGS LOAD");
         let loaded_settings = settings::load().unwrap_or_default();
         let preference = loaded_settings.device;
         let mut runtime = AppRuntime::new(Vec::new());
         let widescreen = view_width > crate::render::LOGICAL_WIDTH;
         runtime.set_widescreen(widescreen);
+        #[cfg(feature = "startup-diagnostics")]
+        super::diagnostics::mark("NAND THEME LOAD");
         let (loaded_theme, theme_textures) = match super::theme::load() {
             Ok(Some(archive)) => match crate::theme::ThemePackage::parse(&archive) {
                 Ok(package) => {
@@ -298,9 +302,13 @@ impl WiiStartup {
                 super::theme::ThemeTextures::load_for_viewport(None, widescreen),
             ),
         };
+        #[cfg(feature = "startup-diagnostics")]
+        super::diagnostics::mark("THEME TEXTURES READY");
         if let Some(theme) = loaded_theme {
             runtime.apply_theme(theme);
         }
+        #[cfg(feature = "startup-diagnostics")]
+        super::diagnostics::mark("BOOTMII TITLE CHECK");
         runtime.set_bootmii_available(bootmii_ios_available());
 
         let mut startup = Self {
@@ -317,6 +325,8 @@ impl WiiStartup {
             scan_requested_volume: None,
             zip_install_thread: None,
         };
+        #[cfg(feature = "startup-diagnostics")]
+        super::diagnostics::mark("STORAGE WORKER START");
         if startup.start_storage_scan(preference, false, None).is_err() {
             startup
                 .runtime
