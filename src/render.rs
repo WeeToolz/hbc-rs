@@ -6,7 +6,7 @@
 //! through `ogc-gx`. Text uses a small native bitmap font. Other theme textures
 //! and gradients remain.
 
-use alloc::vec::Vec;
+use alloc::{string::String, vec::Vec};
 
 use crate::{
     app::{AppController, Screen},
@@ -289,6 +289,70 @@ impl Frame {
             cursor_x += 6.0 * scale;
         }
     }
+
+    fn text_wrapped(
+        &mut self,
+        x: f32,
+        y: f32,
+        value: &str,
+        scale: f32,
+        color: Color,
+        max_chars: usize,
+        max_lines: usize,
+    ) {
+        if max_chars == 0 || max_lines == 0 || !scale.is_finite() || scale <= 0.0 {
+            return;
+        }
+        let mut line = String::new();
+        let mut line_count = 0;
+        let mut line_y = y;
+        for word in value.split_whitespace() {
+            if line_count >= max_lines {
+                break;
+            }
+            if !line.is_empty() && line.chars().count() + 1 + word.chars().count() > max_chars {
+                self.text(x, line_y, &line, scale, color, max_chars);
+                line.clear();
+                line_count += 1;
+                line_y += 9.0 * scale;
+                if line_count >= max_lines {
+                    break;
+                }
+            }
+            if word.chars().count() > max_chars {
+                let mut characters = word.chars();
+                while line_count < max_lines {
+                    if !line.is_empty() {
+                        self.text(x, line_y, &line, scale, color, max_chars);
+                        line.clear();
+                        line_count += 1;
+                        line_y += 9.0 * scale;
+                    }
+                    if line_count >= max_lines {
+                        break;
+                    }
+                    let mut part = String::new();
+                    for character in characters.by_ref().take(max_chars) {
+                        part.push(character);
+                    }
+                    if part.is_empty() {
+                        break;
+                    }
+                    self.text(x, line_y, &part, scale, color, max_chars);
+                    line_count += 1;
+                    line_y += 9.0 * scale;
+                }
+            } else {
+                if !line.is_empty() {
+                    line.push(' ');
+                }
+                line.push_str(word);
+            }
+        }
+        if !line.is_empty() && line_count < max_lines {
+            self.text(x, line_y, &line, scale, color, max_chars);
+        }
+    }
 }
 
 fn glyph_rows(character: char) -> [u8; 7] {
@@ -544,22 +608,36 @@ pub fn browser_frame_with_theme(
                     .as_ref()
                     .and_then(|meta| meta.name.as_deref())
                     .unwrap_or(app.directory.as_str());
-                frame.text(92.0, 76.0, name, 1.0, text_color, 74);
+                let name_width = name.chars().count().min(76) as f32 * 6.0;
+                frame.text(320.0 - name_width / 2.0, 60.0, name, 1.0, text_color, 76);
                 if app.has_icon {
                     if let Some(catalog_index) = catalog
                         .iter()
                         .position(|entry| entry.directory == app.directory)
                     {
-                        frame.icon(catalog_index, rect(92, 96, 128, 48), MUTED);
+                        frame.icon(catalog_index, rect(92, 92, 128, 48), MUTED);
                     }
                 }
-                if let Some(description) = app
+                if let Some(version) = app
+                    .metadata
+                    .as_ref()
+                    .and_then(|meta| meta.version.as_deref())
+                {
+                    frame.text(268.0, 116.0, version, 1.0, text_color, 42);
+                }
+                if let Some(author) = app
+                    .metadata
+                    .as_ref()
+                    .and_then(|meta| meta.author.as_deref())
+                {
+                    frame.text(268.0, 128.0, author, 1.0, text_color, 42);
+                }
+                let description = app
                     .metadata
                     .as_ref()
                     .and_then(|meta| meta.long_description.as_deref())
-                {
-                    frame.text(92.0, 164.0, description, 1.0, text_color, 74);
-                }
+                    .unwrap_or("No description available.");
+                frame.text_wrapped(92.0, 148.0, description, 1.0, text_color, 76, 20);
             }
             let load_label = controller
                 .selected_app
@@ -859,6 +937,18 @@ mod tests {
             FrameCommand::ThemeArt { art: ThemeArt::About, bounds, .. }
                 if *bounds == rect(202, 60, 236, 104)
         )));
+    }
+
+    #[test]
+    fn wrapped_text_breaks_lines_and_obeys_the_visible_line_limit() {
+        let mut frame = Frame::default();
+        frame.text_wrapped(10.0, 20.0, "ONE TWO THREE FOUR FIVE", 1.0, ACCENT, 7, 2);
+        let mut line_ys: Vec<f32> = frame.fills.iter().map(|fill| fill.bounds.y).collect();
+        line_ys.sort_by(f32::total_cmp);
+        line_ys.dedup();
+        assert!(line_ys.contains(&20.0));
+        assert!(line_ys.contains(&29.0));
+        assert!(line_ys.iter().all(|y| *y < 36.0));
     }
 
     #[test]
