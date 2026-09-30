@@ -38,8 +38,12 @@ deferred.
   candidates exclude HID devices, and v5 watcher startup has a 100 ms per-host
   bound in the ignored `libogc-rs` copy; the reported NAND/HID hang still needs
   hardware confirmation.
-- BootMii is not connected. App deletion now asks for an explicit yes response
-  and uses the safe folder remover. A canceled delete returns to app details.
+- BootMii IOS availability now uses HBC's bounded TMD-view `BM` marker check.
+  Its menu item appears only when the check succeeds; selecting it saves
+  settings, stops storage and Wii Remote services, then requests IOS 254 before
+  returning to the System Menu if the IOS launch returns. This path is not
+  hardware-tested. App deletion asks for an explicit yes response and uses the
+  safe folder remover. A canceled delete returns to app details.
 - The GX FIFO path has no interrupt-based flow control, overflow recovery, or
   draw-completion wait. Its register setup and display output are unverified on
   hardware.

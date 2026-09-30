@@ -45,6 +45,10 @@ impl AppRuntime {
         self.controller.show_notice(String::from(message));
     }
 
+    pub fn set_bootmii_available(&mut self, available: bool) {
+        self.controller.set_bootmii_available(available);
+    }
+
     /// Apply settings loaded from NAND before the first rendered frame.
     pub fn load_settings(&mut self, settings: UserSettings) {
         self.controller.sort = if settings.sort_order == 1 {

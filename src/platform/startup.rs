@@ -19,6 +19,7 @@ use crate::{
 /// HBC reserves this address range for loading an application executable.
 const EXECUTABLE_SIZE_LIMIT: u64 = (0x8133_0000 - 1 - 1024) - 0x8000_3400;
 const THEME_SIZE_LIMIT: u64 = 20 * 1024 * 1024;
+const BOOTMII_TITLE_ID: u64 = 0x0000_0001_0000_00fe;
 pub const EXECUTABLE_MEMORY: core::ops::Range<u32> = 0x8000_3400..0x8132_fc00;
 
 /// The result of native Wii startup, ready for the browser loop.
@@ -39,6 +40,7 @@ impl WiiStartup {
         let (volume, storage, catalog) = mount_preferred_volume(loaded_settings.device);
         let mut runtime = AppRuntime::new(catalog);
         runtime.load_settings(loaded_settings);
+        runtime.set_bootmii_available(bootmii_ios_available());
 
         let mut startup = Self {
             runtime,
@@ -150,6 +152,32 @@ impl WiiStartup {
         self.volume = None;
         Ok(())
     }
+}
+
+#[repr(align(32))]
+struct AlignedTmdBuffer([u8; 1024]);
+
+/// Match HBC's BootMii marker check with an aligned, bounded TMD view buffer.
+fn bootmii_ios_available() -> bool {
+    let mut size = 0u32;
+    if unsafe { ogc_es_sys::get_tmd_view_size(BOOTMII_TITLE_ID, &mut size) } < 0
+        || !(90..=1024).contains(&size)
+    {
+        return false;
+    }
+
+    let mut buffer = AlignedTmdBuffer([0; 1024]);
+    if unsafe {
+        ogc_es_sys::get_tmd_view(
+            BOOTMII_TITLE_ID,
+            buffer.0.as_mut_ptr().cast::<ogc_es_sys::TmdView>(),
+            size,
+        )
+    } < 0
+    {
+        return false;
+    }
+    buffer.0[50] == b'B' && buffer.0[51] == b'M'
 }
 
 pub struct LaunchImage {

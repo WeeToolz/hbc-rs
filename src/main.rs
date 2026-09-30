@@ -97,6 +97,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 continue;
             }
             let reset = match action {
+                hbc_rs::app::Action::LaunchBootMii => Some(ogc_system::SYS_RETURNTOMENU),
                 hbc_rs::app::Action::Exit => Some(ogc_system::SYS_RETURNTOMENU),
                 hbc_rs::app::Action::Shutdown => Some(ogc_system::SYS_POWEROFF),
                 _ => None,
@@ -104,6 +105,16 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             if let Some(reset) = reset {
                 let settings = startup.runtime().settings().current();
                 let _ = hbc_rs::platform::settings::save(settings);
+                if action == hbc_rs::app::Action::LaunchBootMii {
+                    if startup.unmount_storage().is_err() {
+                        startup
+                            .runtime_mut()
+                            .show_notice("Could not stop storage. BootMii launch stopped.");
+                        continue;
+                    }
+                    let _ = wpad_sys::shutdown();
+                    let _ = ogc_ios::launch_new_ios(254);
+                }
                 hbc_rs::platform::video::shutdown();
                 unsafe { ogc_system::reset_system(reset as i32, 0, 0) };
                 loop {

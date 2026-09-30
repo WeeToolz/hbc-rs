@@ -304,7 +304,18 @@ pub fn browser_frame(controller: &AppController, catalog: &[AppEntry]) -> Frame 
                 Color::rgb(213, 224, 233),
                 32,
             );
-            for index in 0..5 {
+            let labels: &[&str] = if controller.bootmii_available() {
+                &[
+                    "Back",
+                    "About",
+                    "Launch BootMii",
+                    "Exit to System Menu",
+                    "Shutdown",
+                ]
+            } else {
+                &["Back", "About", "Exit to System Menu", "Shutdown"]
+            };
+            for index in 0..controller.menu_item_count() {
                 let y = 145.0 + index as f32 * 40.0;
                 let color = if index == controller.menu_focus() {
                     ACCENT
@@ -312,13 +323,7 @@ pub fn browser_frame(controller: &AppController, catalog: &[AppEntry]) -> Frame 
                     ROW_ALT
                 };
                 frame.fill(rect(184, y, 272, 30), color);
-                let label = [
-                    "Back",
-                    "About",
-                    "Launch BootMii",
-                    "Exit to System Menu",
-                    "Shutdown",
-                ][index];
+                let label = labels[index];
                 frame.text(198.0, y + 11.0, label, 1.0, Color::rgb(213, 224, 233), 36);
             }
         }

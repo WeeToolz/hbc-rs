@@ -45,9 +45,9 @@ pub enum Action {
     NextPage,
 }
 
-/// Main menu focus follows HBC's main view order: browser, about, BootMii,
-/// exit, shutdown.
-const MENU_ITEMS: usize = 5;
+/// Main menu focus follows the options available on this console.
+const MENU_ITEMS_WITHOUT_BOOTMII: usize = 4;
+const MENU_ITEMS_WITH_BOOTMII: usize = 5;
 const DEFAULT_BROWSER_ROWS: usize = 5;
 
 /// Number of app columns and rows shown by the browser.
@@ -88,6 +88,7 @@ pub struct AppController {
     delete_confirmation_yes: bool,
     notice: Option<String>,
     notice_return_screen: Screen,
+    bootmii_available: bool,
 }
 
 impl AppController {
@@ -125,6 +126,24 @@ impl AppController {
         self.notice_return_screen = self.screen;
         self.notice = Some(message);
         self.screen = Screen::Notice;
+    }
+
+    pub fn set_bootmii_available(&mut self, available: bool) {
+        self.bootmii_available = available;
+        let last_focus = self.menu_item_count().saturating_sub(1);
+        self.menu_focus = self.menu_focus.min(last_focus);
+    }
+
+    pub fn bootmii_available(&self) -> bool {
+        self.bootmii_available
+    }
+
+    pub fn menu_item_count(&self) -> usize {
+        if self.bootmii_available {
+            MENU_ITEMS_WITH_BOOTMII
+        } else {
+            MENU_ITEMS_WITHOUT_BOOTMII
+        }
     }
 
     /// Keep the selected app identity valid after a catalog refresh.
@@ -317,8 +336,10 @@ impl AppController {
                     self.screen = Screen::About;
                     Action::None
                 }
-                2 => Action::LaunchBootMii,
-                3 => Action::Exit,
+                2 if self.bootmii_available => Action::LaunchBootMii,
+                2 => Action::Exit,
+                3 if self.bootmii_available => Action::Exit,
+                3 => Action::Shutdown,
                 4 => Action::Shutdown,
                 _ => Action::None,
             },
@@ -369,7 +390,7 @@ impl AppController {
 
     fn move_menu_focus(&mut self, forward: bool) {
         self.menu_focus = if forward {
-            (self.menu_focus + 1).min(MENU_ITEMS - 1)
+            (self.menu_focus + 1).min(self.menu_item_count() - 1)
         } else {
             self.menu_focus.saturating_sub(1)
         };
@@ -511,6 +532,7 @@ mod tests {
     #[test]
     fn home_menu_navigation_matches_main_view_actions() {
         let mut controller = AppController::new();
+        controller.set_bootmii_available(true);
         controller.handle(Input::Home, &[]);
         assert_eq!(controller.screen, Screen::MainMenu);
         controller.handle(Input::Down, &[]);
@@ -525,6 +547,26 @@ mod tests {
         );
         controller.handle(Input::Down, &[]);
         assert_eq!(controller.handle(Input::Confirm, &[]), Action::Exit);
+    }
+
+    #[test]
+    fn main_menu_hides_and_remaps_bootmii_when_ios_is_unavailable() {
+        let mut controller = AppController::new();
+        controller.handle(Input::Home, &[]);
+        assert_eq!(controller.menu_item_count(), 4);
+        controller.handle(Input::Down, &[]);
+        controller.handle(Input::Down, &[]);
+        assert_eq!(controller.handle(Input::Confirm, &[]), Action::Exit);
+        controller.handle(Input::Down, &[]);
+        assert_eq!(controller.handle(Input::Confirm, &[]), Action::Shutdown);
+
+        let mut available = AppController::new();
+        available.set_bootmii_available(true);
+        available.handle(Input::Home, &[]);
+        available.handle(Input::Down, &[]);
+        available.handle(Input::Down, &[]);
+        assert_eq!(available.menu_item_count(), 5);
+        assert_eq!(available.handle(Input::Confirm, &[]), Action::LaunchBootMii);
     }
 
     #[test]
