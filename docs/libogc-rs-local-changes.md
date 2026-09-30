@@ -16,14 +16,10 @@ that instruction, `r0` reads as zero.
 ## Tetris example video startup
 
 `examples/tetris.rs` must call `system::init()` before it allocates framebuffers.
-It must check for a missing video mode before entering the game loop. The
-example shows three high-contrast framebuffer fills before controller setup
-and a fourth after USB HID setup. This lets a hardware test distinguish video
-startup, USB input startup, and the game loop. It follows the working
-`snake-gc` example by enabling USB HID without starting Bluetooth HID during
-this test. Keep the neutral YCbYCr background, panel, grid, wall, and text
-luminance values in contrasting ranges; the old background and text values
-made the documented white-background palette nearly black with low contrast.
+It must check for a missing video mode before entering the game loop. It follows
+the working `snake-gc` example by enabling USB HID without starting Bluetooth
+HID. Its neutral YCbYCr colors use a dark gray background and lighter panels,
+walls, and text for clear contrast.
 
 ## ELF-to-DOL conversion
 
