@@ -30,8 +30,7 @@ pub struct WiiStartup {
     storage: Option<FatStorage>,
     icon_textures: Vec<IconTexture>,
     attempted_icon_indices: Vec<usize>,
-    background_texture: Option<crate::png::GxRgba8Texture>,
-    logo_texture: Option<crate::png::GxRgba8Texture>,
+    theme_textures: super::theme::ThemeTextures,
 }
 
 pub struct IconTexture {
@@ -51,24 +50,15 @@ impl WiiStartup {
             mount_preferred_volume(loaded_settings.device);
         let mut runtime = AppRuntime::new(catalog);
         runtime.load_settings(loaded_settings);
-        let (loaded_theme, background_texture, logo_texture) = match super::theme::load() {
+        let (loaded_theme, theme_textures) = match super::theme::load() {
             Ok(Some(archive)) => match crate::theme::ThemePackage::parse(&archive) {
                 Ok(package) => {
-                    let background = super::theme::background_texture(Some((&package, &archive)));
-                    let logo = super::theme::logo_texture(Some((&package, &archive)));
-                    (Some(package.metadata), background, logo)
+                    let textures = super::theme::ThemeTextures::load(Some((&package, &archive)));
+                    (Some(package.metadata), textures)
                 }
-                Err(_) => (
-                    None,
-                    super::theme::background_texture(None),
-                    super::theme::logo_texture(None),
-                ),
+                Err(_) => (None, super::theme::ThemeTextures::load(None)),
             },
-            _ => (
-                None,
-                super::theme::background_texture(None),
-                super::theme::logo_texture(None),
-            ),
+            _ => (None, super::theme::ThemeTextures::load(None)),
         };
         if let Some(theme) = loaded_theme {
             runtime.apply_theme(theme);
@@ -81,8 +71,7 @@ impl WiiStartup {
             storage,
             icon_textures: Vec::new(),
             attempted_icon_indices: Vec::new(),
-            background_texture,
-            logo_texture,
+            theme_textures,
         };
         if scan_failed {
             startup
@@ -116,12 +105,8 @@ impl WiiStartup {
         &self.icon_textures
     }
 
-    pub fn background_texture(&self) -> Option<&crate::png::GxRgba8Texture> {
-        self.background_texture.as_ref()
-    }
-
-    pub fn logo_texture(&self) -> Option<&crate::png::GxRgba8Texture> {
-        self.logo_texture.as_ref()
+    pub fn theme_textures(&self) -> &super::theme::ThemeTextures {
+        &self.theme_textures
     }
 
     /// Decode visible HBC-sized icons once and retain their aligned GX data.
@@ -316,20 +301,17 @@ impl WiiStartup {
             return Err(StartupError::MissingExecutable);
         }
         let package = crate::theme::ThemePackage::parse(&bytes).map_err(StartupError::Theme)?;
-        let background = super::theme::background_texture(Some((&package, &bytes)));
-        let logo = super::theme::logo_texture(Some((&package, &bytes)));
+        let textures = super::theme::ThemeTextures::load(Some((&package, &bytes)));
         super::theme::save(&bytes).map_err(StartupError::ThemeStorage)?;
         Ok(PreparedTheme {
             metadata: package.metadata,
-            background,
-            logo,
+            textures,
         })
     }
 
     pub fn apply_theme(&mut self, theme: PreparedTheme) {
         self.runtime.apply_theme(theme.metadata);
-        self.background_texture = theme.background;
-        self.logo_texture = theme.logo;
+        self.theme_textures = theme.textures;
     }
 
     /// Unmount the selected volume before the one-way executable handoff.
@@ -384,14 +366,7 @@ pub struct LaunchImage {
 
 pub struct PreparedTheme {
     pub metadata: ThemeMetadata,
-    background: Option<crate::png::GxRgba8Texture>,
-    logo: Option<crate::png::GxRgba8Texture>,
-}
-
-impl PreparedTheme {
-    pub fn background_texture(&self) -> Option<&crate::png::GxRgba8Texture> {
-        self.background.as_ref()
-    }
+    textures: super::theme::ThemeTextures,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

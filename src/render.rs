@@ -2,8 +2,9 @@
 //!
 //! The legacy renderer combined layout, widget state, texture drawing, and
 //! GX state changes in one queue. This module keeps layout as data. The Wii
-//! adapter submits solid rectangles and app icon textures through `ogc-gx`.
-//! Text uses a small native bitmap font. Theme textures and gradients remain.
+//! adapter submits solid rectangles, HBC app-card textures, and app icons
+//! through `ogc-gx`. Text uses a small native bitmap font. Other theme textures
+//! and gradients remain.
 
 use alloc::vec::Vec;
 
@@ -100,6 +101,12 @@ pub struct Frame {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum FrameCommand {
     Fill(usize),
+    AppCard {
+        grid: bool,
+        focused: bool,
+        bounds: Rect,
+        fallback: FillRect,
+    },
     Icon {
         catalog_index: usize,
         bounds: Rect,
@@ -108,6 +115,24 @@ pub enum FrameCommand {
 }
 
 impl Frame {
+    fn app_card(&mut self, bounds: Rect, grid: bool, focused: bool) {
+        if ![bounds.x, bounds.y, bounds.width, bounds.height]
+            .iter()
+            .all(|value| value.is_finite())
+            || bounds.width <= 0.0
+            || bounds.height <= 0.0
+        {
+            return;
+        }
+        let color = if focused { ACCENT } else { ROW };
+        self.commands.push(FrameCommand::AppCard {
+            grid,
+            focused,
+            bounds,
+            fallback: FillRect { bounds, color },
+        });
+    }
+
     fn fill(&mut self, bounds: Rect, color: Color) {
         if bounds.width.is_finite()
             && bounds.height.is_finite()
@@ -268,8 +293,6 @@ pub fn browser_frame_with_theme(
     frame.fill(rect(0, 0, 640, 64), HEADER);
     frame.fill(rect(28, 23, 5, 28), ACCENT);
 
-    let panel = rect(28, 82, 584, 338);
-    frame.fill(panel, PANEL);
     let layout = controller.browser_layout();
     let page = controller.visible_page(catalog);
     let page_start = controller.page_start();
@@ -279,28 +302,21 @@ pub fn browser_frame_with_theme(
         Screen::Browser | Screen::AppDetails | Screen::DeleteConfirm => {
             let columns = layout.columns.max(1);
             let rows = layout.rows.max(1);
-            let gap = 8.0;
-            let cell_w =
-                (panel.width - 32.0 - gap * columns.saturating_sub(1) as f32) / columns as f32;
-            let cell_h = (panel.height - 32.0 - gap * rows.saturating_sub(1) as f32) / rows as f32;
+            let grid = columns > 1;
+            let cell_w = if grid { 144.0 } else { 432.0 };
+            let cell_h = 64.0;
+            let start_x = (640.0 - cell_w * columns as f32) / 2.0;
             for (index, app) in page.iter().enumerate() {
                 let col = index % columns;
                 let row = index / columns;
                 if row >= rows {
                     break;
                 }
-                let x = panel.x + 16.0 + col as f32 * (cell_w + gap);
-                let y = panel.y + 16.0 + row as f32 * (cell_h + gap);
+                let x = start_x + col as f32 * cell_w;
+                let y = 64.0 + row as f32 * cell_h;
                 let is_selected = index == selected
                     && controller.selected_app.as_deref() == Some(app.directory.as_str());
-                let fill = if is_selected {
-                    ACCENT
-                } else if row % 2 == 0 {
-                    ROW
-                } else {
-                    ROW_ALT
-                };
-                frame.fill(rect(x, y, cell_w, cell_h), fill);
+                frame.app_card(rect(x, y, cell_w, cell_h), grid, is_selected);
                 let icon_bounds = rect(x + 8.0, y + 8.0, 128.0, 48.0);
                 if app.has_icon {
                     if let Some(catalog_index) = catalog
@@ -319,11 +335,11 @@ pub fn browser_frame_with_theme(
                     .as_ref()
                     .and_then(|meta| meta.name.as_deref())
                     .unwrap_or(app.directory.as_str());
-                let (text_x, name_y, description_y, text_width) = if columns == 1 {
-                    (x + 156.0, y + 8.0, y + 25.0, cell_w - 168.0)
-                } else {
-                    (x + 8.0, y + 64.0, y + 77.0, cell_w - 16.0)
-                };
+                if grid {
+                    continue;
+                }
+                let (text_x, name_y, description_y, text_width) =
+                    (x + 156.0, y + 8.0, y + 54.0, cell_w - 168.0);
                 let max_chars = (text_width.max(6.0) / 6.0) as usize;
                 frame.text(text_x, name_y, name, 1.0, text_color, max_chars);
                 if app
@@ -607,6 +623,14 @@ mod tests {
             .fills
             .iter()
             .any(|fill| fill.color == ACCENT && fill.bounds.y > 90.0));
+        assert!(frame.commands.iter().any(|command| matches!(
+            command,
+            FrameCommand::AppCard {
+                focused: true,
+                bounds,
+                ..
+            } if *bounds == rect(104, 128, 432, 64)
+        )));
     }
 
     #[test]
@@ -628,6 +652,11 @@ mod tests {
                 )
             })
             .unwrap();
+        let card_command = frame
+            .commands
+            .iter()
+            .position(|command| matches!(command, FrameCommand::AppCard { .. }))
+            .unwrap();
         let fallback_bounds = frame
             .commands
             .iter()
@@ -644,13 +673,14 @@ mod tests {
             .iter()
             .position(|command| {
                 matches!(command, FrameCommand::Fill(index)
-                    if frame.fills[*index].bounds.x >= 102.0
-                        && frame.fills[*index].bounds.y >= 110.0)
+                    if frame.fills[*index].bounds.x >= 260.0
+                        && frame.fills[*index].bounds.y >= 72.0)
             })
             .unwrap();
 
         assert_eq!(fallback_bounds.width, 128.0);
         assert_eq!(fallback_bounds.height, 48.0);
+        assert!(card_command < icon_command);
         assert!(icon_command < app_text_command);
     }
 
@@ -668,6 +698,17 @@ mod tests {
             &catalog,
         );
         assert_eq!(controller.visible_page(&catalog).len(), 0);
+
+        let catalog = vec![app("one"), app("two")];
+        let grid_frame = browser_frame(&controller, &catalog);
+        assert!(grid_frame.commands.iter().any(|command| matches!(
+            command,
+            FrameCommand::AppCard {
+                grid: true,
+                bounds,
+                ..
+            } if *bounds == rect(176, 64, 144, 64)
+        )));
     }
 
     #[test]

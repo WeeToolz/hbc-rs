@@ -32,18 +32,18 @@ deferred.
   and storage-stop failures use a dismissible notice. Missing, invalid,
   oversized, or out-of-memory app icons use placeholders.
   HBC-sized 128x48 app icons load through the native PNG decoder and draw as GX
-  RGBA8 textures. The 640x480 background and 320x64 logo draw from built-in HBC
-  images or the active theme's matching PNG assets. Other theme textures,
-  gradients, localized strings, and complete HBC widget behavior are not
-  ported.
+  RGBA8 textures. The 640x480 background, 320x64 logo, and focused or normal
+  list and grid app cards draw from built-in HBC images or matching active-theme
+  PNG assets. Other theme textures, gradients, localized strings, and complete
+  HBC widget behavior are not ported.
 - A pure Rust theme ZIP parser now enforces the HBC archive size, entry count,
   root filename allowlist, duplicate-name policy, and bounded extraction plan.
   It parses `theme.xml` with the existing metadata parser. Applying a theme
   saves its validated ZIP to NAND and updates its default font color and
-  background and logo images for the current session. Startup loads and
-  validates that archive again. Theme PNG resources use the bounded pure Rust decoder for
-  grayscale, RGB, indexed, gray-alpha, and RGBA images, including Adam7
-  interlacing. The decoder can convert RGBA output to GX RGBA8 tile order.
+  background, logo, and app card images for the current session. Startup loads
+  and validates that archive again. Theme PNG resources use the bounded pure
+  Rust decoder for grayscale, RGB, indexed, gray-alpha, and RGBA images, including
+  Adam7 interlacing. The decoder can convert RGBA output to GX RGBA8 tile order.
   Theme controls, fonts, and progress gradients are not yet drawn.
 - Device discovery scans one preferred volume synchronously at startup and
   retries SD/USB selection every 30 frames. It unmounts an offline volume,

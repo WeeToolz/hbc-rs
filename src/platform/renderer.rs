@@ -3,6 +3,7 @@
 use crate::{
     platform::{
         startup::IconTexture,
+        theme::ThemeTextures,
         video::{VideoError, VideoSystem},
     },
     render::{map_rect, Frame, FrameCommand, LOGICAL_HEIGHT, LOGICAL_WIDTH},
@@ -19,12 +20,11 @@ pub unsafe fn draw_frame(
     video: &VideoSystem,
     frame: &Frame,
     icons: &[IconTexture],
-    background: Option<&crate::png::GxRgba8Texture>,
-    logo: Option<&crate::png::GxRgba8Texture>,
+    theme: &ThemeTextures,
 ) -> Result<(), VideoError> {
     let info = video.info();
     let mut textured_state = false;
-    if let Some(background) = background {
+    if let Some(background) = theme.background.as_ref() {
         if let Some(bounds) = map_rect(
             crate::render::Rect {
                 x: 0.0,
@@ -44,7 +44,7 @@ pub unsafe fn draw_frame(
             }
         }
     }
-    if let Some(logo) = logo {
+    if let Some(logo) = theme.logo.as_ref() {
         if !textured_state {
             video.configure_textured_2d();
             textured_state = true;
@@ -68,6 +68,49 @@ pub unsafe fn draw_frame(
     }
     for command in &frame.commands {
         match *command {
+            FrameCommand::AppCard {
+                grid,
+                focused,
+                bounds,
+                fallback,
+            } => {
+                let texture = match (grid, focused) {
+                    (false, false) => theme.list_card.as_ref(),
+                    (false, true) => theme.list_card_focused.as_ref(),
+                    (true, false) => theme.grid_card.as_ref(),
+                    (true, true) => theme.grid_card_focused.as_ref(),
+                };
+                let Some(bounds) = map_rect(
+                    bounds,
+                    LOGICAL_WIDTH,
+                    LOGICAL_HEIGHT,
+                    info.width,
+                    info.height,
+                ) else {
+                    continue;
+                };
+                if let Some(texture) = texture {
+                    if !textured_state {
+                        video.configure_textured_2d();
+                        textured_state = true;
+                    }
+                    unsafe {
+                        video.draw_texture(
+                            texture,
+                            bounds.x,
+                            bounds.y,
+                            bounds.width,
+                            bounds.height,
+                        )?;
+                    }
+                } else {
+                    if textured_state {
+                        video.configure_2d();
+                        textured_state = false;
+                    }
+                    unsafe { draw_solid_fill(video, bounds, fallback)? };
+                }
+            }
             FrameCommand::Fill(index) => {
                 if textured_state {
                     video.configure_2d();
@@ -85,15 +128,7 @@ pub unsafe fn draw_frame(
                 ) else {
                     continue;
                 };
-                let color = ogc_gx::GxColor {
-                    r: fill.color.red,
-                    g: fill.color.green,
-                    b: fill.color.blue,
-                    a: fill.color.alpha,
-                };
-                unsafe {
-                    video.draw_solid_rect(bounds.x, bounds.y, bounds.width, bounds.height, color)?
-                };
+                unsafe { draw_solid_fill(video, bounds, *fill)? };
             }
             FrameCommand::Icon {
                 catalog_index,
@@ -131,24 +166,24 @@ pub unsafe fn draw_frame(
                         video.configure_2d();
                         textured_state = false;
                     }
-                    let color = ogc_gx::GxColor {
-                        r: fallback.color.red,
-                        g: fallback.color.green,
-                        b: fallback.color.blue,
-                        a: fallback.color.alpha,
-                    };
-                    unsafe {
-                        video.draw_solid_rect(
-                            bounds.x,
-                            bounds.y,
-                            bounds.width,
-                            bounds.height,
-                            color,
-                        )?;
-                    }
+                    unsafe { draw_solid_fill(video, bounds, fallback)? };
                 }
             }
         }
     }
     Ok(())
+}
+
+unsafe fn draw_solid_fill(
+    video: &VideoSystem,
+    bounds: crate::render::Rect,
+    fill: crate::render::FillRect,
+) -> Result<(), VideoError> {
+    let color = ogc_gx::GxColor {
+        r: fill.color.red,
+        g: fill.color.green,
+        b: fill.color.blue,
+        a: fill.color.alpha,
+    };
+    unsafe { video.draw_solid_rect(bounds.x, bounds.y, bounds.width, bounds.height, color) }
 }

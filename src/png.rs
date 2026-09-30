@@ -945,4 +945,34 @@ mod tests {
         assert_eq!(texture.len(), 320 * 64 * 4);
         assert_eq!(texture.as_ptr() as usize & 31, 0);
     }
+
+    #[test]
+    fn bundled_hbc_app_cards_have_supported_dimensions_and_gx_layout() {
+        let images: [(&[u8], u32, u32); 4] = [
+            (include_bytes!("../assets/apps_list.png"), 432, 64),
+            (include_bytes!("../assets/apps_list_hover.png"), 432, 64),
+            (include_bytes!("../assets/apps_grid.png"), 144, 64),
+            (include_bytes!("../assets/apps_grid_hover.png"), 144, 64),
+        ];
+        for (bytes, width, height) in images {
+            let image = decode_png(
+                bytes,
+                PngLimits {
+                    max_width: width,
+                    max_height: height,
+                    max_pixels: (width * height) as usize,
+                    max_input_bytes: 8 * 1024 * 1024,
+                },
+            )
+            .unwrap();
+            assert_eq!((image.width, image.height), (width, height));
+
+            let texture = GxRgba8Texture::from_image(&image).unwrap();
+            assert_eq!(
+                (texture.width, texture.height),
+                (width as u16, height as u16)
+            );
+            assert_eq!(texture.as_ptr() as usize & 31, 0);
+        }
+    }
 }

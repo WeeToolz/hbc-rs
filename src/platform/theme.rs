@@ -16,10 +16,70 @@ const BACKGROUND_WIDTH: u32 = 640;
 const BACKGROUND_HEIGHT: u32 = 480;
 const LOGO_WIDTH: u32 = 320;
 const LOGO_HEIGHT: u32 = 64;
+const LIST_CARD_WIDTH: u32 = 432;
+const LIST_CARD_HEIGHT: u32 = 64;
+const GRID_CARD_WIDTH: u32 = 144;
+const GRID_CARD_HEIGHT: u32 = 64;
 const THEME_IMAGE_MAX_BYTES: usize = 8 * 1024 * 1024;
 
 const DEFAULT_BACKGROUND: &[u8] = include_bytes!("../../assets/background.png");
 const DEFAULT_LOGO: &[u8] = include_bytes!("../../assets/logo.png");
+const DEFAULT_LIST_CARD: &[u8] = include_bytes!("../../assets/apps_list.png");
+const DEFAULT_LIST_CARD_FOCUS: &[u8] = include_bytes!("../../assets/apps_list_hover.png");
+const DEFAULT_GRID_CARD: &[u8] = include_bytes!("../../assets/apps_grid.png");
+const DEFAULT_GRID_CARD_FOCUS: &[u8] = include_bytes!("../../assets/apps_grid_hover.png");
+
+pub struct ThemeTextures {
+    pub background: Option<crate::png::GxRgba8Texture>,
+    pub logo: Option<crate::png::GxRgba8Texture>,
+    pub list_card: Option<crate::png::GxRgba8Texture>,
+    pub list_card_focused: Option<crate::png::GxRgba8Texture>,
+    pub grid_card: Option<crate::png::GxRgba8Texture>,
+    pub grid_card_focused: Option<crate::png::GxRgba8Texture>,
+}
+
+impl ThemeTextures {
+    pub fn load(package: Option<(&crate::theme::ThemePackage, &[u8])>) -> Self {
+        Self {
+            background: theme_image_texture(
+                package,
+                "background.png",
+                BACKGROUND_WIDTH,
+                BACKGROUND_HEIGHT,
+                DEFAULT_BACKGROUND,
+            ),
+            logo: theme_image_texture(package, "logo.png", LOGO_WIDTH, LOGO_HEIGHT, DEFAULT_LOGO),
+            list_card: theme_image_texture(
+                package,
+                "apps_list.png",
+                LIST_CARD_WIDTH,
+                LIST_CARD_HEIGHT,
+                DEFAULT_LIST_CARD,
+            ),
+            list_card_focused: theme_image_texture(
+                package,
+                "apps_list_hover.png",
+                LIST_CARD_WIDTH,
+                LIST_CARD_HEIGHT,
+                DEFAULT_LIST_CARD_FOCUS,
+            ),
+            grid_card: theme_image_texture(
+                package,
+                "apps_grid.png",
+                GRID_CARD_WIDTH,
+                GRID_CARD_HEIGHT,
+                DEFAULT_GRID_CARD,
+            ),
+            grid_card_focused: theme_image_texture(
+                package,
+                "apps_grid_hover.png",
+                GRID_CARD_WIDTH,
+                GRID_CARD_HEIGHT,
+                DEFAULT_GRID_CARD_FOCUS,
+            ),
+        }
+    }
+}
 
 #[repr(align(32))]
 struct AlignedChunk([u8; IO_CHUNK_SIZE]);
@@ -128,27 +188,6 @@ pub fn save(archive: &[u8]) -> Result<(), SettingsIoError> {
 
 #[repr(align(32))]
 struct AlignedStats(isfs::Fstats);
-
-/// Decode a theme background, or use HBC's built-in background when the theme
-/// does not contain a valid image.
-pub fn background_texture(
-    package: Option<(&crate::theme::ThemePackage, &[u8])>,
-) -> Option<crate::png::GxRgba8Texture> {
-    theme_image_texture(
-        package,
-        "background.png",
-        BACKGROUND_WIDTH,
-        BACKGROUND_HEIGHT,
-        DEFAULT_BACKGROUND,
-    )
-}
-
-/// Decode a theme logo, or use HBC's built-in logo when it is unavailable.
-pub fn logo_texture(
-    package: Option<(&crate::theme::ThemePackage, &[u8])>,
-) -> Option<crate::png::GxRgba8Texture> {
-    theme_image_texture(package, "logo.png", LOGO_WIDTH, LOGO_HEIGHT, DEFAULT_LOGO)
-}
 
 fn theme_image_texture(
     package: Option<(&crate::theme::ThemePackage, &[u8])>,
