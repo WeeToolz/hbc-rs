@@ -34,7 +34,9 @@ deferred.
   behavior are not ported.
 - Device discovery scans one preferred volume synchronously at startup. There
   is no background mount worker, hotplug handling, 30-frame refresh, or SD and
-  USB device status UI. GameCube memory cards are not supported. USB storage
+  USB device status UI. A missing `apps` directory is treated as an empty
+  catalog; other top-level scan errors show a notice. GameCube memory cards are
+  not supported. USB storage
   candidates exclude HID devices, and v5 watcher startup has a 100 ms per-host
   bound in the ignored `libogc-rs` copy; the reported NAND/HID hang still needs
   hardware confirmation.

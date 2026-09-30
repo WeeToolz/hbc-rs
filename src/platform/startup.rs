@@ -37,7 +37,8 @@ impl WiiStartup {
         input::initialize(view_width, view_height);
 
         let loaded_settings = settings::load().unwrap_or_default();
-        let (volume, storage, catalog) = mount_preferred_volume(loaded_settings.device);
+        let (volume, storage, catalog, scan_failed) =
+            mount_preferred_volume(loaded_settings.device);
         let mut runtime = AppRuntime::new(catalog);
         runtime.load_settings(loaded_settings);
         runtime.set_bootmii_available(bootmii_ios_available());
@@ -47,7 +48,11 @@ impl WiiStartup {
             volume,
             storage,
         };
-        if !startup.has_storage() {
+        if scan_failed {
+            startup
+                .runtime
+                .show_notice("Could not read the apps folder on this device.");
+        } else if !startup.has_storage() {
             startup
                 .runtime
                 .show_notice("No SD or USB storage device is available.");
@@ -197,7 +202,9 @@ pub enum StartupError {
     Loader(ParseError),
 }
 
-fn mount_preferred_volume(preference: i32) -> (Option<Volume>, Option<FatStorage>, Vec<AppEntry>) {
+fn mount_preferred_volume(
+    preference: i32,
+) -> (Option<Volume>, Option<FatStorage>, Vec<AppEntry>, bool) {
     let volumes = match preference {
         1 => [Volume::Usb, Volume::Sd],
         _ => [Volume::Sd, Volume::Usb],
@@ -209,15 +216,20 @@ fn mount_preferred_volume(preference: i32) -> (Option<Volume>, Option<FatStorage
         };
         // A missing apps directory is a valid empty catalog. Keep the mounted
         // volume so later install, refresh, and delete actions can use it.
-        let catalog = scan_apps(
+        let (catalog, scan_failed) = match scan_apps(
             &mut storage,
             "apps",
             EXECUTABLE_SIZE_LIMIT,
             THEME_SIZE_LIMIT,
-        )
-        .unwrap_or_default();
-        return (Some(volume), Some(storage), catalog);
+        ) {
+            Ok(catalog) => (catalog, false),
+            Err(crate::catalog::ScanError::AppDirectory(StorageError::Fat(
+                ogc_fat::FatError::NotFound,
+            ))) => (Vec::new(), false),
+            Err(_) => (Vec::new(), true),
+        };
+        return (Some(volume), Some(storage), catalog, scan_failed);
     }
 
-    (None, None, Vec::new())
+    (None, None, Vec::new(), false)
 }
