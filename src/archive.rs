@@ -3,6 +3,7 @@
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::str;
+use miniz_oxide::inflate::decompress_to_vec_with_limit;
 
 const MAX_ARCHIVE_PATH_BYTES: usize = 1024;
 const MAX_ARCHIVE_ENTRIES: usize = 4096;
@@ -33,6 +34,13 @@ pub enum ZipError {
     InvalidEntry,
     InvalidPath(ArchivePathError),
     InvalidUtf8Path,
+    UnsupportedEncryption,
+    UnsupportedCompression(u16),
+    OutputTooLarge,
+    AllocationFailed,
+    DecompressionFailed,
+    SizeMismatch,
+    CrcMismatch,
 }
 
 /// Metadata from one ZIP central-directory entry.
@@ -52,14 +60,14 @@ pub struct ZipEntry {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ZipArchive {
     entries: Vec<ZipEntry>,
+    directory_start: usize,
 }
 
 impl ZipArchive {
     /// Read classic ZIP central-directory metadata from a complete archive.
     ///
-    /// This parser does not decompress entry data. It rejects split archives,
-    /// ZIP64 sentinels, malformed central-directory ranges, unsafe paths, and
-    /// names that are not UTF-8.
+    /// It rejects split archives, ZIP64 sentinels, malformed central-directory
+    /// ranges, unsafe paths, and names that are not UTF-8.
     pub fn parse(data: &[u8]) -> Result<Self, ZipError> {
         let (eocd, entry_count, directory_offset, directory_size) = parse_end_record(data)?;
         if entry_count as usize > MAX_ARCHIVE_ENTRIES {
@@ -124,7 +132,7 @@ impl ZipArchive {
             )
             .map_err(|_| ZipError::InvalidUtf8Path)?;
             validate_archive_path(name).map_err(ZipError::InvalidPath)?;
-            validate_local_entry(
+            let _ = local_compressed_range(
                 data,
                 directory_start,
                 local_header_offset,
@@ -151,7 +159,10 @@ impl ZipArchive {
             return Err(ZipError::InvalidDirectoryRange);
         }
 
-        Ok(Self { entries })
+        Ok(Self {
+            entries,
+            directory_start,
+        })
     }
 
     /// Return all entries in central-directory order.
@@ -162,6 +173,67 @@ impl ZipArchive {
     /// Find one entry by its exact archive path.
     pub fn entry(&self, name: &str) -> Option<&ZipEntry> {
         self.entries.iter().find(|entry| entry.name == name)
+    }
+
+    /// Decompress one file entry, up to `max_output_size` bytes.
+    ///
+    /// ZIP methods 0 (stored) and 8 (raw DEFLATE) are supported. Encryption,
+    /// directories, unsupported methods, size mismatches, and CRC errors fail.
+    pub fn extract(
+        &self,
+        data: &[u8],
+        name: &str,
+        max_output_size: usize,
+    ) -> Result<Vec<u8>, ZipError> {
+        let entry = self.entry(name).ok_or(ZipError::InvalidEntry)?;
+        if entry.is_directory {
+            return Err(ZipError::InvalidEntry);
+        }
+        if entry.flags & (0x0001 | 0x0040 | 0x2000) != 0 {
+            return Err(ZipError::UnsupportedEncryption);
+        }
+
+        let expected_size = entry.uncompressed_size as usize;
+        if expected_size > max_output_size {
+            return Err(ZipError::OutputTooLarge);
+        }
+        let (compressed_start, compressed_end) = local_compressed_range(
+            data,
+            self.directory_start,
+            entry.local_header_offset,
+            entry.flags,
+            entry.compression_method,
+            entry.compressed_size,
+            entry.name.as_bytes(),
+        )?;
+        let compressed = data
+            .get(compressed_start..compressed_end)
+            .ok_or(ZipError::InvalidEntry)?;
+
+        let output = match entry.compression_method {
+            0 => {
+                if entry.compressed_size != entry.uncompressed_size {
+                    return Err(ZipError::SizeMismatch);
+                }
+                let mut output = Vec::new();
+                output
+                    .try_reserve_exact(expected_size)
+                    .map_err(|_| ZipError::AllocationFailed)?;
+                output.extend_from_slice(compressed);
+                output
+            }
+            8 => decompress_to_vec_with_limit(compressed, expected_size.max(1))
+                .map_err(|_| ZipError::DecompressionFailed)?,
+            method => return Err(ZipError::UnsupportedCompression(method)),
+        };
+
+        if output.len() != expected_size {
+            return Err(ZipError::SizeMismatch);
+        }
+        if crc32fast::hash(&output) != entry.crc32 {
+            return Err(ZipError::CrcMismatch);
+        }
+        Ok(output)
     }
 }
 
@@ -252,7 +324,7 @@ fn read_u16(data: &[u8], offset: usize) -> Result<u16, ZipError> {
     Ok(u16::from_le_bytes([bytes[0], bytes[1]]))
 }
 
-fn validate_local_entry(
+fn local_compressed_range(
     data: &[u8],
     directory_start: usize,
     local_header_offset: u32,
@@ -260,7 +332,7 @@ fn validate_local_entry(
     compression_method: u16,
     compressed_size: u32,
     central_name: &[u8],
-) -> Result<(), ZipError> {
+) -> Result<(usize, usize), ZipError> {
     let start = local_header_offset as usize;
     let fixed_end = start.checked_add(30).ok_or(ZipError::InvalidEntry)?;
     if fixed_end > directory_start {
@@ -289,7 +361,7 @@ fn validate_local_entry(
     if data_end > directory_start || data.get(fixed_end..name_end) != Some(central_name) {
         return Err(ZipError::InvalidEntry);
     }
-    Ok(())
+    Ok((data_start, data_end))
 }
 
 fn read_u32(data: &[u8], offset: usize) -> Result<u32, ZipError> {
@@ -349,6 +421,61 @@ mod tests {
         data.extend_from_slice(&(names.len() as u16).to_le_bytes());
         data.extend_from_slice(&(names.len() as u16).to_le_bytes());
         data.extend_from_slice(&(central_records.len() as u32).to_le_bytes());
+        data.extend_from_slice(&directory_offset.to_le_bytes());
+        data.extend_from_slice(&0u16.to_le_bytes());
+        data
+    }
+
+    fn zip_with_payload(name: &str, payload: &[u8], method: u16, flags: u16) -> Vec<u8> {
+        let name_bytes = name.as_bytes();
+        let compressed = match method {
+            0 => payload.to_vec(),
+            8 => miniz_oxide::deflate::compress_to_vec(payload, 6),
+            _ => unreachable!(),
+        };
+        let crc = crc32fast::hash(payload);
+        let mut data = Vec::new();
+        data.extend_from_slice(&LOCAL_FILE_HEADER.to_le_bytes());
+        data.extend_from_slice(&20u16.to_le_bytes());
+        data.extend_from_slice(&flags.to_le_bytes());
+        data.extend_from_slice(&method.to_le_bytes());
+        data.extend_from_slice(&0u16.to_le_bytes());
+        data.extend_from_slice(&0u16.to_le_bytes());
+        data.extend_from_slice(&crc.to_le_bytes());
+        data.extend_from_slice(&(compressed.len() as u32).to_le_bytes());
+        data.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+        data.extend_from_slice(&(name_bytes.len() as u16).to_le_bytes());
+        data.extend_from_slice(&0u16.to_le_bytes());
+        data.extend_from_slice(name_bytes);
+        data.extend_from_slice(&compressed);
+
+        let directory_offset = data.len() as u32;
+        data.extend_from_slice(&CENTRAL_DIRECTORY_FILE_HEADER.to_le_bytes());
+        data.extend_from_slice(&20u16.to_le_bytes());
+        data.extend_from_slice(&20u16.to_le_bytes());
+        data.extend_from_slice(&flags.to_le_bytes());
+        data.extend_from_slice(&method.to_le_bytes());
+        data.extend_from_slice(&0u16.to_le_bytes());
+        data.extend_from_slice(&0u16.to_le_bytes());
+        data.extend_from_slice(&crc.to_le_bytes());
+        data.extend_from_slice(&(compressed.len() as u32).to_le_bytes());
+        data.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+        data.extend_from_slice(&(name_bytes.len() as u16).to_le_bytes());
+        data.extend_from_slice(&0u16.to_le_bytes());
+        data.extend_from_slice(&0u16.to_le_bytes());
+        data.extend_from_slice(&0u16.to_le_bytes());
+        data.extend_from_slice(&0u16.to_le_bytes());
+        data.extend_from_slice(&0u32.to_le_bytes());
+        data.extend_from_slice(&0u32.to_le_bytes());
+        data.extend_from_slice(name_bytes);
+
+        let directory_size = (data.len() as u32) - directory_offset;
+        data.extend_from_slice(&END_OF_CENTRAL_DIRECTORY.to_le_bytes());
+        data.extend_from_slice(&0u16.to_le_bytes());
+        data.extend_from_slice(&0u16.to_le_bytes());
+        data.extend_from_slice(&1u16.to_le_bytes());
+        data.extend_from_slice(&1u16.to_le_bytes());
+        data.extend_from_slice(&directory_size.to_le_bytes());
         data.extend_from_slice(&directory_offset.to_le_bytes());
         data.extend_from_slice(&0u16.to_le_bytes());
         data
@@ -419,6 +546,61 @@ mod tests {
         archive[directory_offset + 42..directory_offset + 46]
             .copy_from_slice(&(directory_offset as u32).to_le_bytes());
         assert_eq!(ZipArchive::parse(&archive), Err(ZipError::InvalidEntry));
+    }
+
+    #[test]
+    fn extracts_stored_and_raw_deflate_entries() {
+        let expected = b"HBC archive payload repeated for compression";
+        for method in [0, 8] {
+            let data = zip_with_payload("apps/demo/payload.bin", expected, method, 0);
+            let archive = ZipArchive::parse(&data).unwrap();
+            assert_eq!(
+                archive
+                    .extract(&data, "apps/demo/payload.bin", 1024)
+                    .unwrap(),
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn extraction_enforces_limit_encryption_size_and_crc() {
+        let stored = zip_with_payload("apps/demo/data", b"payload", 0, 0);
+        let archive = ZipArchive::parse(&stored).unwrap();
+        assert_eq!(
+            archive.extract(&stored, "apps/demo/data", 2),
+            Err(ZipError::OutputTooLarge)
+        );
+
+        let encrypted = zip_with_payload("apps/demo/data", b"payload", 0, 1);
+        let archive = ZipArchive::parse(&encrypted).unwrap();
+        assert_eq!(
+            archive.extract(&encrypted, "apps/demo/data", 32),
+            Err(ZipError::UnsupportedEncryption)
+        );
+
+        let mut bad_crc = zip_with_payload("apps/demo/data", b"payload", 0, 0);
+        let eocd_offset = bad_crc.len() - END_OF_CENTRAL_DIRECTORY_SIZE;
+        let directory_offset = read_u32(&bad_crc, eocd_offset + 16).unwrap() as usize;
+        bad_crc[directory_offset + 16] ^= 0x80;
+        let archive = ZipArchive::parse(&bad_crc).unwrap();
+        assert_eq!(
+            archive.extract(&bad_crc, "apps/demo/data", 32),
+            Err(ZipError::CrcMismatch)
+        );
+    }
+
+    #[test]
+    fn rejects_compressed_payload_outside_local_data_range() {
+        let mut data = zip_with_payload("apps/demo/data", b"abc", 0, 0);
+        let eocd_offset = data.len() - END_OF_CENTRAL_DIRECTORY_SIZE;
+        let directory_offset = read_u32(&data, eocd_offset + 16).unwrap() as usize;
+        data[directory_offset + 20..directory_offset + 24].copy_from_slice(&u32::MAX.to_le_bytes());
+        assert_eq!(ZipArchive::parse(&data), Err(ZipError::Zip64Unsupported));
+
+        data[directory_offset + 20..directory_offset + 24]
+            .copy_from_slice(&u32::MAX.saturating_sub(1).to_le_bytes());
+        assert_eq!(ZipArchive::parse(&data), Err(ZipError::InvalidEntry));
     }
 
     #[test]
