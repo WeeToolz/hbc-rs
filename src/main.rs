@@ -49,6 +49,10 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         video.wait_vsync();
 
         for action in actions {
+            if action == hbc_rs::app::Action::DeleteSelected {
+                let _ = startup.delete_selected_app();
+                continue;
+            }
             let reset = match action {
                 hbc_rs::app::Action::Exit => Some(ogc_system::SYS_RETURNTOMENU),
                 hbc_rs::app::Action::Shutdown => Some(ogc_system::SYS_POWEROFF),

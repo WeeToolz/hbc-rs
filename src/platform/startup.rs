@@ -10,7 +10,7 @@ use crate::{
     catalog::{scan_apps, AppEntry},
     platform::{
         input, settings,
-        storage::{FatStorage, Volume},
+        storage::{FatStorage, StorageError, Volume},
     },
     runtime::AppRuntime,
 };
@@ -60,6 +60,36 @@ impl WiiStartup {
     pub fn has_storage(&self) -> bool {
         self.storage.is_some()
     }
+
+    /// Delete the selected app folder and remove it from the live catalog.
+    pub fn delete_selected_app(&mut self) -> Result<(), StartupError> {
+        let directory = self
+            .runtime
+            .controller()
+            .selected_app
+            .as_deref()
+            .ok_or(StartupError::NoSelection)?;
+        let storage = self.storage.as_ref().ok_or(StartupError::NoStorage)?;
+        storage
+            .remove_app_folder(directory)
+            .map_err(StartupError::Storage)?;
+        let catalog = self
+            .runtime
+            .catalog()
+            .iter()
+            .filter(|entry| entry.directory != directory)
+            .cloned()
+            .collect();
+        self.runtime.replace_catalog(catalog);
+        Ok(())
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StartupError {
+    NoSelection,
+    NoStorage,
+    Storage(StorageError),
 }
 
 fn mount_preferred_volume(preference: i32) -> (Option<Volume>, Option<FatStorage>, Vec<AppEntry>) {

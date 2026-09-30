@@ -142,7 +142,7 @@ pub fn browser_frame(controller: &AppController, catalog: &[AppEntry]) -> Frame 
     let selected = controller.selected_index().saturating_sub(page_start);
 
     match controller.screen {
-        Screen::Browser | Screen::AppDetails => {
+        Screen::Browser | Screen::AppDetails | Screen::DeleteConfirm => {
             let columns = layout.columns.max(1);
             let rows = layout.rows.max(1);
             let gap = 8.0;
@@ -241,19 +241,38 @@ pub fn browser_frame(controller: &AppController, catalog: &[AppEntry]) -> Frame 
             ACCENT,
         );
     }
-    if controller.screen == Screen::AppDetails {
+    if matches!(
+        controller.screen,
+        Screen::AppDetails | Screen::DeleteConfirm
+    ) {
         frame.fill(rect(0, 0, 640, 480), MODAL_SHADE);
-        frame.fill(rect(120, 96, 400, 288), PANEL);
-        frame.fill(rect(152, 132, 336, 22), HEADER);
-        for (index, action) in [8usize, 9, 10].iter().enumerate() {
-            frame.fill(
-                rect(152.0 + index as f32 * 108.0, 326, 96, 34),
-                if controller.detail_focus() == *action {
-                    ACCENT
-                } else {
-                    ROW
-                },
-            );
+        if controller.screen == Screen::AppDetails {
+            frame.fill(rect(120, 96, 400, 288), PANEL);
+            frame.fill(rect(152, 132, 336, 22), HEADER);
+            for (index, action) in [8usize, 9, 10].iter().enumerate() {
+                frame.fill(
+                    rect(152.0 + index as f32 * 108.0, 326, 96, 34),
+                    if controller.detail_focus() == *action {
+                        ACCENT
+                    } else {
+                        ROW
+                    },
+                );
+            }
+        } else {
+            frame.fill(rect(144, 168, 352, 144), PANEL);
+            frame.fill(rect(168, 188, 304, 20), HEADER);
+            frame.fill(rect(184, 228, 272, 6), Color::rgb(213, 224, 233));
+            for (index, yes) in [true, false].iter().enumerate() {
+                frame.fill(
+                    rect(212.0 + index as f32 * 112.0, 260, 96, 32),
+                    if controller.delete_confirmation_yes() == *yes {
+                        ACCENT
+                    } else {
+                        ROW
+                    },
+                );
+            }
         }
     }
     frame

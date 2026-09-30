@@ -36,7 +36,10 @@ deferred.
   bound in the ignored `libogc-rs` copy; the reported NAND/HID hang still needs
   hardware confirmation.
 - Browser launch and delete actions are not connected to the runtime loop.
-  The loader still lacks HBC's complete cleanup and launch trampoline.
+- Launch and BootMii actions are not connected to the runtime loop. App deletion
+  now asks for an explicit yes response and uses the safe folder remover, but
+  it does not yet show an on-screen error when storage deletion fails. The
+  loader still lacks HBC's complete cleanup and launch trampoline.
 - The GX FIFO path has no interrupt-based flow control, overflow recovery, or
   draw-completion wait. Its register setup and display output are unverified on
   hardware.
