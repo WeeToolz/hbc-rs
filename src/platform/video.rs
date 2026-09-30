@@ -161,7 +161,10 @@ pub fn initialize(widescreen: bool) -> Result<VideoSystem, VideoError> {
     unsafe {
         ogc_cache::dc_invalidate_range(framebuffer.cast_const(), byte_len);
         // COLOR_BLACK from HBC is a zero-valued YUYV framebuffer color.
-        ogc_video::clear_frame_buffer(&mut mode, framebuffer, 0);
+        // SYS_AllocateFramebuffer returns a cached K0 address. VI and GX use
+        // the uncached alias, so clear through K1 to make the pixels visible.
+        let framebuffer_k1 = ogc_core::mem_k0_to_k1(framebuffer as usize) as *mut _;
+        ogc_video::clear_frame_buffer(&mut mode, framebuffer_k1, 0);
     }
 
     // GX uses the low arena2 boundary for its FIFO. The HBC allocator reserves

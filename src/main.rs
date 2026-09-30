@@ -15,6 +15,9 @@ fn main() {
 #[cfg(target_arch = "powerpc")]
 #[unsafe(no_mangle)]
 pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
+    // Seed the libogc-rs arena bounds and initialize runtime services before
+    // reserving the Rust heap from MEM2 or registering hardware callbacks.
+    ogc_system::init();
     hbc_rs::platform::lifecycle::register_callbacks();
     let heap_result = unsafe {
         hbc_rs::platform::allocator::initialize_wii(

@@ -4,6 +4,25 @@ The `libogc-rs/` directory is a complete local copy and is ignored by this
 repository. Changes inside it are not included in HBC commits. Record required
 changes here so a new checkout can reproduce them in its own local copy.
 
+## PowerPC floating-point startup
+
+In `crates/abi/ogc-sys/src/lib.rs`, native `_start` must set `MSR_FP` while
+preserving the other MSR bits before it calls Rust code. DOL entry does not
+guarantee that the loader enabled the FPU, and normal Rust `f32` operations
+can otherwise raise a program exception. Use a nonzero GPR such as `r12` to
+read, update, and write the MSR. Do not use `r0` as the source of `ori`; for
+that instruction, `r0` reads as zero.
+
+## ELF-to-DOL conversion
+
+Use `cargo xtask elf-to-dol <input.elf> <output.dol>` from the copied
+`libogc-rs/` workspace. Its `Libogc` DOL profile omits the ELF `PT_LOAD`
+metadata segment below the executable image. The separate `elf2dol` command
+uses the legacy profile. That profile included the HBC ELF metadata segment at
+`0x80000000` as a DOL data section. A Wii homebrew loader rejected that DOL as
+an invalid Wii application. The regenerated HBC and Tetris DOLs have no section
+at that address; their first load section begins at `0x80004000`.
+
 ## USB storage must ignore HID devices
 
 In `crates/services/ogc-usbstorage-sys/src/wii_backend.rs`, USB storage
