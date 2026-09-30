@@ -18,7 +18,10 @@ deferred.
   `libogc-rs` copy. The Wii entry point now starts a frame loop that scans
   input, updates the controller state, draws the initial browser layout with a
   native 5x7 bitmap font, and waits for VI retrace. Return-to-menu and power-off
-  actions save settings and call the system reset service.
+  actions save settings and call the system reset service. Physical Reset and
+  Power callbacks queue exit requests for the main loop, which saves settings,
+  unmounts storage, stops Wii Remote services, and requests the matching system
+  action.
 - Boot setup loads NAND settings, tries the preferred SD or USB volume followed
   by the other volume, scans `apps`, and keeps the mounted volume for later
   operations. Wii Remote setup matches HBC's 640x480 default IR range and

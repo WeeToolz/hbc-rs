@@ -10,6 +10,7 @@ fn main() {
 #[cfg(target_arch = "powerpc")]
 #[unsafe(no_mangle)]
 pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
+    hbc_rs::platform::lifecycle::register_callbacks();
     let heap_result = unsafe {
         hbc_rs::platform::allocator::initialize_wii(
             hbc_rs::platform::allocator::DEFAULT_MAX_MEM2_HEAP_BYTES,
@@ -33,6 +34,16 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     let mut frames_since_storage_scan = 0u8;
 
     loop {
+        if let Some(request) = hbc_rs::platform::lifecycle::take_request() {
+            let reset = match request {
+                hbc_rs::platform::lifecycle::ExitRequest::ReturnToMenu => {
+                    ogc_system::SYS_RETURNTOMENU
+                }
+                hbc_rs::platform::lifecycle::ExitRequest::PowerOff => ogc_system::SYS_POWEROFF,
+            };
+            exit_to_system(&mut startup, reset);
+        }
+
         frames_since_storage_scan += 1;
         if frames_since_storage_scan == 30 {
             frames_since_storage_scan = 0;
@@ -185,10 +196,10 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 _ => None,
             };
             if let Some(reset) = reset {
-                let _ = startup
-                    .runtime_mut()
-                    .save_settings_if_dirty(hbc_rs::platform::settings::save);
                 if action == hbc_rs::app::Action::LaunchBootMii {
+                    let _ = startup
+                        .runtime_mut()
+                        .save_settings_if_dirty(hbc_rs::platform::settings::save);
                     if startup.unmount_storage().is_err() {
                         startup
                             .runtime_mut()
@@ -198,13 +209,23 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                     let _ = wpad_sys::shutdown();
                     let _ = ogc_ios::launch_new_ios(254);
                 }
-                hbc_rs::platform::video::shutdown();
-                unsafe { ogc_system::reset_system(reset as i32, 0, 0) };
-                loop {
-                    core::hint::spin_loop();
-                }
+                exit_to_system(&mut startup, reset);
             }
         }
+    }
+}
+
+#[cfg(target_arch = "powerpc")]
+fn exit_to_system(startup: &mut hbc_rs::platform::startup::WiiStartup, reset: u32) -> ! {
+    let _ = startup
+        .runtime_mut()
+        .save_settings_if_dirty(hbc_rs::platform::settings::save);
+    let _ = startup.unmount_storage();
+    let _ = wpad_sys::shutdown();
+    hbc_rs::platform::video::shutdown();
+    unsafe { ogc_system::reset_system(reset as i32, 0, 0) };
+    loop {
+        core::hint::spin_loop();
     }
 }
 
