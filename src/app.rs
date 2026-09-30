@@ -2,7 +2,45 @@
 
 use alloc::{string::String, vec::Vec};
 
-use crate::catalog::{visible_entries, AppEntry, Filter, SortOrder};
+use crate::{
+    catalog::{visible_entries, AppEntry, Filter, SortOrder},
+    text_layout::wrap_lines,
+};
+
+/// Converts pointer movement into scroll pixels for a pressed memo area.
+/// Any scrollable memo can use this tracker; the view owns its scroll offset.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct MemoDrag {
+    last_y: Option<i16>,
+    pixel_remainder: i16,
+    active: bool,
+}
+
+impl MemoDrag {
+    fn update(&mut self, started: bool, pointer_y: Option<i16>, held: bool) -> i16 {
+        let Some(pointer_y) = pointer_y.filter(|_| held || started) else {
+            *self = Self::default();
+            return 0;
+        };
+        if started {
+            self.active = true;
+            self.last_y = Some(pointer_y);
+            self.pixel_remainder = 0;
+            return 0;
+        }
+        if !held || !self.active {
+            return 0;
+        }
+        let Some(previous_y) = self.last_y.replace(pointer_y) else {
+            return 0;
+        };
+        let delta_y = i32::from(pointer_y) - i32::from(previous_y);
+        let scaled = i32::from(self.pixel_remainder) - delta_y;
+        let scroll_pixels = scaled / 32;
+        self.pixel_remainder = (scaled % 32) as i16;
+        scroll_pixels.clamp(i32::from(i16::MIN), i32::from(i16::MAX)) as i16
+    }
+}
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum Screen {
@@ -43,6 +81,7 @@ pub enum PointerTarget {
     Menu(usize),
     Detail(usize),
     DetailMemo,
+    NoticeMemo,
     DeleteChoice { yes: bool },
     WiiloadChoice { yes: bool },
     Option(usize),
@@ -131,13 +170,15 @@ pub struct AppController {
     detail_description_max_scroll: usize,
     detail_scroll_app: Option<String>,
     detail_scroll_pixel_remainder: i16,
-    detail_drag_pixel_remainder: i16,
-    detail_drag_last_y: Option<i16>,
-    detail_dragging: bool,
+    memo_drag: MemoDrag,
+    memo_drag_target: Option<PointerTarget>,
     delete_confirmation_yes: bool,
     wiiload_confirmation_yes: bool,
     wiiload_install_progress: u8,
     notice: Option<String>,
+    notice_scroll: usize,
+    notice_scroll_max: usize,
+    notice_scroll_pixel_remainder: i16,
     notice_return_screen: Screen,
     bootmii_available: bool,
     preferred_device: i32,
@@ -208,6 +249,14 @@ impl AppController {
         self.scroll_detail_by_pixels(pixels);
     }
 
+    pub fn scroll_active_memo_by_stick(&mut self, pixels: i16) {
+        match self.screen {
+            Screen::AppDetails => self.scroll_detail_by_pixels(pixels),
+            Screen::Notice => self.scroll_notice_by_pixels(pixels),
+            _ => {}
+        }
+    }
+
     fn scroll_detail_by_pixels(&mut self, pixels: i16) {
         if self.screen != Screen::AppDetails {
             return;
@@ -237,10 +286,37 @@ impl AppController {
         self.notice.as_deref()
     }
 
+    pub fn notice_scroll(&self) -> usize {
+        self.notice_scroll
+    }
+
+    fn scroll_notice_by_pixels(&mut self, pixels: i16) {
+        self.notice_scroll_pixel_remainder =
+            self.notice_scroll_pixel_remainder.saturating_add(pixels);
+        let lines = self.notice_scroll_pixel_remainder / 9;
+        self.notice_scroll_pixel_remainder %= 9;
+        if lines > 0 {
+            self.notice_scroll = self
+                .notice_scroll
+                .saturating_add(lines.unsigned_abs() as usize)
+                .min(self.notice_scroll_max);
+        } else if lines < 0 {
+            self.notice_scroll = self
+                .notice_scroll
+                .saturating_sub(lines.unsigned_abs() as usize);
+        }
+    }
+
     /// Show a message and return to the current screen after dismissal.
     pub fn show_notice(&mut self, message: String) {
         self.notice_return_screen = self.screen;
+        self.notice_scroll = 0;
+        self.notice_scroll_pixel_remainder = 0;
         self.notice = Some(message);
+        self.notice_scroll_max = self
+            .notice
+            .as_deref()
+            .map_or(0, |value| wrap_lines(value, 74).len().saturating_sub(14));
         self.screen = Screen::Notice;
     }
 
@@ -471,6 +547,17 @@ impl AppController {
                     self.screen = self.notice_return_screen;
                     Action::None
                 }
+                Input::Up => {
+                    self.notice_scroll = self.notice_scroll.saturating_sub(1);
+                    Action::None
+                }
+                Input::Down => {
+                    self.notice_scroll = self
+                        .notice_scroll
+                        .saturating_add(1)
+                        .min(self.notice_scroll_max);
+                    Action::None
+                }
                 _ => Action::None,
             },
         }
@@ -576,42 +663,35 @@ impl AppController {
         pressed: bool,
         held: bool,
     ) {
-        if self.screen != Screen::AppDetails {
-            self.detail_dragging = false;
-            self.detail_drag_last_y = None;
-            self.detail_drag_pixel_remainder = 0;
-            return;
+        if pressed {
+            self.memo_drag_target = match (self.screen, target) {
+                (Screen::AppDetails, Some(PointerTarget::DetailMemo)) => {
+                    Some(PointerTarget::DetailMemo)
+                }
+                (Screen::Notice, Some(PointerTarget::NoticeMemo)) => {
+                    Some(PointerTarget::NoticeMemo)
+                }
+                _ => None,
+            };
+        }
+        let drag_target = self.memo_drag_target;
+        let detail_memo =
+            self.screen == Screen::AppDetails && drag_target == Some(PointerTarget::DetailMemo);
+        let notice_memo =
+            self.screen == Screen::Notice && drag_target == Some(PointerTarget::NoticeMemo);
+        let can_scroll = detail_memo || notice_memo;
+        let scroll_pixels = self.memo_drag.update(
+            can_scroll && pressed && (detail_memo || notice_memo),
+            pointer_y,
+            (detail_memo || notice_memo || self.memo_drag.active) && held,
+        );
+        if detail_memo && scroll_pixels != 0 {
+            self.scroll_detail_by_pixels(scroll_pixels);
+        } else if (notice_memo || self.screen == Screen::Notice) && scroll_pixels != 0 {
+            self.scroll_notice_by_pixels(scroll_pixels);
         }
         if !held && !pressed {
-            self.detail_dragging = false;
-            self.detail_drag_last_y = None;
-            self.detail_drag_pixel_remainder = 0;
-            return;
-        }
-        let Some(pointer_y) = pointer_y else {
-            self.detail_dragging = false;
-            self.detail_drag_last_y = None;
-            self.detail_drag_pixel_remainder = 0;
-            return;
-        };
-        if pressed && target == Some(PointerTarget::DetailMemo) {
-            self.detail_dragging = true;
-            self.detail_drag_last_y = Some(pointer_y);
-            self.detail_drag_pixel_remainder = 0;
-            return;
-        }
-        if !held {
-            return;
-        }
-        if !self.detail_dragging {
-            return;
-        }
-        if let Some(previous_y) = self.detail_drag_last_y.replace(pointer_y) {
-            let delta_y = i32::from(pointer_y) - i32::from(previous_y);
-            let scaled = i32::from(self.detail_drag_pixel_remainder) - delta_y;
-            let scroll_pixels = scaled / 32;
-            self.detail_drag_pixel_remainder = (scaled % 32) as i16;
-            self.scroll_detail_by_pixels(scroll_pixels.clamp(-32_768, 32_767) as i16);
+            self.memo_drag_target = None;
         }
     }
 
@@ -1014,6 +1094,45 @@ mod tests {
 
         controller.handle_pointer_frame(None, None, false, false, &catalog);
         assert_eq!(controller.detail_description_scroll(), 1);
+    }
+
+    #[test]
+    fn dragging_long_notice_memo_scrolls_and_clamps_to_its_text() {
+        let mut controller = AppController::new();
+        controller.show_notice(
+            (0..400)
+                .map(|n| format!("notice{n}"))
+                .collect::<Vec<_>>()
+                .join(" "),
+        );
+        assert_eq!(controller.notice_scroll(), 0);
+        controller.handle_pointer_frame(
+            Some(PointerTarget::NoticeMemo),
+            Some(220),
+            true,
+            true,
+            &[],
+        );
+        controller.handle_pointer_frame(
+            Some(PointerTarget::NoticeMemo),
+            Some(-200),
+            false,
+            true,
+            &[],
+        );
+        assert!(controller.notice_scroll() > 0);
+        let max_scroll = controller.notice_scroll_max;
+        controller.handle_pointer_frame(
+            Some(PointerTarget::NoticeMemo),
+            Some(i16::MIN),
+            false,
+            true,
+            &[],
+        );
+        assert_eq!(controller.notice_scroll(), max_scroll);
+        controller.handle_pointer_frame(None, None, false, false, &[]);
+        controller.scroll_active_memo_by_stick(900);
+        assert_eq!(controller.notice_scroll(), max_scroll);
     }
 
     #[test]

@@ -131,7 +131,7 @@ impl AppRuntime {
     pub fn update(&mut self, frame: &InputFrame) -> Vec<Action> {
         self.controller.reconcile_catalog(&self.catalog);
         self.controller
-            .scroll_detail_by_stick(frame.stick_scroll_pixels);
+            .scroll_active_memo_by_stick(frame.stick_scroll_pixels);
         let mut actions = Vec::new();
         for &input in &frame.pressed {
             push_action(&mut actions, self.controller.handle(input, &self.catalog));

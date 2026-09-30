@@ -65,9 +65,11 @@ deferred.
   active themes. The storage scan panel uses the theme throbber image, and the
   Wiiload install dialog uses the theme progress frame. Both use bundled C
   artwork when an active theme image is missing or has invalid dimensions.
-  Animated bubble backgrounds, network and USBGecko status indicators, memo
-  scroll arrows, localized strings, and complete HBC widget behavior are not
-  ported.
+  Long notices also wrap and scroll by line with Up and Down buttons, controller
+  sticks, or pointer dragging, matching the C message-dialog memo. Animated
+  bubble backgrounds, network and USBGecko status indicators, memo scroll arrows,
+  other memo contexts, localized strings, and complete HBC widget behavior are
+  not ported.
 - A pure Rust theme ZIP parser enforces a 20 MiB archive limit, a 64-entry
   limit, safe paths, supported ZIP entry types and compression, duplicate-name
   checks, a 64 MiB per-file limit, and a 128 MiB total extracted-size limit.
@@ -157,5 +159,7 @@ target has no `test` crate.
 ## Out of scope for the first runtime target
 
 The reload stub, banner builder, WiiPAX tool, wiiload host tool, WAD packaging,
-and translations remain separate targets or assets. Revisit the reload stub
-after the application runtime works.
+and translations remain separate targets or assets. The C tree includes a POT
+template and Dutch, French, German, Italian, Japanese, and Spanish PO catalogs.
+HBC-rs has no localization loader or catalog build path yet; it still uses
+English UI strings. Revisit the reload stub after the application runtime works.

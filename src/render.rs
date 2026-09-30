@@ -1060,8 +1060,18 @@ pub fn browser_frame_with_viewport(
         frame.set_text_style(theme_text_style(theme, "dlgtitle", text_color));
         frame.text(286.0, 76.0, "Notice", 1.0, text_color, 24);
         if let Some(message) = controller.notice() {
-            frame.set_text_style(theme_text_style(theme, "label", text_color));
-            frame.text(92.0, 148.0, message, 1.0, text_color, 74);
+            frame.set_text_style(theme_text_style(theme, "memo", text_color));
+            frame.text_wrapped_scrolled(
+                92.0,
+                148.0,
+                message,
+                1.0,
+                text_color,
+                74,
+                14,
+                controller.notice_scroll(),
+            );
+            frame.hit_target(PointerTarget::NoticeMemo, rect(88, 144, 464, 168));
         }
         let bounds = frame.button(
             220.0,
@@ -1627,6 +1637,21 @@ mod tests {
             frame.hit_test(100.0, 350.0),
             Some(PointerTarget::Detail(8))
         ));
+    }
+
+    #[test]
+    fn notice_exposes_its_wrapped_message_as_a_drag_target() {
+        let mut controller = AppController::new();
+        controller.show_notice("Long message ".repeat(80));
+        let frame = browser_frame(&controller, &[]);
+        assert_eq!(
+            frame.hit_test(100.0, 200.0),
+            Some(PointerTarget::NoticeMemo)
+        );
+        assert_eq!(
+            frame.hit_test(230.0, 332.0),
+            Some(PointerTarget::NoticeConfirm)
+        );
     }
 
     #[test]
