@@ -1,9 +1,9 @@
 //! Wii video initialization.
 //!
-//! This adapter sets the VI mode and framebuffer through `ogc-video`. The
-//! current `ogc-gx` API does not provide GX initialization or draw-state calls,
-//! so this module does not initialize GX. HBC's GX viewport, copy, projection,
-//! vertex descriptor, and draw setup remain blocked on Rust GX APIs.
+//! This adapter sets the VI mode and framebuffer through `ogc-video`, then
+//! owns the GX FIFO and the HBC 2D rendering state.
+
+use crate::png::GxRgba8Texture;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct FramebufferInfo {
@@ -41,15 +41,23 @@ impl VideoSystem {
     /// Call this after GX initialization and again after any code changes GX
     /// vertex, channel, TEV, or blend state.
     pub fn configure_2d(&self) {
+        unsafe { ogc_gx::configure_solid_2d(&self.projection()) };
+    }
+
+    /// Configure textured RGBA8 drawing with the same framebuffer projection.
+    pub fn configure_textured_2d(&self) {
+        unsafe { ogc_gx::configure_textured_2d(&self.projection()) };
+    }
+
+    fn projection(&self) -> ogc_gx::Mtx44 {
         let width = f32::from(self.info.width);
         let height = f32::from(self.info.height);
-        let projection: ogc_gx::Mtx44 = [
+        [
             [2.0 / width, 0.0, 0.0, -1.0],
             [0.0, -2.0 / height, 0.0, 1.0],
             [0.0, 0.0, -1.0, 0.0],
             [0.0, 0.0, 0.0, 1.0],
-        ];
-        unsafe { ogc_gx::configure_solid_2d(&projection) };
+        ]
     }
 
     /// Draw one filled rectangle in framebuffer pixel coordinates.
@@ -67,6 +75,39 @@ impl VideoSystem {
     ) -> Result<(), VideoError> {
         unsafe { ogc_gx::draw_solid_rect(x, y, width, height, 0.0, color) }
             .map_err(VideoError::GxRect)
+    }
+
+    /// Draw an aligned GX RGBA8 texture in framebuffer pixel coordinates.
+    ///
+    /// # Safety
+    /// Textured 2D GX state must be configured. The texture must remain alive until GX has
+    /// completed its queued reads.
+    pub unsafe fn draw_texture(
+        &self,
+        texture: &GxRgba8Texture,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+    ) -> Result<(), VideoError> {
+        let mut object = ogc_gx::GxTexObj::default();
+        unsafe {
+            ogc_gx::init_tex_obj(
+                &mut object,
+                texture.as_ptr() as *mut core::ffi::c_void,
+                ogc_gx::GxTexObjInit {
+                    wd: texture.width,
+                    ht: texture.height,
+                    fmt: ogc_gx::GX_TF_RGBA8,
+                    wrap_s: 0,
+                    wrap_t: 0,
+                    mipmap: 0,
+                },
+            );
+            ogc_gx::init_tex_obj_filter_mode(&mut object, ogc_gx::GX_NEAR, ogc_gx::GX_NEAR);
+            ogc_gx::draw_textured_rect(&object, x, y, width, height, 0.0)
+        }
+        .map_err(VideoError::GxTexture)
     }
 
     /// Queue an EFB-to-XFB copy and schedule the framebuffer for VI scanout.
@@ -88,6 +129,7 @@ pub enum VideoError {
     InvalidFrameConfig,
     GxFifo(ogc_gx::GxFifoError),
     GxRect(ogc_gx::GxRectError),
+    GxTexture(ogc_gx::GxTextureError),
 }
 
 /// Initialize VI and select a cleared framebuffer.

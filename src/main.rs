@@ -44,12 +44,17 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         }
         let frame = hbc_rs::platform::input::scan();
         let actions = startup.runtime_mut().update(&frame);
+        startup.refresh_visible_icons();
         let scene = hbc_rs::render::browser_frame_with_theme(
             startup.runtime().controller(),
             startup.runtime().catalog(),
             startup.runtime().theme(),
         );
-        if unsafe { hbc_rs::platform::renderer::draw_frame(&video, &scene) }.is_err() {
+        if unsafe {
+            hbc_rs::platform::renderer::draw_frame(&video, &scene, startup.icon_textures())
+        }
+        .is_err()
+        {
             return -3;
         }
         unsafe { video.present() };

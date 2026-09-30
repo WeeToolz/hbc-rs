@@ -2,9 +2,8 @@
 //!
 //! The legacy renderer combined layout, widget state, texture drawing, and
 //! GX state changes in one queue. This module keeps layout as data. The Wii
-//! adapter can submit the resulting solid rectangles through `ogc-gx`.
-//! Text uses a small native bitmap font. Icons, gradients, and theme textures
-//! need GX texture support and are not represented yet.
+//! adapter submits solid rectangles and app icon textures through `ogc-gx`.
+//! Text uses a small native bitmap font. Theme textures and gradients remain.
 
 use alloc::vec::Vec;
 
@@ -95,6 +94,17 @@ pub struct FillRect {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Frame {
     pub fills: Vec<FillRect>,
+    pub commands: Vec<FrameCommand>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum FrameCommand {
+    Fill(usize),
+    Icon {
+        catalog_index: usize,
+        bounds: Rect,
+        fallback: FillRect,
+    },
 }
 
 impl Frame {
@@ -106,8 +116,29 @@ impl Frame {
             && bounds.width > 0.0
             && bounds.height > 0.0
         {
+            let index = self.fills.len();
             self.fills.push(FillRect { bounds, color });
+            self.commands.push(FrameCommand::Fill(index));
         }
+    }
+
+    fn icon(&mut self, catalog_index: usize, bounds: Rect, fallback_color: Color) {
+        if ![bounds.x, bounds.y, bounds.width, bounds.height]
+            .iter()
+            .all(|value| value.is_finite())
+            || bounds.width <= 0.0
+            || bounds.height <= 0.0
+        {
+            return;
+        }
+        self.commands.push(FrameCommand::Icon {
+            catalog_index,
+            bounds,
+            fallback: FillRect {
+                bounds,
+                color: fallback_color,
+            },
+        });
     }
 
     fn text(&mut self, x: f32, y: f32, value: &str, scale: f32, color: Color, max_chars: usize) {
@@ -270,22 +301,31 @@ pub fn browser_frame_with_theme(
                     ROW_ALT
                 };
                 frame.fill(rect(x, y, cell_w, cell_h), fill);
-                // The marker stands in for the app icon until texture drawing
-                // is available.
-                frame.fill(rect(x + 10.0, y + 10.0, 38.0, 38.0), MUTED);
+                let icon_bounds = rect(x + 8.0, y + 8.0, 128.0, 48.0);
+                if app.has_icon {
+                    if let Some(catalog_index) = catalog
+                        .iter()
+                        .position(|entry| entry.directory == app.directory)
+                    {
+                        frame.icon(catalog_index, icon_bounds, MUTED);
+                    } else {
+                        frame.fill(icon_bounds, MUTED);
+                    }
+                } else {
+                    frame.fill(icon_bounds, MUTED);
+                }
                 let name = app
                     .metadata
                     .as_ref()
                     .and_then(|meta| meta.name.as_deref())
                     .unwrap_or(app.directory.as_str());
-                frame.text(
-                    x + 58.0,
-                    y + 12.0,
-                    name,
-                    1.0,
-                    text_color,
-                    ((cell_w - 70.0).max(6.0) / 6.0) as usize,
-                );
+                let (text_x, name_y, description_y, text_width) = if columns == 1 {
+                    (x + 156.0, y + 8.0, y + 25.0, cell_w - 168.0)
+                } else {
+                    (x + 8.0, y + 64.0, y + 77.0, cell_w - 16.0)
+                };
+                let max_chars = (text_width.max(6.0) / 6.0) as usize;
+                frame.text(text_x, name_y, name, 1.0, text_color, max_chars);
                 if app
                     .metadata
                     .as_ref()
@@ -297,14 +337,7 @@ pub fn browser_frame_with_theme(
                         .as_ref()
                         .and_then(|meta| meta.short_description.as_deref())
                         .unwrap_or_default();
-                    frame.text(
-                        x + 58.0,
-                        y + 25.0,
-                        description,
-                        1.0,
-                        MUTED,
-                        ((cell_w - 70.0).max(6.0) / 6.0) as usize,
-                    );
+                    frame.text(text_x, description_y, description, 1.0, MUTED, max_chars);
                 }
             }
         }
@@ -574,6 +607,51 @@ mod tests {
             .fills
             .iter()
             .any(|fill| fill.color == ACCENT && fill.bounds.y > 90.0));
+    }
+
+    #[test]
+    fn browser_frame_places_icon_data_before_app_text_with_placeholder_bounds() {
+        let mut entry = app("icon-app");
+        entry.has_icon = true;
+        let catalog = vec![entry];
+        let frame = browser_frame(&AppController::new(), &catalog);
+        let icon_command = frame
+            .commands
+            .iter()
+            .position(|command| {
+                matches!(
+                    command,
+                    FrameCommand::Icon {
+                        catalog_index: 0,
+                        ..
+                    }
+                )
+            })
+            .unwrap();
+        let fallback_bounds = frame
+            .commands
+            .iter()
+            .find_map(|command| {
+                if let FrameCommand::Icon { fallback, .. } = command {
+                    Some(fallback.bounds)
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+        let app_text_command = frame
+            .commands
+            .iter()
+            .position(|command| {
+                matches!(command, FrameCommand::Fill(index)
+                    if frame.fills[*index].bounds.x >= 102.0
+                        && frame.fills[*index].bounds.y >= 110.0)
+            })
+            .unwrap();
+
+        assert_eq!(fallback_bounds.width, 128.0);
+        assert_eq!(fallback_bounds.height, 48.0);
+        assert!(icon_command < app_text_command);
     }
 
     #[test]

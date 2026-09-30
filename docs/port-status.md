@@ -30,8 +30,11 @@ deferred.
   app labels, descriptions, menus, About content, and confirmation dialogs.
   Startup reports missing SD or USB storage; launch, delete, settings-save,
   and storage-stop failures use a dismissible notice. App icons remain
-  placeholders. Theme textures, gradients, localized strings, and HBC widget
-  behavior are not ported.
+  placeholders when they are missing, invalid, oversized, or cannot fit in the
+  available memory.
+  HBC-sized 128x48 app icons load through the native PNG decoder and draw as GX
+  RGBA8 textures. Theme textures, gradients, localized strings, and complete
+  HBC widget behavior are not ported.
 - A pure Rust theme ZIP parser now enforces the HBC archive size, entry count,
   root filename allowlist, duplicate-name policy, and bounded extraction plan.
   It parses `theme.xml` with the existing metadata parser. The Details action
@@ -59,6 +62,10 @@ deferred.
   safe folder remover. A canceled delete returns to app details.
 - The GX FIFO path has no interrupt-based flow control, overflow recovery, or
   draw-completion wait. Its register setup and display output are unverified on
+  hardware. A native GX RGBA8 texture path now configures textured 2D state,
+  loads texture-map registers, invalidates texture cache, and draws textured
+  quads. Icon allocations remain alive for the current catalog and are released
+  after catalog refresh or app deletion. This output is also unverified on
   hardware.
 - ELF/DOL launch now reads the selected file, validates and applies its load
   plan, patches the HBC crt0 byte when present, and writes argv data into the
@@ -79,6 +86,17 @@ nightly `cargo check` using `libogc-rs/targets/powerpc-unknown-wii.json` and
 `-Z build-std=core,alloc -Z json-target-spec`, with warnings denied. Unit tests
 inside target-only `libogc-rs` crates cannot run because the custom bare-metal
 target has no `test` crate.
+
+## Bugs found in the original HBC source
+
+- `channel/channelapp/source/tex.c` reads PNG callback data without checking
+  the remaining input length. A truncated PNG can make the callback read past
+  its buffer. The Rust decoder bounds every chunk and verifies its CRC.
+- The reported NAND startup hang with a HID controller and no USB drive is
+  consistent with USB storage discovery trying to open a HID device as mass
+  storage. The local `libogc-rs` copy filters storage candidates by interface
+  class and bounds the v5 watcher startup wait. Real hardware testing is still
+  required to confirm the cause and fix.
 
 ## Out of scope for the first runtime target
 

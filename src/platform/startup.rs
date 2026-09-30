@@ -28,6 +28,13 @@ pub struct WiiStartup {
     runtime: AppRuntime,
     volume: Option<Volume>,
     storage: Option<FatStorage>,
+    icon_textures: Vec<IconTexture>,
+    attempted_icon_indices: Vec<usize>,
+}
+
+pub struct IconTexture {
+    pub catalog_index: usize,
+    pub texture: crate::png::GxRgba8Texture,
 }
 
 impl WiiStartup {
@@ -48,6 +55,8 @@ impl WiiStartup {
             runtime,
             volume,
             storage,
+            icon_textures: Vec::new(),
+            attempted_icon_indices: Vec::new(),
         };
         if scan_failed {
             startup
@@ -77,6 +86,64 @@ impl WiiStartup {
         self.storage.is_some()
     }
 
+    pub fn icon_textures(&self) -> &[IconTexture] {
+        &self.icon_textures
+    }
+
+    /// Decode visible HBC-sized icons once and retain their aligned GX data.
+    /// Bad, missing, and oversized optional icons stay on the placeholder path.
+    pub fn refresh_visible_icons(&mut self) {
+        let visible: Vec<(usize, alloc::string::String)> = {
+            let catalog = self.runtime.catalog();
+            self.runtime
+                .controller()
+                .visible_page(catalog)
+                .into_iter()
+                .filter(|entry| entry.has_icon)
+                .filter_map(|entry| {
+                    catalog
+                        .iter()
+                        .position(|candidate| candidate.directory == entry.directory)
+                        .map(|index| (index, entry.directory.clone()))
+                })
+                .collect()
+        };
+
+        let Some(storage) = self.storage.as_mut() else {
+            return;
+        };
+        for (catalog_index, directory) in visible {
+            if self.attempted_icon_indices.contains(&catalog_index) {
+                continue;
+            }
+            if self.attempted_icon_indices.try_reserve(1).is_err() {
+                continue;
+            }
+            self.attempted_icon_indices.push(catalog_index);
+
+            let path = alloc::format!("apps/{directory}/icon.png");
+            let Ok(Some(bytes)) = storage.read_file(&path, crate::png::HBC_APP_ICON_MAX_PNG_BYTES)
+            else {
+                continue;
+            };
+            let Ok(texture) = crate::png::decode_hbc_app_icon(&bytes) else {
+                continue;
+            };
+            if self.icon_textures.try_reserve(1).is_err() {
+                continue;
+            }
+            if let Ok(byte_len) = u32::try_from(texture.len()) {
+                unsafe { ogc_cache::dc_flush_range(texture.as_ptr().cast(), byte_len) };
+            } else {
+                continue;
+            }
+            self.icon_textures.push(IconTexture {
+                catalog_index,
+                texture,
+            });
+        }
+    }
+
     /// Retry device selection and catalog scanning after media removal or
     /// insertion. Call this every 30 frames, as HBC does.
     pub fn refresh_storage(&mut self) -> Result<bool, StartupError> {
@@ -98,6 +165,8 @@ impl WiiStartup {
         self.volume = volume;
         self.storage = storage;
         self.runtime.replace_catalog(catalog);
+        self.icon_textures.clear();
+        self.attempted_icon_indices.clear();
 
         if scan_failed {
             self.runtime
@@ -129,6 +198,8 @@ impl WiiStartup {
             .cloned()
             .collect();
         self.runtime.replace_catalog(catalog);
+        self.icon_textures.clear();
+        self.attempted_icon_indices.clear();
         Ok(())
     }
 

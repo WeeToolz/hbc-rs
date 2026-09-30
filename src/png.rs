@@ -3,6 +3,11 @@
 use alloc::vec::Vec;
 use miniz_oxide::inflate::decompress_to_vec_zlib_with_limit;
 
+const GX_TEXTURE_BLOCK_SIZE: usize = 32;
+pub const HBC_APP_ICON_WIDTH: u32 = 128;
+pub const HBC_APP_ICON_HEIGHT: u32 = 48;
+pub const HBC_APP_ICON_MAX_PNG_BYTES: usize = 1024 * 1024;
+
 const PNG_SIGNATURE: &[u8; 8] = b"\x89PNG\r\n\x1a\n";
 const IHDR: [u8; 4] = *b"IHDR";
 const PLTE: [u8; 4] = *b"PLTE";
@@ -35,6 +40,84 @@ pub struct RgbaImage {
     pub height: u32,
     /// Linear RGBA8 rows, from top to bottom.
     pub pixels: Vec<u8>,
+}
+
+#[repr(C, align(32))]
+#[derive(Clone, Copy)]
+struct GxTextureBlock([u8; GX_TEXTURE_BLOCK_SIZE]);
+
+/// Owned, 32-byte-aligned GX RGBA8 tile data.
+///
+/// The allocation stays aligned when this value moves. Keep it alive while GX
+/// commands can still read the texture.
+pub struct GxRgba8Texture {
+    pub width: u16,
+    pub height: u16,
+    blocks: Vec<GxTextureBlock>,
+}
+
+impl GxRgba8Texture {
+    pub fn from_image(image: &RgbaImage) -> Result<Self, PngError> {
+        let width = u16::try_from(image.width).map_err(|_| PngError::InvalidTextureDimensions)?;
+        let height = u16::try_from(image.height).map_err(|_| PngError::InvalidTextureDimensions)?;
+        let tiled = to_gx_rgba8(image)?;
+        if tiled.len() % GX_TEXTURE_BLOCK_SIZE != 0 {
+            return Err(PngError::InvalidTextureDimensions);
+        }
+        let mut blocks = Vec::new();
+        blocks
+            .try_reserve_exact(tiled.len() / GX_TEXTURE_BLOCK_SIZE)
+            .map_err(|_| PngError::AllocationFailed)?;
+        for bytes in tiled.chunks_exact(GX_TEXTURE_BLOCK_SIZE) {
+            let mut block = [0; GX_TEXTURE_BLOCK_SIZE];
+            block.copy_from_slice(bytes);
+            blocks.push(GxTextureBlock(block));
+        }
+        Ok(Self {
+            width,
+            height,
+            blocks,
+        })
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        // Each element is exactly 32 bytes with 32-byte alignment and no padding.
+        unsafe {
+            core::slice::from_raw_parts(
+                self.blocks.as_ptr().cast::<u8>(),
+                self.blocks.len() * GX_TEXTURE_BLOCK_SIZE,
+            )
+        }
+    }
+
+    pub fn as_ptr(&self) -> *const u8 {
+        self.blocks.as_ptr().cast::<u8>()
+    }
+
+    pub fn len(&self) -> usize {
+        self.blocks.len() * GX_TEXTURE_BLOCK_SIZE
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.blocks.is_empty()
+    }
+}
+
+/// Decode an app icon with the exact dimensions used by the HBC channel.
+pub fn decode_hbc_app_icon(data: &[u8]) -> Result<GxRgba8Texture, PngError> {
+    let image = decode_png(
+        data,
+        PngLimits {
+            max_width: HBC_APP_ICON_WIDTH,
+            max_height: HBC_APP_ICON_HEIGHT,
+            max_pixels: (HBC_APP_ICON_WIDTH * HBC_APP_ICON_HEIGHT) as usize,
+            max_input_bytes: HBC_APP_ICON_MAX_PNG_BYTES,
+        },
+    )?;
+    if image.width != HBC_APP_ICON_WIDTH || image.height != HBC_APP_ICON_HEIGHT {
+        return Err(PngError::InvalidDimensions);
+    }
+    GxRgba8Texture::from_image(&image)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -784,6 +867,27 @@ mod tests {
         assert_eq!(&tiled[..8], &[120, 0, 121, 1, 122, 2, 123, 3]);
         assert_eq!(&tiled[32..40], &[40, 80, 41, 81, 42, 82, 43, 83]);
         assert_eq!(tiled.len(), 64);
+
+        let texture = GxRgba8Texture::from_image(&image).unwrap();
+        assert_eq!(texture.width, 4);
+        assert_eq!(texture.height, 4);
+        assert_eq!(texture.as_ptr() as usize & 31, 0);
+        assert_eq!(texture.as_bytes(), tiled);
+    }
+
+    #[test]
+    fn decodes_only_the_fixed_hbc_app_icon_dimensions() {
+        let raw = vec![0; (1 + HBC_APP_ICON_WIDTH as usize * 4) * HBC_APP_ICON_HEIGHT as usize];
+        let texture =
+            decode_hbc_app_icon(&png(HBC_APP_ICON_WIDTH, HBC_APP_ICON_HEIGHT, 8, 6, 0, &raw))
+                .unwrap();
+        assert_eq!(texture.width, 128);
+        assert_eq!(texture.height, 48);
+        assert_eq!(texture.len(), 128 * 48 * 4);
+        assert!(matches!(
+            decode_hbc_app_icon(&png(4, 4, 8, 6, 0, &[0; 68])),
+            Err(PngError::InvalidDimensions)
+        ));
     }
 
     #[test]

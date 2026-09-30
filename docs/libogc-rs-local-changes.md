@@ -71,3 +71,13 @@ are encoded as `dimension - 1`; without this guard, zero underflows and creates
 an invalid packed size. A focused regression test checks zero width and zero
 height and confirms the initialized object remains unchanged. This test cannot
 run on the host because the crate and its dependencies require the Wii target.
+
+The HBC icon renderer also needs native Rust RGBA8 texture support in
+`ogc-gx`. `configure_textured_2d` sets direct position, color, and texture
+coordinates, one texture generator, a texture-modulate TEV stage, and alpha
+blending. `load_tex_obj` emits the Wii RGBA8 texture-map registers for the
+default texture-cache regions and invalidates the texture cache. The quad path
+emits position, white color, and UV coordinates through the GX FIFO. HBC owns
+32-byte-aligned tiled bytes and flushes them before GX reads them. Target checks
+and register-packer tests cover the code, but test binaries cannot run on the
+host and the GX output needs real hardware verification.
