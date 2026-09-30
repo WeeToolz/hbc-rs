@@ -31,6 +31,18 @@ existing open-handle accounting. HBC catalog scanning uses these wrappers.
 ## GX state and command emission
 
 The HBC renderer needs Rust APIs for GX FIFO command emission and state setup.
-The current local implementation provides GX opcode constants, a `begin`
-operation, viewport and scissor setup, and projection matrix loading. Continue
-the GX port in Rust and keep direct command emission inside `ogc-gx`.
+The local implementation now provides GX opcode constants, primitive and
+vertex FIFO writes, viewport and scissor setup, projection matrix loading, and
+display copy setup/presentation (`FrameConfig`, `configure_frame`,
+`initialize_display`, `present_frame`, and `finish_frame`). These APIs emit
+commands to GX registers in Rust. The target crate passes `cargo check` with
+warnings denied. Hardware output still needs validation.
+
+The GX work is incomplete. The display API requires a live GP FIFO and enabled
+CPU write-gather pipe. `ogc-gx` does not yet provide the equivalent of
+`GX_Init`/`GX_InitFifoBase`/`GX_SetGPFifo`, reset and abort handling, CP and PE
+interrupts, or a blocking draw-completion wait. It also does not configure
+vertex descriptors and formats, texture coordinate generators, TEV and blend
+state, texture and palette upload, or texture-cache invalidation in the form
+needed by the HBC sprite renderer. Implement and test these in Rust before HBC
+uses the display functions on hardware.
