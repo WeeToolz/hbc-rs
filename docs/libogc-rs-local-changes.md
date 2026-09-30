@@ -28,9 +28,9 @@ In `crates/services/ogc-fat`, the HBC port uses Rust-owned `FatFile` and
 `FatDirectory` wrappers. They must close their handles on drop and update the
 existing open-handle accounting. HBC catalog scanning uses these wrappers.
 
-## GX command emission
+## GX state and command emission
 
-The HBC renderer needs a safe boundary around GX FIFO command emission. The
-current local implementation provides GX opcode constants and a `begin`
-operation. Continue the GX port in Rust and keep direct command emission inside
-`ogc-gx`.
+The HBC renderer needs Rust APIs for GX FIFO command emission and state setup.
+The current local implementation provides GX opcode constants, a `begin`
+operation, viewport and scissor setup, and projection matrix loading. Continue
+the GX port in Rust and keep direct command emission inside `ogc-gx`.
