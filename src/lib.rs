@@ -17,6 +17,7 @@ pub mod png;
 pub mod render;
 pub mod runtime;
 pub mod settings;
+pub mod text_layout;
 pub mod theme;
 
 pub mod platform;

@@ -65,6 +65,8 @@ pub enum Action {
 const MENU_ITEMS_WITHOUT_BOOTMII: usize = 4;
 const MENU_ITEMS_WITH_BOOTMII: usize = 5;
 const DEFAULT_BROWSER_ROWS: usize = 5;
+pub const DETAIL_DESCRIPTION_LINE_WIDTH: usize = 76;
+pub const DETAIL_DESCRIPTION_VISIBLE_LINES: usize = 20;
 
 /// Number of app columns and rows shown by the browser.
 ///
@@ -120,6 +122,8 @@ pub struct AppController {
     menu_focus: usize,
     detail_focus: usize,
     detail_description_scroll: usize,
+    detail_description_max_scroll: usize,
+    detail_scroll_app: Option<String>,
     detail_scroll_pixel_remainder: i16,
     delete_confirmation_yes: bool,
     notice: Option<String>,
@@ -170,11 +174,13 @@ impl AppController {
         if lines > 0 {
             self.detail_description_scroll = self
                 .detail_description_scroll
-                .saturating_sub(lines as usize);
+                .saturating_sub(lines as usize)
+                .min(self.detail_description_max_scroll);
         } else if lines < 0 {
             self.detail_description_scroll = self
                 .detail_description_scroll
-                .saturating_add(lines.unsigned_abs() as usize);
+                .saturating_add(lines.unsigned_abs() as usize)
+                .min(self.detail_description_max_scroll);
         }
     }
 
@@ -242,6 +248,7 @@ impl AppController {
     /// Keep the selected app identity valid after a catalog refresh.
     pub fn reconcile_catalog(&mut self, catalog: &[AppEntry]) {
         self.reconcile_selection(catalog);
+        self.refresh_detail_scroll_limit(catalog);
     }
 
     pub fn browser_layout(&self) -> BrowserLayout {
@@ -302,6 +309,7 @@ impl AppController {
     /// current visible catalog. Selection does not wrap at either end.
     pub fn handle(&mut self, input: Input, catalog: &[AppEntry]) -> Action {
         self.reconcile_selection(catalog);
+        self.refresh_detail_scroll_limit(catalog);
 
         match self.screen {
             Screen::Browser => self.handle_browser(input, catalog),
@@ -325,8 +333,10 @@ impl AppController {
                     Action::None
                 }
                 Input::Down => {
-                    self.detail_description_scroll =
-                        self.detail_description_scroll.saturating_add(1);
+                    self.detail_description_scroll = self
+                        .detail_description_scroll
+                        .saturating_add(1)
+                        .min(self.detail_description_max_scroll);
                     Action::None
                 }
                 Input::Confirm if self.selected_app.is_some() => match self.detail_focus {
@@ -504,7 +514,10 @@ impl AppController {
                 self.screen = Screen::AppDetails;
                 self.detail_focus = 10;
                 self.detail_description_scroll = 0;
+                self.detail_description_max_scroll = 0;
+                self.detail_scroll_app = None;
                 self.detail_scroll_pixel_remainder = 0;
+                self.refresh_detail_scroll_limit(catalog);
                 Action::None
             }
             Input::ToggleBrowseMode => {
@@ -691,6 +704,29 @@ impl AppController {
         };
     }
 
+    fn refresh_detail_scroll_limit(&mut self, catalog: &[AppEntry]) {
+        if self.screen != Screen::AppDetails
+            || self.detail_scroll_app.as_deref() == self.selected_app.as_deref()
+        {
+            return;
+        }
+        let description = self
+            .selected_app
+            .as_deref()
+            .and_then(|selected| catalog.iter().find(|app| app.directory == selected))
+            .and_then(|app| app.metadata.as_ref())
+            .and_then(|metadata| metadata.long_description.as_deref())
+            .unwrap_or("No description available.");
+        self.detail_description_max_scroll =
+            crate::text_layout::wrap_lines(description, DETAIL_DESCRIPTION_LINE_WIDTH)
+                .len()
+                .saturating_sub(DETAIL_DESCRIPTION_VISIBLE_LINES);
+        self.detail_description_scroll = self
+            .detail_description_scroll
+            .min(self.detail_description_max_scroll);
+        self.detail_scroll_app = self.selected_app.clone();
+    }
+
     fn reconcile_selection(&mut self, catalog: &[AppEntry]) {
         let visible = self.visible_apps(catalog);
         if visible.is_empty() {
@@ -764,7 +800,9 @@ mod tests {
     #[test]
     fn detail_up_and_down_scroll_the_description_without_moving_focus() {
         let mut controller = AppController::new();
-        let catalog = vec![app("a", "A", false)];
+        let mut entry = app("a", "A", false);
+        entry.metadata.as_mut().unwrap().long_description = Some("A ".repeat(1_000));
+        let catalog = vec![entry];
         controller.handle(Input::Confirm, &catalog);
         assert_eq!(controller.detail_description_scroll(), 0);
 
@@ -778,12 +816,23 @@ mod tests {
         controller.handle(Input::Up, &catalog);
         assert_eq!(controller.detail_description_scroll(), 0);
         assert_eq!(controller.detail_focus(), 10);
+
+        for _ in 0..100 {
+            controller.handle(Input::Down, &catalog);
+        }
+        assert!(controller.detail_description_scroll() > 0);
+        let max_scroll = controller.detail_description_max_scroll;
+        assert_eq!(controller.detail_description_scroll(), max_scroll);
+        controller.handle(Input::Up, &catalog);
+        assert_eq!(controller.detail_description_scroll(), max_scroll - 1);
     }
 
     #[test]
     fn detail_stick_scroll_accumulates_pixels_into_lines() {
         let mut controller = AppController::new();
-        let catalog = vec![app("a", "A", false)];
+        let mut entry = app("a", "A", false);
+        entry.metadata.as_mut().unwrap().long_description = Some("A ".repeat(1_000));
+        let catalog = vec![entry];
         controller.handle(Input::Confirm, &catalog);
         controller.handle(Input::Down, &catalog);
         controller.scroll_detail_by_stick(8);

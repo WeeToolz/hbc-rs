@@ -9,9 +9,13 @@
 use alloc::{string::String, vec::Vec};
 
 use crate::{
-    app::{AppController, PointerTarget, Screen},
+    app::{
+        AppController, PointerTarget, Screen, DETAIL_DESCRIPTION_LINE_WIDTH,
+        DETAIL_DESCRIPTION_VISIBLE_LINES,
+    },
     catalog::AppEntry,
     metadata::{Rgba, ThemeMetadata},
+    text_layout::wrap_lines,
 };
 
 pub const LOGICAL_WIDTH: u16 = 640;
@@ -421,7 +425,7 @@ impl Frame {
         if max_chars == 0 || max_lines == 0 || !scale.is_finite() || scale <= 0.0 {
             return;
         }
-        let lines = wrap_text_lines(value, max_chars);
+        let lines = wrap_lines(value, max_chars);
         let visible_lines = wrapped_line_window(&lines, max_lines, scroll_lines);
         for (line_index, line) in visible_lines.iter().enumerate() {
             self.text(
@@ -439,38 +443,6 @@ impl Frame {
 fn wrapped_line_window(lines: &[String], visible_lines: usize, scroll_lines: usize) -> &[String] {
     let start = scroll_lines.min(lines.len().saturating_sub(visible_lines));
     &lines[start..lines.len().min(start.saturating_add(visible_lines))]
-}
-
-fn wrap_text_lines(value: &str, max_chars: usize) -> Vec<String> {
-    if max_chars == 0 {
-        return Vec::new();
-    }
-    let mut lines = Vec::new();
-    let mut line = String::new();
-    for word in value.split_whitespace() {
-        let mut chars = word.chars();
-        while chars.clone().count() > max_chars {
-            if !line.is_empty() {
-                lines.push(core::mem::take(&mut line));
-            }
-            lines.push(chars.by_ref().take(max_chars).collect());
-        }
-        let remainder: String = chars.collect();
-        if remainder.is_empty() {
-            continue;
-        }
-        if !line.is_empty() && line.chars().count() + 1 + remainder.chars().count() > max_chars {
-            lines.push(core::mem::take(&mut line));
-        }
-        if !line.is_empty() {
-            line.push(' ');
-        }
-        line.push_str(&remainder);
-    }
-    if !line.is_empty() {
-        lines.push(line);
-    }
-    lines
 }
 
 fn glyph_rows(character: char) -> [u8; 7] {
@@ -881,8 +853,8 @@ pub fn browser_frame_with_viewport(
                     description,
                     1.0,
                     text_color,
-                    76,
-                    20,
+                    DETAIL_DESCRIPTION_LINE_WIDTH,
+                    DETAIL_DESCRIPTION_VISIBLE_LINES,
                     controller.detail_description_scroll(),
                 );
             }
@@ -1278,7 +1250,7 @@ mod tests {
 
     #[test]
     fn wrapped_text_can_select_a_clamped_scrolled_window() {
-        let lines = wrap_text_lines("ONE TWO THREE FOUR", 7);
+        let lines = wrap_lines("ONE TWO THREE FOUR", 7);
         assert_eq!(lines, vec!["ONE TWO", "THREE", "FOUR"]);
         assert_eq!(wrapped_line_window(&lines, 2, 99), &["THREE", "FOUR"]);
 
