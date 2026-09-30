@@ -3,8 +3,8 @@
 //! The legacy renderer combined layout, widget state, texture drawing, and
 //! GX state changes in one queue. This module keeps layout as data. The Wii
 //! adapter can submit the resulting solid rectangles through `ogc-gx`.
-//! Text, icons, gradients, and theme textures need GX texture support and are
-//! not represented yet.
+//! Text uses a small native bitmap font. Icons, gradients, and theme textures
+//! need GX texture support and are not represented yet.
 
 use alloc::vec::Vec;
 
@@ -108,6 +108,95 @@ impl Frame {
             self.fills.push(FillRect { bounds, color });
         }
     }
+
+    fn text(&mut self, x: f32, y: f32, value: &str, scale: f32, color: Color, max_chars: usize) {
+        if !scale.is_finite() || scale <= 0.0 {
+            return;
+        }
+        let mut cursor_x = x;
+        for character in value.chars().take(max_chars) {
+            let rows = glyph_rows(character);
+            for (row_index, row_bits) in rows.into_iter().enumerate() {
+                let mut column = 0;
+                while column < 5 {
+                    if row_bits & (1 << (4 - column)) == 0 {
+                        column += 1;
+                        continue;
+                    }
+                    let start = column;
+                    while column < 5 && row_bits & (1 << (4 - column)) != 0 {
+                        column += 1;
+                    }
+                    self.fill(
+                        rect(
+                            cursor_x + start as f32 * scale,
+                            y + row_index as f32 * scale,
+                            (column - start) as f32 * scale,
+                            scale,
+                        ),
+                        color,
+                    );
+                }
+            }
+            cursor_x += 6.0 * scale;
+        }
+    }
+}
+
+fn glyph_rows(character: char) -> [u8; 7] {
+    match character.to_ascii_uppercase() {
+        'A' => [14, 17, 17, 31, 17, 17, 17],
+        'B' => [30, 17, 17, 30, 17, 17, 30],
+        'C' => [14, 17, 16, 16, 16, 17, 14],
+        'D' => [30, 17, 17, 17, 17, 17, 30],
+        'E' => [31, 16, 16, 30, 16, 16, 31],
+        'F' => [31, 16, 16, 30, 16, 16, 16],
+        'G' => [14, 17, 16, 23, 17, 17, 15],
+        'H' => [17, 17, 17, 31, 17, 17, 17],
+        'I' => [14, 4, 4, 4, 4, 4, 14],
+        'J' => [7, 2, 2, 2, 18, 18, 12],
+        'K' => [17, 18, 20, 24, 20, 18, 17],
+        'L' => [16, 16, 16, 16, 16, 16, 31],
+        'M' => [17, 27, 21, 21, 17, 17, 17],
+        'N' => [17, 25, 21, 19, 17, 17, 17],
+        'O' => [14, 17, 17, 17, 17, 17, 14],
+        'P' => [30, 17, 17, 30, 16, 16, 16],
+        'Q' => [14, 17, 17, 17, 21, 18, 13],
+        'R' => [30, 17, 17, 30, 20, 18, 17],
+        'S' => [15, 16, 16, 14, 1, 1, 30],
+        'T' => [31, 4, 4, 4, 4, 4, 4],
+        'U' => [17, 17, 17, 17, 17, 17, 14],
+        'V' => [17, 17, 17, 17, 17, 10, 4],
+        'W' => [17, 17, 17, 21, 21, 21, 10],
+        'X' => [17, 17, 10, 4, 10, 17, 17],
+        'Y' => [17, 17, 10, 4, 4, 4, 4],
+        'Z' => [31, 1, 2, 4, 8, 16, 31],
+        '0' => [14, 17, 19, 21, 25, 17, 14],
+        '1' => [4, 12, 4, 4, 4, 4, 14],
+        '2' => [14, 17, 1, 2, 4, 8, 31],
+        '3' => [30, 1, 1, 14, 1, 1, 30],
+        '4' => [2, 6, 10, 18, 31, 2, 2],
+        '5' => [31, 16, 16, 30, 1, 1, 30],
+        '6' => [14, 16, 16, 30, 17, 17, 14],
+        '7' => [31, 1, 2, 4, 8, 8, 8],
+        '8' => [14, 17, 17, 14, 17, 17, 14],
+        '9' => [14, 17, 17, 15, 1, 1, 14],
+        ' ' => [0; 7],
+        '.' => [0, 0, 0, 0, 0, 12, 12],
+        ',' => [0, 0, 0, 0, 4, 4, 8],
+        ':' => [0, 12, 12, 0, 12, 12, 0],
+        ';' => [0, 12, 12, 0, 4, 4, 8],
+        '-' => [0, 0, 0, 31, 0, 0, 0],
+        '_' => [0, 0, 0, 0, 0, 0, 31],
+        '/' => [1, 1, 2, 4, 8, 16, 16],
+        '(' => [2, 4, 8, 8, 8, 4, 2],
+        ')' => [8, 4, 2, 2, 2, 4, 8],
+        '!' => [4, 4, 4, 4, 4, 0, 4],
+        '?' => [14, 17, 1, 2, 4, 0, 4],
+        '\'' => [4, 4, 8, 0, 0, 0, 0],
+        '+' => [0, 4, 4, 31, 4, 4, 0],
+        _ => [14, 17, 1, 2, 4, 0, 4],
+    }
 }
 
 const BACKGROUND: Color = Color::rgb(15, 24, 35);
@@ -167,36 +256,54 @@ pub fn browser_frame(controller: &AppController, catalog: &[AppEntry]) -> Frame 
                     ROW_ALT
                 };
                 frame.fill(rect(x, y, cell_w, cell_h), fill);
-                // Icon marker. The following bars reserve the name and detail
-                // lines in the same card geometry until font/texture drawing lands.
+                // The marker stands in for the app icon until texture drawing
+                // is available.
                 frame.fill(rect(x + 10.0, y + 10.0, 38.0, 38.0), MUTED);
-                let name_len = app
+                let name = app
                     .metadata
                     .as_ref()
                     .and_then(|meta| meta.name.as_deref())
-                    .unwrap_or(app.directory.as_str())
-                    .chars()
-                    .count();
-                let name_width = (name_len as f32 * 6.0).clamp(20.0, (cell_w - 72.0).max(20.0));
-                frame.fill(
-                    rect(x + 58.0, y + 16.0, name_width, 6.0),
+                    .unwrap_or(app.directory.as_str());
+                frame.text(
+                    x + 58.0,
+                    y + 12.0,
+                    name,
+                    1.0,
                     Color::rgb(213, 224, 233),
+                    ((cell_w - 70.0).max(6.0) / 6.0) as usize,
                 );
                 if app
                     .metadata
                     .as_ref()
                     .and_then(|meta| meta.short_description.as_deref())
-                    .is_some()
+                    .is_some_and(|description| !description.is_empty())
                 {
-                    frame.fill(
-                        rect(x + 58.0, y + 30.0, (cell_w - 70.0).max(1.0).min(180.0), 4.0),
+                    let description = app
+                        .metadata
+                        .as_ref()
+                        .and_then(|meta| meta.short_description.as_deref())
+                        .unwrap_or_default();
+                    frame.text(
+                        x + 58.0,
+                        y + 25.0,
+                        description,
+                        1.0,
                         MUTED,
+                        ((cell_w - 70.0).max(6.0) / 6.0) as usize,
                     );
                 }
             }
         }
         Screen::MainMenu => {
             frame.fill(rect(162, 122, 316, 248), ROW);
+            frame.text(
+                190.0,
+                130.0,
+                "Homebrew Channel",
+                1.0,
+                Color::rgb(213, 224, 233),
+                32,
+            );
             for index in 0..5 {
                 let y = 145.0 + index as f32 * 40.0;
                 let color = if index == controller.menu_focus() {
@@ -205,20 +312,52 @@ pub fn browser_frame(controller: &AppController, catalog: &[AppEntry]) -> Frame 
                     ROW_ALT
                 };
                 frame.fill(rect(184, y, 272, 30), color);
-                frame.fill(rect(198, y + 12.0, 92, 5), Color::rgb(213, 224, 233));
+                let label = [
+                    "Back",
+                    "About",
+                    "Launch BootMii",
+                    "Exit to System Menu",
+                    "Shutdown",
+                ][index];
+                frame.text(198.0, y + 11.0, label, 1.0, Color::rgb(213, 224, 233), 36);
             }
         }
         Screen::About => {
             frame.fill(rect(108, 92, 424, 324), ROW);
             frame.fill(rect(136, 120, 180, 40), ACCENT);
-            for index in 0..6 {
-                let width = if index == 0 {
-                    328.0
-                } else {
-                    260.0 - (index % 3) as f32 * 32.0
-                };
-                frame.fill(rect(144, 190.0 + index as f32 * 28.0, width, 5), MUTED);
-            }
+            frame.text(142.0, 136.0, "HBC-RS", 2.0, Color::rgb(213, 224, 233), 12);
+            frame.text(
+                144.0,
+                190.0,
+                "Homebrew Channel",
+                1.0,
+                Color::rgb(213, 224, 233),
+                36,
+            );
+            frame.text(
+                144.0,
+                218.0,
+                "Launch applications from removable storage.",
+                1.0,
+                MUTED,
+                56,
+            );
+            frame.text(
+                144.0,
+                246.0,
+                "Native Rust port under development.",
+                1.0,
+                MUTED,
+                56,
+            );
+            frame.text(
+                144.0,
+                386.0,
+                "Press B to return",
+                1.0,
+                Color::rgb(213, 224, 233),
+                32,
+            );
         }
     }
 
@@ -249,6 +388,32 @@ pub fn browser_frame(controller: &AppController, catalog: &[AppEntry]) -> Frame 
         if controller.screen == Screen::AppDetails {
             frame.fill(rect(120, 96, 400, 288), PANEL);
             frame.fill(rect(152, 132, 336, 22), HEADER);
+            if let Some(app) = controller
+                .selected_app
+                .as_deref()
+                .and_then(|selected| catalog.iter().find(|entry| entry.directory == selected))
+            {
+                let name = app
+                    .metadata
+                    .as_ref()
+                    .and_then(|meta| meta.name.as_deref())
+                    .unwrap_or(app.directory.as_str());
+                frame.text(160.0, 140.0, name, 1.0, Color::rgb(213, 224, 233), 52);
+                if let Some(description) = app
+                    .metadata
+                    .as_ref()
+                    .and_then(|meta| meta.long_description.as_deref())
+                {
+                    frame.text(
+                        152.0,
+                        176.0,
+                        description,
+                        1.0,
+                        Color::rgb(213, 224, 233),
+                        54,
+                    );
+                }
+            }
             for (index, action) in [8usize, 9, 10].iter().enumerate() {
                 frame.fill(
                     rect(152.0 + index as f32 * 108.0, 326, 96, 34),
@@ -258,11 +423,26 @@ pub fn browser_frame(controller: &AppController, catalog: &[AppEntry]) -> Frame 
                         ROW
                     },
                 );
+                frame.text(
+                    174.0 + index as f32 * 108.0,
+                    340.0,
+                    ["Delete", "Load", "Return"][index],
+                    1.0,
+                    Color::rgb(213, 224, 233),
+                    14,
+                );
             }
         } else {
             frame.fill(rect(144, 168, 352, 144), PANEL);
             frame.fill(rect(168, 188, 304, 20), HEADER);
-            frame.fill(rect(184, 228, 272, 6), Color::rgb(213, 224, 233));
+            frame.text(
+                184.0,
+                194.0,
+                "Delete this application?",
+                1.0,
+                Color::rgb(213, 224, 233),
+                48,
+            );
             for (index, yes) in [true, false].iter().enumerate() {
                 frame.fill(
                     rect(212.0 + index as f32 * 112.0, 260, 96, 32),
@@ -271,6 +451,14 @@ pub fn browser_frame(controller: &AppController, catalog: &[AppEntry]) -> Frame 
                     } else {
                         ROW
                     },
+                );
+                frame.text(
+                    244.0 + index as f32 * 112.0,
+                    272.0,
+                    if *yes { "Yes" } else { "No" },
+                    1.0,
+                    Color::rgb(213, 224, 233),
+                    3,
                 );
             }
         }
