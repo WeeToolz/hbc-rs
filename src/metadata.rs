@@ -136,7 +136,7 @@ pub fn parse_theme_xml(xml: &str) -> Result<ThemeMetadata, String> {
         colors.and_then(|v| v.try_into().ok())
     });
     for font in node.children_named("font") {
-        let targets = font
+        let targets: Vec<String> = font
             .attrs
             .get("target")
             .map(|v| {
@@ -151,14 +151,26 @@ pub fn parse_theme_xml(xml: &str) -> Result<ThemeMetadata, String> {
             .text("size")
             .and_then(|v| v.parse().ok())
             .filter(|v| *v > 0);
-        theme.fonts.push((
-            targets,
-            ThemeFont {
-                file: font.text("file"),
-                size,
-                color,
-            },
-        ));
+        let parsed_font = ThemeFont {
+            file: font.text("file"),
+            size,
+            color,
+        };
+        if targets.is_empty() {
+            // HBC uses an untargeted <font> as the base font. Its values
+            // override the legacy <font_color> value field by field.
+            if parsed_font.file.is_some() {
+                theme.default_font.file = parsed_font.file;
+            }
+            if parsed_font.size.is_some() {
+                theme.default_font.size = parsed_font.size;
+            }
+            if parsed_font.color.is_some() {
+                theme.default_font.color = parsed_font.color;
+            }
+        } else {
+            theme.fonts.push((targets, parsed_font));
+        }
     }
     Ok(theme)
 }
@@ -411,6 +423,11 @@ mod tests {
         let t=parse_theme_xml("<theme langs='ja, zh'><description>Demo</description><font_color><red>1</red><green>2</green><blue>3</blue><alpha>255</alpha></font_color></theme>").unwrap();
         assert_eq!(t.languages, ["ja", "zh"]);
         assert_eq!(t.default_font.color, Some(Rgba(1, 2, 3, 255)));
+        let base = parse_theme_xml("<theme><font_color><red>1</red><green>2</green><blue>3</blue><alpha>255</alpha></font_color><font><file>theme.ttf</file><size>14</size><color><red>9</red><green>8</green><blue>7</blue><alpha>6</alpha></color></font><font target='appname'><size>10</size></font></theme>").unwrap();
+        assert_eq!(base.default_font.file.as_deref(), Some("theme.ttf"));
+        assert_eq!(base.default_font.size, Some(14));
+        assert_eq!(base.default_font.color, Some(Rgba(9, 8, 7, 6)));
+        assert_eq!(base.fonts.len(), 1);
         let description = "é".repeat(40);
         let theme = parse_theme_xml(&format!(
             "<theme><description>{description}</description></theme>"
