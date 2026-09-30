@@ -119,6 +119,7 @@ pub struct AppController {
     grid_columns: usize,
     menu_focus: usize,
     detail_focus: usize,
+    detail_description_scroll: usize,
     delete_confirmation_yes: bool,
     notice: Option<String>,
     notice_return_screen: Screen,
@@ -151,6 +152,10 @@ impl AppController {
 
     pub fn detail_focus(&self) -> usize {
         self.detail_focus
+    }
+
+    pub fn detail_description_scroll(&self) -> usize {
+        self.detail_description_scroll
     }
 
     pub fn delete_confirmation_yes(&self) -> bool {
@@ -292,6 +297,16 @@ impl AppController {
                 }
                 Input::Right => {
                     self.move_detail_focus(true);
+                    Action::None
+                }
+                Input::Up => {
+                    self.detail_description_scroll =
+                        self.detail_description_scroll.saturating_sub(1);
+                    Action::None
+                }
+                Input::Down => {
+                    self.detail_description_scroll =
+                        self.detail_description_scroll.saturating_add(1);
                     Action::None
                 }
                 Input::Confirm if self.selected_app.is_some() => match self.detail_focus {
@@ -468,6 +483,7 @@ impl AppController {
             Input::Confirm if self.selected_app.is_some() => {
                 self.screen = Screen::AppDetails;
                 self.detail_focus = 10;
+                self.detail_description_scroll = 0;
                 Action::None
             }
             Input::ToggleBrowseMode => {
@@ -722,6 +738,25 @@ mod tests {
         assert_eq!(controller.screen, Screen::AppDetails);
         assert_eq!(controller.detail_focus(), 8);
         assert_eq!(controller.selected_app.as_deref(), Some("two"));
+    }
+
+    #[test]
+    fn detail_up_and_down_scroll_the_description_without_moving_focus() {
+        let mut controller = AppController::new();
+        let catalog = vec![app("a", "A", false)];
+        controller.handle(Input::Confirm, &catalog);
+        assert_eq!(controller.detail_description_scroll(), 0);
+
+        controller.handle(Input::Down, &catalog);
+        controller.handle(Input::Down, &catalog);
+        assert_eq!(controller.detail_description_scroll(), 2);
+        assert_eq!(controller.detail_focus(), 10);
+
+        controller.handle(Input::Up, &catalog);
+        controller.handle(Input::Up, &catalog);
+        controller.handle(Input::Up, &catalog);
+        assert_eq!(controller.detail_description_scroll(), 0);
+        assert_eq!(controller.detail_focus(), 10);
     }
 
     #[test]

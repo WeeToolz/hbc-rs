@@ -407,7 +407,7 @@ impl Frame {
         }
     }
 
-    fn text_wrapped(
+    fn text_wrapped_scrolled(
         &mut self,
         x: f32,
         y: f32,
@@ -416,60 +416,61 @@ impl Frame {
         color: Color,
         max_chars: usize,
         max_lines: usize,
+        scroll_lines: usize,
     ) {
         if max_chars == 0 || max_lines == 0 || !scale.is_finite() || scale <= 0.0 {
             return;
         }
-        let mut line = String::new();
-        let mut line_count = 0;
-        let mut line_y = y;
-        for word in value.split_whitespace() {
-            if line_count >= max_lines {
-                break;
-            }
-            if !line.is_empty() && line.chars().count() + 1 + word.chars().count() > max_chars {
-                self.text(x, line_y, &line, scale, color, max_chars);
-                line.clear();
-                line_count += 1;
-                line_y += 9.0 * scale;
-                if line_count >= max_lines {
-                    break;
-                }
-            }
-            if word.chars().count() > max_chars {
-                let mut characters = word.chars();
-                while line_count < max_lines {
-                    if !line.is_empty() {
-                        self.text(x, line_y, &line, scale, color, max_chars);
-                        line.clear();
-                        line_count += 1;
-                        line_y += 9.0 * scale;
-                    }
-                    if line_count >= max_lines {
-                        break;
-                    }
-                    let mut part = String::new();
-                    for character in characters.by_ref().take(max_chars) {
-                        part.push(character);
-                    }
-                    if part.is_empty() {
-                        break;
-                    }
-                    self.text(x, line_y, &part, scale, color, max_chars);
-                    line_count += 1;
-                    line_y += 9.0 * scale;
-                }
-            } else {
-                if !line.is_empty() {
-                    line.push(' ');
-                }
-                line.push_str(word);
-            }
-        }
-        if !line.is_empty() && line_count < max_lines {
-            self.text(x, line_y, &line, scale, color, max_chars);
+        let lines = wrap_text_lines(value, max_chars);
+        let visible_lines = wrapped_line_window(&lines, max_lines, scroll_lines);
+        for (line_index, line) in visible_lines.iter().enumerate() {
+            self.text(
+                x,
+                y + line_index as f32 * 9.0 * scale,
+                line,
+                scale,
+                color,
+                max_chars,
+            );
         }
     }
+}
+
+fn wrapped_line_window(lines: &[String], visible_lines: usize, scroll_lines: usize) -> &[String] {
+    let start = scroll_lines.min(lines.len().saturating_sub(visible_lines));
+    &lines[start..lines.len().min(start.saturating_add(visible_lines))]
+}
+
+fn wrap_text_lines(value: &str, max_chars: usize) -> Vec<String> {
+    if max_chars == 0 {
+        return Vec::new();
+    }
+    let mut lines = Vec::new();
+    let mut line = String::new();
+    for word in value.split_whitespace() {
+        let mut chars = word.chars();
+        while chars.clone().count() > max_chars {
+            if !line.is_empty() {
+                lines.push(core::mem::take(&mut line));
+            }
+            lines.push(chars.by_ref().take(max_chars).collect());
+        }
+        let remainder: String = chars.collect();
+        if remainder.is_empty() {
+            continue;
+        }
+        if !line.is_empty() && line.chars().count() + 1 + remainder.chars().count() > max_chars {
+            lines.push(core::mem::take(&mut line));
+        }
+        if !line.is_empty() {
+            line.push(' ');
+        }
+        line.push_str(&remainder);
+    }
+    if !line.is_empty() {
+        lines.push(line);
+    }
+    lines
 }
 
 fn glyph_rows(character: char) -> [u8; 7] {
@@ -874,7 +875,16 @@ pub fn browser_frame_with_viewport(
                     .as_ref()
                     .and_then(|meta| meta.long_description.as_deref())
                     .unwrap_or("No description available.");
-                frame.text_wrapped(92.0, 148.0, description, 1.0, text_color, 76, 20);
+                frame.text_wrapped_scrolled(
+                    92.0,
+                    148.0,
+                    description,
+                    1.0,
+                    text_color,
+                    76,
+                    20,
+                    controller.detail_description_scroll(),
+                );
             }
             let load_label = controller
                 .selected_app
@@ -1257,7 +1267,23 @@ mod tests {
     #[test]
     fn wrapped_text_breaks_lines_and_obeys_the_visible_line_limit() {
         let mut frame = Frame::default();
-        frame.text_wrapped(10.0, 20.0, "ONE TWO THREE FOUR FIVE", 1.0, ACCENT, 7, 2);
+        frame.text_wrapped_scrolled(10.0, 20.0, "ONE TWO THREE FOUR FIVE", 1.0, ACCENT, 7, 2, 0);
+        let mut line_ys: Vec<f32> = frame.fills.iter().map(|fill| fill.bounds.y).collect();
+        line_ys.sort_by(f32::total_cmp);
+        line_ys.dedup();
+        assert!(line_ys.contains(&20.0));
+        assert!(line_ys.contains(&29.0));
+        assert!(line_ys.iter().all(|y| *y < 36.0));
+    }
+
+    #[test]
+    fn wrapped_text_can_select_a_clamped_scrolled_window() {
+        let lines = wrap_text_lines("ONE TWO THREE FOUR", 7);
+        assert_eq!(lines, vec!["ONE TWO", "THREE", "FOUR"]);
+        assert_eq!(wrapped_line_window(&lines, 2, 99), &["THREE", "FOUR"]);
+
+        let mut frame = Frame::default();
+        frame.text_wrapped_scrolled(10.0, 20.0, "ONE TWO THREE FOUR", 1.0, ACCENT, 7, 2, 99);
         let mut line_ys: Vec<f32> = frame.fills.iter().map(|fill| fill.bounds.y).collect();
         line_ys.sort_by(f32::total_cmp);
         line_ys.dedup();
