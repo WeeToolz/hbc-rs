@@ -35,6 +35,7 @@ pub enum Action {
     #[default]
     None,
     LaunchSelected,
+    DeleteSelected,
     LaunchBootMii,
     Exit,
     Shutdown,
@@ -54,6 +55,7 @@ pub struct AppController {
     pub sort: SortOrder,
     selected_index: usize,
     menu_focus: usize,
+    detail_focus: usize,
 }
 
 impl AppController {
@@ -74,6 +76,10 @@ impl AppController {
         self.menu_focus
     }
 
+    pub fn detail_focus(&self) -> usize {
+        self.detail_focus
+    }
+
     /// Apply one logical input and keep the selected identity valid for the
     /// current visible catalog. Selection does not wrap at either end.
     pub fn handle(&mut self, input: Input, catalog: &[AppEntry]) -> Action {
@@ -88,14 +94,22 @@ impl AppController {
                     Action::None
                 }
                 Input::Left => {
-                    self.move_menu_focus(false);
+                    self.move_detail_focus(false);
                     Action::None
                 }
                 Input::Right => {
-                    self.move_menu_focus(true);
+                    self.move_detail_focus(true);
                     Action::None
                 }
-                Input::Confirm if self.selected_app.is_some() => Action::LaunchSelected,
+                Input::Confirm if self.selected_app.is_some() => match self.detail_focus {
+                    8 => Action::DeleteSelected,
+                    9 => Action::LaunchSelected,
+                    10 => {
+                        self.screen = Screen::Browser;
+                        Action::None
+                    }
+                    _ => Action::None,
+                },
                 _ => Action::None,
             },
             Screen::About => match input {
@@ -125,6 +139,7 @@ impl AppController {
             }
             Input::Confirm if self.selected_app.is_some() => {
                 self.screen = Screen::AppDetails;
+                self.detail_focus = 10;
                 Action::None
             }
             Input::CycleFilter => {
@@ -157,11 +172,11 @@ impl AppController {
                 Action::None
             }
             Input::Up | Input::Left => {
-                self.menu_focus = self.menu_focus.saturating_sub(1);
+                self.move_menu_focus(false);
                 Action::None
             }
             Input::Down | Input::Right => {
-                self.menu_focus = (self.menu_focus + 1).min(MENU_ITEMS - 1);
+                self.move_menu_focus(true);
                 Action::None
             }
             Input::Confirm => match self.menu_focus {
@@ -202,6 +217,18 @@ impl AppController {
             (self.menu_focus + 1).min(MENU_ITEMS - 1)
         } else {
             self.menu_focus.saturating_sub(1)
+        };
+    }
+
+    fn move_detail_focus(&mut self, forward: bool) {
+        self.detail_focus = match (self.detail_focus, forward) {
+            (8, false) => 10,
+            (9, false) => 8,
+            (10, false) => 9,
+            (8, true) => 9,
+            (9, true) => 10,
+            (10, true) => 8,
+            _ => 10,
         };
     }
 
@@ -254,9 +281,21 @@ mod tests {
         assert_eq!(controller.selected_app.as_deref(), Some("two"));
         controller.handle(Input::Confirm, &catalog);
         assert_eq!(controller.screen, Screen::AppDetails);
+        assert_eq!(controller.detail_focus(), 10);
+        assert_eq!(controller.handle(Input::Confirm, &catalog), Action::None);
+        assert_eq!(controller.screen, Screen::Browser);
+        controller.handle(Input::Confirm, &catalog);
+        assert_eq!(controller.handle(Input::Left, &catalog), Action::None);
+        assert_eq!(controller.detail_focus(), 9);
         assert_eq!(
             controller.handle(Input::Confirm, &catalog),
             Action::LaunchSelected
+        );
+        controller.handle(Input::Left, &catalog);
+        assert_eq!(controller.detail_focus(), 8);
+        assert_eq!(
+            controller.handle(Input::Confirm, &catalog),
+            Action::DeleteSelected
         );
         controller.handle(Input::Back, &catalog);
         assert_eq!(controller.screen, Screen::Browser);

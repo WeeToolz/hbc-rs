@@ -1,8 +1,10 @@
 //! Scan-independent app catalog policy.
 
 use crate::metadata::AppMetadata;
-use alloc::{string::String, vec::Vec};
+use alloc::{format, string::String, vec::Vec};
 use core::cmp::Ordering;
+
+pub const MAX_APP_ENTRIES: usize = 1024;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AppKind {
@@ -33,6 +35,104 @@ pub enum SortOrder {
     #[default]
     Name,
     ReleaseDate,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DirectoryEntry {
+    pub name: String,
+    pub is_directory: bool,
+}
+
+/// File operations needed to build the app catalog. Keep the scan policy
+/// independent from FAT and NAND device details.
+pub trait CatalogStorage {
+    type Error;
+
+    fn read_dir(&mut self, path: &str) -> Result<Vec<DirectoryEntry>, Self::Error>;
+    fn file_size(&mut self, path: &str) -> Result<Option<u64>, Self::Error>;
+    fn read_file(&mut self, path: &str, max_bytes: usize) -> Result<Option<Vec<u8>>, Self::Error>;
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ScanError<E> {
+    AppDirectory(E),
+}
+
+/// Read app folders below `apps_root` and create catalog entries.
+///
+/// Missing or invalid optional metadata and icons do not hide a valid app.
+pub fn scan_apps<S: CatalogStorage>(
+    storage: &mut S,
+    apps_root: &str,
+    max_executable_size: u64,
+    max_theme_size: u64,
+) -> Result<Vec<AppEntry>, ScanError<S::Error>> {
+    let folders = storage
+        .read_dir(apps_root)
+        .map_err(ScanError::AppDirectory)?;
+    let mut apps = Vec::new();
+    for folder in folders {
+        if !folder.is_directory || !valid_folder_name(&folder.name) {
+            continue;
+        }
+        let folder_path = join_path(apps_root, &folder.name);
+        let candidates = [
+            ("boot.elf", AppKind::Elf, max_executable_size),
+            ("boot.dol", AppKind::Dol, max_executable_size),
+            ("theme.zip", AppKind::Theme, max_theme_size),
+        ];
+        let selected = candidates.iter().find_map(|(name, kind, limit)| {
+            let path = join_path(&folder_path, name);
+            storage
+                .file_size(&path)
+                .ok()
+                .flatten()
+                .map(|size| (*kind, size, *limit))
+        });
+        let Some((kind, size, limit)) = selected else {
+            continue;
+        };
+        if size == 0 || size > limit {
+            continue;
+        }
+
+        let meta_path = join_path(&folder_path, "meta.xml");
+        let metadata = storage
+            .read_file(&meta_path, 1024 * 1024)
+            .ok()
+            .flatten()
+            .and_then(|bytes| {
+                core::str::from_utf8(&bytes)
+                    .ok()
+                    .and_then(|xml| crate::metadata::parse_app_xml(xml).ok())
+            });
+        let icon_path = join_path(&folder_path, "icon.png");
+        let has_icon = storage.file_size(&icon_path).ok().flatten().is_some();
+
+        apps.push(AppEntry {
+            directory: folder.name,
+            kind,
+            size,
+            has_icon,
+            metadata,
+        });
+        if apps.len() == MAX_APP_ENTRIES {
+            break;
+        }
+    }
+    Ok(apps)
+}
+
+fn valid_folder_name(name: &str) -> bool {
+    !name.is_empty()
+        && name != "."
+        && name != ".."
+        && !name.starts_with('.')
+        && !name.chars().any(|c| matches!(c, '/' | '\\' | ':' | '\0'))
+}
+
+fn join_path(parent: &str, child: &str) -> String {
+    format!("{}/{}", parent.trim_end_matches('/'), child)
 }
 
 /// Return borrowed entries in display order. Date order is newest first.
@@ -87,7 +187,39 @@ fn cmp_text(a: &str, b: &str) -> Ordering {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloc::vec;
+    use alloc::{collections::BTreeMap, vec, vec::Vec};
+
+    #[derive(Default)]
+    struct MemoryStorage {
+        directories: BTreeMap<String, Vec<DirectoryEntry>>,
+        sizes: BTreeMap<String, u64>,
+        files: BTreeMap<String, Vec<u8>>,
+    }
+
+    impl CatalogStorage for MemoryStorage {
+        type Error = ();
+
+        fn read_dir(&mut self, path: &str) -> Result<Vec<DirectoryEntry>, Self::Error> {
+            self.directories.get(path).cloned().ok_or(())
+        }
+
+        fn file_size(&mut self, path: &str) -> Result<Option<u64>, Self::Error> {
+            Ok(self.sizes.get(path).copied())
+        }
+
+        fn read_file(
+            &mut self,
+            path: &str,
+            max_bytes: usize,
+        ) -> Result<Option<Vec<u8>>, Self::Error> {
+            Ok(self
+                .files
+                .get(path)
+                .filter(|bytes| bytes.len() <= max_bytes)
+                .cloned())
+        }
+    }
+
     fn app(dir: &str, name: Option<&str>, date: Option<u64>, icon: bool) -> AppEntry {
         AppEntry {
             directory: dir.into(),
@@ -134,5 +266,68 @@ mod tests {
                 .collect::<Vec<_>>(),
             ["a", "z", "b"]
         );
+    }
+
+    #[test]
+    fn scan_uses_hbc_artifact_priority_and_skips_invalid_folders() {
+        let root = "sd:/apps";
+        let mut fs = MemoryStorage::default();
+        fs.directories.insert(
+            root.into(),
+            vec![
+                DirectoryEntry {
+                    name: "elf-first".into(),
+                    is_directory: true,
+                },
+                DirectoryEntry {
+                    name: "dol".into(),
+                    is_directory: true,
+                },
+                DirectoryEntry {
+                    name: "theme".into(),
+                    is_directory: true,
+                },
+                DirectoryEntry {
+                    name: "bad-elf-and-dol".into(),
+                    is_directory: true,
+                },
+                DirectoryEntry {
+                    name: ".hidden".into(),
+                    is_directory: true,
+                },
+                DirectoryEntry {
+                    name: "../escape".into(),
+                    is_directory: true,
+                },
+                DirectoryEntry {
+                    name: "plain-file".into(),
+                    is_directory: false,
+                },
+            ],
+        );
+        fs.sizes.insert(format!("{root}/elf-first/boot.elf"), 10);
+        fs.sizes.insert(format!("{root}/elf-first/boot.dol"), 12);
+        fs.sizes.insert(format!("{root}/dol/boot.dol"), 12);
+        fs.sizes.insert(format!("{root}/theme/theme.zip"), 30);
+        fs.sizes
+            .insert(format!("{root}/bad-elf-and-dol/boot.elf"), 101);
+        fs.sizes
+            .insert(format!("{root}/bad-elf-and-dol/boot.dol"), 12);
+        fs.sizes.insert(format!("{root}/elf-first/icon.png"), 1);
+        fs.files.insert(
+            format!("{root}/elf-first/meta.xml"),
+            b"<app><name>ELF</name></app>".to_vec(),
+        );
+
+        let apps = scan_apps(&mut fs, root, 100, 50).unwrap();
+        assert_eq!(apps.len(), 3);
+        assert_eq!(apps[0].kind, AppKind::Elf);
+        assert_eq!(
+            apps[0].metadata.as_ref().unwrap().name.as_deref(),
+            Some("ELF")
+        );
+        assert!(apps[0].has_icon);
+        assert_eq!(apps[1].kind, AppKind::Dol);
+        assert_eq!(apps[2].kind, AppKind::Theme);
     }
 }

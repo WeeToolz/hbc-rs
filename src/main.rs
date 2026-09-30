@@ -10,7 +10,15 @@ fn main() {
 #[cfg(target_arch = "powerpc")]
 #[unsafe(no_mangle)]
 pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
-    0
+    match unsafe {
+        hbc_rs::platform::allocator::initialize_wii(
+            hbc_rs::platform::allocator::DEFAULT_MAX_MEM2_HEAP_BYTES,
+            hbc_rs::platform::allocator::DEFAULT_MEM2_RESERVE_BYTES,
+        )
+    } {
+        Ok(()) => 0,
+        Err(_) => -1,
+    }
 }
 
 #[cfg(target_arch = "powerpc")]
