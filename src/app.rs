@@ -136,6 +136,7 @@ pub struct AppController {
     detail_dragging: bool,
     delete_confirmation_yes: bool,
     wiiload_confirmation_yes: bool,
+    wiiload_install_progress: u8,
     notice: Option<String>,
     notice_return_screen: Screen,
     bootmii_available: bool,
@@ -179,7 +180,18 @@ impl AppController {
     }
 
     pub fn show_wiiload_installing(&mut self) {
+        self.wiiload_install_progress = 0;
         self.screen = Screen::WiiloadInstalling;
+    }
+
+    pub fn set_wiiload_install_progress(&mut self, percent: u8) {
+        if self.screen == Screen::WiiloadInstalling {
+            self.wiiload_install_progress = percent.min(100);
+        }
+    }
+
+    pub fn wiiload_install_progress(&self) -> u8 {
+        self.wiiload_install_progress
     }
 
     pub fn finish_wiiload_installing(&mut self) {
@@ -1168,6 +1180,19 @@ mod tests {
             controller.handle_pointer(Some(PointerTarget::WiiloadChoice { yes: false }), true, &[]),
             Action::RejectWiiloadZip
         );
+    }
+
+    #[test]
+    fn received_zip_loading_progress_is_bounded_and_only_changes_during_install() {
+        let mut controller = AppController::new();
+        controller.set_wiiload_install_progress(99);
+        assert_eq!(controller.wiiload_install_progress(), 0);
+        controller.show_wiiload_installing();
+        controller.set_wiiload_install_progress(255);
+        assert_eq!(controller.wiiload_install_progress(), 100);
+        controller.finish_wiiload_installing();
+        controller.set_wiiload_install_progress(22);
+        assert_eq!(controller.wiiload_install_progress(), 100);
     }
 
     #[test]

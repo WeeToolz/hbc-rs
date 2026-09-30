@@ -8,7 +8,7 @@ use core::{
     ffi::c_void,
     mem::MaybeUninit,
     ptr::{addr_of_mut, null_mut},
-    sync::atomic::{AtomicBool, AtomicI32, AtomicU8, Ordering},
+    sync::atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicU8, Ordering},
 };
 
 use crate::{
@@ -66,6 +66,8 @@ struct ZipInstallResult {
 }
 
 static ZIP_INSTALL_STATE: AtomicU8 = AtomicU8::new(ZIP_INSTALL_IDLE);
+static ZIP_INSTALL_PROGRESS_BYTES: AtomicU32 = AtomicU32::new(0);
+static ZIP_INSTALL_TOTAL_BYTES: AtomicU32 = AtomicU32::new(0);
 static mut ZIP_INSTALL_REQUEST: MaybeUninit<ZipInstallRequest> = MaybeUninit::uninit();
 static mut ZIP_INSTALL_RESULT: MaybeUninit<ZipInstallResult> = MaybeUninit::uninit();
 static mut ZIP_INSTALL_THREAD: ogc_lwp::sys::LwpThread = ogc_lwp::sys::LWP_THREAD_NULL;
@@ -85,7 +87,18 @@ unsafe fn zip_install_entry(_argument: *mut c_void) -> *mut c_void {
             .and_then(|()| {
                 let destination = alloc::format!("apps/{}", request.directory);
                 storage.ensure_directory(&destination)?;
-                storage.extract_archive(&request.bytes, &archive, &request.plan, &destination)
+                storage.extract_archive_with_progress(
+                    &request.bytes,
+                    &archive,
+                    &request.plan,
+                    &destination,
+                    |completed, total| {
+                        ZIP_INSTALL_TOTAL_BYTES
+                            .store(total.min(u32::MAX as u64) as u32, Ordering::Relaxed);
+                        ZIP_INSTALL_PROGRESS_BYTES
+                            .store(completed.min(u32::MAX as u64) as u32, Ordering::Release);
+                    },
+                )
             })
             .ok()
             .and_then(|()| {
@@ -184,6 +197,11 @@ impl WiiStartup {
                     directory,
                     plan: extraction,
                 };
+                ZIP_INSTALL_PROGRESS_BYTES.store(0, Ordering::Relaxed);
+                ZIP_INSTALL_TOTAL_BYTES.store(
+                    request.plan.total_bytes().min(u32::MAX as u64) as u32,
+                    Ordering::Release,
+                );
                 unsafe { addr_of_mut!(ZIP_INSTALL_REQUEST).write(MaybeUninit::new(request)) };
                 ZIP_INSTALL_STATE.store(ZIP_INSTALL_REQUESTED, Ordering::Release);
                 let created = unsafe {
@@ -239,6 +257,15 @@ impl WiiStartup {
 
     pub fn received_zip_install_pending(&self) -> bool {
         self.zip_install_thread.is_some()
+    }
+
+    pub fn received_zip_install_progress(&self) -> Option<u8> {
+        if !self.received_zip_install_pending() {
+            return None;
+        }
+        let total = ZIP_INSTALL_TOTAL_BYTES.load(Ordering::Acquire);
+        let completed = ZIP_INSTALL_PROGRESS_BYTES.load(Ordering::Acquire);
+        Some(crate::wiiload::progress_percent(completed, total))
     }
 
     /// Initialize controller services, load NAND settings, and scan the

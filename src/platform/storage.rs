@@ -84,8 +84,26 @@ impl FatStorage {
         plan: &crate::management::ExtractionPlan,
         destination: &str,
     ) -> Result<(), StorageError> {
+        self.extract_archive_with_progress(archive_bytes, archive, plan, destination, |_, _| {})
+    }
+
+    /// Extract a validated plan and report cumulative completed output bytes.
+    pub fn extract_archive_with_progress<F>(
+        &self,
+        archive_bytes: &[u8],
+        archive: &crate::archive::ZipArchive,
+        plan: &crate::management::ExtractionPlan,
+        destination: &str,
+        mut progress: F,
+    ) -> Result<(), StorageError>
+    where
+        F: FnMut(u64, u64),
+    {
         crate::archive::validate_archive_path(destination)
             .map_err(|_| StorageError::InvalidPath)?;
+        let mut completed_bytes = 0u64;
+        let total_bytes = plan.total_bytes();
+        progress(completed_bytes, total_bytes);
         for operation in plan.operations() {
             match operation {
                 crate::management::ExtractionOperation::CreateDirectory { path } => {
@@ -118,6 +136,8 @@ impl FatStorage {
                             return Err(StorageError::WriteZero);
                         }
                         offset += written;
+                        completed_bytes = completed_bytes.saturating_add(written as u64);
+                        progress(completed_bytes, total_bytes);
                     }
                     file.flush().map_err(StorageError::Fat)?;
                 }

@@ -947,6 +947,22 @@ pub fn browser_frame_with_viewport(
             frame.theme_art(rect(60, 44, 520, 360), ThemeArt::Dialog, false);
             frame.text(252.0, 124.0, "Installing ZIP", 1.0, text_color, 40);
             frame.text(192.0, 190.0, "Please wait...", 1.0, text_color, 40);
+            let percent = controller.wiiload_install_progress();
+            let label = [
+                b'0' + percent / 100,
+                b'0' + (percent / 10) % 10,
+                b'0' + percent % 10,
+                b'%',
+            ];
+            let label = core::str::from_utf8(&label).unwrap_or("000%");
+            frame.text(304.0, 232.0, label, 1.0, text_color, 5);
+            frame.fill(rect(120, 256, 400, 16), HEADER);
+            if percent > 0 {
+                frame.fill(
+                    rect(120, 256, 400.0 * f32::from(percent) / 100.0, 16),
+                    ACCENT,
+                );
+            }
         }
     }
     if controller.screen == Screen::Notice {
@@ -1301,6 +1317,17 @@ mod tests {
                 ..
             } if *bounds == rect(188, 68, 32, 32)
         )));
+    }
+
+    #[test]
+    fn wiiload_install_dialog_draws_progress_percentage_and_meter() {
+        let mut controller = AppController::new();
+        controller.show_wiiload_installing();
+        controller.set_wiiload_install_progress(25);
+        let frame = browser_frame(&controller, &[]);
+        assert!(frame.fills.iter().any(|fill| {
+            fill.bounds.y == 256.0 && fill.bounds.width == 100.0 && fill.color == ACCENT
+        }));
     }
 
     #[test]

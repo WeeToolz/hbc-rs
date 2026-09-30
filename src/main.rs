@@ -73,6 +73,9 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 "Could not install the received ZIP."
             });
         }
+        if let Some(progress) = startup.received_zip_install_progress() {
+            startup.runtime_mut().set_wiiload_install_progress(progress);
+        }
         if !startup.received_zip_install_pending() {
             if let Some(request) = deferred_exit.take() {
                 let reset = match request {

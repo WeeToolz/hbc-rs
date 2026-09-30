@@ -46,6 +46,10 @@ impl AppRuntime {
         self.controller.finish_wiiload_installing();
     }
 
+    pub fn set_wiiload_install_progress(&mut self, percent: u8) {
+        self.controller.set_wiiload_install_progress(percent);
+    }
+
     pub fn catalog(&self) -> &[AppEntry] {
         &self.catalog
     }

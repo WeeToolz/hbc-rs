@@ -14,6 +14,14 @@ pub fn same_local_subnet_16(peer_ip: u32, local_ip: u32) -> bool {
     (peer_ip & 0xffff_0000) == (local_ip & 0xffff_0000)
 }
 
+/// Convert completed and total byte counts to a bounded display percentage.
+pub fn progress_percent(completed: u32, total: u32) -> u8 {
+    if total == 0 {
+        return 0;
+    }
+    ((u64::from(completed.min(total)) * 100) / u64::from(total)) as u8
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum WiiloadError {
     InvalidHeader,
@@ -241,5 +249,13 @@ mod tests {
             u32::from_be_bytes([10, 0, 4, 200]),
             local
         ));
+    }
+
+    #[test]
+    fn install_progress_percentage_is_bounded_and_handles_empty_totals() {
+        assert_eq!(progress_percent(0, 0), 0);
+        assert_eq!(progress_percent(0, 100), 0);
+        assert_eq!(progress_percent(37, 100), 37);
+        assert_eq!(progress_percent(200, 100), 100);
     }
 }
