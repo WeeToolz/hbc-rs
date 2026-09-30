@@ -64,3 +64,10 @@ texture-cache invalidation. Treat FIFO flow control as unverified until it has
 hardware testing. Do not use the display functions before FIFO initialization.
 The rectangle path does not load textures or support HBC sprite, icon, or text
 rendering.
+
+`crates/hardware/ogc-gx/src/lib.rs` `init_tex_obj` must return without changing
+the texture object when either input dimension is zero. GX texture dimensions
+are encoded as `dimension - 1`; without this guard, zero underflows and creates
+an invalid packed size. A focused regression test checks zero width and zero
+height and confirms the initialized object remains unchanged. This test cannot
+run on the host because the crate and its dependencies require the Wii target.

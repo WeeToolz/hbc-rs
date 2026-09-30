@@ -36,8 +36,11 @@ deferred.
   root filename allowlist, duplicate-name policy, and bounded extraction plan.
   It parses `theme.xml` with the existing metadata parser. The Details action
   can apply the theme's default font color for the current session. Theme
-  images and fonts are not decoded or shown, progress gradients are not drawn,
-  and theme ZIP persistence to NAND is not connected to the UI.
+  PNG resources now have a bounded pure Rust decoder for grayscale, RGB,
+  indexed, gray-alpha, and RGBA images, including Adam7 interlacing. The decoder
+  can convert RGBA output to GX RGBA8 tile order. Theme images and fonts are not
+  yet loaded or shown, progress gradients are not drawn, and theme ZIP
+  persistence to NAND is not connected to the UI.
 - Device discovery scans one preferred volume synchronously at startup and
   retries SD/USB selection every 30 frames. It unmounts an offline volume,
   remounts available media, and replaces the catalog while preserving the
