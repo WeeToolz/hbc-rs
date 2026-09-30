@@ -570,6 +570,7 @@ pub fn browser_frame_with_theme(
             );
             frame.text(144.0, 386.0, "Press B to return", 1.0, text_color, 32);
         }
+        Screen::Options => {}
         Screen::Notice => {}
     }
 
@@ -593,11 +594,81 @@ pub fn browser_frame_with_theme(
     }
     if matches!(
         controller.screen,
-        Screen::AppDetails | Screen::DeleteConfirm
+        Screen::AppDetails | Screen::DeleteConfirm | Screen::Options
     ) {
         frame.fill(rect(0, 0, 640, 480), MODAL_SHADE);
         frame.theme_art(rect(60, 44, 520, 360), ThemeArt::Dialog, false);
-        if controller.screen == Screen::AppDetails {
+        if controller.screen == Screen::Options {
+            frame.text(299.0, 60.0, "Options", 1.0, text_color, 24);
+            frame.text(92.0, 104.0, "Storage device", 1.0, text_color, 32);
+            frame.button(
+                112.0,
+                108.0,
+                ButtonSize::Small,
+                controller.options_focus() == 0,
+                "SD",
+                if controller.pending_device() == 0 {
+                    ACCENT
+                } else {
+                    text_color
+                },
+            );
+            frame.button(
+                328.0,
+                108.0,
+                ButtonSize::Small,
+                controller.options_focus() == 1,
+                "USB",
+                if controller.pending_device() == 1 {
+                    ACCENT
+                } else {
+                    text_color
+                },
+            );
+            frame.button(112.0, 172.0, ButtonSize::Small, false, "SD Gecko A", MUTED);
+            frame.button(328.0, 172.0, ButtonSize::Small, false, "SD Gecko B", MUTED);
+            frame.text(92.0, 252.0, "Sort by", 1.0, text_color, 32);
+            frame.button(
+                112.0,
+                260.0,
+                ButtonSize::Small,
+                controller.options_focus() == 2,
+                "Name",
+                if controller.pending_sort() == crate::catalog::SortOrder::Name {
+                    ACCENT
+                } else {
+                    text_color
+                },
+            );
+            frame.button(
+                328.0,
+                260.0,
+                ButtonSize::Small,
+                controller.options_focus() == 3,
+                "Date",
+                if controller.pending_sort() == crate::catalog::SortOrder::ReleaseDate {
+                    ACCENT
+                } else {
+                    text_color
+                },
+            );
+            frame.button(
+                92.0,
+                340.0,
+                ButtonSize::Small,
+                controller.options_focus() == 4,
+                "OK",
+                text_color,
+            );
+            frame.button(
+                348.0,
+                340.0,
+                ButtonSize::Small,
+                controller.options_focus() == 5,
+                "Back",
+                text_color,
+            );
+        } else if controller.screen == Screen::AppDetails {
             if let Some(app) = controller
                 .selected_app
                 .as_deref()
@@ -949,6 +1020,30 @@ mod tests {
         assert!(line_ys.contains(&20.0));
         assert!(line_ys.contains(&29.0));
         assert!(line_ys.iter().all(|y| *y < 36.0));
+    }
+
+    #[test]
+    fn options_screen_uses_hbc_dialog_and_storage_sort_buttons() {
+        let mut controller = AppController::new();
+        controller.handle(crate::app::Input::OpenOptions, &[]);
+        let frame = browser_frame(&controller, &[]);
+        assert!(frame.commands.iter().any(|command| matches!(
+            command,
+            FrameCommand::ThemeArt { art: ThemeArt::Dialog, bounds, .. }
+                if *bounds == rect(60, 44, 520, 360)
+        )));
+        for expected in [
+            rect(112, 108, 200, 48),
+            rect(328, 108, 200, 48),
+            rect(112, 172, 200, 48),
+            rect(328, 172, 200, 48),
+        ] {
+            assert!(frame.commands.iter().any(|command| matches!(
+                command,
+                FrameCommand::ThemeArt { art: ThemeArt::Button(ButtonSize::Small), bounds, .. }
+                    if *bounds == expected
+            )));
+        }
     }
 
     #[test]

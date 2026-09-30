@@ -50,6 +50,7 @@ impl WiiStartup {
             mount_preferred_volume(loaded_settings.device);
         let mut runtime = AppRuntime::new(catalog);
         runtime.load_settings(loaded_settings);
+        runtime.set_active_device(volume.map(Volume::settings_index));
         let (loaded_theme, theme_textures) = match super::theme::load() {
             Ok(Some(archive)) => match crate::theme::ThemePackage::parse(&archive) {
                 Ok(package) => {
@@ -183,6 +184,8 @@ impl WiiStartup {
         let (volume, storage, catalog, scan_failed) = mount_preferred_volume(preference);
         self.volume = volume;
         self.storage = storage;
+        self.runtime
+            .set_active_device(volume.map(Volume::settings_index));
         self.runtime.replace_catalog(catalog);
         self.icon_textures.clear();
         self.attempted_icon_indices.clear();
@@ -314,6 +317,43 @@ impl WiiStartup {
         self.theme_textures = theme.textures;
     }
 
+    /// Apply the confirmed storage preference and refresh the app catalog.
+    pub fn apply_options(&mut self) -> Result<bool, StartupError> {
+        let preferred = self.runtime.settings().current().device;
+        let wanted = if preferred == 1 {
+            Volume::Usb
+        } else {
+            Volume::Sd
+        };
+        if self.volume == Some(wanted) && ogc_fat::is_mounted(wanted.mount_name()) {
+            return Ok(true);
+        }
+        if self.storage.is_some() {
+            ogc_fat::shutdown_all()
+                .map_err(|error| StartupError::Storage(StorageError::Fat(error)))?;
+            self.storage = None;
+            self.volume = None;
+        }
+        let (volume, storage, catalog, scan_failed) = mount_preferred_volume(preferred);
+        self.volume = volume;
+        self.storage = storage;
+        self.runtime
+            .set_active_device(volume.map(Volume::settings_index));
+        self.runtime.replace_catalog(catalog);
+        self.icon_textures.clear();
+        self.attempted_icon_indices.clear();
+        let selected = volume == Some(wanted);
+        if !selected {
+            if let Some(active) = volume {
+                self.runtime.set_preferred_device(active.settings_index());
+            }
+        }
+        if scan_failed {
+            return Err(StartupError::CatalogScan);
+        }
+        Ok(selected)
+    }
+
     /// Unmount the selected volume before the one-way executable handoff.
     pub fn unmount_storage(&mut self) -> Result<(), StartupError> {
         ogc_fat::shutdown_all().map_err(|error| StartupError::Storage(StorageError::Fat(error)))?;
@@ -324,6 +364,13 @@ impl WiiStartup {
 }
 
 impl Volume {
+    fn settings_index(self) -> i32 {
+        match self {
+            Self::Sd => 0,
+            Self::Usb => 1,
+        }
+    }
+
     fn mount_name(self) -> &'static core::ffi::CStr {
         match self {
             Self::Sd => c"sd",
@@ -373,6 +420,7 @@ pub struct PreparedTheme {
 pub enum StartupError {
     NoSelection,
     NoStorage,
+    CatalogScan,
     MissingExecutable,
     NotExecutable,
     TooLarge,

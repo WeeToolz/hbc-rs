@@ -59,12 +59,30 @@ impl AppRuntime {
         self.controller.set_bootmii_available(available);
     }
 
+    pub fn set_active_device(&mut self, device: Option<i32>) {
+        self.controller.set_active_device(device);
+    }
+
+    pub fn set_preferred_device(&mut self, device: i32) {
+        self.controller.set_preferred_device(device);
+        self.sync_settings();
+    }
+
+    pub fn mark_settings_persisted(&mut self) {
+        self.settings.mark_persisted();
+    }
+
     /// Apply settings loaded from NAND before the first rendered frame.
     pub fn load_settings(&mut self, settings: UserSettings) {
+        self.controller.set_preferred_device(settings.device);
         self.controller.sort = if settings.sort_order == 1 {
             crate::catalog::SortOrder::ReleaseDate
         } else {
             crate::catalog::SortOrder::Name
+        };
+        self.controller.filter = match self.controller.sort {
+            crate::catalog::SortOrder::Name => crate::catalog::Filter::All,
+            crate::catalog::SortOrder::ReleaseDate => crate::catalog::Filter::MetadataOnly,
         };
         self.controller.selected_app = settings.selected_app.clone();
         self.controller.set_browser_layout(
@@ -107,6 +125,7 @@ impl AppRuntime {
             crate::catalog::SortOrder::Name => 0,
             crate::catalog::SortOrder::ReleaseDate => 1,
         };
+        current.device = self.controller.preferred_device();
         current.selected_app = self.controller.selected_app.clone();
         current.browse_mode = if self.controller.browser_layout().columns > 1 {
             1
@@ -183,7 +202,11 @@ mod tests {
 
     #[test]
     fn settings_load_and_frame_updates_keep_sort_and_selection_persistent() {
-        let mut runtime = AppRuntime::new(vec![app("a"), app("b")]);
+        let mut first = app("a");
+        first.metadata = Some(crate::metadata::AppMetadata::default());
+        let mut second = app("b");
+        second.metadata = Some(crate::metadata::AppMetadata::default());
+        let mut runtime = AppRuntime::new(vec![first, second]);
         runtime.load_settings(UserSettings {
             sort_order: 1,
             browse_mode: 1,
@@ -194,7 +217,14 @@ mod tests {
         assert!(!runtime.settings().is_dirty());
 
         let frame = InputFrame {
-            pressed: vec![Input::CycleSort],
+            pressed: vec![
+                Input::OpenOptions,
+                Input::Up,
+                Input::Left,
+                Input::Confirm,
+                Input::Down,
+                Input::Confirm,
+            ],
             held: vec![],
             released: vec![],
         };
@@ -204,6 +234,39 @@ mod tests {
         assert_eq!(
             runtime.settings().current().selected_app.as_deref(),
             Some("b")
+        );
+    }
+
+    #[test]
+    fn options_dialog_commits_device_and_sort_to_runtime_settings() {
+        let mut runtime = AppRuntime::new(Vec::new());
+        runtime.load_settings(UserSettings {
+            device: 0,
+            sort_order: 0,
+            ..UserSettings::default()
+        });
+        runtime.update(&InputFrame {
+            pressed: vec![Input::OpenOptions],
+            ..InputFrame::default()
+        });
+        runtime.update(&InputFrame {
+            pressed: vec![Input::Up, Input::Right, Input::Confirm],
+            ..InputFrame::default()
+        });
+        runtime.update(&InputFrame {
+            pressed: vec![Input::Up, Input::Right, Input::Confirm],
+            ..InputFrame::default()
+        });
+        let actions = runtime.update(&InputFrame {
+            pressed: vec![Input::Down, Input::Left, Input::Down, Input::Confirm],
+            ..InputFrame::default()
+        });
+        assert_eq!(actions, vec![Action::ApplyOptions]);
+        assert_eq!(runtime.settings().current().device, 1);
+        assert_eq!(runtime.settings().current().sort_order, 1);
+        assert_eq!(
+            runtime.controller().filter,
+            crate::catalog::Filter::MetadataOnly
         );
     }
 

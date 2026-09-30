@@ -11,6 +11,7 @@ pub enum Screen {
     MainMenu,
     AppDetails,
     DeleteConfirm,
+    Options,
     About,
     Notice,
 }
@@ -25,8 +26,8 @@ pub enum Input {
     Right,
     Confirm,
     Back,
-    CycleFilter,
-    CycleSort,
+    ToggleBrowseMode,
+    OpenOptions,
     PreviousPage,
     NextPage,
 }
@@ -44,6 +45,7 @@ pub enum Action {
     Shutdown,
     PreviousPage,
     NextPage,
+    ApplyOptions,
 }
 
 /// Main menu focus follows the options available on this console.
@@ -107,6 +109,11 @@ pub struct AppController {
     notice: Option<String>,
     notice_return_screen: Screen,
     bootmii_available: bool,
+    preferred_device: i32,
+    active_device: Option<i32>,
+    pending_device: i32,
+    pending_sort: SortOrder,
+    options_focus: usize,
 }
 
 impl AppController {
@@ -154,6 +161,30 @@ impl AppController {
 
     pub fn bootmii_available(&self) -> bool {
         self.bootmii_available
+    }
+
+    pub fn preferred_device(&self) -> i32 {
+        self.preferred_device
+    }
+
+    pub fn options_focus(&self) -> usize {
+        self.options_focus
+    }
+
+    pub fn pending_device(&self) -> i32 {
+        self.pending_device
+    }
+
+    pub fn pending_sort(&self) -> SortOrder {
+        self.pending_sort
+    }
+
+    pub fn set_preferred_device(&mut self, device: i32) {
+        self.preferred_device = device;
+    }
+
+    pub fn set_active_device(&mut self, device: Option<i32>) {
+        self.active_device = device;
     }
 
     pub fn menu_item_count(&self) -> usize {
@@ -278,6 +309,7 @@ impl AppController {
                 }
                 _ => Action::None,
             },
+            Screen::Options => self.handle_options(input, catalog),
             Screen::About => match input {
                 Input::Back | Input::Confirm => {
                     self.screen = Screen::MainMenu;
@@ -334,21 +366,19 @@ impl AppController {
                 self.detail_focus = 10;
                 Action::None
             }
-            Input::CycleFilter => {
-                self.filter = match self.filter {
-                    Filter::All => Filter::IconsOnly,
-                    Filter::IconsOnly => Filter::MetadataOnly,
-                    Filter::MetadataOnly => Filter::All,
-                };
+            Input::ToggleBrowseMode => {
+                self.layout.columns = if self.layout.columns == 1 { 3 } else { 1 };
                 self.reconcile_selection(catalog);
                 Action::None
             }
-            Input::CycleSort => {
-                self.sort = match self.sort {
-                    SortOrder::Name => SortOrder::ReleaseDate,
-                    SortOrder::ReleaseDate => SortOrder::Name,
+            Input::OpenOptions => {
+                self.pending_device = match self.active_device {
+                    Some(device @ (0 | 1)) => device,
+                    _ => i32::from(self.preferred_device == 1),
                 };
-                self.reconcile_selection(catalog);
+                self.pending_sort = self.sort;
+                self.options_focus = 5;
+                self.screen = Screen::Options;
                 Action::None
             }
             Input::PreviousPage => self.move_page(catalog, false),
@@ -385,6 +415,66 @@ impl AppController {
                 3 if self.bootmii_available => Action::Exit,
                 3 => Action::Shutdown,
                 4 => Action::Shutdown,
+                _ => Action::None,
+            },
+            _ => Action::None,
+        }
+    }
+
+    fn handle_options(&mut self, input: Input, catalog: &[AppEntry]) -> Action {
+        match input {
+            Input::Back | Input::OpenOptions => {
+                self.screen = Screen::Browser;
+                Action::None
+            }
+            Input::Left => {
+                self.options_focus &= !1;
+                Action::None
+            }
+            Input::Right => {
+                self.options_focus |= 1;
+                Action::None
+            }
+            Input::Up => {
+                self.options_focus = self.options_focus.saturating_sub(2);
+                Action::None
+            }
+            Input::Down => {
+                self.options_focus = (self.options_focus + 2).min(5);
+                Action::None
+            }
+            Input::Confirm => match self.options_focus {
+                0 => {
+                    self.pending_device = 0;
+                    Action::None
+                }
+                1 => {
+                    self.pending_device = 1;
+                    Action::None
+                }
+                2 => {
+                    self.pending_sort = SortOrder::Name;
+                    Action::None
+                }
+                3 => {
+                    self.pending_sort = SortOrder::ReleaseDate;
+                    Action::None
+                }
+                4 => {
+                    self.preferred_device = self.pending_device;
+                    self.sort = self.pending_sort;
+                    self.filter = match self.pending_sort {
+                        SortOrder::Name => Filter::All,
+                        SortOrder::ReleaseDate => Filter::MetadataOnly,
+                    };
+                    self.reconcile_selection(catalog);
+                    self.screen = Screen::Browser;
+                    Action::ApplyOptions
+                }
+                5 => {
+                    self.screen = Screen::Browser;
+                    Action::None
+                }
                 _ => Action::None,
             },
             _ => Action::None,
@@ -572,16 +662,17 @@ mod tests {
     }
 
     #[test]
-    fn filtered_entries_keep_identity_when_possible_and_select_visible_fallback() {
+    fn browse_mode_toggle_keeps_selected_app_identity() {
         let catalog = [app("with-icon", "A", true), app("without-icon", "B", false)];
         let mut controller = AppController::new();
         controller.handle(Input::Down, &catalog);
         assert_eq!(controller.selected_app.as_deref(), Some("without-icon"));
-        controller.handle(Input::CycleFilter, &catalog);
-        assert_eq!(controller.filter, Filter::IconsOnly);
-        assert_eq!(controller.selected_app.as_deref(), Some("with-icon"));
-        assert_eq!(controller.selected_index(), 0);
-        assert_eq!(controller.visible_apps(&catalog).len(), 1);
+        controller.handle(Input::ToggleBrowseMode, &catalog);
+        assert_eq!(controller.browser_layout().columns, 3);
+        assert_eq!(controller.selected_app.as_deref(), Some("without-icon"));
+        assert_eq!(controller.selected_index(), 1);
+        controller.handle(Input::ToggleBrowseMode, &catalog);
+        assert_eq!(controller.browser_layout().columns, 1);
     }
 
     #[test]
@@ -612,6 +703,55 @@ mod tests {
         );
         controller.handle(Input::Down, &[]);
         assert_eq!(controller.handle(Input::Confirm, &[]), Action::Exit);
+    }
+
+    #[test]
+    fn options_changes_are_pending_until_ok_and_back_discards_them() {
+        let catalog = [app("one", "One", true)];
+        let mut controller = AppController::new();
+        controller.set_preferred_device(1);
+        controller.sort = SortOrder::ReleaseDate;
+
+        assert_eq!(
+            controller.handle(Input::OpenOptions, &catalog),
+            Action::None
+        );
+        assert_eq!(controller.screen, Screen::Options);
+        assert_eq!(controller.pending_device(), 1);
+        assert_eq!(controller.pending_sort(), SortOrder::ReleaseDate);
+        controller.handle(Input::Up, &catalog);
+        controller.handle(Input::Left, &catalog);
+        assert_eq!(controller.options_focus(), 2);
+        controller.handle(Input::Confirm, &catalog);
+        assert_eq!(controller.pending_sort(), SortOrder::Name);
+        assert_eq!(controller.handle(Input::Back, &catalog), Action::None);
+        assert_eq!(controller.screen, Screen::Browser);
+        assert_eq!(controller.preferred_device(), 1);
+        assert_eq!(controller.sort, SortOrder::ReleaseDate);
+
+        controller.handle(Input::OpenOptions, &catalog);
+        controller.handle(Input::Up, &catalog);
+        controller.handle(Input::Left, &catalog);
+        controller.handle(Input::Confirm, &catalog);
+        controller.handle(Input::Down, &catalog);
+        assert_eq!(controller.options_focus(), 4);
+        assert_eq!(
+            controller.handle(Input::Confirm, &catalog),
+            Action::ApplyOptions
+        );
+        assert_eq!(controller.screen, Screen::Browser);
+        assert_eq!(controller.preferred_device(), 1);
+        assert_eq!(controller.sort, SortOrder::Name);
+        assert_eq!(controller.filter, Filter::All);
+    }
+
+    #[test]
+    fn options_starts_with_the_active_device_after_preference_fallback() {
+        let mut controller = AppController::new();
+        controller.set_preferred_device(1);
+        controller.set_active_device(Some(0));
+        controller.handle(Input::OpenOptions, &[]);
+        assert_eq!(controller.pending_device(), 0);
     }
 
     #[test]
@@ -702,9 +842,17 @@ mod tests {
         assert_eq!(controller.selected_app.as_deref(), Some("b"));
         controller.handle(Input::Down, &catalog);
         assert_eq!(controller.selected_app.as_deref(), Some("e"));
-        controller.handle(Input::CycleSort, &catalog);
+        controller.sort = SortOrder::ReleaseDate;
+        controller.filter = Filter::MetadataOnly;
+        controller.handle(Input::OpenOptions, &catalog);
+        controller.handle(Input::Up, &catalog);
+        controller.handle(Input::Left, &catalog);
+        controller.handle(Input::Confirm, &catalog);
+        controller.handle(Input::Down, &catalog);
+        controller.handle(Input::Confirm, &catalog);
         assert_eq!(controller.selected_app.as_deref(), Some("e"));
         assert_eq!(controller.selected_index(), 4);
+        assert_eq!(controller.sort, SortOrder::Name);
     }
 
     #[test]

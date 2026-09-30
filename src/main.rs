@@ -70,6 +70,37 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         video.wait_vsync();
 
         for action in actions {
+            if action == hbc_rs::app::Action::ApplyOptions {
+                let mut persist = false;
+                let mut notice = match startup.apply_options() {
+                    Ok(true) => {
+                        persist = true;
+                        None
+                    }
+                    Ok(false) => {
+                        persist = true;
+                        Some("The selected storage device is not available.")
+                    }
+                    Err(hbc_rs::platform::startup::StartupError::CatalogScan) => {
+                        persist = true;
+                        Some("Could not read the apps folder on this device.")
+                    }
+                    Err(_) => Some("Could not change the storage device."),
+                };
+                if persist {
+                    if hbc_rs::platform::settings::save(startup.runtime().settings().current())
+                        .is_ok()
+                    {
+                        startup.runtime_mut().mark_settings_persisted();
+                    } else {
+                        notice = Some("Could not save the new settings to NAND.");
+                    }
+                }
+                if let Some(notice) = notice {
+                    startup.runtime_mut().show_notice(notice);
+                }
+                continue;
+            }
             if action == hbc_rs::app::Action::ApplyTheme {
                 match startup.prepare_selected_theme() {
                     Ok(theme) => startup.apply_theme(theme),

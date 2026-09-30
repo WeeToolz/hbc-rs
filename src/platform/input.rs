@@ -27,10 +27,10 @@ impl Buttons {
     const CONFIRM: u16 = 1 << 4;
     const BACK: u16 = 1 << 5;
     const HOME: u16 = 1 << 6;
-    const FILTER: u16 = 1 << 7;
-    const SORT: u16 = 1 << 8;
+    const BROWSE_MODE: u16 = 1 << 7;
     const PREVIOUS: u16 = 1 << 9;
     const NEXT: u16 = 1 << 10;
+    const OPTIONS: u16 = 1 << 11;
 }
 
 /// Map button masks to HBC logical actions. This is separate from scanning so
@@ -116,10 +116,10 @@ fn map_pad(mask: u16, out: &mut Buttons) {
         out.0 |= Buttons::BACK;
     }
     if mask & 0x0400 != 0 {
-        out.0 |= Buttons::SORT;
+        out.0 |= Buttons::OPTIONS;
     }
     if mask & 0x0800 != 0 {
-        out.0 |= Buttons::FILTER;
+        out.0 |= Buttons::BROWSE_MODE;
     }
     if mask & 0x1000 != 0 {
         out.0 |= Buttons::HOME;
@@ -145,10 +145,10 @@ fn map_wiimote(mask: u32, out: &mut Buttons) {
         out.0 |= Buttons::HOME;
     }
     if mask & 0x0002 != 0 {
-        out.0 |= Buttons::SORT;
+        out.0 |= Buttons::OPTIONS;
     }
     if mask & 0x0001 != 0 {
-        out.0 |= Buttons::FILTER;
+        out.0 |= Buttons::BROWSE_MODE;
     }
     if mask & 0x0010 != 0 {
         out.0 |= Buttons::PREVIOUS;
@@ -182,8 +182,8 @@ fn bit_for(input: Input) -> u16 {
         Input::Confirm => Buttons::CONFIRM,
         Input::Back => Buttons::BACK,
         Input::Home => Buttons::HOME,
-        Input::CycleFilter => Buttons::FILTER,
-        Input::CycleSort => Buttons::SORT,
+        Input::ToggleBrowseMode => Buttons::BROWSE_MODE,
+        Input::OpenOptions => Buttons::OPTIONS,
         Input::PreviousPage => Buttons::PREVIOUS,
         Input::NextPage => Buttons::NEXT,
     }
@@ -199,8 +199,8 @@ fn inputs(mask: Buttons) -> Vec<Input> {
         Input::Right,
         Input::Confirm,
         Input::Back,
-        Input::CycleFilter,
-        Input::CycleSort,
+        Input::ToggleBrowseMode,
+        Input::OpenOptions,
         Input::PreviousPage,
         Input::NextPage,
     ]
@@ -318,12 +318,16 @@ mod tests {
 
     #[test]
     fn maps_gamecube_and_wiimote_buttons_to_actions() {
-        let pad = map_buttons(0x0100 | 0x0008 | 0x0020, 0);
+        let pad = map_buttons(0x0100 | 0x0008 | 0x0020 | 0x0400 | 0x0800, 0);
         assert!(pad.contains(Input::Confirm));
+        assert!(pad.contains(Input::OpenOptions));
+        assert!(pad.contains(Input::ToggleBrowseMode));
         assert!(pad.contains(Input::Up));
         assert!(pad.contains(Input::NextPage));
-        let remote = map_buttons(0, 0x0008 | 0x0800 | 0x1000);
+        let remote = map_buttons(0, 0x0001 | 0x0002 | 0x0008 | 0x0800 | 0x1000);
         assert!(remote.contains(Input::Confirm));
+        assert!(remote.contains(Input::OpenOptions));
+        assert!(remote.contains(Input::ToggleBrowseMode));
         assert!(remote.contains(Input::Up));
         assert!(remote.contains(Input::NextPage));
         let classic_mask =

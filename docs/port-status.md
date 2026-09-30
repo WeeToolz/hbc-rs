@@ -23,6 +23,12 @@ deferred.
   by the other volume, scans `apps`, and keeps the mounted volume for later
   operations. Wii Remote setup matches HBC's 640x480 default IR range and
   pointer-owner button priority.
+- Wii Remote 1 opens an Options dialog for SD or USB preference and Name or
+  Date sorting. Changes stay pending until OK. Confirmed device changes remount
+  the selected volume and refresh the catalog. The two GameCube memory card
+  choices are shown as disabled because the current FAT backends do not support
+  them. HBC also updates device availability while its dialog is open; Rust
+  reports an unavailable SD or USB choice after the user confirms it.
 
 ## Remaining runtime work
 
