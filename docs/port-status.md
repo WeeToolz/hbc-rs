@@ -45,8 +45,7 @@ deferred.
   the selected volume and refresh the catalog. The two GameCube memory card
   choices are shown as disabled because the current FAT backends do not support
   them. HBC also updates device availability while its dialog is open; Rust
-  reports an unavailable SD or USB choice after the user confirms it. Rust now
-  probes SD and USB availability on a worker while Options is open, and displays
+  probes SD and USB availability on a worker while Options is open, then displays
   the completed availability snapshot without blocking the main loop. The worker
   leaves existing mounts registered and unmounts only a volume it mounted itself.
 
@@ -77,7 +76,8 @@ deferred.
   bubble backgrounds, network and USBGecko status indicators, memo scroll arrows,
   other memo contexts, localized strings, and complete HBC widget behavior are
   not ported.
-- A pure Rust theme ZIP parser enforces a 20 MiB archive limit, a 64-entry
+- A pure Rust theme ZIP parser enforces HBC's `LD_MAX_SIZE` and 20 MiB archive
+  limits, a 64-entry
   limit, safe paths, supported ZIP entry types and compression, duplicate-name
   checks, a 64 MiB per-file limit, and a 128 MiB total extracted-size limit.
   Safe unrelated files are ignored. Theme metadata comes from root `theme.xml`,
@@ -98,7 +98,7 @@ deferred.
   and retries SD/USB selection every 30 frames. The main loop pauses browser
   input during a scan and displays a loading panel. It unmounts an offline volume,
   remounts available media, and replaces the catalog while preserving the
-  selected app where possible. It does not show per-device status. A missing
+  selected app where possible. Options displays SD and USB availability. A missing
   `apps` directory is treated as an empty
   catalog; other top-level scan errors show a notice. GameCube memory cards are
   not supported. USB storage candidates exclude HID devices. USB storage now
