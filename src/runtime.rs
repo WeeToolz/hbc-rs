@@ -133,9 +133,19 @@ impl AppRuntime {
     /// hit target. Pointer activation uses the controller's normal Confirm
     /// transition, so it shares the same action behavior as button input.
     pub fn update_pointer(&mut self, target: Option<PointerTarget>, activate: bool) -> Vec<Action> {
-        let action = self
-            .controller
-            .handle_pointer(target, activate, &self.catalog);
+        self.update_pointer_frame(target, None, activate, false)
+    }
+
+    pub fn update_pointer_frame(
+        &mut self,
+        target: Option<PointerTarget>,
+        pointer_y: Option<i16>,
+        pressed: bool,
+        held: bool,
+    ) -> Vec<Action> {
+        let action =
+            self.controller
+                .handle_pointer_frame(target, pointer_y, pressed, held, &self.catalog);
         self.sync_settings();
         let mut actions = Vec::new();
         push_action(&mut actions, action);

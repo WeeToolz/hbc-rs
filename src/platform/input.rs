@@ -16,6 +16,7 @@ pub struct InputFrame {
     pub released: Vec<Input>,
     pub pointer: Option<PointerPosition>,
     pub pointer_pressed: bool,
+    pub pointer_held: bool,
     /// Signed HBC-style vertical stick scroll in logical pixels for this frame.
     pub stick_scroll_pixels: i16,
 }
@@ -41,6 +42,11 @@ pub fn logical_pointer_position(ir_x: f32, ir_y: f32) -> Option<PointerPosition>
 #[cfg(any(target_arch = "powerpc", test))]
 fn pointer_confirm_pressed(owner_present: bool, pressed: Buttons) -> bool {
     owner_present && pressed.0 & Buttons::CONFIRM != 0
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+fn pointer_confirm_held(owner_present: bool, held: Buttons) -> bool {
+    owner_present && held.0 & Buttons::CONFIRM != 0
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -321,12 +327,14 @@ pub fn scan() -> InputFrame {
         map_wpad_channel(channel_id, wpad::buttons_held(channel_id), &mut held);
         map_wpad_channel(channel_id, wpad::buttons_up(channel_id), &mut up);
     }
+    let pointer_held = pointer_confirm_held(owner.is_some(), held);
     InputFrame {
         pressed: inputs(down),
         held: inputs(held),
         released: inputs(up),
         pointer,
         pointer_pressed,
+        pointer_held,
         stick_scroll_pixels: stick_scroll.clamp(i32::from(i16::MIN), i32::from(i16::MAX)) as i16,
     }
 }
@@ -467,6 +475,14 @@ mod tests {
         map_wiimote(0x0008, &mut pressed);
         assert!(pointer_confirm_pressed(true, pressed));
         assert!(!pointer_confirm_pressed(false, pressed));
+    }
+
+    #[test]
+    fn pointer_hold_requires_a_pointer_owner_and_confirm() {
+        let held = Buttons(Buttons::CONFIRM);
+        assert!(pointer_confirm_held(true, held));
+        assert!(!pointer_confirm_held(false, held));
+        assert!(!pointer_confirm_held(true, Buttons::default()));
     }
 
     #[test]

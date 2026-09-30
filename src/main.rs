@@ -67,10 +67,12 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             frame.released.clear();
             frame.pointer = None;
             frame.pointer_pressed = false;
+            frame.pointer_held = false;
             frame.stick_scroll_pixels = 0;
         }
         let pointer = frame.pointer;
         let pointer_pressed = frame.pointer_pressed;
+        let pointer_held = frame.pointer_held;
         if pointer_pressed {
             // HBC applies Confirm from the pointer owner or GameCube pad to
             // the widget under the pointer. Delay it until after hit-testing.
@@ -87,11 +89,12 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         );
         let pointer_target = pointer
             .and_then(|position| hit_frame.hit_test(f32::from(position.x), f32::from(position.y)));
-        actions.extend(
-            startup
-                .runtime_mut()
-                .update_pointer(pointer_target, pointer_pressed),
-        );
+        actions.extend(startup.runtime_mut().update_pointer_frame(
+            pointer_target,
+            pointer.map(|pointer| pointer.y),
+            pointer_pressed,
+            pointer_held,
+        ));
         startup.refresh_visible_icons();
         let mut scene = hbc_rs::render::browser_frame_with_viewport(
             startup.runtime().controller(),

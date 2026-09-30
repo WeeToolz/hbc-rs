@@ -40,6 +40,7 @@ pub enum PointerTarget {
     Page { forward: bool },
     Menu(usize),
     Detail(usize),
+    DetailMemo,
     DeleteChoice { yes: bool },
     Option(usize),
     NoticeConfirm,
@@ -125,6 +126,9 @@ pub struct AppController {
     detail_description_max_scroll: usize,
     detail_scroll_app: Option<String>,
     detail_scroll_pixel_remainder: i16,
+    detail_drag_pixel_remainder: i16,
+    detail_drag_last_y: Option<i16>,
+    detail_dragging: bool,
     delete_confirmation_yes: bool,
     notice: Option<String>,
     notice_return_screen: Screen,
@@ -164,6 +168,10 @@ impl AppController {
     }
 
     pub fn scroll_detail_by_stick(&mut self, pixels: i16) {
+        self.scroll_detail_by_pixels(pixels);
+    }
+
+    fn scroll_detail_by_pixels(&mut self, pixels: i16) {
         if self.screen != Screen::AppDetails {
             return;
         }
@@ -414,7 +422,19 @@ impl AppController {
         activate: bool,
         catalog: &[AppEntry],
     ) -> Action {
+        self.handle_pointer_frame(target, None, activate, false, catalog)
+    }
+
+    pub fn handle_pointer_frame(
+        &mut self,
+        target: Option<PointerTarget>,
+        pointer_y: Option<i16>,
+        pressed: bool,
+        held: bool,
+        catalog: &[AppEntry],
+    ) -> Action {
         self.pointer_target = target;
+        self.update_detail_drag(target, pointer_y, pressed, held);
         let Some(target) = target else {
             return Action::None;
         };
@@ -425,14 +445,14 @@ impl AppController {
                 if let Some(entry) = visible.get(index) {
                     self.selected_app = Some(entry.directory.clone());
                     self.reconcile_selection(catalog);
-                    if activate {
+                    if pressed {
                         return self.handle(Input::Confirm, catalog);
                     }
                 }
                 Action::None
             }
             (Screen::Browser, PointerTarget::Page { forward }) => {
-                if activate {
+                if pressed {
                     self.move_page(catalog, forward)
                 } else {
                     Action::None
@@ -440,7 +460,7 @@ impl AppController {
             }
             (Screen::MainMenu, PointerTarget::Menu(index)) if index < self.menu_item_count() => {
                 self.menu_focus = index;
-                if activate {
+                if pressed {
                     self.handle(Input::Confirm, catalog)
                 } else {
                     Action::None
@@ -448,15 +468,16 @@ impl AppController {
             }
             (Screen::AppDetails, PointerTarget::Detail(index)) if (8..=10).contains(&index) => {
                 self.detail_focus = index;
-                if activate {
+                if pressed {
                     self.handle(Input::Confirm, catalog)
                 } else {
                     Action::None
                 }
             }
+            (Screen::AppDetails, PointerTarget::DetailMemo) => Action::None,
             (Screen::DeleteConfirm, PointerTarget::DeleteChoice { yes }) => {
                 self.delete_confirmation_yes = yes;
-                if activate {
+                if pressed {
                     self.handle(Input::Confirm, catalog)
                 } else {
                     Action::None
@@ -464,16 +485,62 @@ impl AppController {
             }
             (Screen::Options, PointerTarget::Option(index)) if index < 6 => {
                 self.options_focus = index;
-                if activate {
+                if pressed {
                     self.handle(Input::Confirm, catalog)
                 } else {
                     Action::None
                 }
             }
-            (Screen::Notice, PointerTarget::NoticeConfirm) if activate => {
+            (Screen::Notice, PointerTarget::NoticeConfirm) if pressed => {
                 self.handle(Input::Confirm, catalog)
             }
             _ => Action::None,
+        }
+    }
+
+    fn update_detail_drag(
+        &mut self,
+        target: Option<PointerTarget>,
+        pointer_y: Option<i16>,
+        pressed: bool,
+        held: bool,
+    ) {
+        if self.screen != Screen::AppDetails {
+            self.detail_dragging = false;
+            self.detail_drag_last_y = None;
+            self.detail_drag_pixel_remainder = 0;
+            return;
+        }
+        if !held && !pressed {
+            self.detail_dragging = false;
+            self.detail_drag_last_y = None;
+            self.detail_drag_pixel_remainder = 0;
+            return;
+        }
+        let Some(pointer_y) = pointer_y else {
+            self.detail_dragging = false;
+            self.detail_drag_last_y = None;
+            self.detail_drag_pixel_remainder = 0;
+            return;
+        };
+        if pressed && target == Some(PointerTarget::DetailMemo) {
+            self.detail_dragging = true;
+            self.detail_drag_last_y = Some(pointer_y);
+            self.detail_drag_pixel_remainder = 0;
+            return;
+        }
+        if !held {
+            return;
+        }
+        if !self.detail_dragging {
+            return;
+        }
+        if let Some(previous_y) = self.detail_drag_last_y.replace(pointer_y) {
+            let delta_y = i32::from(pointer_y) - i32::from(previous_y);
+            let scaled = i32::from(self.detail_drag_pixel_remainder) - delta_y;
+            let scroll_pixels = scaled / 32;
+            self.detail_drag_pixel_remainder = (scaled % 32) as i16;
+            self.scroll_detail_by_pixels(scroll_pixels.clamp(-32_768, 32_767) as i16);
         }
     }
 
@@ -841,6 +908,41 @@ mod tests {
         assert_eq!(controller.detail_description_scroll(), 0);
         controller.scroll_detail_by_stick(-18);
         assert_eq!(controller.detail_description_scroll(), 2);
+    }
+
+    #[test]
+    fn dragging_detail_memo_scrolls_by_pointer_delta_and_stops_on_release() {
+        let mut controller = AppController::new();
+        let mut entry = app("a", "A", false);
+        entry.metadata.as_mut().unwrap().long_description = Some("A ".repeat(1_000));
+        let catalog = vec![entry];
+        controller.handle(Input::Confirm, &catalog);
+        controller.handle(Input::Down, &catalog);
+        controller.handle(Input::Down, &catalog);
+
+        controller.handle_pointer_frame(
+            Some(PointerTarget::DetailMemo),
+            Some(200),
+            true,
+            false,
+            &catalog,
+        );
+        controller.handle_pointer_frame(None, Some(-88), false, true, &catalog);
+        assert_eq!(controller.detail_description_scroll(), 1);
+
+        controller.handle_pointer_frame(
+            Some(PointerTarget::DetailMemo),
+            Some(200),
+            true,
+            false,
+            &catalog,
+        );
+        controller.handle_pointer_frame(None, None, false, true, &catalog);
+        controller.handle_pointer_frame(None, Some(-88), false, true, &catalog);
+        assert_eq!(controller.detail_description_scroll(), 1);
+
+        controller.handle_pointer_frame(None, None, false, false, &catalog);
+        assert_eq!(controller.detail_description_scroll(), 1);
     }
 
     #[test]

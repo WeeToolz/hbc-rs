@@ -52,10 +52,11 @@ deferred.
   normal and focused buttons. Wii Remote IR pointer input now selects and
   activates app cards, page arrows, menus, and dialog buttons using renderer
   hit bounds. App detail descriptions wrap and scroll by line with the Up and
-  Down buttons or the controller sticks. This artwork uses bundled defaults.
-  HBC bundles the About image instead of loading it from active themes. Pointer
-  drag scrolling, other theme textures, gradients, localized strings, and
-  complete HBC widget behavior are not ported.
+  Down buttons, controller sticks, or pointer dragging. This artwork uses
+  bundled defaults. HBC bundles the About image instead of loading it from
+  active themes. Pointer drag scrolling outside app details, other theme
+  textures, gradients, localized strings, and complete HBC widget behavior are
+  not ported.
 - A pure Rust theme ZIP parser now enforces the HBC archive size, entry count,
   root filename allowlist, duplicate-name policy, and bounded extraction plan.
   It parses `theme.xml` with the existing metadata parser. Applying a theme
@@ -117,6 +118,10 @@ target has no `test` crate.
 - `channel/channelapp/source/tex.c` reads PNG callback data without checking
   the remaining input length. A truncated PNG can make the callback read past
   its buffer. The Rust decoder bounds every chunk and verifies its CRC.
+- `channel/channelapp/source/main.c` applies the full pointer drag offset on
+  every frame, even though `view.c` measures it from the drag start. This makes
+  memo scrolling accelerate as the pointer moves. HBC-rs applies each frame's
+  pointer delta once.
 - The reported NAND startup hang with a HID controller and no USB drive enters
   HBC's USB storage startup path after SD probing fails. The local `libogc-rs`
   copy filters storage candidates by interface class and now starts only the

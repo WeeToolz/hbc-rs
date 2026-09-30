@@ -857,6 +857,7 @@ pub fn browser_frame_with_viewport(
                     DETAIL_DESCRIPTION_VISIBLE_LINES,
                     controller.detail_description_scroll(),
                 );
+                frame.hit_target(PointerTarget::DetailMemo, rect(88, 144, 464, 184));
             }
             let load_label = controller
                 .selected_app
@@ -1234,6 +1235,23 @@ mod tests {
             FrameCommand::ThemeArt { art: ThemeArt::About, bounds, .. }
                 if *bounds == rect(202, 60, 236, 104)
         )));
+    }
+
+    #[test]
+    fn app_details_exposes_the_description_as_a_drag_target() {
+        let catalog = vec![app("one")];
+        let mut controller = AppController::new();
+        controller.selected_app = Some(String::from("one"));
+        controller.screen = Screen::AppDetails;
+        let frame = browser_frame(&controller, &catalog);
+        assert_eq!(
+            frame.hit_test(100.0, 200.0),
+            Some(PointerTarget::DetailMemo)
+        );
+        assert!(matches!(
+            frame.hit_test(100.0, 350.0),
+            Some(PointerTarget::Detail(8))
+        ));
     }
 
     #[test]
