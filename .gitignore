@@ -1,0 +1,33 @@
+# macOS / Finder
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100/
+.Trashes/
+Icon?
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux desktop metadata
+*~
+.directory
+.Trash-*/
+
+# Rust build output and local configuration
+/target/
+**/target/
+Cargo.lock
+.cargo/config.toml
+
+# Editor and local tool state
+.vscode/
+.idea/
+*.swp
+*.swo
+*.orig

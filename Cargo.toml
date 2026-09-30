@@ -1,0 +1,9 @@
+[package]
+name = "hbc-rs"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+# Add local libogc-rs crates when each platform boundary is selected.
+# Use Rust APIs directly. Do not add C wrappers for ported HBC code.
