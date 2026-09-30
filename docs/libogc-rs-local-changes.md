@@ -109,13 +109,14 @@ black XFB result in Dolphin, so it is a confirmed register-packing fix but not
 the confirmed cause of the black screen.
 
 GX FIFO startup now writes the basic revision, indirect-mask, and Wii TMEM
-register defaults that libogc sends from `GX_Init`. Frame setup also writes
-libogc's copy-filter and field-mask defaults. Display-copy control now enables
-the Y-scale bit for any non-1:1 EFB-to-XFB scale, and the GX flush ends
-with a PowerPC `sync` instruction like libogc's `GX_Flush`. The viewport now
-uses the exact mode dimensions. These changes match specific libogc commands;
-the startup diagnostic still reports `GX XFB BLACK` in Dolphin, so the GX
-rendering failure is not resolved.
+register defaults that libogc sends from `GX_Init`. HBC's mode-specific AA
+sample pattern, vertical filter, field-rendering mode, and half-aspect setting
+now flow through `FrameConfig` to the GX setup. It also uses HBC's two initial
+clearing copies and its 0.05 viewport adjustment. Display-copy control enables
+the Y-scale bit for any non-1:1 EFB-to-XFB scale, and the GX flush ends with a
+PowerPC `sync` instruction like libogc's `GX_Flush`. These changes match
+specific HBC/libogc commands; the startup diagnostic still reports
+`GX XFB BLACK` in Dolphin, so the GX rendering failure is not resolved.
 
 The GX work is incomplete. The FIFO setup is a minimal single-owner path. It
 does not install CP or PE interrupt handlers, provide overflow/underflow

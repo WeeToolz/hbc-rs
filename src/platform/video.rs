@@ -198,9 +198,23 @@ pub fn initialize(widescreen: bool) -> Result<VideoSystem, VideoError> {
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("GX FIFO START");
     let fifo = unsafe { ogc_gx::GxFifo::initialize_default_mem2() }.map_err(VideoError::GxFifo)?;
-    let config =
-        ogc_gx::FrameConfig::new(framebuffer, mode.fb_width, mode.efb_height, mode.xfb_height)
-            .ok_or(VideoError::InvalidFrameConfig)?;
+    let config = ogc_gx::FrameConfig::new(
+        framebuffer,
+        mode.fb_width,
+        mode.efb_height,
+        mode.xfb_height,
+    )
+    .ok_or(VideoError::InvalidFrameConfig)?
+    .with_copy_filter(ogc_gx::GxCopyFilter {
+        antialias: mode.aa != 0,
+        sample_pattern: mode.sample_pattern,
+        vertical_enabled: true,
+        vertical_coefficients: mode.vfilter,
+    })
+    .with_field_mode(
+        mode.field_rendering != 0,
+        u32::from(mode.vi_height) == u32::from(mode.xfb_height) * 2,
+    );
     unsafe {
         #[cfg(feature = "startup-diagnostics")]
         super::diagnostics::mark("GX DISPLAY COMMANDS");
@@ -214,7 +228,6 @@ pub fn initialize(widescreen: bool) -> Result<VideoSystem, VideoError> {
         #[cfg(not(feature = "startup-diagnostics"))]
         let initial_clear = ogc_gx::GxColor::default();
         ogc_gx::initialize_display(config, initial_clear);
-        ogc_gx::present_frame(config);
         #[cfg(not(feature = "startup-diagnostics"))]
         ogc_video::set_next_framebuffer(framebuffer);
     }
