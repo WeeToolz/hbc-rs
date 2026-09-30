@@ -13,6 +13,18 @@ can otherwise raise a program exception. Use a nonzero GPR such as `r12` to
 read, update, and write the MSR. Do not use `r0` as the source of `ori`; for
 that instruction, `r0` reads as zero.
 
+## Tetris example video startup
+
+`examples/tetris.rs` must call `system::init()` before it allocates framebuffers.
+It must check for a missing video mode before entering the game loop. The
+example shows three high-contrast framebuffer fills before controller setup
+and a fourth after USB HID setup. This lets a hardware test distinguish video
+startup, USB input startup, and the game loop. It follows the working
+`snake-gc` example by enabling USB HID without starting Bluetooth HID during
+this test. Keep the neutral YCbYCr background, panel, grid, wall, and text
+luminance values in contrasting ranges; the old background and text values
+made the documented white-background palette nearly black with low contrast.
+
 ## ELF-to-DOL conversion
 
 Use `cargo xtask elf-to-dol <input.elf> <output.dol>` from the copied
