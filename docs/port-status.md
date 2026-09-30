@@ -35,16 +35,20 @@ deferred.
   candidates exclude HID devices, and v5 watcher startup has a 100 ms per-host
   bound in the ignored `libogc-rs` copy; the reported NAND/HID hang still needs
   hardware confirmation.
-- Browser launch and delete actions are not connected to the runtime loop.
-- Launch and BootMii actions are not connected to the runtime loop. App deletion
-  now asks for an explicit yes response and uses the safe folder remover, but
-  it does not yet show an on-screen error when storage deletion fails. The
-  loader still lacks HBC's complete cleanup and launch trampoline.
+- BootMii is not connected. App deletion now asks for an explicit yes response
+  and uses the safe folder remover, but it does not show an on-screen error
+  when storage deletion fails. Launch errors also have no on-screen message.
 - The GX FIFO path has no interrupt-based flow control, overflow recovery, or
   draw-completion wait. Its register setup and display output are unverified on
   hardware.
-- Executable launch does not yet stop services, restore exception state, set a
-  target stack, clear the HBC runtime area, or use HBC's launch trampoline.
+- ELF/DOL launch now reads the selected file, validates and applies its load
+  plan, patches the HBC crt0 byte when present, and writes argv data into the
+  reserved area. It saves settings, unmounts storage, shuts down WPAD and system
+  services, disables IRQ masks and external interrupts, clears HBC's runtime
+  memory through an Arena2 trampoline, and branches to the entry point. It does
+  not restore an earlier IRQ exception vector, reload IOS for AHB access, or
+  receive real hardware verification. The loaded program's crt0 must set the
+  stack and install its own interrupt handlers before enabling interrupts.
 - Network receive/update behavior, theme installation UI, and periodic dirty
   settings save timing still need integration. Settings currently save on the
   return-to-menu and power-off actions.

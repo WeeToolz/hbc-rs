@@ -49,6 +49,31 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         video.wait_vsync();
 
         for action in actions {
+            if action == hbc_rs::app::Action::LaunchSelected {
+                let Ok(image) = startup.prepare_selected_executable() else {
+                    continue;
+                };
+                if unsafe {
+                    hbc_rs::loader::prepare_launch(
+                        &image.bytes,
+                        &image.plan,
+                        &image.arguments,
+                        hbc_rs::platform::startup::EXECUTABLE_MEMORY,
+                    )
+                }
+                .is_err()
+                {
+                    continue;
+                }
+                let settings = startup.runtime().settings().current();
+                let _ = hbc_rs::platform::settings::save(settings);
+                if startup.unmount_storage().is_err() {
+                    continue;
+                }
+                let _ = wpad_sys::shutdown();
+                hbc_rs::platform::video::shutdown();
+                unsafe { hbc_rs::loader::transfer_control(image.plan.entry) };
+            }
             if action == hbc_rs::app::Action::DeleteSelected {
                 let _ = startup.delete_selected_app();
                 continue;

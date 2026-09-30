@@ -3,7 +3,7 @@
 //! These functions only inspect input bytes. A caller must apply the returned
 //! plan through a platform-specific memory adapter.
 
-use alloc::vec::Vec;
+use alloc::{string::String, vec::Vec};
 use core::ops::Range;
 
 const DOL_HEADER_SIZE: usize = 0x100;
@@ -44,6 +44,50 @@ pub enum ParseError {
     OutOfBounds,
     AddressOverflow,
     InvalidSegment(&'static str),
+}
+
+pub const MAX_LAUNCH_ARGUMENT_BYTES: usize = 1024;
+
+/// Build the Wii `__argv.commandLine` byte sequence used by HBC.
+///
+/// The executable path is the first NUL-terminated argument. Metadata values
+/// follow as separate NUL-terminated arguments, with one final NUL. The
+/// complete byte sequence fits in HBC's reserved 1024-byte argument area.
+pub fn build_launch_arguments(
+    executable_path: &str,
+    arguments: &[String],
+) -> Result<Vec<u8>, ParseError> {
+    if executable_path.as_bytes().contains(&0)
+        || arguments.iter().any(|arg| arg.as_bytes().contains(&0))
+    {
+        return Err(ParseError::InvalidFormat("launch arguments contain NUL"));
+    }
+    let mut length = executable_path
+        .len()
+        .checked_add(2)
+        .ok_or(ParseError::OutOfBounds)?;
+    for argument in arguments {
+        length = length
+            .checked_add(argument.len())
+            .and_then(|length| length.checked_add(1))
+            .ok_or(ParseError::OutOfBounds)?;
+    }
+    if length > MAX_LAUNCH_ARGUMENT_BYTES {
+        return Err(ParseError::InvalidFormat("launch arguments exceed limit"));
+    }
+
+    let mut bytes = Vec::new();
+    bytes
+        .try_reserve_exact(length)
+        .map_err(|_| ParseError::OutOfBounds)?;
+    bytes.extend_from_slice(executable_path.as_bytes());
+    bytes.push(0);
+    for argument in arguments {
+        bytes.extend_from_slice(argument.as_bytes());
+        bytes.push(0);
+    }
+    bytes.push(0);
+    Ok(bytes)
 }
 
 /// Check every source and destination range before a platform writes a plan.
@@ -100,7 +144,7 @@ pub fn validate_load_plan(
 mod wii;
 
 #[cfg(target_arch = "powerpc")]
-pub use wii::{apply_load_plan, transfer_control};
+pub use wii::{apply_load_plan, prepare_launch, transfer_control};
 
 /// Parse a DOL file. `allowed_memory` optionally limits each section to a
 /// half-open destination range, as HBC's overlap check does.
@@ -347,6 +391,32 @@ mod tests {
         put32(&mut dol, 0x90, 8);
         put32(&mut dol, 0xe0, 0x8000_3400);
         assert_eq!(parse_dol(&dol, None), Err(ParseError::OutOfBounds));
+    }
+
+    #[test]
+    fn builds_hbc_command_line_with_nul_separated_arguments() {
+        let arguments = alloc::vec![String::from("--safe"), String::from("two words")];
+        assert_eq!(
+            build_launch_arguments("sd:/apps/demo/boot.elf", &arguments).unwrap(),
+            b"sd:/apps/demo/boot.elf\0--safe\0two words\0\0"
+        );
+        assert_eq!(
+            build_launch_arguments("sd:/apps/demo/boot.dol", &[]).unwrap(),
+            b"sd:/apps/demo/boot.dol\0\0"
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_or_oversized_launch_arguments() {
+        assert!(matches!(
+            build_launch_arguments("bad\0path", &[]),
+            Err(ParseError::InvalidFormat(_))
+        ));
+        let long = String::from("x").repeat(MAX_LAUNCH_ARGUMENT_BYTES);
+        assert!(matches!(
+            build_launch_arguments("boot.elf", &[long]),
+            Err(ParseError::InvalidFormat(_))
+        ));
     }
     #[test]
     fn parses_dol_section_and_enforces_memory_bounds() {
