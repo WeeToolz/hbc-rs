@@ -102,6 +102,21 @@ the textured path sent one CP texture coordinate and zero XF coordinates. It
 warns that this mismatch can hang real hardware. A regression test checks both
 vertex-spec values.
 
+The solid renderer must disable vertex lighting and use the direct vertex
+color. Its channel-control word now matches libogc's unlit `GX_SetChanCtrl`
+setup. A regression test checks this word. This correction did not resolve the
+black XFB result in Dolphin, so it is a confirmed register-packing fix but not
+the confirmed cause of the black screen.
+
+GX FIFO startup now writes the basic revision, indirect-mask, and Wii TMEM
+register defaults that libogc sends from `GX_Init`. Frame setup also writes
+libogc's copy-filter and field-mask defaults. Display-copy control now enables
+the Y-scale bit for any non-1:1 EFB-to-XFB scale, and the GX flush ends
+with a PowerPC `sync` instruction like libogc's `GX_Flush`. The viewport now
+uses the exact mode dimensions. These changes match specific libogc commands;
+the startup diagnostic still reports `GX XFB BLACK` in Dolphin, so the GX
+rendering failure is not resolved.
+
 The GX work is incomplete. The FIFO setup is a minimal single-owner path. It
 does not install CP or PE interrupt handlers, provide overflow/underflow
 recovery, reset and abort handling, or wait for draw completion. HBC sprite and

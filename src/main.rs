@@ -238,6 +238,26 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             return -3;
         }
         #[cfg(feature = "startup-diagnostics")]
+        {
+            video.configure_2d();
+            if unsafe {
+                video.draw_solid_rect(
+                    16.0,
+                    16.0,
+                    32.0,
+                    32.0,
+                    ogc_gx::GxColor { r: 255, g: 255, b: 255, a: 255 },
+                )
+            }
+            .is_err()
+            {
+                hbc_rs::platform::diagnostics::fail("GX TEST RECT ERROR");
+                loop {
+                    hbc_rs::platform::diagnostics::hold();
+                }
+            }
+        }
+        #[cfg(feature = "startup-diagnostics")]
         if !display_ready {
             hbc_rs::platform::diagnostics::mark("GX COPY START");
         }
@@ -247,13 +267,19 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             {
                 hbc_rs::platform::diagnostics::mark("GX COPY QUEUED");
                 hbc_rs::platform::diagnostics::hold();
-                if !video.framebuffer_has_nonzero_bytes() {
-                    hbc_rs::platform::diagnostics::fail("GX XFB EMPTY");
+                if !video.framebuffer_has_visible_luma() {
+                    hbc_rs::platform::diagnostics::fail("GX XFB BLACK");
                     loop {
                         hbc_rs::platform::diagnostics::hold();
                     }
                 }
-                hbc_rs::platform::diagnostics::mark("GX XFB DATA READY");
+                if !video.framebuffer_has_bright_luma() {
+                    hbc_rs::platform::diagnostics::fail("GX XFB NO WHITE");
+                    loop {
+                        hbc_rs::platform::diagnostics::hold();
+                    }
+                }
+                hbc_rs::platform::diagnostics::mark("GX XFB HAS IMAGE");
                 hbc_rs::platform::diagnostics::hold();
             }
             video.show();

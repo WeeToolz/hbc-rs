@@ -44,6 +44,14 @@ fn paint(words: &mut [u32], width: usize, height: usize, label: &str, failed: bo
     }
 }
 
+pub(super) fn has_visible_luma(value: u8) -> bool {
+    value > 24
+}
+
+pub(super) fn has_bright_luma(value: u8) -> bool {
+    value > 200
+}
+
 #[cfg(target_arch = "powerpc")]
 mod wii {
     use core::{
@@ -155,5 +163,21 @@ mod tests {
         let mut short = [0xdead_beef; 10];
         paint(&mut short, 64, 40, "ERROR", true);
         assert_eq!(short, [0xdead_beef; 10]);
+    }
+
+    #[test]
+    fn ycb_ycr_black_chroma_does_not_count_as_visible_luma() {
+        let black = [0x00, 0x80, 0x00, 0x80];
+        assert!(!black.iter().step_by(2).copied().any(has_visible_luma));
+
+        let dark_gray = [0x38, 0x80, 0x38, 0x80];
+        assert!(dark_gray.iter().step_by(2).copied().any(has_visible_luma));
+    }
+
+    #[test]
+    fn bright_luma_check_distinguishes_white_from_black() {
+        assert!(!has_bright_luma(0));
+        assert!(!has_bright_luma(200));
+        assert!(has_bright_luma(235));
     }
 }

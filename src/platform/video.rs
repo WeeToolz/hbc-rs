@@ -26,10 +26,23 @@ impl VideoSystem {
     }
 
     #[cfg(feature = "startup-diagnostics")]
-    pub fn framebuffer_has_nonzero_bytes(&self) -> bool {
+    pub fn framebuffer_has_visible_luma(&self) -> bool {
         let framebuffer = ogc_core::mem_k0_to_k1(self.framebuffer as usize) as *const u8;
         (0..self.info.byte_len as usize)
-            .any(|offset| unsafe { core::ptr::read_volatile(framebuffer.add(offset)) != 0 })
+            .step_by(2)
+            .any(|offset| unsafe {
+                super::diagnostics::has_visible_luma(core::ptr::read_volatile(framebuffer.add(offset)))
+            })
+    }
+
+    #[cfg(feature = "startup-diagnostics")]
+    pub fn framebuffer_has_bright_luma(&self) -> bool {
+        let framebuffer = ogc_core::mem_k0_to_k1(self.framebuffer as usize) as *const u8;
+        (0..self.info.byte_len as usize)
+            .step_by(2)
+            .any(|offset| unsafe {
+                super::diagnostics::has_bright_luma(core::ptr::read_volatile(framebuffer.add(offset)))
+            })
     }
 
     /// Show the cleared framebuffer after the renderer has drawn its first frame.
@@ -191,7 +204,16 @@ pub fn initialize(widescreen: bool) -> Result<VideoSystem, VideoError> {
     unsafe {
         #[cfg(feature = "startup-diagnostics")]
         super::diagnostics::mark("GX DISPLAY COMMANDS");
-        ogc_gx::initialize_display(config, ogc_gx::GxColor::default());
+        #[cfg(feature = "startup-diagnostics")]
+        let initial_clear = ogc_gx::GxColor {
+            r: 56,
+            g: 56,
+            b: 56,
+            a: 255,
+        };
+        #[cfg(not(feature = "startup-diagnostics"))]
+        let initial_clear = ogc_gx::GxColor::default();
+        ogc_gx::initialize_display(config, initial_clear);
         ogc_gx::present_frame(config);
         #[cfg(not(feature = "startup-diagnostics"))]
         ogc_video::set_next_framebuffer(framebuffer);
