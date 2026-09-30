@@ -32,12 +32,14 @@ deferred.
   and storage-stop failures use a dismissible notice. App icons remain
   placeholders. Theme textures, gradients, localized strings, and HBC widget
   behavior are not ported.
-- Device discovery scans one preferred volume synchronously at startup. There
-  is no background mount worker, hotplug handling, 30-frame refresh, or SD and
-  USB device status UI. A missing `apps` directory is treated as an empty
+- Device discovery scans one preferred volume synchronously at startup and
+  retries SD/USB selection every 30 frames. It unmounts an offline volume,
+  remounts available media, and replaces the catalog while preserving the
+  selected app where possible. It does not use HBC's background mount worker
+  or show per-device status. A missing `apps` directory is treated as an empty
   catalog; other top-level scan errors show a notice. GameCube memory cards are
-  not supported. USB storage
-  candidates exclude HID devices, and v5 watcher startup has a 100 ms per-host
+  not supported. USB storage candidates exclude HID devices, and v5 watcher
+  startup has a 100 ms per-host
   bound in the ignored `libogc-rs` copy; the reported NAND/HID hang still needs
   hardware confirmation.
 - BootMii IOS availability now uses HBC's bounded TMD-view `BM` marker check.

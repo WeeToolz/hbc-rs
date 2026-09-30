@@ -30,8 +30,18 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     // aspect setting will select an 852 by 480 space when that policy lands.
     let mut startup = hbc_rs::platform::startup::WiiStartup::initialize(640, 480);
     let mut display_ready = false;
+    let mut frames_since_storage_scan = 0u8;
 
     loop {
+        frames_since_storage_scan += 1;
+        if frames_since_storage_scan == 30 {
+            frames_since_storage_scan = 0;
+            if startup.refresh_storage().is_err() {
+                startup
+                    .runtime_mut()
+                    .show_notice("Could not refresh storage devices.");
+            }
+        }
         let frame = hbc_rs::platform::input::scan();
         let actions = startup.runtime_mut().update(&frame);
         let scene = hbc_rs::render::browser_frame(

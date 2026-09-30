@@ -76,6 +76,38 @@ impl WiiStartup {
         self.storage.is_some()
     }
 
+    /// Retry device selection and catalog scanning after media removal or
+    /// insertion. Call this every 30 frames, as HBC does.
+    pub fn refresh_storage(&mut self) -> Result<bool, StartupError> {
+        if self
+            .volume
+            .is_some_and(|volume| ogc_fat::is_mounted(volume.mount_name()))
+        {
+            return Ok(false);
+        }
+
+        let previous_volume = self.volume;
+        if previous_volume.is_some() {
+            ogc_fat::shutdown_all()
+                .map_err(|error| StartupError::Storage(StorageError::Fat(error)))?;
+        }
+
+        let preference = self.runtime.settings().current().device;
+        let (volume, storage, catalog, scan_failed) = mount_preferred_volume(preference);
+        self.volume = volume;
+        self.storage = storage;
+        self.runtime.replace_catalog(catalog);
+
+        if scan_failed {
+            self.runtime
+                .show_notice("Could not read the apps folder on this device.");
+        } else if previous_volume.is_some() && volume.is_none() {
+            self.runtime
+                .show_notice("Storage was removed. Connect an SD or USB device.");
+        }
+        Ok(previous_volume != volume)
+    }
+
     /// Delete the selected app folder and remove it from the live catalog.
     pub fn delete_selected_app(&mut self) -> Result<(), StartupError> {
         let directory = self
@@ -156,6 +188,15 @@ impl WiiStartup {
         self.storage = None;
         self.volume = None;
         Ok(())
+    }
+}
+
+impl Volume {
+    fn mount_name(self) -> &'static core::ffi::CStr {
+        match self {
+            Self::Sd => c"sd",
+            Self::Usb => c"usb",
+        }
     }
 }
 
