@@ -4,7 +4,7 @@
 //! GX state changes in one queue. This module keeps layout as data. The Wii
 //! adapter submits solid rectangles, HBC app-card textures, and app icons
 //! through `ogc-gx`. Text uses a small native bitmap font. Other theme textures
-//! and gradients remain.
+//! and texture gradients remain.
 
 use alloc::{string::String, vec::Vec};
 
@@ -1028,10 +1028,24 @@ pub fn browser_frame_with_viewport(
             frame.text(304.0, 232.0, label, 1.0, text_color, 5);
             frame.fill(rect(120, 256, 400, 16), HEADER);
             if percent > 0 {
-                frame.fill(
-                    rect(120, 256, 400.0 * f32::from(percent) / 100.0, 16),
-                    ACCENT,
-                );
+                let stops = theme
+                    .and_then(|metadata| metadata.progress_gradient)
+                    .unwrap_or([Rgba(63, 155, 211, 255); 4]);
+                let width = 400.0;
+                // Four theme colors are gradient stops. Render short solid
+                // spans so this path works with the GX rectangle renderer.
+                const SPANS: usize = 32;
+                for span in 0..SPANS {
+                    let start = span as f32 / SPANS as f32;
+                    if start >= f32::from(percent) / 100.0 {
+                        break;
+                    }
+                    let end = ((span + 1) as f32 / SPANS as f32).min(f32::from(percent) / 100.0);
+                    frame.fill(
+                        rect(120.0 + width * start, 256, width * (end - start), 16),
+                        gradient_color(stops, start),
+                    );
+                }
             }
         }
     }
@@ -1058,6 +1072,23 @@ pub fn browser_frame_with_viewport(
         frame.widen_canvas();
     }
     frame
+}
+
+fn gradient_color(stops: [Rgba; 4], position: f32) -> Color {
+    let scaled = position.clamp(0.0, 1.0) * 3.0;
+    let index = (scaled.floor() as usize).min(2);
+    let amount = scaled - index as f32;
+    let a = stops[index];
+    let b = stops[index + 1];
+    let mix = |left: u8, right: u8| {
+        (f32::from(left) + (f32::from(right) - f32::from(left)) * amount).round() as u8
+    };
+    Color {
+        red: mix(a.0, b.0),
+        green: mix(a.1, b.1),
+        blue: mix(a.2, b.2),
+        alpha: mix(a.3, b.3),
+    }
 }
 
 fn color_from_rgba(Rgba(red, green, blue, alpha): Rgba) -> Color {
@@ -1492,9 +1523,55 @@ mod tests {
         controller.show_wiiload_installing();
         controller.set_wiiload_install_progress(25);
         let frame = browser_frame(&controller, &[]);
-        assert!(frame.fills.iter().any(|fill| {
-            fill.bounds.y == 256.0 && fill.bounds.width == 100.0 && fill.color == ACCENT
-        }));
+        let progress: Vec<_> = frame
+            .fills
+            .iter()
+            .filter(|fill| fill.bounds.y == 256.0 && fill.bounds.x >= 120.0 && fill.color != HEADER)
+            .collect();
+        assert!(!progress.is_empty());
+        assert!(progress.iter().all(|fill| fill.color == ACCENT));
+        assert!(
+            (progress.iter().map(|fill| fill.bounds.width).sum::<f32>() - 100.0).abs() < 0.01,
+            "{progress:?}"
+        );
+    }
+
+    #[test]
+    fn wiiload_install_progress_uses_theme_gradient_stops() {
+        let mut controller = AppController::new();
+        controller.show_wiiload_installing();
+        controller.set_wiiload_install_progress(100);
+        let theme = ThemeMetadata {
+            progress_gradient: Some([
+                Rgba(1, 2, 3, 255),
+                Rgba(30, 40, 50, 255),
+                Rgba(70, 80, 90, 255),
+                Rgba(110, 120, 130, 255),
+            ]),
+            ..ThemeMetadata::default()
+        };
+        let frame = browser_frame_with_theme(&controller, &[], Some(&theme));
+        let progress: Vec<_> = frame
+            .fills
+            .iter()
+            .filter(|fill| fill.bounds.y == 256.0 && fill.bounds.x >= 120.0 && fill.color != HEADER)
+            .collect();
+        assert_eq!(
+            progress.first().unwrap().color,
+            Color {
+                red: 1,
+                green: 2,
+                blue: 3,
+                alpha: 255
+            }
+        );
+        assert!(progress
+            .iter()
+            .any(|fill| fill.color.red > 1 && fill.color.red < 30));
+        assert!(progress
+            .iter()
+            .any(|fill| fill.color.red > 70 && fill.color.red < 110));
+        assert!((progress.iter().map(|fill| fill.bounds.width).sum::<f32>() - 400.0).abs() < 0.01);
     }
 
     #[test]

@@ -72,8 +72,9 @@ deferred.
   renderer applies default and target-specific font colors and sizes to HBC's
   `label`, `dlgtitle`, `memo`, `appname`, `appdesc`, `button`, and `button_desel`
   text roles. It uses scaled built-in glyphs; custom TTF files are parsed as
-  metadata only and are not rasterized. Theme controls, custom fonts, and
-  progress gradients are not yet drawn.
+  metadata only and are not rasterized. Theme controls and custom fonts are not
+  yet drawn. The ZIP install meter uses the four parsed progress-gradient stops,
+  with a blue default when a theme has no gradient.
   Startup loads and validates that archive again. Theme PNG resources use the bounded pure
   Rust decoder for grayscale, RGB, indexed, gray-alpha, and RGBA images, including
   Adam7 interlacing. The decoder can convert RGBA output to GX RGBA8 tile order.
