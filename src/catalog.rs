@@ -111,7 +111,11 @@ pub fn scan_apps<S: CatalogStorage>(
                     .and_then(|xml| crate::metadata::parse_app_xml(xml).ok())
             });
         let icon_path = join_path(&folder_path, "icon.png");
-        let has_icon = storage.file_size(&icon_path).ok().flatten().is_some();
+        let has_icon = storage
+            .read_file(&icon_path, crate::png::HBC_APP_ICON_MAX_PNG_BYTES)
+            .ok()
+            .flatten()
+            .is_some_and(|bytes| crate::png::decode_hbc_app_icon(&bytes).is_ok());
 
         apps.push(AppEntry {
             directory: folder.name,
@@ -192,6 +196,46 @@ fn cmp_text(a: &str, b: &str) -> Ordering {
 mod tests {
     use super::*;
     use alloc::{collections::BTreeMap, vec, vec::Vec};
+
+    fn valid_hbc_icon_png() -> Vec<u8> {
+        fn chunk(kind: &[u8; 4], data: &[u8], output: &mut Vec<u8>) {
+            output.extend_from_slice(&(data.len() as u32).to_be_bytes());
+            let crc_start = output.len();
+            output.extend_from_slice(kind);
+            output.extend_from_slice(data);
+            let crc = crc32fast::hash(&output[crc_start..]);
+            output.extend_from_slice(&crc.to_be_bytes());
+        }
+
+        let mut png = b"\x89PNG\r\n\x1a\n".to_vec();
+        let mut header = Vec::new();
+        header.extend_from_slice(&128u32.to_be_bytes());
+        header.extend_from_slice(&48u32.to_be_bytes());
+        header.extend_from_slice(&[8, 0, 0, 0, 0]);
+        chunk(b"IHDR", &header, &mut png);
+
+        let raw = vec![0; (128 + 1) * 48];
+        let mut zlib = vec![0x78, 0x01];
+        let mut offset = 0;
+        while offset < raw.len() {
+            let count = (raw.len() - offset).min(65535);
+            zlib.push(u8::from(offset + count == raw.len()));
+            zlib.extend_from_slice(&(count as u16).to_le_bytes());
+            zlib.extend_from_slice(&(!(count as u16)).to_le_bytes());
+            zlib.extend_from_slice(&raw[offset..offset + count]);
+            offset += count;
+        }
+        let mut a = 1u32;
+        let mut b = 0u32;
+        for byte in &raw {
+            a = (a + u32::from(*byte)) % 65521;
+            b = (b + a) % 65521;
+        }
+        zlib.extend_from_slice(&((b << 16) | a).to_be_bytes());
+        chunk(b"IDAT", &zlib, &mut png);
+        chunk(b"IEND", &[], &mut png);
+        png
+    }
 
     #[derive(Default)]
     struct MemoryStorage {
@@ -317,7 +361,15 @@ mod tests {
             .insert(format!("{root}/bad-elf-and-dol/boot.elf"), 101);
         fs.sizes
             .insert(format!("{root}/bad-elf-and-dol/boot.dol"), 12);
-        fs.sizes.insert(format!("{root}/elf-first/icon.png"), 1);
+        fs.sizes.insert(
+            format!("{root}/elf-first/icon.png"),
+            valid_hbc_icon_png().len() as u64,
+        );
+        fs.files
+            .insert(format!("{root}/elf-first/icon.png"), valid_hbc_icon_png());
+        fs.sizes.insert(format!("{root}/dol/icon.png"), 3);
+        fs.files
+            .insert(format!("{root}/dol/icon.png"), b"bad".to_vec());
         fs.files.insert(
             format!("{root}/elf-first/meta.xml"),
             b"<app><name>ELF</name></app>".to_vec(),
@@ -332,6 +384,7 @@ mod tests {
         );
         assert!(apps[0].has_icon);
         assert_eq!(apps[1].kind, AppKind::Dol);
+        assert!(!apps[1].has_icon);
         assert_eq!(apps[2].kind, AppKind::Theme);
     }
 
