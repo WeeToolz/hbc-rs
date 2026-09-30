@@ -27,6 +27,11 @@ This follows Rust's slice pointer requirements and avoids undefined behavior.
 In `crates/services/ogc-fat`, the HBC port uses Rust-owned `FatFile` and
 `FatDirectory` wrappers. They must close their handles on drop and update the
 existing open-handle accounting. HBC catalog scanning uses these wrappers.
+The local copy also provides create, truncate, write, flush, stat, directory
+creation, file removal, and empty-directory removal. Mutating FAT operations
+flush metadata and transport buffers. The Wii target crate check passes with
+warnings denied; target unit tests cannot run because the custom no-std target
+does not provide Rust's `test` crate.
 
 ## GX state and command emission
 

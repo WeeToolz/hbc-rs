@@ -16,8 +16,12 @@ pub enum Volume {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum StorageError {
     Fat(ogc_fat::FatError),
+    Archive(crate::archive::ZipError),
+    Management(crate::management::ManagementError),
     InvalidPath,
     Allocation,
+    WriteZero,
+    DeleteDepth,
 }
 
 #[cfg(target_arch = "powerpc")]
@@ -50,10 +54,128 @@ impl FatStorage {
         ogc_fat::unmount(name).map_err(StorageError::Fat)
     }
 
+    /// Extract a fully validated archive plan below a mounted-volume path.
+    ///
+    /// The complete plan must be built before this method is called. Writes
+    /// follow that plan in order, so parent directories exist before files.
+    pub fn extract_archive(
+        &self,
+        archive_bytes: &[u8],
+        archive: &crate::archive::ZipArchive,
+        plan: &crate::management::ExtractionPlan,
+        destination: &str,
+    ) -> Result<(), StorageError> {
+        crate::archive::validate_archive_path(destination)
+            .map_err(|_| StorageError::InvalidPath)?;
+        for operation in plan.operations() {
+            match operation {
+                crate::management::ExtractionOperation::CreateDirectory { path } => {
+                    let relative = join_safe_path(destination, path)?;
+                    let full = self.full_path(&relative)?;
+                    match ogc_fat::create_directory(&full) {
+                        Ok(()) => {}
+                        Err(ogc_fat::FatError::AlreadyExists)
+                            if ogc_fat::stat(&full)
+                                .map(|stat| stat.is_directory)
+                                .unwrap_or(false) => {}
+                        Err(ogc_fat::FatError::AlreadyExists) => {
+                            return Err(StorageError::Fat(ogc_fat::FatError::PathError))
+                        }
+                        Err(error) => return Err(StorageError::Fat(error)),
+                    }
+                }
+                crate::management::ExtractionOperation::WriteFile {
+                    path,
+                    archive_name,
+                    size,
+                } => {
+                    let output_limit =
+                        usize::try_from(*size).map_err(|_| StorageError::Allocation)?;
+                    let bytes = archive
+                        .extract(archive_bytes, archive_name, output_limit)
+                        .map_err(StorageError::Archive)?;
+                    if bytes.len() as u64 != *size {
+                        return Err(StorageError::Archive(
+                            crate::archive::ZipError::SizeMismatch,
+                        ));
+                    }
+                    let relative = join_safe_path(destination, path)?;
+                    let full = self.full_path(&relative)?;
+                    let mut file =
+                        ogc_fat::FatFile::create_truncate(&full).map_err(StorageError::Fat)?;
+                    let mut offset = 0;
+                    while offset < bytes.len() {
+                        let written = file.write(&bytes[offset..]).map_err(StorageError::Fat)?;
+                        if written == 0 {
+                            return Err(StorageError::WriteZero);
+                        }
+                        offset += written;
+                    }
+                    file.flush().map_err(StorageError::Fat)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Remove an app folder recursively after checking its catalog name.
+    pub fn remove_app_folder(&self, directory: &str) -> Result<(), StorageError> {
+        let plan = crate::management::plan_app_deletion(directory)
+            .map_err(|_| StorageError::InvalidPath)?;
+        let path = alloc::format!("apps/{}", plan.directory);
+        self.remove_tree(&path, 0)?;
+        let full = self.full_path(&path)?;
+        ogc_fat::remove_directory(&full).map_err(StorageError::Fat)
+    }
+
+    fn remove_tree(&self, path: &str, depth: usize) -> Result<(), StorageError> {
+        const MAX_DELETE_DEPTH: usize = 64;
+        if depth > MAX_DELETE_DEPTH {
+            return Err(StorageError::DeleteDepth);
+        }
+        let full = self.full_path(path)?;
+        let mut directory = ogc_fat::FatDirectory::open(&full).map_err(StorageError::Fat)?;
+        let mut children = alloc::vec::Vec::new();
+        loop {
+            let Some(entry) = directory.next_entry().map_err(StorageError::Fat)? else {
+                break;
+            };
+            let name = alloc::string::String::from_utf8_lossy(&entry.name).into_owned();
+            if name == "." || name == ".." {
+                continue;
+            }
+            crate::archive::validate_archive_path(&name).map_err(|_| StorageError::InvalidPath)?;
+            children.push((name, entry.is_directory));
+        }
+        drop(directory);
+
+        for (name, is_directory) in children {
+            let child = join_safe_path(path, &name)?;
+            if is_directory {
+                self.remove_tree(&child, depth + 1)?;
+                let full_child = self.full_path(&child)?;
+                ogc_fat::remove_directory(&full_child).map_err(StorageError::Fat)?;
+            } else {
+                let full_child = self.full_path(&child)?;
+                ogc_fat::remove_file(&full_child).map_err(StorageError::Fat)?;
+            }
+        }
+        Ok(())
+    }
+
     fn full_path(&self, path: &str) -> Result<CString, StorageError> {
         crate::archive::validate_archive_path(path).map_err(|_| StorageError::InvalidPath)?;
         CString::new(alloc::format!("{}{path}", self.prefix)).map_err(|_| StorageError::InvalidPath)
     }
+}
+
+#[cfg(target_arch = "powerpc")]
+fn join_safe_path(parent: &str, child: &str) -> Result<String, StorageError> {
+    crate::archive::validate_archive_path(parent).map_err(|_| StorageError::InvalidPath)?;
+    crate::archive::validate_archive_path(child).map_err(|_| StorageError::InvalidPath)?;
+    let joined = alloc::format!("{}/{child}", parent.trim_end_matches('/'));
+    crate::archive::validate_archive_path(&joined).map_err(|_| StorageError::InvalidPath)?;
+    Ok(joined)
 }
 
 #[cfg(target_arch = "powerpc")]
