@@ -14,7 +14,11 @@ deferred.
 - A Wii-only Wiiload receiver worker starts asynchronous networking with bounded
   retries, listens on port 4299, filters clients to HBC's local IPv4 `/16`, and
   validates complete uploads through the host-testable protocol decoder. The
-  decoder checks exact body length and bounded decompression. The worker queues
+  decoder checks exact body length and bounded decompression. It accepts uploads
+  over TCP and USB Gecko. USB Gecko reads the HAXX header and then the advertised
+  data and argument body through the local `ogc-usbgecko` receive API. The
+  receiver publishes atomic body byte counts, and the main loop shows a live
+  receive dialog. The worker queues
   one payload for the main thread. The entry point starts the worker and sends
   validated ELF or DOL uploads through the existing launch path. ZIP uploads
   use a confirmation dialog, then install an app archive or apply a theme.

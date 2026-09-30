@@ -27,5 +27,6 @@ ogc-irq = { path = "../libogc-rs/crates/core/ogc-irq" }
 ogc-network = { path = "../libogc-rs/crates/services/ogc-network" }
 ogc-system = { path = "../libogc-rs/crates/core/ogc-system" }
 ogc-video = { path = "../libogc-rs/crates/hardware/ogc-video" }
+ogc-usbgecko = { path = "../libogc-rs/crates/services/ogc-usbgecko" }
 ogc-wiilaunch = { path = "../libogc-rs/crates/core/ogc-wiilaunch" }
 wpad-sys = { path = "../libogc-rs/crates/services/wpad-sys" }

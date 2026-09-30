@@ -42,6 +42,14 @@ impl AppRuntime {
         self.controller.show_wiiload_installing();
     }
 
+    pub fn show_wiiload_receiving(&mut self) {
+        self.controller.show_wiiload_receiving();
+    }
+
+    pub fn finish_wiiload_receiving(&mut self) {
+        self.controller.finish_wiiload_receiving();
+    }
+
     pub fn finish_wiiload_installing(&mut self) {
         self.controller.finish_wiiload_installing();
     }

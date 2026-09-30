@@ -88,6 +88,18 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
 
         startup.poll_storage_scan();
         startup.poll_device_availability();
+        let receiver_status = hbc_rs::platform::wiiload::status();
+        if receiver_status == hbc_rs::platform::wiiload::ReceiverStatus::Receiving {
+            if startup.runtime().controller().screen != hbc_rs::app::Screen::WiiloadReceiving {
+                startup.runtime_mut().show_wiiload_receiving();
+            }
+            let (completed, total) = hbc_rs::platform::wiiload::receive_progress();
+            startup
+                .runtime_mut()
+                .set_wiiload_install_progress(hbc_rs::wiiload::progress_percent(completed, total));
+        } else if startup.runtime().controller().screen == hbc_rs::app::Screen::WiiloadReceiving {
+            startup.runtime_mut().finish_wiiload_receiving();
+        }
         if let Some(succeeded) = startup.poll_received_zip_install() {
             startup.runtime_mut().show_notice(if succeeded {
                 "Received ZIP is complete."

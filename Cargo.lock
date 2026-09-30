@@ -43,6 +43,7 @@ dependencies = [
  "ogc-lwp",
  "ogc-network",
  "ogc-system",
+ "ogc-usbgecko",
  "ogc-video",
  "ogc-wiilaunch",
  "wpad-sys",
@@ -392,6 +393,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "ogc-usbgecko"
+version = "0.1.0"
+dependencies = [
+ "ogc-exi",
+ "ogc-lwp-driver",
+]
+
+[[package]]
 name = "ogc-usbstorage-lifecycle"
 version = "0.1.0"
 
@@ -420,6 +429,7 @@ version = "0.1.0"
 dependencies = [
  "ogc-core",
  "ogc-irq",
+ "ogc-lwp-sys",
  "ogc-sys",
 ]
 

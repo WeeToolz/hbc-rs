@@ -6,12 +6,13 @@
 use alloc::vec::Vec;
 use core::cell::UnsafeCell;
 use core::ffi::c_void;
-use core::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicU32, AtomicU8, Ordering};
 
 use crate::wiiload::{same_local_subnet_16, WiiloadHeader, WiiloadPayload, WIILOAD_HEADER_LEN};
 use ogc_lwp::{sys as lwp_sys, ThreadHandle};
 use ogc_network::sys::{F_GETFL, F_SETFL};
 use ogc_network::{self as network, SockaddrIn, AF_INET, O_NONBLOCK, PF_INET, SOCK_STREAM};
+use ogc_usbgecko as usbgecko;
 
 const WIILOAD_PORT: u16 = 4299;
 const LISTEN_BACKLOG: u32 = 3;
@@ -24,6 +25,9 @@ const POLL_TICKS: u64 = lwp_sys::TICKS_PER_SECOND / 50;
 const EBUSY: i32 = -16;
 const EAGAIN: i32 = -11;
 const ETIMEDOUT: i32 = -110;
+const USBGECKO_CHANNEL: i32 = 1;
+const USBGECKO_RETRIES: i32 = 1000;
+const GECKO_IDLE_POLLS: usize = 6;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
@@ -48,6 +52,8 @@ pub enum ReceiverError {
 struct Shared {
     stopped: AtomicBool,
     status: AtomicU8,
+    receive_completed: AtomicU32,
+    receive_total: AtomicU32,
     payload_lock: AtomicBool,
     payload: UnsafeCell<Option<WiiloadPayload>>,
 }
@@ -60,6 +66,8 @@ impl Shared {
         Self {
             stopped: AtomicBool::new(false),
             status: AtomicU8::new(ReceiverStatus::Stopped as u8),
+            receive_completed: AtomicU32::new(0),
+            receive_total: AtomicU32::new(0),
             payload_lock: AtomicBool::new(false),
             payload: UnsafeCell::new(None),
         }
@@ -158,6 +166,15 @@ pub fn status() -> ReceiverStatus {
     }
 }
 
+/// Return the current TCP upload receive counts. The total is zero until the
+/// header has been decoded and after the upload body has been received.
+pub fn receive_progress() -> (u32, u32) {
+    (
+        SHARED.receive_completed.load(Ordering::Acquire),
+        SHARED.receive_total.load(Ordering::Acquire),
+    )
+}
+
 /// Take ownership of one completed payload. The worker can publish another after this call.
 pub fn take_payload() -> Option<WiiloadPayload> {
     let _guard = SHARED.lock_payload();
@@ -207,12 +224,33 @@ fn worker_main(shared: &Shared) -> ReceiverStatus {
         return ReceiverStatus::ListenerError;
     }
     let local_ip = network::get_host_ip();
+    let _ = usbgecko::flush(USBGECKO_CHANNEL);
     shared.set_status(ReceiverStatus::Listening);
+    let mut gecko = GeckoReceive::new();
 
     while !shared.is_stopped() {
         if has_pending_payload(shared) {
             sleep_poll();
             continue;
+        }
+        match gecko.poll(shared) {
+            GeckoPoll::Complete(payload) => {
+                let _guard = shared.lock_payload();
+                let slot = unsafe { &mut *shared.payload.get() };
+                if slot.is_none() {
+                    *slot = Some(payload);
+                    shared.set_status(ReceiverStatus::PayloadReady);
+                    continue;
+                }
+            }
+            GeckoPoll::Invalid => shared.set_status(ReceiverStatus::InvalidUpload),
+            GeckoPoll::Memory => shared.set_status(ReceiverStatus::MemoryError),
+            GeckoPoll::Pending => {
+                shared.set_status(ReceiverStatus::Receiving);
+                sleep_poll();
+                continue;
+            }
+            GeckoPoll::Idle => {}
         }
         let mut peer = SockaddrIn::default();
         let client = network::accept_addr(listener, &mut peer);
@@ -236,6 +274,8 @@ fn worker_main(shared: &Shared) -> ReceiverStatus {
         }
         shared.set_status(ReceiverStatus::Receiving);
         let received = receive_client(shared, client);
+        shared.receive_completed.store(0, Ordering::Release);
+        shared.receive_total.store(0, Ordering::Release);
         let _ = network::close(client);
         match received {
             Ok(payload) => {
@@ -323,22 +363,186 @@ enum ReceiveError {
     Stopped,
 }
 
+enum GeckoPoll {
+    Idle,
+    Pending,
+    Complete(WiiloadPayload),
+    Invalid,
+    Memory,
+}
+
+struct GeckoReceive {
+    header_bytes: [u8; WIILOAD_HEADER_LEN],
+    header_len: usize,
+    body: Option<(WiiloadHeader, Vec<u8>)>,
+    body_len: usize,
+    idle_polls: usize,
+}
+
+impl GeckoReceive {
+    const fn new() -> Self {
+        Self {
+            header_bytes: [0; WIILOAD_HEADER_LEN],
+            header_len: 0,
+            body: None,
+            body_len: 0,
+            idle_polls: 0,
+        }
+    }
+
+    fn reset(&mut self, shared: &Shared) {
+        self.header_len = 0;
+        self.body = None;
+        self.body_len = 0;
+        self.idle_polls = 0;
+        shared.receive_completed.store(0, Ordering::Release);
+        shared.receive_total.store(0, Ordering::Release);
+    }
+
+    fn poll(&mut self, shared: &Shared) -> GeckoPoll {
+        if usbgecko::is_gecko_alive(USBGECKO_CHANNEL) == 0 {
+            self.reset(shared);
+            return GeckoPoll::Idle;
+        }
+        if let Some((header, mut body)) = self.body.take() {
+            let received = unsafe {
+                usbgecko::recvbuffer_safe_ex(
+                    USBGECKO_CHANNEL,
+                    body[self.body_len..].as_mut_ptr().cast(),
+                    (body.len() - self.body_len) as i32,
+                    USBGECKO_RETRIES,
+                )
+            };
+            return self.record_body_read(shared, header, &mut body, received);
+        }
+
+        let received = unsafe {
+            usbgecko::recvbuffer_safe_ex(
+                USBGECKO_CHANNEL,
+                self.header_bytes[self.header_len..].as_mut_ptr().cast(),
+                (WIILOAD_HEADER_LEN - self.header_len) as i32,
+                USBGECKO_RETRIES,
+            )
+        };
+        if received < 0 {
+            self.reset(shared);
+            return GeckoPoll::Invalid;
+        }
+        if received == 0 {
+            self.idle_polls += 1;
+            if self.idle_polls >= GECKO_IDLE_POLLS {
+                self.reset(shared);
+            }
+            return GeckoPoll::Idle;
+        }
+        let received = received as usize;
+        if received > WIILOAD_HEADER_LEN - self.header_len {
+            self.reset(shared);
+            return GeckoPoll::Invalid;
+        }
+        self.header_len += received;
+        self.idle_polls = 0;
+        if self.header_len < WIILOAD_HEADER_LEN {
+            return GeckoPoll::Idle;
+        }
+        let header = match WiiloadHeader::decode(&self.header_bytes) {
+            Ok(header) => header,
+            Err(_) => {
+                self.reset(shared);
+                return GeckoPoll::Invalid;
+            }
+        };
+        let body_len = match header.body_len() {
+            Ok(len) => len,
+            Err(_) => {
+                self.reset(shared);
+                return GeckoPoll::Invalid;
+            }
+        };
+        let mut body = Vec::new();
+        if body.try_reserve_exact(body_len).is_err() {
+            self.reset(shared);
+            return GeckoPoll::Memory;
+        }
+        body.resize(body_len, 0);
+        self.body_len = 0;
+        shared.receive_completed.store(0, Ordering::Release);
+        shared
+            .receive_total
+            .store(body_len as u32, Ordering::Release);
+        shared.set_status(ReceiverStatus::Receiving);
+        self.body = Some((header, body));
+        GeckoPoll::Pending
+    }
+
+    fn record_body_read(
+        &mut self,
+        shared: &Shared,
+        header: WiiloadHeader,
+        body: &mut Vec<u8>,
+        received: i32,
+    ) -> GeckoPoll {
+        if received < 0 {
+            self.reset(shared);
+            return GeckoPoll::Invalid;
+        }
+        if received == 0 {
+            self.idle_polls += 1;
+            if self.idle_polls >= GECKO_IDLE_POLLS {
+                self.reset(shared);
+                return GeckoPoll::Invalid;
+            }
+            self.body = Some((header, core::mem::take(body)));
+            return GeckoPoll::Pending;
+        }
+        let received = received as usize;
+        if received > body.len().saturating_sub(self.body_len) {
+            self.reset(shared);
+            return GeckoPoll::Invalid;
+        }
+        self.body_len += received;
+        self.idle_polls = 0;
+        shared
+            .receive_completed
+            .store(self.body_len as u32, Ordering::Release);
+        if self.body_len != body.len() {
+            self.body = Some((header, core::mem::take(body)));
+            return GeckoPoll::Pending;
+        }
+        let result = header.decode_body(body).map_err(|_| GeckoPoll::Invalid);
+        self.reset(shared);
+        match result {
+            Ok(payload) => GeckoPoll::Complete(payload),
+            Err(error) => error,
+        }
+    }
+}
+
 fn receive_client(shared: &Shared, client: i32) -> Result<WiiloadPayload, ReceiveError> {
     let mut header_bytes = [0; WIILOAD_HEADER_LEN];
-    read_exact(shared, client, &mut header_bytes)?;
+    read_exact(shared, client, &mut header_bytes, false)?;
     let header = WiiloadHeader::decode(&header_bytes).map_err(|_| ReceiveError::Invalid)?;
     let body_len = header.body_len().map_err(|_| ReceiveError::Invalid)?;
+    shared.receive_completed.store(0, Ordering::Release);
+    shared
+        .receive_total
+        .store(body_len as u32, Ordering::Release);
     // Peak receive memory can approach the wire body plus a second maximum-size
     // decompressed payload (about 38 MiB, plus allocator overhead).
     let mut body = Vec::new();
     body.try_reserve_exact(body_len)
         .map_err(|_| ReceiveError::Memory)?;
     body.resize(body_len, 0);
-    read_exact(shared, client, &mut body)?;
+    read_exact(shared, client, &mut body, true)?;
     header.decode_body(&body).map_err(|_| ReceiveError::Invalid)
 }
 
-fn read_exact(shared: &Shared, client: i32, buffer: &mut [u8]) -> Result<(), ReceiveError> {
+fn read_exact(
+    shared: &Shared,
+    client: i32,
+    buffer: &mut [u8],
+    track_progress: bool,
+) -> Result<(), ReceiveError> {
     let mut offset = 0;
     let mut idle_polls = 0;
     while offset < buffer.len() {
@@ -352,6 +556,11 @@ fn read_exact(shared: &Shared, client: i32, buffer: &mut [u8]) -> Result<(), Rec
                 return Err(ReceiveError::Invalid);
             }
             offset += read;
+            if track_progress {
+                shared
+                    .receive_completed
+                    .store(offset as u32, Ordering::Release);
+            }
             idle_polls = 0;
         } else if read < 0 && read != EAGAIN {
             return Err(ReceiveError::Invalid);

@@ -51,6 +51,7 @@ pub enum Screen {
     DeleteConfirm,
     WiiloadConfirm,
     WiiloadInstalling,
+    WiiloadReceiving,
     Options,
     About,
     Notice,
@@ -239,8 +240,22 @@ impl AppController {
         self.screen = Screen::WiiloadInstalling;
     }
 
+    pub fn show_wiiload_receiving(&mut self) {
+        self.wiiload_install_progress = 0;
+        self.screen = Screen::WiiloadReceiving;
+    }
+
+    pub fn finish_wiiload_receiving(&mut self) {
+        if self.screen == Screen::WiiloadReceiving {
+            self.screen = Screen::Browser;
+        }
+    }
+
     pub fn set_wiiload_install_progress(&mut self, percent: u8) {
-        if self.screen == Screen::WiiloadInstalling {
+        if matches!(
+            self.screen,
+            Screen::WiiloadInstalling | Screen::WiiloadReceiving
+        ) {
             self.wiiload_install_progress = percent.min(100);
         }
     }
@@ -554,7 +569,7 @@ impl AppController {
                 }
                 _ => Action::None,
             },
-            Screen::WiiloadInstalling => Action::None,
+            Screen::WiiloadInstalling | Screen::WiiloadReceiving => Action::None,
             Screen::Options => self.handle_options(input, catalog),
             Screen::About => match input {
                 Input::Back | Input::Confirm => {
@@ -662,7 +677,7 @@ impl AppController {
                     Action::None
                 }
             }
-            (Screen::WiiloadInstalling, _) => Action::None,
+            (Screen::WiiloadInstalling | Screen::WiiloadReceiving, _) => Action::None,
             (Screen::Options, PointerTarget::Option(index)) if index < 6 => {
                 self.options_focus = index;
                 if pressed {
@@ -1334,6 +1349,19 @@ mod tests {
         controller.finish_wiiload_installing();
         controller.set_wiiload_install_progress(22);
         assert_eq!(controller.wiiload_install_progress(), 100);
+    }
+
+    #[test]
+    fn wiiload_receive_progress_is_bounded_and_receiving_screen_can_finish() {
+        let mut controller = AppController::new();
+        controller.show_wiiload_receiving();
+        controller.set_wiiload_install_progress(35);
+        assert_eq!(controller.screen, Screen::WiiloadReceiving);
+        assert_eq!(controller.wiiload_install_progress(), 35);
+        controller.set_wiiload_install_progress(255);
+        assert_eq!(controller.wiiload_install_progress(), 100);
+        controller.finish_wiiload_receiving();
+        assert_eq!(controller.screen, Screen::Browser);
     }
 
     #[test]

@@ -622,7 +622,8 @@ pub fn browser_frame_with_viewport(
         | Screen::AppDetails
         | Screen::DeleteConfirm
         | Screen::WiiloadConfirm
-        | Screen::WiiloadInstalling => {
+        | Screen::WiiloadInstalling
+        | Screen::WiiloadReceiving => {
             if navigation.has_previous() {
                 frame.page_arrow(
                     rect(24, 192, 64, 64),
@@ -797,6 +798,7 @@ pub fn browser_frame_with_viewport(
             | Screen::DeleteConfirm
             | Screen::WiiloadConfirm
             | Screen::WiiloadInstalling
+            | Screen::WiiloadReceiving
             | Screen::Options
     ) {
         frame.fill(rect(0, 0, 640, 480), MODAL_SHADE);
@@ -1024,7 +1026,19 @@ pub fn browser_frame_with_viewport(
         } else {
             frame.theme_art(rect(60, 44, 520, 360), ThemeArt::Dialog, false);
             frame.set_text_style(theme_text_style(theme, "dlgtitle", text_color));
-            frame.text(252.0, 124.0, "Installing ZIP", 1.0, text_color, 40);
+            let receiving = controller.screen == Screen::WiiloadReceiving;
+            frame.text(
+                if receiving { 250.0 } else { 252.0 },
+                124.0,
+                if receiving {
+                    "Receiving upload"
+                } else {
+                    "Installing ZIP"
+                },
+                1.0,
+                text_color,
+                40,
+            );
             frame.set_text_style(theme_text_style(theme, "label", text_color));
             let percent = controller.wiiload_install_progress();
             let label = [
@@ -1613,6 +1627,17 @@ mod tests {
             .iter()
             .any(|fill| fill.color.red > 70 && fill.color.red < 110));
         assert!((progress.iter().map(|fill| fill.bounds.width).sum::<f32>() - 330.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn wiiload_receive_dialog_shows_live_progress_meter() {
+        let mut controller = AppController::new();
+        controller.show_wiiload_receiving();
+        controller.set_wiiload_install_progress(35);
+        let frame = browser_frame(&controller, &[]);
+        assert!(frame.fills.iter().any(|fill| {
+            fill.bounds.y == 256.0 && fill.bounds.width == 140.0 && fill.color == ACCENT
+        }));
     }
 
     #[test]
