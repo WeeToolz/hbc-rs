@@ -32,6 +32,11 @@ deferred.
   and storage-stop failures use a dismissible notice. App icons remain
   placeholders. Theme textures, gradients, localized strings, and HBC widget
   behavior are not ported.
+- A pure Rust theme ZIP parser now enforces the HBC archive size, entry count,
+  root filename allowlist, duplicate-name policy, and bounded extraction plan.
+  It parses `theme.xml` with the existing metadata parser. Theme assets are not
+  decoded or shown, and theme ZIP installation or NAND persistence is not
+  connected to the UI.
 - Device discovery scans one preferred volume synchronously at startup and
   retries SD/USB selection every 30 frames. It unmounts an offline volume,
   remounts available media, and replaces the catalog while preserving the

@@ -80,8 +80,14 @@ impl ZipArchive {
     /// It rejects split archives, ZIP64 sentinels, malformed central-directory
     /// ranges, unsafe paths, and names that are not UTF-8.
     pub fn parse(data: &[u8]) -> Result<Self, ZipError> {
+        Self::parse_limited(data, MAX_ARCHIVE_ENTRIES)
+    }
+
+    /// Read an archive while enforcing a caller-specific entry limit before
+    /// allocating the central-directory index.
+    pub fn parse_limited(data: &[u8], max_entries: usize) -> Result<Self, ZipError> {
         let (eocd, entry_count, directory_offset, directory_size) = parse_end_record(data)?;
-        if entry_count as usize > MAX_ARCHIVE_ENTRIES {
+        if entry_count as usize > MAX_ARCHIVE_ENTRIES.min(max_entries) {
             return Err(ZipError::TooManyEntries);
         }
 

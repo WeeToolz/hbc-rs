@@ -16,5 +16,6 @@ pub mod metadata;
 pub mod render;
 pub mod runtime;
 pub mod settings;
+pub mod theme;
 
 pub mod platform;

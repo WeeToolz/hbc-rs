@@ -125,7 +125,7 @@ pub fn parse_theme_xml(xml: &str) -> Result<ThemeMetadata, String> {
     }
     theme.description = node
         .text("description")
-        .map(|s| s.chars().take(64).collect());
+        .map(|s| truncate_utf8_bytes(&s, 64));
     theme.default_font.color = node.find("font_color").and_then(parse_color);
     theme.progress_gradient = node.find("progress_gradient").and_then(|g| {
         let vals = ["upper_left", "upper_right", "lower_right", "lower_left"];
@@ -411,6 +411,12 @@ mod tests {
         let t=parse_theme_xml("<theme langs='ja, zh'><description>Demo</description><font_color><red>1</red><green>2</green><blue>3</blue><alpha>255</alpha></font_color></theme>").unwrap();
         assert_eq!(t.languages, ["ja", "zh"]);
         assert_eq!(t.default_font.color, Some(Rgba(1, 2, 3, 255)));
+        let description = "é".repeat(40);
+        let theme = parse_theme_xml(&format!(
+            "<theme><description>{description}</description></theme>"
+        ))
+        .unwrap();
+        assert_eq!(theme.description.as_ref().unwrap().len(), 64);
     }
     #[test]
     fn rejects_bad_xml_and_invalid_dates() {
