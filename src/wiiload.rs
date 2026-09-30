@@ -9,6 +9,11 @@ pub const WIILOAD_MAX_ARGS: usize = 1024;
 /// This matches HBC's launch-memory bound: `0x81330000 - 1 - args - 0x80003400`.
 pub const WIILOAD_MAX_DATA: usize = 0x0132_c7ff;
 
+/// HBC accepts Wiiload clients from the same IPv4 `/16` as the console.
+pub fn same_local_subnet_16(peer_ip: u32, local_ip: u32) -> bool {
+    (peer_ip & 0xffff_0000) == (local_ip & 0xffff_0000)
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum WiiloadError {
     InvalidHeader,
@@ -219,5 +224,22 @@ mod tests {
             malformed.decode_body(b"bad"),
             Err(WiiloadError::DecompressionFailed)
         );
+    }
+
+    #[test]
+    fn peer_filter_accepts_only_the_local_ipv4_slash_16() {
+        let local = u32::from_be_bytes([192, 168, 4, 2]);
+        assert!(same_local_subnet_16(
+            u32::from_be_bytes([192, 168, 4, 200]),
+            local
+        ));
+        assert!(!same_local_subnet_16(
+            u32::from_be_bytes([192, 169, 5, 200]),
+            local
+        ));
+        assert!(!same_local_subnet_16(
+            u32::from_be_bytes([10, 0, 4, 200]),
+            local
+        ));
     }
 }

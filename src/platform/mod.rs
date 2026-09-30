@@ -15,3 +15,5 @@ pub mod storage;
 pub mod theme;
 #[cfg(target_arch = "powerpc")]
 pub mod video;
+#[cfg(target_arch = "powerpc")]
+pub mod wiiload;

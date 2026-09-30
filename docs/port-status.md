@@ -11,6 +11,11 @@ deferred.
   policy, and ELF/DOL load-plan validation.
 - A FAT catalog adapter, settings persistence through ES/ISFS, app extraction
   planning, and app-folder deletion through the local FAT API.
+- A Wii-only Wiiload receiver worker starts asynchronous networking with bounded
+  retries, listens on port 4299, filters clients to HBC's local IPv4 `/16`, and
+  validates complete uploads through the host-testable protocol decoder. The
+  decoder checks exact body length and bounded decompression. The worker queues
+  one payload for the main thread. The entry point does not start it yet.
 - Input scanning for PAD and Wii Remotes, a frame-level application state
   driver, a bounded MEM2 allocator, and a Wii executable segment copier with
   cache maintenance and a one-way branch.
@@ -97,12 +102,9 @@ deferred.
   not restore an earlier IRQ exception vector, reload IOS for AHB access, or
   receive real hardware verification. The loaded program's crt0 must set the
   stack and install its own interrupt handlers before enabling interrupts.
-- A host-testable Wiiload TCP header and body decoder enforces the `HAXX`
-  signature, protocol and payload bounds, checked body length, exact body size,
-  bounded zlib output, and argument separation. Socket setup, peer filtering,
-  payload routing, network status artwork, update behavior, and incoming theme
-  installation still need integration. Settings save when HBC exits, as in the
-  original. Settings and theme replacement now
+- Wiiload payload routing, network status artwork, update behavior, and incoming
+  theme installation still need integration. Settings save when HBC exits, as
+  in the original. Settings and theme replacement now
   write a temporary NAND file, rename with a backup, and recover an interrupted
   replacement at the next load. Hardware behavior of ISFS rename remains
   unverified. Theme replacement needs enough free NAND space for both the old
