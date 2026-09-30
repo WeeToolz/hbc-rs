@@ -223,6 +223,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         if !display_ready {
             hbc_rs::platform::diagnostics::mark("FIRST GX FRAME");
         }
+        #[cfg(not(feature = "startup-diagnostics"))]
         if unsafe {
             hbc_rs::platform::renderer::draw_frame(
                 &video,
@@ -233,20 +234,48 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         }
         .is_err()
         {
-            #[cfg(feature = "startup-diagnostics")]
+            return -3;
+        }
+        #[cfg(feature = "startup-diagnostics")]
+        if display_ready
+            && unsafe {
+                hbc_rs::platform::renderer::draw_frame(
+                    &video,
+                    &scene,
+                    startup.icon_textures(),
+                    startup.theme_textures(),
+                )
+            }
+            .is_err()
+        {
             hbc_rs::platform::diagnostics::fail("GX RENDER ERROR");
             return -3;
         }
         #[cfg(feature = "startup-diagnostics")]
         {
+            let info = video.info();
+            let Some((square_x, square_y)) = hbc_rs::platform::diagnostics::test_square_origin(
+                info.width,
+                info.height,
+            ) else {
+                hbc_rs::platform::diagnostics::fail("GX TEST RECT BOUNDS");
+                loop {
+                    hbc_rs::platform::diagnostics::hold();
+                }
+            };
             video.configure_2d();
             if unsafe {
                 video.draw_solid_rect(
-                    16.0,
-                    16.0,
-                    32.0,
-                    32.0,
-                    ogc_gx::GxColor { r: 255, g: 255, b: 255, a: 255 },
+                    f32::from(square_x),
+                    f32::from(square_y),
+                    f32::from(hbc_rs::platform::diagnostics::TEST_SQUARE_SIZE),
+                    f32::from(hbc_rs::platform::diagnostics::TEST_SQUARE_SIZE),
+                    ogc_gx::GxColor {
+                        r: 255,
+                        g: 255,
+                        b: 255,
+                        a: 255,
+                    },
                 )
             }
             .is_err()
@@ -277,8 +306,13 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                         hbc_rs::platform::diagnostics::hold();
                     }
                 }
-                if !video.framebuffer_has_bright_luma() {
-                    hbc_rs::platform::diagnostics::fail("GX XFB NO WHITE");
+                if !video.framebuffer_has_test_square() {
+                    hbc_rs::platform::diagnostics::fail("GX TEST SQUARE MISSING");
+                    // Replace the failed GX image with a CPU-written control pattern.
+                    // This separates VI scanout from GX drawing and copy behavior.
+                    video.paint_scanout_probe();
+                    video.show();
+                    video.wait_vsync();
                     loop {
                         hbc_rs::platform::diagnostics::hold();
                     }

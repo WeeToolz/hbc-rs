@@ -335,6 +335,7 @@ name = "ogc-si-sys"
 version = "0.1.0"
 dependencies = [
  "ogc-core",
+ "ogc-irq",
  "ogc-sys",
  "ogc-video",
 ]

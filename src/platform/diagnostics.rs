@@ -6,14 +6,7 @@ const GREEN: u32 = 0x9136_9122;
 const RED: u32 = 0x525a_52f0;
 
 fn paint(words: &mut [u32], width: usize, height: usize, label: &str, failed: bool) {
-    let Some(stride) = width.checked_add(15).map(|value| value & !15) else {
-        return;
-    };
-    let words_per_row = stride / 2;
-    if width == 0 || height == 0 || words_per_row == 0 {
-        return;
-    }
-    let Some(length) = words_per_row.checked_mul(height) else {
+    let Some((words_per_row, length)) = framebuffer_layout(width, height) else {
         return;
     };
     let Some(words) = words.get_mut(..length) else {
@@ -44,12 +37,78 @@ fn paint(words: &mut [u32], width: usize, height: usize, label: &str, failed: bo
     }
 }
 
+fn framebuffer_layout(width: usize, height: usize) -> Option<(usize, usize)> {
+    let stride = width.checked_add(15)? & !15;
+    let words_per_row = stride / 2;
+    if width == 0 || height == 0 || words_per_row == 0 {
+        return None;
+    }
+    Some((words_per_row, words_per_row.checked_mul(height)?))
+}
+
+pub(super) fn paint_scanout_probe(words: &mut [u32], width: usize, height: usize) {
+    let Some((words_per_row, length)) = framebuffer_layout(width, height) else {
+        return;
+    };
+    let Some(words) = words.get_mut(..length) else {
+        return;
+    };
+    words.fill(BACKGROUND);
+    let Some((left, top)) = test_square_origin(width as u16, height as u16) else {
+        return;
+    };
+    let left = usize::from(left);
+    let top = usize::from(top);
+    let right = left + usize::from(TEST_SQUARE_SIZE);
+    let bottom = top + usize::from(TEST_SQUARE_SIZE);
+    let border = 8;
+    if left < border || top < border || right + border > width || bottom + border > height {
+        return;
+    }
+    for y in top - border..bottom + border {
+        for word_x in (left - border) / 2..(right + border) / 2 {
+            words[y * words_per_row + word_x] = RED;
+        }
+    }
+    for y in top..bottom {
+        for word_x in left / 2..right / 2 {
+            words[y * words_per_row + word_x] = WHITE;
+        }
+    }
+}
+
 pub(super) fn has_visible_luma(value: u8) -> bool {
     value > 24
 }
 
 pub(super) fn has_bright_luma(value: u8) -> bool {
     value > 200
+}
+
+pub const TEST_SQUARE_SIZE: u16 = 32;
+
+pub const fn test_square_origin(width: u16, height: u16) -> Option<(u16, u16)> {
+    if width < TEST_SQUARE_SIZE || height < TEST_SQUARE_SIZE {
+        return None;
+    }
+    Some(((width - TEST_SQUARE_SIZE) / 2, (height - TEST_SQUARE_SIZE) / 2))
+}
+
+pub(super) fn test_square_is_white(
+    width: u16,
+    height: u16,
+    mut read_luma: impl FnMut(u16, u16) -> u8,
+) -> bool {
+    // Check the interior. White text or a logo elsewhere must not pass this check.
+    let Some((left, top)) = test_square_origin(width, height) else {
+        return false;
+    };
+    let step = TEST_SQUARE_SIZE / 4;
+    (1..4).all(|row| {
+        (1..4).all(|column| {
+            has_bright_luma(read_luma(left + column * step, top + row * step))
+        })
+    })
 }
 
 #[cfg(target_arch = "powerpc")]
@@ -60,10 +119,16 @@ mod wii {
     };
 
     static FRAMEBUFFER: AtomicUsize = AtomicUsize::new(0);
+    #[no_mangle]
+    pub static GX_FRAMEBUFFER: AtomicUsize = AtomicUsize::new(0);
     static WIDTH: AtomicUsize = AtomicUsize::new(0);
     static HEIGHT: AtomicUsize = AtomicUsize::new(0);
     static LENGTH: AtomicUsize = AtomicUsize::new(0);
     static DRAWING: AtomicBool = AtomicBool::new(false);
+
+    pub fn set_gx_framebuffer(framebuffer: usize) {
+        GX_FRAMEBUFFER.store(framebuffer, Ordering::Release);
+    }
 
     /// Call on the main thread after system initialization and before GX setup.
     pub fn initialize() -> Result<(), crate::platform::video::VideoError> {
@@ -138,7 +203,7 @@ mod wii {
 }
 
 #[cfg(target_arch = "powerpc")]
-pub use wii::{fail, hold, initialize, mark};
+pub use wii::{fail, hold, initialize, mark, set_gx_framebuffer};
 
 #[cfg(test)]
 mod tests {
@@ -152,6 +217,17 @@ mod tests {
         // A's first bitmap row is 01110, at x=24 with scale four.
         assert_eq!(words[104 * 80 + 12], 0x3880_3880);
         assert_eq!(words[104 * 80 + 14], 0xeb80_eb80);
+        assert_eq!(&words[80 * 128..], &[0xdead_beef; 4]);
+    }
+
+    #[test]
+    fn scanout_probe_paints_gray_frame_and_white_square() {
+        let mut words = [0xdead_beef; 80 * 128 + 4];
+        paint_scanout_probe(&mut words, 145, 128);
+        assert_eq!(words[0], BACKGROUND);
+        assert_eq!(words[40 * 80 + 24], RED);
+        assert_eq!(words[48 * 80 + 28], WHITE);
+        assert_eq!(words[16 * 80 + 28], BACKGROUND);
         assert_eq!(&words[80 * 128..], &[0xdead_beef; 4]);
     }
 
@@ -179,5 +255,23 @@ mod tests {
         assert!(!has_bright_luma(0));
         assert!(!has_bright_luma(200));
         assert!(has_bright_luma(235));
+    }
+
+    #[test]
+    fn test_square_check_rejects_white_elsewhere_and_partial_drawing() {
+        assert_eq!(test_square_origin(640, 480), Some((304, 224)));
+        assert_eq!(test_square_origin(852, 480), Some((410, 224)));
+        assert_eq!(test_square_origin(31, 480), None);
+        assert!(!test_square_is_white(640, 480, |_, y| if y >= 416 {
+            235
+        } else {
+            63
+        }));
+        assert!(!test_square_is_white(640, 480, |x, y| if x == 320 && y == 240 {
+            63
+        } else {
+            235
+        }));
+        assert!(test_square_is_white(640, 480, |_, _| 235));
     }
 }

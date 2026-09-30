@@ -23,11 +23,17 @@ GX setup, network startup, NAND settings, theme loading, controller input, and
 the first rendered frame.
 
 The diagnostic framebuffer stays visible while GX writes to a separate
-framebuffer. `GX COPY QUEUED` means the GX commands were submitted; it does not
-confirm that the GPU completed them. After a short hold, the program checks
-the GX framebuffer. It checks Y luma bytes in the YCbYCr output. If the buffer
-has no visible luma, the diagnostic stays on a red `GX XFB BLACK` label.
-Otherwise, it shows `GX XFB HAS IMAGE` before it selects the GX framebuffer.
+framebuffer. Its first GX frame draws only a white square over the initial gray
+clear. This isolates the solid-shape and copy path from HBC's textured scene.
+After that check passes, later frames draw the HBC screen. `GX COPY QUEUED`
+means the GX commands were submitted; it does not confirm that the GPU
+completed them. After a short hold, the program checks Y luma bytes in the
+YUYV output. If the buffer has no visible luma, the diagnostic stays on a red
+`GX XFB BLACK` label. Otherwise, it checks the square before it selects the
+GX framebuffer.
+If the fixed white-square sample check fails, it writes a gray field with a
+centered white square and red outline through the CPU to the GX XFB, then holds
+that image. This checks VI scanout separately from GX drawing and copying.
 
 The diagnostic does not implement the Wiiload report protocol. A Wiiload
 `report_timeout` can therefore occur even when the DOL continues to run. Use

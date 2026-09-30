@@ -12,20 +12,20 @@ crc32fast = { version = "1.5.0", default-features = false }
 miniz_oxide = { version = "0.8.9", default-features = false, features = ["with-alloc"] }
 
 [target.'cfg(target_arch = "powerpc")'.dependencies]
-ogc-core = { path = "libogc-rs/crates/core/ogc-core" }
-ogc-cache = { path = "libogc-rs/crates/core/ogc-cache" }
-ogc-conf = { path = "libogc-rs/crates/core/ogc-conf" }
-ogc-fat = { path = "libogc-rs/crates/services/ogc-fat" }
-ogc-filesystem = { path = "libogc-rs/crates/services/ogc-filesystem" }
-ogc-es-sys = { path = "libogc-rs/crates/core/ogc-es-sys" }
-ogc-gx = { path = "libogc-rs/crates/hardware/ogc-gx" }
-ogc-input = { path = "libogc-rs/crates/services/ogc-input" }
-ogc-ios = { path = "libogc-rs/crates/core/ogc-ios" }
-ogc-ipc = { path = "libogc-rs/crates/core/ogc-ipc" }
-ogc-lwp = { path = "libogc-rs/crates/core/ogc-lwp" }
-ogc-irq = { path = "libogc-rs/crates/core/ogc-irq" }
-ogc-network = { path = "libogc-rs/crates/services/ogc-network" }
-ogc-system = { path = "libogc-rs/crates/core/ogc-system" }
-ogc-video = { path = "libogc-rs/crates/hardware/ogc-video" }
-ogc-wiilaunch = { path = "libogc-rs/crates/core/ogc-wiilaunch" }
-wpad-sys = { path = "libogc-rs/crates/services/wpad-sys" }
+ogc-core = { path = "../libogc-rs/crates/core/ogc-core" }
+ogc-cache = { path = "../libogc-rs/crates/core/ogc-cache" }
+ogc-conf = { path = "../libogc-rs/crates/core/ogc-conf" }
+ogc-fat = { path = "../libogc-rs/crates/services/ogc-fat" }
+ogc-filesystem = { path = "../libogc-rs/crates/services/ogc-filesystem" }
+ogc-es-sys = { path = "../libogc-rs/crates/core/ogc-es-sys" }
+ogc-gx = { path = "../libogc-rs/crates/hardware/ogc-gx" }
+ogc-input = { path = "../libogc-rs/crates/services/ogc-input" }
+ogc-ios = { path = "../libogc-rs/crates/core/ogc-ios" }
+ogc-ipc = { path = "../libogc-rs/crates/core/ogc-ipc" }
+ogc-lwp = { path = "../libogc-rs/crates/core/ogc-lwp" }
+ogc-irq = { path = "../libogc-rs/crates/core/ogc-irq" }
+ogc-network = { path = "../libogc-rs/crates/services/ogc-network" }
+ogc-system = { path = "../libogc-rs/crates/core/ogc-system" }
+ogc-video = { path = "../libogc-rs/crates/hardware/ogc-video" }
+ogc-wiilaunch = { path = "../libogc-rs/crates/core/ogc-wiilaunch" }
+wpad-sys = { path = "../libogc-rs/crates/services/wpad-sys" }

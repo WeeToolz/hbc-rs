@@ -118,6 +118,23 @@ PowerPC `sync` instruction like libogc's `GX_Flush`. These changes match
 specific HBC/libogc commands; the startup diagnostic still reports
 `GX XFB BLACK` in Dolphin, so the GX rendering failure is not resolved.
 
+HBC's `initialize_display` now waits for the two initial clear copies to finish
+before it schedules the XFB for VI scanout. The TEV stage 0 order is also set
+explicitly at BP register `0x28`, matching libogc's `GX_SetTevOrder` register
+mapping and HBC's `GX_Init` default (`TEXCOORD0`, `TEXMAP0`, `COLOR0A0`). The
+startup DOL still reaches `GX XFB BLACK` in Dolphin after these changes, so
+neither change is a confirmed fix for the black XFB. A further comparison found
+that the renderer set biased scissor coordinates but did not set BP register
+`0x59` with libogc's `GX_SetScissorBoxOffset(0, 0)` value (`0x5902acab`). It
+also did not explicitly enable XF clipping as `__GX_InitGX` does. Both states
+are now set in the 2D setup path and the scissor offset has a register-packing
+regression test. The startup diagnostic still reports `GX CLEAR XFB BLACK`
+after both copies, so the new state setup alone does not fix the copy. HBC also
+now waits for the first clearing copy before it queues the second, matching the
+`GX_DrawDone` sequence in HBC's C renderer. This change still needs a PowerPC
+build and Dolphin or hardware verification before it is treated as a confirmed
+fix.
+
 The GX work is incomplete. The FIFO setup is a minimal single-owner path. It
 installs a PE finish handler and waits for completion before it schedules a
 frame for VI scanout. It does not install CP token/overflow handlers or provide
@@ -145,3 +162,59 @@ emits position, white color, and UV coordinates through the GX FIFO. HBC owns
 32-byte-aligned tiled bytes and flushes them before GX reads them. Target checks
 and register-packer tests cover the code, but test binaries cannot run on the
 host and the GX output needs real hardware verification.
+
+
+## GX 2D and texture state corrections from the `libogc` comparison
+
+The ignored `libogc-rs` copy needs the changes in `docs/libogc-rs-gx-repair.diff`.
+Apply this patch from the `hbc-rs` directory with `patch -p1` when you create a
+new local copy. The renderer must write the same matrix index to CP and XF,
+update `XF_NUMTEX` when it switches between textured and solid draws, set the
+M2x4 TEX0 generator, load its post identity matrix, and set TEX0 size registers
+from each texture's dimensions. Its solid pass-color TEV inputs must select the
+zero constants instead of previous TEV output. It must load an identity TEV
+swap table. The GX depth baseline from `GX_Init` is `0x17` (`GX_ENABLE`,
+`GX_LEQUAL`, depth update); `GX_CopyDisp(clear=true)` uses `0x1f` while clearing
+and restores `0x17` afterward.
+
+The same comparison found four additional register/API mismatches. `GX_Init`
+enables dither and sets Z-compare location to early mode, so frame setup and
+solid draws now preserve dither (`0x1c` in color mode and bit 2 in the blend
+word) and set the pixel-engine control bit (`0x40`). Texture-map registers for
+slots 4–7 use the separate `0xa0`–`0xb7` register range. Texture-coordinate
+scale registers now use the selected map's matching coordinate slot. Finally,
+framebuffer width must be divisible by 16 because the GX copy destination
+register stores width in 16-pixel units. Host tests cover these encodings and
+the width check. These fixes align the Rust implementation with libogc; a
+PowerPC build does not confirm the black-XFB issue is resolved, and HBC still
+needs runtime testing on Dolphin and Wii hardware.
+
+A later comparison found that libogc disables pixel-engine bit `0x40` while
+`GX_CopyDisp(clear=true)` clears the EFB, then restores it. Rust now follows
+that sequence. The same update preserves negative texture LOD bias bits, and
+makes the CI texture initializer leave an object unchanged when its dimensions
+are zero. Host tests cover the PE bit sequence and signed LOD field packing.
+
+The standalone register tests run on the host without the PowerPC-only crate
+or its dependency graph:
+
+```sh
+rustc --test libogc-rs/crates/hardware/ogc-gx/src/register_state.rs -o /tmp/gx-register-tests
+/tmp/gx-register-tests
+```
+
+Dolphin defaults to keeping XFB copies in its texture cache and leaves
+`01 FE 01 FE` in emulated RAM. This value is Dolphin's XFB placeholder, not a
+readout of the GX copy destination. `tools/capture-startup.py` creates a
+Dolphin profile with XFB-to-RAM copies enabled and deferred EFB copies disabled
+before it captures the separate GX framebuffer. Its config behavior is covered
+by `python3 -m unittest discover -s tools -p 'test_*.py'`.
+
+The startup diagnostic draws and checks a 32 × 32 white test square at the
+center of the framebuffer. Its first GX frame draws only this square over the
+initial clear. If the check fails, it writes a centered white square with a red
+outline through the CPU, then displays it. This checks VI scanout separately
+from GX draw and copy behavior. The latest Dolphin run proceeds to HBC's
+storage-scan screen. The Wii run showed the CPU-written square in the
+upper-left corner; the updated probe places it at the center and adds the red
+outline.

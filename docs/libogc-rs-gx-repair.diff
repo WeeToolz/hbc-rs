@@ -1,0 +1,537 @@
+--- a/libogc-rs/crates/hardware/ogc-gx/src/lib.rs
++++ b/libogc-rs/crates/hardware/ogc-gx/src/lib.rs
+@@ -2,6 +2,9 @@
+ 
+ #[cfg(not(target_arch = "powerpc"))]
+ compile_error!("This crate targets Wii/GameCube PowerPC only. Use the powerpc-unknown-wii target.");
++
++mod register_state;
++use register_state::*;
+ 
+ use core::ffi::c_void;
+ use core::marker::PhantomData;
+@@ -527,10 +530,9 @@
+     pub fn new(xfb: *mut c_void, width: u16, efb_height: u16, xfb_height: u16) -> Option<Self> {
+         if xfb.is_null()
+             || (xfb as usize) & 31 != 0
+-            || width == 0
++            || !valid_copy_width(width, GX_MAX_EFB_DIMENSION)
+             || efb_height == 0
+             || xfb_height == 0
+-            || width > GX_MAX_EFB_DIMENSION
+             || efb_height > GX_MAX_EFB_DIMENSION
+             || xfb_height > GX_MAX_EFB_DIMENSION
+         {
+@@ -606,10 +608,6 @@
+     1 // GX_VA_TEX0 uses direct texture coordinates.
+ }
+ 
+-fn vertex_spec(textured: bool) -> u32 {
+-    1 | (u32::from(textured) << 4) // color 0, and TEX0 when textured.
+-}
+-
+ fn solid_vat_words() -> [u32; 3] {
+     // XYZ/F32 position and RGBA/RGBA8 color. Preserve the revision defaults used by GX_Init.
+     [0x4000_0000 | 0x0001_6009, 0x8000_0000, 0]
+@@ -619,23 +617,8 @@
+     // Disable lighting and take the direct vertex color as the material color.
+     // This matches GX_SetChanCtrl(GX_DISABLE, GX_SRC_REG, GX_SRC_VTX, GX_LIGHTNULL, ...).
+     1
+-}
+-
+-fn solid_generation_mode() -> u32 {
+-    1 << 4 // one vertex color channel, one TEV stage, no texture generators
+-}
+-
+-fn textured_generation_mode() -> u32 {
+-    solid_generation_mode() | 1 // one texture coordinate generator
+ }
+ 
+-fn tev_order_word() -> u32 {
+-    // Match libogc GX_Init / HBC gfx.c: stage 0 selects texture coordinate
+-    // 0, texture map 0, and rasterized color 0. Solid TEV inputs ignore the
+-    // texture sample, but preserving the default order keeps GX state valid.
+-    1 << 6
+-}
+-
+ fn textured_vat_words() -> [u32; 3] {
+     let mut words = solid_vat_words();
+     // TEX0 uses two F32 components (S and T).
+@@ -643,19 +626,13 @@
+     words
+ }
+ 
+-fn textured_texgen_words() -> [u32; 2] {
+-    // GX_TG_MTX2x4, sourced from TEX0, with the identity texture matrix.
+-    [0x282, 0x3d]
+-}
+-
+ fn modulate_tev_words() -> [u32; 3] {
+     // Texture color and alpha multiplied by the white vertex color.
+     [0xc008_f8af, 0xc108_f2f0, 0x2800_0040]
+ }
+ 
+ fn tex_obj_load_words(snapshot: GxTexObjSnapshot, map_id: u8) -> Option<[u32; 6]> {
+-    if map_id >= 8
+-        || snapshot.image_ptr.is_null()
++    if snapshot.image_ptr.is_null()
+         || snapshot.image_ptr as usize & 31 != 0
+         || snapshot.width == 0
+         || snapshot.height == 0
+@@ -668,14 +645,7 @@
+     let even_base = GX_RGBA8_TMEM_EVEN[map_id as usize];
+     let odd_base = GX_RGBA8_TMEM_ODD[map_id as usize];
+     let cache_size = 3 << 15 | 3 << 18;
+-    let registers = [
+-        0x80 + map_id,
+-        0x84 + map_id,
+-        0x88 + map_id,
+-        0x8c + map_id,
+-        0x90 + map_id,
+-        0x94 + map_id,
+-    ];
++    let registers = texture_map_registers(map_id)?;
+     Some([
+         (u32::from(registers[0]) << 24) | (snapshot.tex_filt & 0x00ff_ffff),
+         (u32::from(registers[1]) << 24) | (snapshot.tex_lod & 0x00ff_ffff),
+@@ -688,14 +658,9 @@
+ 
+ fn solid_blend_mode() -> u32 {
+     // Blend, source alpha, inverse source alpha, clear op, and color/alpha updates enabled.
+-    1 | (5 << 5) | (4 << 8) | (1 << 3) | (1 << 4)
++    1 | (1 << 2) | (5 << 5) | (4 << 8) | (1 << 3) | (1 << 4)
+ }
+ 
+-fn pass_color_tev_words() -> [u32; 3] {
+-    // RASC/ RASA pass-through to TEVPREV, with clamp and the default add operation.
+-    [0xc008_000a, 0xc108_0050, 0x2800_0000]
+-}
+-
+ fn rectangle_vertices(x: f32, y: f32, width: f32, height: f32, z: f32) -> Option<[[f32; 3]; 4]> {
+     if !x.is_finite()
+         || !y.is_finite()
+@@ -783,14 +748,15 @@
+         0,
+     ];
+     load_xf_regs(0x0000, &position_identity);
+-    unsafe { load_matrix_index(0x1018, if textured { 60 << 6 } else { 0 }) };
+-    unsafe { load_cp_reg(0x30, 0) };
++    let matrix_index = matrix_index_word(textured);
++    unsafe { load_matrix_index(0x1018, matrix_index) };
++    unsafe { load_cp_reg(0x30, matrix_index) };
+     unsafe { load_projection_mtx(projection, GX_ORTHOGRAPHIC) };
+     // INVTXSPEC tells XF which vertex colors and texture coordinates CP sends.
+     // XF_NUMCOLORS and XF_NUMTEX configure generated outputs; they do not replace it.
+     load_xf_regs(0x1008, &[vertex_spec(textured)]);
+     // Match GX_Init's __GX_InitGX call to GX_SetClipMode(GX_CLIP_ENABLE).
+-    load_xf_regs(0x1005, &[1]);
++    load_xf_regs(0x1005, &[u32::from(GX_CLIP_ENABLE)]);
+     load_xf_regs(0x1009, &[1]); // XF_NUMCOLORS must match VCD's direct color 0.
+ 
+     load_bp_reg(
+@@ -802,12 +768,16 @@
+         },
+     );
+     load_bp_reg(GX_BP_TEV_ORDER, tev_order_word());
++    load_xf_regs(0x103f, &[texture_generator_count(textured)]);
+     if textured {
+-        load_xf_regs(0x103f, &[1]);
++        load_xf_regs(POST_IDENTITY_ADDRESS, &position_identity);
+         let texgen = textured_texgen_words();
+         load_xf_regs(0x1040, &texgen[..1]);
+         load_xf_regs(0x1050, &texgen[1..]);
+     }
++    for word in identity_swap_words() {
++        load_bp_reg((word >> 24) as u8, word & 0x00ff_ffff);
++    }
+     let tev = if textured {
+         modulate_tev_words()
+     } else {
+@@ -881,6 +851,12 @@
+     for word in words {
+         load_bp_reg((word >> 24) as u8, word & 0x00ff_ffff);
+     }
++    // libogc associates a texture map slot with the same-numbered texture coordinate.
++    for word in
++        texture_coord_scale_words(map_id, snapshot.width, snapshot.height, snapshot.tex_filt)
++    {
++        load_bp_reg((word >> 24) as u8, word & 0x00ff_ffff);
++    }
+     Ok(())
+ }
+ 
+@@ -1049,10 +1025,11 @@
+     for value in copy_filter_words(config.copy_filter) {
+         load_bp_reg((value >> 24) as u8, value & 0x00ff_ffff);
+     }
+-    load_bp_reg(GX_BP_PIXEL_ENGINE, 0);
++    // Match GX_Init's GX_SetZCompLoc(GX_TRUE), including the early-Z control bit.
++    load_bp_reg(GX_BP_PIXEL_ENGINE, 0x40);
+     // Match GX_Init's GX_SetZMode(GX_ENABLE, GX_LEQUAL, GX_TRUE) baseline.
+-    load_bp_reg(GX_BP_Z_MODE, 0x1f);
+-    load_bp_reg(GX_BP_COLOR_MODE, 0x18);
++    load_bp_reg(GX_BP_Z_MODE, 0x17);
++    load_bp_reg(GX_BP_COLOR_MODE, 0x1c);
+     // Match GX_SetFieldMask(GX_ENABLE, GX_ENABLE). The display copy uses
+     // GX_COPY_PROGRESSIVE, which is encoded as zero in the copy-control word.
+     load_bp_reg(GX_BP_FIELD_MASK, 0x03);
+@@ -1089,9 +1066,11 @@
+ /// writable by GX, and 32-byte aligned.
+ pub unsafe fn copy_display(config: FrameConfig, clear: bool) {
+     if clear {
+-        // The EFB clear state is active only while the display copy runs.
++        // GX_CopyDisp forces GX_ALWAYS while it clears the EFB.
+         load_bp_reg(GX_BP_Z_MODE, 0x1f);
+-        load_bp_reg(GX_BP_COLOR_MODE, 0x18);
++        load_bp_reg(GX_BP_COLOR_MODE, 0x1c);
++        // Match libogc: disable early Z compare for the clear copy.
++        load_bp_reg(GX_BP_PIXEL_ENGINE, copy_pixel_engine_word(0x40, true));
+     }
+     if let Some(words) = copy_source_words(config.width, config.efb_height) {
+         load_bp_reg(GX_BP_COPY_SRC, words[0] & 0x00ff_ffff);
+@@ -1105,9 +1084,10 @@
+         copy_control_word(clear, y_scale) & 0x00ff_ffff,
+     );
+     if clear {
+-        // Restore the normal 2D color and depth write state for the next frame.
+-        load_bp_reg(GX_BP_Z_MODE, 0x1f);
+-        load_bp_reg(GX_BP_COLOR_MODE, 0x18);
++        // Restore the GX_Init color and depth state after the initial clear.
++        load_bp_reg(GX_BP_Z_MODE, 0x17);
++        load_bp_reg(GX_BP_COLOR_MODE, 0x1c);
++        load_bp_reg(GX_BP_PIXEL_ENGINE, copy_pixel_engine_word(0x40, false));
+     }
+ }
+ 
+@@ -1858,7 +1838,7 @@
+ /// `init.wd` and `init.ht` must be nonzero. Zero dimensions leave `obj` unchanged.
+ pub unsafe fn init_tex_obj(obj: *mut GxTexObj, img_ptr: *mut c_void, init: GxTexObjInit) {
+     unsafe {
+-        if obj.is_null() || init.wd == 0 || init.ht == 0 {
++        if obj.is_null() || !valid_texture_dimensions(init.wd, init.ht) {
+             return;
+         }
+ 
+@@ -1924,6 +1904,9 @@
+     init: GxTexObjInit,
+     tlut_name: u32,
+ ) {
++    if obj.is_null() || !valid_texture_dimensions(init.wd, init.ht) {
++        return;
++    }
+     init_tex_obj(obj, img_ptr, init);
+     let ptr = unsafe { tex_obj_mut(obj) };
+     ptr.tex_flag &= !0x02;
+@@ -1936,14 +1919,7 @@
+ pub unsafe fn init_tex_obj_lod(obj: *mut GxTexObj, params: GxTexObjLod) {
+     unsafe {
+         let ptr = tex_obj_mut(obj);
+-        let mut lodbias = params.lodbias;
+-        if lodbias < -4.0 {
+-            lodbias = -4.0;
+-        } else if lodbias == 4.0 {
+-            lodbias = 3.99;
+-        }
+-
+-        ptr.tex_filt = (ptr.tex_filt & !0x1fe00) | (((32.0 * lodbias) as u32) << 9);
++        ptr.tex_filt = (ptr.tex_filt & !0x1fe00) | texture_lod_bias_field(params.lodbias);
+         ptr.tex_filt = (ptr.tex_filt & !0x10) | ((params.magfilt == GX_LINEAR) as u32) << 4;
+         ptr.tex_filt = (ptr.tex_filt & !0xe0) | ((tex_filter_hw(params.minfilt) as u32) << 5);
+         ptr.tex_filt = (ptr.tex_filt & !0x100) | (((params.edgelod == 0) as u32) << 8);
+@@ -2021,13 +1997,7 @@
+ pub unsafe fn init_tex_obj_lod_bias(obj: *mut GxTexObj, lodbias: f32) {
+     unsafe {
+         let ptr = tex_obj_mut(obj);
+-        let mut lodbias = lodbias;
+-        if lodbias < -4.0 {
+-            lodbias = -4.0;
+-        } else if lodbias == 4.0 {
+-            lodbias = 3.99;
+-        }
+-        ptr.tex_filt = (ptr.tex_filt & !0x1fe00) | (((32.0 * lodbias) as u32) << 9);
++        ptr.tex_filt = (ptr.tex_filt & !0x1fe00) | texture_lod_bias_field(lodbias);
+     }
+ }
+ 
+@@ -2464,10 +2434,10 @@
+         assert_eq!(solid_generation_mode(), 0x0000_0010);
+         assert_eq!(GX_BP_TEV_ORDER, 0x28);
+         assert_eq!(tev_order_word(), 0x40);
+-        assert_eq!(solid_blend_mode(), 0x0000_04b9);
++        assert_eq!(solid_blend_mode(), 0x0000_04bd);
+         assert_eq!(
+             pass_color_tev_words(),
+-            [0xc008_000a, 0xc108_0050, 0x2800_0000]
++            [0xc008_fffa, 0xc108_ffd0, 0x2800_0000]
+         );
+     }
+ 
+@@ -2646,7 +2616,7 @@
+     fn textured_2d_state_encodes_texcoords_and_modulate_tev_stage() {
+         assert_eq!(textured_vcd_high(), 1);
+         assert_eq!(textured_vat_words(), [0x4121_6009, 0x8000_0000, 0]);
+-        assert_eq!(textured_texgen_words(), [0x282, 0x3d]);
++        assert_eq!(textured_texgen_words(), [0x280, 0x3d]);
+         assert_eq!(textured_generation_mode(), 0x11);
+         assert_eq!(
+             modulate_tev_words(),
+@@ -2724,6 +2694,21 @@
+                     },
+                 );
+                 assert_eq!(tex_obj_snapshot(&tex), Some(initialized));
++
++                init_tex_obj_ci(
++                    &mut tex,
++                    core::ptr::null_mut(),
++                    GxTexObjInit {
++                        wd,
++                        ht,
++                        fmt: GX_TF_CI8,
++                        wrap_s: 0,
++                        wrap_t: 0,
++                        mipmap: 0,
++                    },
++                    0x1234,
++                );
++                assert_eq!(tex_obj_snapshot(&tex), Some(initialized));
+             }
+         }
+     }
+--- /dev/null
++++ b/libogc-rs/crates/hardware/ogc-gx/src/register_state.rs
+@@ -0,0 +1,235 @@
++//! GX register values shared by solid and textured 2D drawing.
++
++pub(crate) fn vertex_spec(textured: bool) -> u32 {
++    1 | (u32::from(textured) << 4) // color 0, and TEX0 when textured.
++}
++
++pub(crate) fn solid_generation_mode() -> u32 {
++    1 << 4 // one vertex color channel, one TEV stage, no texture generators
++}
++
++pub(crate) fn textured_generation_mode() -> u32 {
++    solid_generation_mode() | 1 // one texture coordinate generator
++}
++
++pub(crate) fn tev_order_word() -> u32 {
++    // Match libogc GX_Init / HBC gfx.c: stage 0 selects texture coordinate
++    // 0, texture map 0, and rasterized color 0. Solid TEV inputs ignore the
++    // texture sample, but preserving the default order keeps GX state valid.
++    1 << 6
++}
++
++pub(crate) fn textured_texgen_words() -> [u32; 2] {
++    // GX_TG_MTX2x4, sourced from TEX0, with the identity texture matrix.
++    [0x280, 0x3d]
++}
++
++pub(crate) fn pass_color_tev_words() -> [u32; 3] {
++    // RASC/ RASA pass-through to TEVPREV, with clamp and the default add operation.
++    [0xc008_fffa, 0xc108_ffd0, 0x2800_0000]
++}
++
++pub(crate) fn matrix_index_word(textured: bool) -> u32 {
++    if textured {
++        60 << 6
++    } else {
++        0
++    }
++}
++
++pub(crate) fn texture_generator_count(textured: bool) -> u32 {
++    u32::from(textured)
++}
++
++pub(crate) fn identity_swap_words() -> [u32; 2] {
++    // GX_SetTevSwapModeTable(GX_TEV_SWAP0, RED, GREEN, BLUE, ALPHA).
++    [0xf600_0004, 0xf700_000e]
++}
++
++// XF post-transform matrix selected by GX_DTTIDENTITY.
++pub(crate) const POST_IDENTITY_ADDRESS: u16 = 0x0500 + (125 - 64) * 4;
++
++pub(crate) fn texture_coord_scale_words(
++    coord: u8,
++    width: u16,
++    height: u16,
++    filter: u32,
++) -> [u32; 2] {
++    // __SetSURegs maps this texture coordinate's normalized values to its dimensions.
++    let reg_s = 0x30 + u32::from(coord) * 2;
++    let reg_t = reg_s + 1;
++    [
++        (reg_s << 24) | u32::from(width - 1) | ((filter & 1) << 16),
++        (reg_t << 24) | u32::from(height - 1) | (((filter >> 2) & 1) << 16),
++    ]
++}
++
++pub(crate) fn texture_map_registers(map_id: u8) -> Option<[u8; 6]> {
++    if map_id >= 8 {
++        return None;
++    }
++    let slot = map_id & 3;
++    let base = if map_id < 4 { 0x80 } else { 0xa0 };
++    Some([
++        base + slot,
++        base + 4 + slot,
++        base + 8 + slot,
++        base + 12 + slot,
++        base + 16 + slot,
++        base + 20 + slot,
++    ])
++}
++
++pub(crate) fn valid_copy_width(width: u16, max_width: u16) -> bool {
++    width != 0 && width <= max_width && width % 16 == 0
++}
++
++pub(crate) fn valid_texture_dimensions(width: u16, height: u16) -> bool {
++    width != 0 && height != 0
++}
++
++pub(crate) fn copy_pixel_engine_word(configured: u32, clear: bool) -> u32 {
++    if clear {
++        configured & !0x40
++    } else {
++        configured
++    }
++}
++
++pub(crate) fn texture_lod_bias_field(lodbias: f32) -> u32 {
++    let lodbias = if lodbias < -4.0 {
++        -4.0
++    } else if lodbias == 4.0 {
++        3.99
++    } else {
++        lodbias
++    };
++    (((32.0 * lodbias) as i32 as u32) & 0xff) << 9
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn solid_pass_color_does_not_read_previous_tev_output() {
++        let [color, alpha, order] = pass_color_tev_words();
++        assert_eq!(order & 0xff, 0);
++        assert_eq!(tev_order_word(), 0x40);
++        // GX_CC_ZERO is 15. GX_CA_ZERO is 7. Numeric zero selects PREV.
++        for shift in [12, 8, 4] {
++            assert_eq!((color >> shift) & 15, 15);
++        }
++        for shift in [13, 10, 7] {
++            assert_eq!((alpha >> shift) & 7, 7);
++        }
++        assert_eq!(color & 15, 10); // RASC
++        assert_eq!((alpha >> 4) & 7, 5); // RASA
++    }
++
++    #[test]
++    fn textured_to_solid_transition_disables_texture_generation() {
++        for textured in [true, false] {
++            let bp = if textured {
++                textured_generation_mode()
++            } else {
++                solid_generation_mode()
++            };
++            assert_eq!(bp & 15, texture_generator_count(textured));
++            assert_eq!(
++                (vertex_spec(textured) >> 4) & 15,
++                texture_generator_count(textured)
++            );
++            assert_eq!(bp >> 4 & 7, 1);
++            assert_eq!(vertex_spec(textured) & 3, 1);
++        }
++    }
++
++    #[test]
++    fn texture_transform_uses_two_components_and_identity_matrix() {
++        let [texgen, post_matrix] = textured_texgen_words();
++        assert_eq!(texgen & 2, 0); // GX_TG_MTX2x4, not 3x4.
++        assert_eq!(texgen >> 7 & 31, 5); // TEX0 source row.
++        assert_eq!(matrix_index_word(true) >> 6 & 63, 60); // GX_IDENTITY.
++        assert_eq!(matrix_index_word(false), 0);
++        assert_eq!(POST_IDENTITY_ADDRESS, 0x05f4);
++        assert_eq!(post_matrix, 125 - 64); // GX_DTTIDENTITY - GX_DTTMTX0.
++    }
++
++    #[test]
++    fn normalized_texture_coordinates_cover_the_full_image() {
++        assert_eq!(
++            texture_coord_scale_words(0, 640, 480, 0),
++            [0x3000_027f, 0x3100_01df]
++        );
++        assert_eq!(
++            texture_coord_scale_words(0, 128, 48, 5),
++            [0x3001_007f, 0x3101_002f]
++        );
++    }
++
++    #[test]
++    fn texture_map_registers_follow_libogc_tables() {
++        assert_eq!(
++            texture_map_registers(0),
++            Some([0x80, 0x84, 0x88, 0x8c, 0x90, 0x94])
++        );
++        assert_eq!(
++            texture_map_registers(3),
++            Some([0x83, 0x87, 0x8b, 0x8f, 0x93, 0x97])
++        );
++        assert_eq!(
++            texture_map_registers(4),
++            Some([0xa0, 0xa4, 0xa8, 0xac, 0xb0, 0xb4])
++        );
++        assert_eq!(
++            texture_map_registers(7),
++            Some([0xa3, 0xa7, 0xab, 0xaf, 0xb3, 0xb7])
++        );
++        assert_eq!(texture_map_registers(8), None);
++    }
++
++    #[test]
++    fn texture_coordinate_scale_uses_the_selected_coordinate() {
++        assert_eq!(
++            texture_coord_scale_words(7, 128, 48, 5),
++            [0x3e01_007f, 0x3f01_002f]
++        );
++    }
++
++    #[test]
++    fn copy_width_must_fit_the_destination_register() {
++        assert!(valid_copy_width(640, 1024));
++        assert!(!valid_copy_width(641, 1024));
++        assert!(!valid_copy_width(0, 1024));
++        assert!(!valid_copy_width(1040, 1024));
++    }
++
++    #[test]
++    fn texture_dimensions_must_be_nonzero() {
++        assert!(valid_texture_dimensions(1, 1));
++        assert!(!valid_texture_dimensions(0, 1));
++        assert!(!valid_texture_dimensions(1, 0));
++    }
++
++    #[test]
++    fn clearing_copy_disables_and_then_restores_z_compare_location() {
++        assert_eq!(copy_pixel_engine_word(0x40, true), 0);
++        assert_eq!(copy_pixel_engine_word(0x40, false), 0x40);
++        assert_eq!(copy_pixel_engine_word(0x47, true), 0x07);
++    }
++
++    #[test]
++    fn texture_lod_bias_keeps_signed_low_bits() {
++        assert_eq!(texture_lod_bias_field(-1.0), 0x1c000);
++        assert_eq!(texture_lod_bias_field(-4.0), 0x10000);
++        assert_eq!(texture_lod_bias_field(1.0), 0x4000);
++        assert_eq!(texture_lod_bias_field(4.0), 0xfe00);
++    }
++
++    #[test]
++    fn swap_zero_preserves_all_four_color_components() {
++        let [rg, ba] = identity_swap_words();
++        assert_eq!([rg & 3, rg >> 2 & 3, ba & 3, ba >> 2 & 3], [0, 1, 2, 3]);
++    }
++}

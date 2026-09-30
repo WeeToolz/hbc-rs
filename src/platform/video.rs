@@ -31,18 +31,35 @@ impl VideoSystem {
         (0..self.info.byte_len as usize)
             .step_by(2)
             .any(|offset| unsafe {
-                super::diagnostics::has_visible_luma(core::ptr::read_volatile(framebuffer.add(offset)))
+                super::diagnostics::has_visible_luma(core::ptr::read_volatile(
+                    framebuffer.add(offset),
+                ))
             })
     }
 
     #[cfg(feature = "startup-diagnostics")]
-    pub fn framebuffer_has_bright_luma(&self) -> bool {
+    pub fn framebuffer_has_test_square(&self) -> bool {
         let framebuffer = ogc_core::mem_k0_to_k1(self.framebuffer as usize) as *const u8;
-        (0..self.info.byte_len as usize)
-            .step_by(2)
-            .any(|offset| unsafe {
-                super::diagnostics::has_bright_luma(core::ptr::read_volatile(framebuffer.add(offset)))
-            })
+        let stride = (usize::from(self.info.width) + 15) & !15;
+        super::diagnostics::test_square_is_white(self.info.width, self.info.height, |x, y| unsafe {
+            core::ptr::read_volatile(
+                framebuffer.add((usize::from(y) * stride + usize::from(x)) * 2),
+            )
+        })
+    }
+
+    #[cfg(feature = "startup-diagnostics")]
+    pub fn paint_scanout_probe(&self) {
+        let framebuffer = ogc_core::mem_k0_to_k1(self.framebuffer as usize) as *mut u32;
+        let words = unsafe {
+            core::slice::from_raw_parts_mut(framebuffer, self.info.byte_len as usize / 4)
+        };
+        super::diagnostics::paint_scanout_probe(
+            words,
+            usize::from(self.info.width),
+            usize::from(self.info.height),
+        );
+        unsafe { core::arch::asm!("sync", options(nostack, preserves_flags)) };
     }
 
     /// Show the cleared framebuffer after the renderer has drawn its first frame.
@@ -126,7 +143,7 @@ impl VideoSystem {
                 },
             );
             ogc_gx::init_tex_obj_filter_mode(&mut object, ogc_gx::GX_NEAR, ogc_gx::GX_NEAR);
-            ogc_gx::draw_textured_rect(&object, x, y, width, height, 0.0)
+            ogc_gx::draw_textured_rect(&mut object, x, y, width, height, 0.0)
         }
         .map_err(VideoError::GxTexture)
     }
@@ -186,6 +203,8 @@ pub fn initialize(widescreen: bool) -> Result<VideoSystem, VideoError> {
     if framebuffer.is_null() {
         return Err(VideoError::FramebufferAllocationFailed);
     }
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::set_gx_framebuffer(framebuffer as usize);
 
     let byte_len = unsafe { ogc_video::get_frame_buffer_size(&mut mode) };
     unsafe {
@@ -202,23 +221,19 @@ pub fn initialize(widescreen: bool) -> Result<VideoSystem, VideoError> {
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("GX FIFO START");
     let fifo = unsafe { ogc_gx::GxFifo::initialize_default_mem2() }.map_err(VideoError::GxFifo)?;
-    let config = ogc_gx::FrameConfig::new(
-        framebuffer,
-        mode.fb_width,
-        mode.efb_height,
-        mode.xfb_height,
-    )
-    .ok_or(VideoError::InvalidFrameConfig)?
-    .with_copy_filter(ogc_gx::GxCopyFilter {
-        antialias: mode.aa != 0,
-        sample_pattern: mode.sample_pattern,
-        vertical_enabled: true,
-        vertical_coefficients: mode.vfilter,
-    })
-    .with_field_mode(
-        mode.field_rendering != 0,
-        u32::from(mode.vi_height) == u32::from(mode.xfb_height) * 2,
-    );
+    let config =
+        ogc_gx::FrameConfig::new(framebuffer, mode.fb_width, mode.efb_height, mode.xfb_height)
+            .ok_or(VideoError::InvalidFrameConfig)?
+            .with_copy_filter(ogc_gx::GxCopyFilter {
+                antialias: mode.aa != 0,
+                sample_pattern: mode.sample_pattern,
+                vertical_enabled: true,
+                vertical_coefficients: mode.vfilter,
+            })
+            .with_field_mode(
+                mode.field_rendering != 0,
+                u32::from(mode.vi_height) == u32::from(mode.xfb_height) * 2,
+            );
     unsafe {
         #[cfg(feature = "startup-diagnostics")]
         super::diagnostics::mark("GX DISPLAY COMMANDS");
@@ -231,9 +246,26 @@ pub fn initialize(widescreen: bool) -> Result<VideoSystem, VideoError> {
         };
         #[cfg(not(feature = "startup-diagnostics"))]
         let initial_clear = ogc_gx::GxColor::default();
-        ogc_gx::initialize_display(config, initial_clear);
+        if !ogc_gx::initialize_display(config, initial_clear) {
+            return Err(VideoError::GxDrawTimeout);
+        }
         #[cfg(not(feature = "startup-diagnostics"))]
         ogc_video::set_next_framebuffer(framebuffer);
+    }
+    #[cfg(feature = "startup-diagnostics")]
+    {
+        let framebuffer_k1 = ogc_core::mem_k0_to_k1(framebuffer as usize) as *const u8;
+        let clear_is_visible = (0..byte_len as usize).step_by(2).any(|offset| unsafe {
+            super::diagnostics::has_visible_luma(core::ptr::read_volatile(
+                framebuffer_k1.add(offset),
+            ))
+        });
+        if !clear_is_visible {
+            super::diagnostics::fail("GX CLEAR XFB BLACK");
+            loop {
+                super::diagnostics::hold();
+            }
+        }
     }
     ogc_video::flush();
     for _ in 0..4 {
