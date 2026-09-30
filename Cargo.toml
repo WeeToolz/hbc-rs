@@ -7,8 +7,10 @@ publish = false
 [dependencies]
 
 [target.'cfg(target_arch = "powerpc")'.dependencies]
+ogc-cache = { path = "libogc-rs/crates/core/ogc-cache" }
 ogc-fat = { path = "libogc-rs/crates/services/ogc-fat" }
 ogc-filesystem = { path = "libogc-rs/crates/services/ogc-filesystem" }
+ogc-es-sys = { path = "libogc-rs/crates/core/ogc-es-sys" }
 ogc-gx = { path = "libogc-rs/crates/hardware/ogc-gx" }
 ogc-input = { path = "libogc-rs/crates/services/ogc-input" }
 ogc-ios = { path = "libogc-rs/crates/core/ogc-ios" }

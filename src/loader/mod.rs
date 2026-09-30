@@ -46,6 +46,62 @@ pub enum ParseError {
     InvalidSegment(&'static str),
 }
 
+/// Check every source and destination range before a platform writes a plan.
+///
+/// A parsed plan can still be created by callers, so platform code must not
+/// trust its public fields without checking them again.
+pub fn validate_load_plan(
+    bytes: &[u8],
+    plan: &LoadPlan,
+    allowed_memory: &Range<u32>,
+) -> Result<(), ParseError> {
+    if allowed_memory.start >= allowed_memory.end {
+        return Err(ParseError::InvalidSegment("empty allowed memory range"));
+    }
+    if plan.segments.is_empty() {
+        return Err(ParseError::InvalidFormat("load plan has no segments"));
+    }
+
+    let mut entry_is_executable = false;
+    for segment in &plan.segments {
+        let source_len = segment
+            .file_range
+            .end
+            .checked_sub(segment.file_range.start)
+            .ok_or(ParseError::OutOfBounds)?;
+        if segment.file_range.end > bytes.len()
+            || source_len != segment.file_size as usize
+            || segment.file_size > segment.memory_size
+        {
+            return Err(ParseError::InvalidSegment("invalid segment file range"));
+        }
+        let destination = memory_range(segment.address, segment.memory_size)?
+            .ok_or(ParseError::InvalidSegment("empty load segment"))?;
+        check_bounds(destination, allowed_memory)?;
+        entry_is_executable |=
+            segment.executable && contains(&segment.address, &segment.memory_size, plan.entry);
+    }
+
+    if !entry_is_executable {
+        return Err(ParseError::InvalidFormat(
+            "entry point is outside executable segments",
+        ));
+    }
+    if let Some(bss) = &plan.bss {
+        if bss.start > bss.end {
+            return Err(ParseError::InvalidSegment("reversed BSS range"));
+        }
+        check_bounds(bss.clone(), allowed_memory)?;
+    }
+    Ok(())
+}
+
+#[cfg(target_arch = "powerpc")]
+mod wii;
+
+#[cfg(target_arch = "powerpc")]
+pub use wii::{apply_load_plan, transfer_control};
+
 /// Parse a DOL file. `allowed_memory` optionally limits each section to a
 /// half-open destination range, as HBC's overlap check does.
 pub fn parse_dol(bytes: &[u8], allowed_memory: Option<Range<u32>>) -> Result<LoadPlan, ParseError> {
@@ -330,6 +386,60 @@ mod tests {
             parse_elf32_ppc(&elf[..70], None),
             Err(ParseError::OutOfBounds)
         );
+    }
+
+    #[test]
+    fn validates_plan_sources_destinations_and_entry() {
+        let bytes = [1, 2, 3, 4];
+        let plan = LoadPlan {
+            segments: vec![LoadSegment {
+                file_range: 0..4,
+                address: 0x8000_3400,
+                file_size: 4,
+                memory_size: 8,
+                executable: true,
+            }],
+            bss: Some(0x8000_3408..0x8000_3410),
+            entry: 0x8000_3400,
+        };
+        assert_eq!(
+            validate_load_plan(&bytes, &plan, &(0x8000_3400..0x8000_4000)),
+            Ok(())
+        );
+
+        let mut invalid = plan.clone();
+        invalid.segments[0].file_range = 1..4;
+        assert_eq!(
+            validate_load_plan(&bytes, &invalid, &(0x8000_3400..0x8000_4000)),
+            Err(ParseError::InvalidSegment("invalid segment file range"))
+        );
+
+        let mut invalid = plan;
+        invalid.entry = 0x8000_3408;
+        assert_eq!(
+            validate_load_plan(&bytes, &invalid, &(0x8000_3400..0x8000_4000)),
+            Err(ParseError::InvalidFormat(
+                "entry point is outside executable segments"
+            ))
+        );
+
+        let mut invalid = LoadPlan {
+            segments: vec![LoadSegment {
+                file_range: 0..4,
+                address: 0x8000_3400,
+                file_size: 4,
+                memory_size: 8,
+                executable: true,
+            }],
+            bss: Some(0x8000_3410..0x8000_340f),
+            entry: 0x8000_3400,
+        };
+        assert_eq!(
+            validate_load_plan(&bytes, &invalid, &(0x8000_3400..0x8000_4000)),
+            Err(ParseError::InvalidSegment("reversed BSS range"))
+        );
+        invalid.bss = Some(0x8000_3410..0x8000_3410);
+        assert!(validate_load_plan(&bytes, &invalid, &(0x8000_3400..0x8000_4000)).is_ok());
     }
     fn put16(b: &mut [u8], p: usize, v: u16) {
         b[p..p + 2].copy_from_slice(&v.to_be_bytes());

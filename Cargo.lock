@@ -6,6 +6,8 @@ version = 4
 name = "hbc-rs"
 version = "0.1.0"
 dependencies = [
+ "ogc-cache",
+ "ogc-es-sys",
  "ogc-fat",
  "ogc-filesystem",
  "ogc-gx",
