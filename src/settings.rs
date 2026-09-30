@@ -93,6 +93,21 @@ impl SettingsState {
     pub fn mark_persisted(&mut self) {
         self.persisted = self.current.clone();
     }
+
+    /// Save the current value only when it differs from the last saved value.
+    /// Keep the dirty state when the storage operation fails.
+    pub fn save_if_dirty<E>(
+        &mut self,
+        save: impl FnOnce(&UserSettings) -> Result<(), E>,
+    ) -> Result<bool, E> {
+        if !self.is_dirty() {
+            return Ok(false);
+        }
+        save(&self.current)?;
+        self.mark_persisted();
+        Ok(true)
+    }
+
     pub fn load(&mut self, settings: UserSettings) {
         self.current = settings.clone();
         self.persisted = settings;
@@ -140,6 +155,33 @@ mod tests {
         state.current_mut().browse_mode = 1;
         assert!(state.is_dirty());
         state.mark_persisted();
+        assert!(!state.is_dirty());
+    }
+
+    #[test]
+    fn save_if_dirty_skips_clean_values_and_marks_only_successful_saves() {
+        let mut state = SettingsState::default();
+        let mut save_calls = 0;
+        assert_eq!(
+            state.save_if_dirty(|_| {
+                save_calls += 1;
+                Ok::<(), i32>(())
+            }),
+            Ok(false)
+        );
+        assert_eq!(save_calls, 0);
+
+        state.current_mut().browse_mode = 1;
+        assert_eq!(state.save_if_dirty(|_| Err(-1)), Err(-1));
+        assert!(state.is_dirty());
+        assert_eq!(
+            state.save_if_dirty(|_| {
+                save_calls += 1;
+                Ok::<(), i32>(())
+            }),
+            Ok(true)
+        );
+        assert_eq!(save_calls, 1);
         assert!(!state.is_dirty());
     }
 

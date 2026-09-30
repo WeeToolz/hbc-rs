@@ -68,8 +68,11 @@ impl AppRuntime {
         self.sync_settings();
     }
 
-    pub fn mark_settings_persisted(&mut self) {
-        self.settings.mark_persisted();
+    pub fn save_settings_if_dirty<E>(
+        &mut self,
+        save: impl FnOnce(&UserSettings) -> Result<(), E>,
+    ) -> Result<bool, E> {
+        self.settings.save_if_dirty(save)
     }
 
     /// Apply settings loaded from NAND before the first rendered frame.

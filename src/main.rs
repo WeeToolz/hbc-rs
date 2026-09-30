@@ -95,30 +95,21 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
 
         for action in actions {
             if action == hbc_rs::app::Action::ApplyOptions {
-                let mut persist = false;
-                let mut notice = match startup.apply_options() {
-                    Ok(true) => {
-                        persist = true;
-                        None
-                    }
-                    Ok(false) => {
-                        persist = true;
-                        Some("The selected storage device is not available.")
-                    }
+                let (persist, mut notice) = match startup.apply_options() {
+                    Ok(true) => (true, None),
+                    Ok(false) => (true, Some("The selected storage device is not available.")),
                     Err(hbc_rs::platform::startup::StartupError::CatalogScan) => {
-                        persist = true;
-                        Some("Could not read the apps folder on this device.")
+                        (true, Some("Could not read the apps folder on this device."))
                     }
-                    Err(_) => Some("Could not change the storage device."),
+                    Err(_) => (false, Some("Could not change the storage device.")),
                 };
-                if persist {
-                    if hbc_rs::platform::settings::save(startup.runtime().settings().current())
-                        .is_ok()
-                    {
-                        startup.runtime_mut().mark_settings_persisted();
-                    } else {
-                        notice = Some("Could not save the new settings to NAND.");
-                    }
+                if persist
+                    && startup
+                        .runtime_mut()
+                        .save_settings_if_dirty(hbc_rs::platform::settings::save)
+                        .is_err()
+                {
+                    notice = Some("Could not save the new settings to NAND.");
                 }
                 if let Some(notice) = notice {
                     startup.runtime_mut().show_notice(notice);
@@ -159,8 +150,11 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                         .show_notice("Could not prepare this application to run.");
                     continue;
                 }
-                let settings = startup.runtime().settings().current();
-                if hbc_rs::platform::settings::save(settings).is_err() {
+                if startup
+                    .runtime_mut()
+                    .save_settings_if_dirty(hbc_rs::platform::settings::save)
+                    .is_err()
+                {
                     startup
                         .runtime_mut()
                         .show_notice("Could not save settings. Application launch stopped.");
@@ -191,8 +185,9 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 _ => None,
             };
             if let Some(reset) = reset {
-                let settings = startup.runtime().settings().current();
-                let _ = hbc_rs::platform::settings::save(settings);
+                let _ = startup
+                    .runtime_mut()
+                    .save_settings_if_dirty(hbc_rs::platform::settings::save);
                 if action == hbc_rs::app::Action::LaunchBootMii {
                     if startup.unmount_storage().is_err() {
                         startup
