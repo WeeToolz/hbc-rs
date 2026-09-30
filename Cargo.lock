@@ -16,6 +16,7 @@ dependencies = [
  "ogc-system",
  "ogc-video",
  "ogc-wiilaunch",
+ "wpad-sys",
 ]
 
 [[package]]
