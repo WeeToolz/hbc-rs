@@ -1002,4 +1002,37 @@ mod tests {
             assert_eq!(texture.as_ptr() as usize & 31, 0);
         }
     }
+
+    #[test]
+    fn bundled_hbc_dialog_buttons_and_about_art_have_supported_dimensions() {
+        let images: [(&[u8], u32, u32); 8] = [
+            (include_bytes!("../assets/dialog_background.png"), 520, 360),
+            (include_bytes!("../assets/button.png"), 340, 48),
+            (include_bytes!("../assets/button_focus.png"), 340, 48),
+            (include_bytes!("../assets/button_small.png"), 200, 48),
+            (include_bytes!("../assets/button_small_focus.png"), 200, 48),
+            (include_bytes!("../assets/button_tiny.png"), 132, 48),
+            (include_bytes!("../assets/button_tiny_focus.png"), 132, 48),
+            (include_bytes!("../assets/about.png"), 236, 104),
+        ];
+        for (bytes, width, height) in images {
+            let image = decode_png(
+                bytes,
+                PngLimits {
+                    max_width: width,
+                    max_height: height,
+                    max_pixels: (width * height) as usize,
+                    max_input_bytes: 8 * 1024 * 1024,
+                },
+            )
+            .unwrap();
+            assert_eq!((image.width, image.height), (width, height));
+            let texture = GxRgba8Texture::from_image(&image).unwrap();
+            assert_eq!(
+                (texture.width, texture.height),
+                (width as u16, height as u16)
+            );
+            assert_eq!(texture.as_ptr() as usize & 31, 0);
+        }
+    }
 }

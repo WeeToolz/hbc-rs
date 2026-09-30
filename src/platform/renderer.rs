@@ -6,7 +6,7 @@ use crate::{
         theme::ThemeTextures,
         video::{VideoError, VideoSystem},
     },
-    render::{map_rect, Frame, FrameCommand, LOGICAL_HEIGHT, LOGICAL_WIDTH},
+    render::{map_rect, ButtonSize, Frame, FrameCommand, ThemeArt, LOGICAL_HEIGHT, LOGICAL_WIDTH},
 };
 
 /// Submit the theme background and logo, solid fills, and app icons through GX.
@@ -68,6 +68,41 @@ pub unsafe fn draw_frame(
     }
     for command in &frame.commands {
         match *command {
+            FrameCommand::ThemeArt {
+                art,
+                focused,
+                bounds,
+                fallback,
+            } => {
+                let texture = match art {
+                    ThemeArt::Dialog => theme.dialog.as_ref(),
+                    ThemeArt::About => theme.about.as_ref(),
+                    ThemeArt::Button(ButtonSize::Large) if focused => {
+                        theme.large_button_focused.as_ref()
+                    }
+                    ThemeArt::Button(ButtonSize::Large) => theme.large_button.as_ref(),
+                    ThemeArt::Button(ButtonSize::Small) if focused => {
+                        theme.small_button_focused.as_ref()
+                    }
+                    ThemeArt::Button(ButtonSize::Small) => theme.small_button.as_ref(),
+                    ThemeArt::Button(ButtonSize::Tiny) if focused => {
+                        theme.tiny_button_focused.as_ref()
+                    }
+                    ThemeArt::Button(ButtonSize::Tiny) => theme.tiny_button.as_ref(),
+                };
+                let Some(bounds) = map_rect(
+                    bounds,
+                    LOGICAL_WIDTH,
+                    LOGICAL_HEIGHT,
+                    info.width,
+                    info.height,
+                ) else {
+                    continue;
+                };
+                unsafe {
+                    draw_texture_or_fill(video, &mut textured_state, texture, bounds, fallback)?
+                };
+            }
             FrameCommand::PageArrow {
                 previous,
                 focused,

@@ -22,6 +22,14 @@ const GRID_CARD_WIDTH: u32 = 144;
 const GRID_CARD_HEIGHT: u32 = 64;
 const PAGE_ARROW_WIDTH: u32 = 64;
 const PAGE_ARROW_HEIGHT: u32 = 64;
+const DIALOG_WIDTH: u32 = 520;
+const DIALOG_HEIGHT: u32 = 360;
+const LARGE_BUTTON_WIDTH: u32 = 340;
+const SMALL_BUTTON_WIDTH: u32 = 200;
+const TINY_BUTTON_WIDTH: u32 = 132;
+const BUTTON_HEIGHT: u32 = 48;
+const ABOUT_WIDTH: u32 = 236;
+const ABOUT_HEIGHT: u32 = 104;
 const THEME_IMAGE_MAX_BYTES: usize = 8 * 1024 * 1024;
 
 const DEFAULT_BACKGROUND: &[u8] = include_bytes!("../../assets/background.png");
@@ -34,6 +42,14 @@ const DEFAULT_PREVIOUS_ARROW: &[u8] = include_bytes!("../../assets/apps_previous
 const DEFAULT_PREVIOUS_ARROW_FOCUS: &[u8] = include_bytes!("../../assets/apps_previous_hover.png");
 const DEFAULT_NEXT_ARROW: &[u8] = include_bytes!("../../assets/apps_next.png");
 const DEFAULT_NEXT_ARROW_FOCUS: &[u8] = include_bytes!("../../assets/apps_next_hover.png");
+const DEFAULT_DIALOG: &[u8] = include_bytes!("../../assets/dialog_background.png");
+const DEFAULT_ABOUT: &[u8] = include_bytes!("../../assets/about.png");
+const DEFAULT_LARGE_BUTTON: &[u8] = include_bytes!("../../assets/button.png");
+const DEFAULT_LARGE_BUTTON_FOCUS: &[u8] = include_bytes!("../../assets/button_focus.png");
+const DEFAULT_SMALL_BUTTON: &[u8] = include_bytes!("../../assets/button_small.png");
+const DEFAULT_SMALL_BUTTON_FOCUS: &[u8] = include_bytes!("../../assets/button_small_focus.png");
+const DEFAULT_TINY_BUTTON: &[u8] = include_bytes!("../../assets/button_tiny.png");
+const DEFAULT_TINY_BUTTON_FOCUS: &[u8] = include_bytes!("../../assets/button_tiny_focus.png");
 
 pub struct ThemeTextures {
     pub background: Option<crate::png::GxRgba8Texture>,
@@ -46,6 +62,14 @@ pub struct ThemeTextures {
     pub previous_arrow_focused: Option<crate::png::GxRgba8Texture>,
     pub next_arrow: Option<crate::png::GxRgba8Texture>,
     pub next_arrow_focused: Option<crate::png::GxRgba8Texture>,
+    pub dialog: Option<crate::png::GxRgba8Texture>,
+    pub large_button: Option<crate::png::GxRgba8Texture>,
+    pub large_button_focused: Option<crate::png::GxRgba8Texture>,
+    pub small_button: Option<crate::png::GxRgba8Texture>,
+    pub small_button_focused: Option<crate::png::GxRgba8Texture>,
+    pub tiny_button: Option<crate::png::GxRgba8Texture>,
+    pub tiny_button_focused: Option<crate::png::GxRgba8Texture>,
+    pub about: Option<crate::png::GxRgba8Texture>,
 }
 
 impl ThemeTextures {
@@ -115,6 +139,56 @@ impl ThemeTextures {
                 PAGE_ARROW_HEIGHT,
                 DEFAULT_NEXT_ARROW_FOCUS,
             ),
+            dialog: theme_image_texture(
+                package,
+                "dialog_background.png",
+                DIALOG_WIDTH,
+                DIALOG_HEIGHT,
+                DEFAULT_DIALOG,
+            ),
+            large_button: theme_image_texture(
+                package,
+                "button.png",
+                LARGE_BUTTON_WIDTH,
+                BUTTON_HEIGHT,
+                DEFAULT_LARGE_BUTTON,
+            ),
+            large_button_focused: theme_image_texture(
+                package,
+                "button_focus.png",
+                LARGE_BUTTON_WIDTH,
+                BUTTON_HEIGHT,
+                DEFAULT_LARGE_BUTTON_FOCUS,
+            ),
+            small_button: theme_image_texture(
+                package,
+                "button_small.png",
+                SMALL_BUTTON_WIDTH,
+                BUTTON_HEIGHT,
+                DEFAULT_SMALL_BUTTON,
+            ),
+            small_button_focused: theme_image_texture(
+                package,
+                "button_small_focus.png",
+                SMALL_BUTTON_WIDTH,
+                BUTTON_HEIGHT,
+                DEFAULT_SMALL_BUTTON_FOCUS,
+            ),
+            tiny_button: theme_image_texture(
+                package,
+                "button_tiny.png",
+                TINY_BUTTON_WIDTH,
+                BUTTON_HEIGHT,
+                DEFAULT_TINY_BUTTON,
+            ),
+            tiny_button_focused: theme_image_texture(
+                package,
+                "button_tiny_focus.png",
+                TINY_BUTTON_WIDTH,
+                BUTTON_HEIGHT,
+                DEFAULT_TINY_BUTTON_FOCUS,
+            ),
+            about: theme_image_texture(None, "about.png", ABOUT_WIDTH, ABOUT_HEIGHT, DEFAULT_ABOUT),
         }
     }
 }

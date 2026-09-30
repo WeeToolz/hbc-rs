@@ -92,6 +92,20 @@ pub struct FillRect {
     pub color: Color,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ButtonSize {
+    Large,
+    Small,
+    Tiny,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ThemeArt {
+    Dialog,
+    About,
+    Button(ButtonSize),
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Frame {
     pub fills: Vec<FillRect>,
@@ -109,6 +123,12 @@ pub enum FrameCommand {
     },
     PageArrow {
         previous: bool,
+        focused: bool,
+        bounds: Rect,
+        fallback: FillRect,
+    },
+    ThemeArt {
+        art: ThemeArt,
         focused: bool,
         bounds: Rect,
         fallback: FillRect,
@@ -157,6 +177,51 @@ impl Frame {
                 color: MUTED,
             },
         });
+    }
+
+    fn theme_art(&mut self, bounds: Rect, art: ThemeArt, focused: bool) {
+        if ![bounds.x, bounds.y, bounds.width, bounds.height]
+            .iter()
+            .all(|value| value.is_finite())
+            || bounds.width <= 0.0
+            || bounds.height <= 0.0
+        {
+            return;
+        }
+        let color = if focused { ACCENT } else { PANEL };
+        self.commands.push(FrameCommand::ThemeArt {
+            art,
+            focused,
+            bounds,
+            fallback: FillRect { bounds, color },
+        });
+    }
+
+    fn button(
+        &mut self,
+        x: f32,
+        y: f32,
+        size: ButtonSize,
+        focused: bool,
+        label: &str,
+        color: Color,
+    ) {
+        let width = match size {
+            ButtonSize::Large => 340.0,
+            ButtonSize::Small => 200.0,
+            ButtonSize::Tiny => 132.0,
+        };
+        let bounds = rect(x, y, width, 48.0);
+        self.theme_art(bounds, ThemeArt::Button(size), focused);
+        let text_width = label.chars().count() as f32 * 6.0;
+        self.text(
+            x + ((width - text_width).max(0.0) / 2.0),
+            y + 20.0,
+            label,
+            1.0,
+            color,
+            (width / 6.0) as usize,
+        );
     }
 
     fn fill(&mut self, bounds: Rect, color: Color) {
@@ -286,7 +351,6 @@ const BACKGROUND: Color = Color::rgb(15, 24, 35);
 const HEADER: Color = Color::rgb(25, 39, 55);
 const PANEL: Color = Color::rgb(29, 44, 61);
 const ROW: Color = Color::rgb(37, 54, 72);
-const ROW_ALT: Color = Color::rgb(32, 48, 65);
 const ACCENT: Color = Color::rgb(63, 155, 211);
 const MUTED: Color = Color::rgb(87, 111, 132);
 const MODAL_SHADE: Color = Color {
@@ -391,8 +455,6 @@ pub fn browser_frame_with_theme(
             }
         }
         Screen::MainMenu => {
-            frame.fill(rect(162, 122, 316, 248), ROW);
-            frame.text(190.0, 130.0, "Homebrew Channel", 1.0, text_color, 32);
             let labels: &[&str] = if controller.bootmii_available() {
                 &[
                     "Back",
@@ -405,21 +467,26 @@ pub fn browser_frame_with_theme(
                 &["Back", "About", "Exit to System Menu", "Shutdown"]
             };
             for index in 0..controller.menu_item_count() {
-                let y = 145.0 + index as f32 * 40.0;
-                let color = if index == controller.menu_focus() {
-                    ACCENT
-                } else {
-                    ROW_ALT
-                };
-                frame.fill(rect(184, y, 272, 30), color);
-                let label = labels[index];
-                frame.text(198.0, y + 11.0, label, 1.0, text_color, 36);
+                let y = 80.0
+                    + index as f32
+                        * if controller.bootmii_available() {
+                            64.0
+                        } else {
+                            80.0
+                        };
+                frame.button(
+                    150.0,
+                    y,
+                    ButtonSize::Large,
+                    index == controller.menu_focus(),
+                    labels[index],
+                    text_color,
+                );
             }
         }
         Screen::About => {
-            frame.fill(rect(108, 92, 424, 324), ROW);
-            frame.fill(rect(136, 120, 180, 40), ACCENT);
-            frame.text(142.0, 136.0, "HBC-RS", 2.0, text_color, 12);
+            frame.theme_art(rect(60, 44, 520, 360), ThemeArt::Dialog, false);
+            frame.theme_art(rect(202, 60, 236, 104), ThemeArt::About, false);
             frame.text(144.0, 190.0, "Homebrew Channel", 1.0, text_color, 36);
             frame.text(
                 144.0,
@@ -465,9 +532,8 @@ pub fn browser_frame_with_theme(
         Screen::AppDetails | Screen::DeleteConfirm
     ) {
         frame.fill(rect(0, 0, 640, 480), MODAL_SHADE);
+        frame.theme_art(rect(60, 44, 520, 360), ThemeArt::Dialog, false);
         if controller.screen == Screen::AppDetails {
-            frame.fill(rect(120, 96, 400, 288), PANEL);
-            frame.fill(rect(152, 132, 336, 22), HEADER);
             if let Some(app) = controller
                 .selected_app
                 .as_deref()
@@ -478,13 +544,21 @@ pub fn browser_frame_with_theme(
                     .as_ref()
                     .and_then(|meta| meta.name.as_deref())
                     .unwrap_or(app.directory.as_str());
-                frame.text(160.0, 140.0, name, 1.0, text_color, 52);
+                frame.text(92.0, 76.0, name, 1.0, text_color, 74);
+                if app.has_icon {
+                    if let Some(catalog_index) = catalog
+                        .iter()
+                        .position(|entry| entry.directory == app.directory)
+                    {
+                        frame.icon(catalog_index, rect(92, 96, 128, 48), MUTED);
+                    }
+                }
                 if let Some(description) = app
                     .metadata
                     .as_ref()
                     .and_then(|meta| meta.long_description.as_deref())
                 {
-                    frame.text(152.0, 176.0, description, 1.0, text_color, 54);
+                    frame.text(92.0, 164.0, description, 1.0, text_color, 74);
                 }
             }
             let load_label = controller
@@ -494,63 +568,44 @@ pub fn browser_frame_with_theme(
                 .filter(|app| app.kind == crate::catalog::AppKind::Theme)
                 .map_or("Load", |_| "Apply");
             for (index, action) in [8usize, 9, 10].iter().enumerate() {
-                frame.fill(
-                    rect(152.0 + index as f32 * 108.0, 326, 96, 34),
-                    if controller.detail_focus() == *action {
-                        ACCENT
-                    } else {
-                        ROW
-                    },
-                );
-                frame.text(
-                    174.0 + index as f32 * 108.0,
+                frame.button(
+                    91.0 + index as f32 * 163.0,
                     340.0,
+                    ButtonSize::Tiny,
+                    controller.detail_focus() == *action,
                     ["Delete", load_label, "Return"][index],
-                    1.0,
                     text_color,
-                    14,
                 );
             }
         } else {
-            frame.fill(rect(144, 168, 352, 144), PANEL);
-            frame.fill(rect(168, 188, 304, 20), HEADER);
             frame.text(
-                184.0,
-                194.0,
+                190.0,
+                100.0,
                 "Delete this application?",
                 1.0,
                 text_color,
                 48,
             );
             for (index, yes) in [true, false].iter().enumerate() {
-                frame.fill(
-                    rect(212.0 + index as f32 * 112.0, 260, 96, 32),
-                    if controller.delete_confirmation_yes() == *yes {
-                        ACCENT
-                    } else {
-                        ROW
-                    },
-                );
-                frame.text(
-                    244.0 + index as f32 * 112.0,
-                    272.0,
+                frame.button(
+                    100.0 + index as f32 * 240.0,
+                    324.0,
+                    ButtonSize::Small,
+                    controller.delete_confirmation_yes() == *yes,
                     if *yes { "Yes" } else { "No" },
-                    1.0,
                     text_color,
-                    3,
                 );
             }
         }
     }
     if controller.screen == Screen::Notice {
         frame.fill(rect(0, 0, 640, 480), MODAL_SHADE);
-        frame.fill(rect(112, 164, 416, 152), PANEL);
-        frame.fill(rect(136, 184, 368, 24), HEADER);
-        frame.text(148.0, 192.0, "Notice", 1.0, text_color, 24);
+        frame.theme_art(rect(60, 44, 520, 360), ThemeArt::Dialog, false);
+        frame.text(286.0, 76.0, "Notice", 1.0, text_color, 24);
         if let Some(message) = controller.notice() {
-            frame.text(144.0, 232.0, message, 1.0, text_color, 58);
+            frame.text(92.0, 148.0, message, 1.0, text_color, 74);
         }
-        frame.text(144.0, 286.0, "Press A or B to continue", 1.0, MUTED, 36);
+        frame.button(220.0, 324.0, ButtonSize::Small, false, "OK", text_color);
     }
     frame
 }
@@ -790,18 +845,20 @@ mod tests {
     }
 
     #[test]
-    fn about_screen_uses_its_own_content_panel() {
+    fn about_screen_uses_hbc_dialog_and_about_artwork() {
         let mut controller = AppController::new();
         controller.screen = Screen::About;
         let frame = browser_frame(&controller, &[]);
-        assert!(frame
-            .fills
-            .iter()
-            .any(|fill| fill.bounds == rect(108, 92, 424, 324)));
-        assert!(!frame
-            .fills
-            .iter()
-            .any(|fill| fill.bounds == rect(162, 122, 316, 248)));
+        assert!(frame.commands.iter().any(|command| matches!(
+            command,
+            FrameCommand::ThemeArt { art: ThemeArt::Dialog, bounds, .. }
+                if *bounds == rect(60, 44, 520, 360)
+        )));
+        assert!(frame.commands.iter().any(|command| matches!(
+            command,
+            FrameCommand::ThemeArt { art: ThemeArt::About, bounds, .. }
+                if *bounds == rect(202, 60, 236, 104)
+        )));
     }
 
     #[test]
