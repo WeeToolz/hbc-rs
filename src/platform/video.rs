@@ -5,6 +5,10 @@
 
 use crate::png::GxRgba8Texture;
 
+#[cfg(feature = "startup-diagnostics")]
+static POLL_FIRST_VI_RETRACE: core::sync::atomic::AtomicBool =
+    core::sync::atomic::AtomicBool::new(true);
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct FramebufferInfo {
     pub width: u16,
@@ -160,6 +164,21 @@ impl VideoSystem {
         if !unsafe { ogc_gx::finish_frame_and_wait() } {
             return Err(VideoError::GxDrawTimeout);
         }
+        #[cfg(feature = "startup-diagnostics")]
+        let poll_vi = POLL_FIRST_VI_RETRACE.swap(false, core::sync::atomic::Ordering::Relaxed);
+        #[cfg(feature = "startup-diagnostics")]
+        if poll_vi {
+            super::diagnostics::mark("VI RETRACE POLL START");
+            if ogc_video::wait_vsync_timeout_us(1_000_000) {
+                super::diagnostics::mark("VI POLL RETRACE SEEN");
+            } else {
+                super::diagnostics::mark("VI IRQ COUNT STALLED");
+                return Err(VideoError::ViRetraceTimeout);
+            }
+        } else {
+            self.wait_vsync();
+        }
+        #[cfg(not(feature = "startup-diagnostics"))]
         self.wait_vsync();
         if !unsafe { ogc_gx::present_frame_and_wait(self.config) } {
             return Err(VideoError::GxDrawTimeout);
@@ -177,6 +196,7 @@ pub enum VideoError {
     InvalidFrameConfig,
     GxFifo(ogc_gx::GxFifoError),
     GxDrawTimeout,
+    ViRetraceTimeout,
     GxRect(ogc_gx::GxRectError),
     GxTexture(ogc_gx::GxTextureError),
 }

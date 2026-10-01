@@ -378,10 +378,18 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         if !display_ready {
             hbc_rs::platform::diagnostics::mark("GX COPY START");
         }
-        if unsafe { video.present() }.is_err() {
+        if let Err(_error) = unsafe { video.present() } {
             #[cfg(feature = "startup-diagnostics")]
-            if hbc_rs::platform::diagnostics::fail("GX DRAW DONE TIMEOUT") {
-                exit_to_system(&mut startup, ogc_system::SYS_RESTART);
+            {
+                let message = match _error {
+                    hbc_rs::platform::video::VideoError::ViRetraceTimeout => {
+                        "VI IRQ COUNT STALLED"
+                    }
+                    _ => "GX DRAW DONE TIMEOUT",
+                };
+                if hbc_rs::platform::diagnostics::fail(message) {
+                    exit_to_system(&mut startup, ogc_system::SYS_RESTART);
+                }
             }
             return -4;
         }
