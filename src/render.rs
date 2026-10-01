@@ -859,6 +859,24 @@ pub fn browser_frame_with_viewport(
     theme: Option<&ThemeMetadata>,
     logical_width: u16,
 ) -> Frame {
+    browser_frame_with_language(
+        controller,
+        catalog,
+        theme,
+        logical_width,
+        crate::localization::Language::English,
+    )
+}
+
+/// Build a frame using the active Wii language and HBC catalog fallback rules.
+pub fn browser_frame_with_language(
+    controller: &AppController,
+    catalog: &[AppEntry],
+    theme: Option<&ThemeMetadata>,
+    logical_width: u16,
+    language: crate::localization::Language,
+) -> Frame {
+    let tr = |source| language.text(source);
     let logical_width = if logical_width > LOGICAL_WIDTH {
         WIDE_LOGICAL_WIDTH
     } else {
@@ -985,14 +1003,19 @@ pub fn browser_frame_with_viewport(
         Screen::MainMenu => {
             let labels: &[&str] = if controller.bootmii_available() {
                 &[
-                    "Back",
-                    "About",
-                    "Launch BootMii",
-                    "Exit to System Menu",
-                    "Shutdown",
+                    tr("Back"),
+                    tr("About"),
+                    tr("Launch BootMii"),
+                    tr("Exit to System Menu"),
+                    tr("Shutdown"),
                 ]
             } else {
-                &["Back", "About", "Exit to System Menu", "Shutdown"]
+                &[
+                    tr("Back"),
+                    tr("About"),
+                    tr("Exit to System Menu"),
+                    tr("Shutdown"),
+                ]
             };
             for index in 0..controller.menu_item_count() {
                 let y = 80.0
@@ -1071,9 +1094,9 @@ pub fn browser_frame_with_viewport(
         frame.theme_art(rect(60, 44, 520, 360), ThemeArt::Dialog, false);
         if controller.screen == Screen::Options {
             frame.set_text_style(theme_text_style(theme, "dlgtitle", text_color));
-            frame.text(299.0, 60.0, "Options", 1.0, text_color, 24);
+            frame.text(299.0, 60.0, tr("Options"), 1.0, text_color, 24);
             frame.set_text_style(theme_text_style(theme, "label", text_color));
-            frame.text(92.0, 104.0, "Storage device", 1.0, text_color, 32);
+            frame.text(92.0, 104.0, tr("Device:"), 1.0, text_color, 32);
             let bounds = frame.button(
                 112.0,
                 108.0,
@@ -1110,13 +1133,20 @@ pub fn browser_frame_with_viewport(
             frame.button(112.0, 172.0, ButtonSize::Small, false, "SD Gecko A", MUTED);
             frame.button(328.0, 172.0, ButtonSize::Small, false, "SD Gecko B", MUTED);
             frame.set_text_style(theme_text_style(theme, "label", text_color));
-            frame.text(92.0, 252.0, "Sort by", 1.0, text_color, 32);
+            frame.text(
+                92.0,
+                252.0,
+                tr("Sort applications by:"),
+                1.0,
+                text_color,
+                32,
+            );
             let bounds = frame.button(
                 112.0,
                 260.0,
                 ButtonSize::Small,
                 controller.options_focus() == 2,
-                "Name",
+                tr("Name"),
                 if controller.pending_sort() == crate::catalog::SortOrder::Name {
                     ACCENT
                 } else {
@@ -1129,7 +1159,7 @@ pub fn browser_frame_with_viewport(
                 260.0,
                 ButtonSize::Small,
                 controller.options_focus() == 3,
-                "Date",
+                tr("Date"),
                 if controller.pending_sort() == crate::catalog::SortOrder::ReleaseDate {
                     ACCENT
                 } else {
@@ -1151,7 +1181,7 @@ pub fn browser_frame_with_viewport(
                 340.0,
                 ButtonSize::Small,
                 controller.options_focus() == 5,
-                "Back",
+                tr("Back"),
                 text_color,
             );
             frame.hit_target(PointerTarget::Option(5), bounds);
@@ -1206,7 +1236,10 @@ pub fn browser_frame_with_viewport(
                     .metadata
                     .as_ref()
                     .and_then(|meta| meta.long_description.as_deref())
-                    .unwrap_or("No description available.");
+                    .map_or_else(
+                        || tr("No description available."),
+                        |description| description,
+                    );
                 frame.set_text_style(theme_text_style(theme, "memo", text_color));
                 frame.text_wrapped_scrolled(
                     92.0,
@@ -1225,14 +1258,14 @@ pub fn browser_frame_with_viewport(
                 .as_deref()
                 .and_then(|selected| catalog.iter().find(|entry| entry.directory == selected))
                 .filter(|app| app.kind == crate::catalog::AppKind::Theme)
-                .map_or("Load", |_| "Apply");
+                .map_or(tr("Load"), |_| tr("Apply"));
             for (index, action) in [8usize, 9, 10].iter().enumerate() {
                 let bounds = frame.button(
                     91.0 + index as f32 * 163.0,
                     340.0,
                     ButtonSize::Tiny,
                     controller.detail_focus() == *action,
-                    ["Delete", load_label, "Return"][index],
+                    [tr("Delete"), load_label, tr("Back")][index],
                     text_color,
                 );
                 frame.hit_target(PointerTarget::Detail(*action), bounds);
@@ -1247,7 +1280,7 @@ pub fn browser_frame_with_viewport(
             frame.text(
                 190.0,
                 100.0,
-                "Delete this application?",
+                tr("Delete this application?"),
                 1.0,
                 text_color,
                 48,
@@ -1258,7 +1291,7 @@ pub fn browser_frame_with_viewport(
                     324.0,
                     ButtonSize::Small,
                     controller.delete_confirmation_yes() == *yes,
-                    if *yes { "Yes" } else { "No" },
+                    if *yes { tr("Yes") } else { tr("No") },
                     text_color,
                 );
                 frame.hit_target(PointerTarget::DeleteChoice { yes: *yes }, bounds);
@@ -1284,7 +1317,7 @@ pub fn browser_frame_with_viewport(
                     324.0,
                     ButtonSize::Small,
                     controller.wiiload_confirmation_yes() == *yes,
-                    if *yes { "Yes" } else { "No" },
+                    if *yes { tr("Yes") } else { tr("No") },
                     text_color,
                 );
                 frame.hit_target(PointerTarget::WiiloadChoice { yes: *yes }, bounds);

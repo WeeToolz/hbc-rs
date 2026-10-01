@@ -219,11 +219,15 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 .retain(|input| *input != hbc_rs::app::Input::Confirm);
         }
         let mut actions = startup.runtime_mut().update(&frame);
-        let hit_frame = hbc_rs::render::browser_frame_with_viewport(
+        let hit_frame = hbc_rs::render::browser_frame_with_language(
             startup.runtime().controller(),
             startup.runtime().catalog(),
             startup.runtime().theme(),
             startup.logical_width(),
+            hbc_rs::localization::Language::from_console(
+                ogc_conf::get_language(),
+                startup.runtime().theme(),
+            ),
         );
         let pointer_target = pointer
             .and_then(|position| hit_frame.hit_test(f32::from(position.x), f32::from(position.y)));
@@ -241,11 +245,15 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             hbc_rs::platform::diagnostics::mark("FIRST ICON LOAD");
         }
         startup.refresh_visible_icons();
-        let mut scene = hbc_rs::render::browser_frame_with_viewport(
+        let mut scene = hbc_rs::render::browser_frame_with_language(
             startup.runtime().controller(),
             startup.runtime().catalog(),
             startup.runtime().theme(),
             startup.logical_width(),
+            hbc_rs::localization::Language::from_console(
+                ogc_conf::get_language(),
+                startup.runtime().theme(),
+            ),
         );
         bubble_clock_frames += 1;
         if bubble_clock_frames >= 600 {
