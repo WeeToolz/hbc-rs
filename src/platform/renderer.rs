@@ -60,6 +60,28 @@ pub unsafe fn draw_frame(
             }
         }
     }
+    for command in &frame.commands {
+        if let FrameCommand::Bubble { texture, bounds } = *command {
+            let Some(bounds) = map_rect(
+                bounds,
+                frame.logical_width(),
+                LOGICAL_HEIGHT,
+                info.width,
+                info.height,
+            ) else {
+                continue;
+            };
+            if let Some(texture) = theme.bubbles[texture as usize].as_ref() {
+                if !textured_state {
+                    video.configure_textured_2d();
+                    textured_state = true;
+                }
+                unsafe {
+                    video.draw_texture(texture, bounds.x, bounds.y, bounds.width, bounds.height)?;
+                }
+            }
+        }
+    }
     if let Some(logo) = theme.logo.as_ref() {
         if !textured_state {
             video.configure_textured_2d();
@@ -125,6 +147,7 @@ pub unsafe fn draw_frame(
                     draw_texture_or_fill(video, &mut textured_state, texture, bounds, fallback)?
                 };
             }
+            FrameCommand::Bubble { .. } => {}
             FrameCommand::PageArrow {
                 previous,
                 focused,

@@ -127,11 +127,250 @@ pub struct Frame {
     pub fills: Vec<FillRect>,
     pub commands: Vec<FrameCommand>,
     pub hit_targets: Vec<HitTarget>,
+    /// Decorative bubbles from the animated HBC background.
+    pub bubbles: Vec<BackgroundBubble>,
     logical_width: u16,
     text_scale: f32,
     text_color: Option<Color>,
     focused_button_style: TextStyle,
     unfocused_button_style: TextStyle,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct BackgroundBubble {
+    pub texture: u8,
+    pub bounds: Rect,
+}
+
+/// Frame based port of HBC's rising background bubbles.
+#[derive(Clone, Debug)]
+pub struct BackgroundAnimation {
+    bubbles: Vec<BackgroundBubbleState>,
+    particles: Vec<BackgroundParticle>,
+    seed: u32,
+    update_calls: u16,
+    desired_count: usize,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct BackgroundBubbleState {
+    texture: u8,
+    x: f32,
+    y: f32,
+    speed: f32,
+    sway: f32,
+    phase: f32,
+    step: f32,
+    size: f32,
+    popped: bool,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct BackgroundParticle {
+    parent: usize,
+    state: BackgroundBubbleState,
+}
+
+impl BackgroundAnimation {
+    pub fn new(logical_width: u16, seed: u32, minute_cycle: u16) -> Self {
+        let mut state = Self {
+            bubbles: Vec::new(),
+            particles: Vec::new(),
+            seed: seed.max(1),
+            update_calls: 1,
+            desired_count: bubble_count_for_minute(minute_cycle),
+        };
+        for _ in 0..state.desired_count {
+            state.reset_bubble(logical_width, 0.0);
+        }
+        state
+    }
+
+    fn random(&mut self) -> f32 {
+        self.seed = self.seed.wrapping_mul(1664525).wrapping_add(1013904223);
+        (self.seed >> 8) as f32 / 16_777_216.0
+    }
+
+    fn reset_bubble(&mut self, width: u16, y: f32) {
+        let bubble = self.create_bubble(width, y);
+        self.bubbles.push(bubble);
+    }
+
+    fn create_bubble(&mut self, width: u16, y: f32) -> BackgroundBubbleState {
+        let texture = (self.random() * 3.0) as u8;
+        let speed = 1.2 + self.random() * (4 - texture) as f32;
+        BackgroundBubbleState {
+            texture,
+            x: self.random() * f32::from(width),
+            y: if y == 0.0 {
+                480.0 + self.random() * 200.0
+            } else {
+                y
+            },
+            speed,
+            sway: 3.0 + self.random() * (texture + 1) as f32 * speed,
+            phase: 0.0,
+            step: core::f32::consts::TAU / (64.0 + self.random() * 64.0),
+            size: 0.4 + self.random() * 0.6,
+            popped: false,
+        }
+    }
+
+    /// Advance one frame. `minute_cycle` is the current minute modulo 24 hours.
+    /// The time-based count changes every 600 frames, as it does in HBC.
+    pub fn tick(
+        &mut self,
+        logical_width: u16,
+        minute_cycle: u16,
+        pointer: Option<(f32, f32)>,
+    ) -> Vec<BackgroundBubble> {
+        if self.update_calls >= 600 {
+            self.update_calls = 0;
+            self.desired_count = bubble_count_for_minute(minute_cycle);
+        } else {
+            self.update_calls += 1;
+        }
+        if self.update_calls % 6 == 0 {
+            if self.bubbles.len() < self.desired_count {
+                self.reset_bubble(logical_width, 0.0);
+            } else if self.bubbles.len() > self.desired_count {
+                self.bubbles.pop();
+                self.particles
+                    .retain(|particle| particle.parent < self.bubbles.len());
+            }
+        }
+
+        if let Some((x, y)) = pointer {
+            for i in 0..self.bubbles.len() {
+                if !self.bubbles[i].popped && self.contains(i, x, y, BUBBLE_POP_RADIUS) {
+                    self.pop(i);
+                }
+            }
+            for particle in &mut self.particles {
+                if !particle.state.popped
+                    && contains_state(&particle.state, x, y, BUBBLE_POP_RADIUS)
+                {
+                    particle.state.popped = true;
+                }
+            }
+        }
+
+        for i in 0..self.bubbles.len() {
+            if !self.bubbles[i].popped {
+                self.move_bubble(i, logical_width);
+            }
+        }
+        for particle in &mut self.particles {
+            if !particle.state.popped {
+                particle.state.y -= particle.state.speed;
+                particle.state.phase += particle.state.step;
+                if particle.state.y < -100.0 {
+                    particle.state.popped = true;
+                }
+            }
+        }
+        self.particles.retain(|particle| !particle.state.popped);
+        for i in 0..self.bubbles.len() {
+            if self.bubbles[i].popped && !self.particles.iter().any(|particle| particle.parent == i)
+            {
+                self.bubbles[i] = self.create_bubble(logical_width, 0.0);
+            }
+        }
+
+        let mut output = Vec::new();
+        for (i, bubble) in self.bubbles.iter().enumerate() {
+            if !bubble.popped {
+                output.push(drawable_bubble(bubble));
+            }
+            for particle in self
+                .particles
+                .iter()
+                .filter(|particle| particle.parent == i)
+            {
+                output.push(drawable_bubble(&particle.state));
+            }
+        }
+        output
+    }
+
+    pub fn pop_all(&mut self) {
+        for i in 0..self.bubbles.len() {
+            if !self.bubbles[i].popped {
+                self.pop(i);
+            }
+        }
+    }
+
+    fn contains(&self, index: usize, x: f32, y: f32, radius_scale: f32) -> bool {
+        contains_state(&self.bubbles[index], x, y, radius_scale)
+    }
+
+    fn pop(&mut self, index: usize) {
+        let bubble = self.bubbles[index];
+        self.bubbles[index].popped = true;
+        let count = 5 + (self.random() * 5.0) as usize;
+        for _ in 0..count {
+            let angle = self.random() * core::f32::consts::TAU;
+            let dx = libm::sinf(angle) * self.random() * 40.0;
+            let dy = (libm::cosf(angle) - 1.5) * self.random() * 30.0;
+            let mut particle = bubble;
+            particle.x += dx;
+            particle.y += dy;
+            particle.speed = bubble.speed - 0.5 + self.random() * (4 - bubble.texture) as f32;
+            particle.sway = bubble.sway * (0.8 + self.random());
+            particle.step = bubble.step * (0.8 + self.random() * 0.4);
+            particle.size = bubble.size * (0.2 + self.random() * 0.2);
+            particle.phase = bubble.phase;
+            particle.popped = false;
+            self.particles.push(BackgroundParticle {
+                parent: index,
+                state: particle,
+            });
+        }
+    }
+
+    fn move_bubble(&mut self, index: usize, logical_width: u16) {
+        self.bubbles[index].y -= self.bubbles[index].speed;
+        if self.bubbles[index].y < -100.0 {
+            let y = 480.0 + self.random() * 200.0;
+            self.bubbles[index] = self.create_bubble(logical_width, y);
+        } else {
+            self.bubbles[index].phase += self.bubbles[index].step;
+        }
+    }
+}
+
+const BUBBLE_POP_RADIUS: f32 = 0.8;
+
+fn bubble_count_for_minute(minute: u16) -> usize {
+    let minute = minute % 1440;
+    let delta = 16usize;
+    let count = if minute <= 720 {
+        delta * usize::from(minute) / 720 + 4
+    } else {
+        delta * usize::from(1440 - minute) / 720 + 4
+    };
+    count.clamp(4, 20)
+}
+
+fn contains_state(bubble: &BackgroundBubbleState, x: f32, y: f32, radius_scale: f32) -> bool {
+    let radius = 64.0 * bubble.size / 2.0 * radius_scale;
+    let cx = bubble.x + libm::roundf(bubble.sway * libm::sinf(bubble.phase)) + 32.0;
+    let cy = bubble.y - 32.0;
+    (x - cx).abs() < radius && (y - cy).abs() < radius
+}
+
+fn drawable_bubble(bubble: &BackgroundBubbleState) -> BackgroundBubble {
+    let size = 64.0 * bubble.size;
+    BackgroundBubble {
+        texture: bubble.texture,
+        bounds: Rect {
+            x: bubble.x + libm::roundf(bubble.sway * libm::sinf(bubble.phase)),
+            y: bubble.y - size,
+            width: size,
+            height: size,
+        },
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -247,6 +486,7 @@ impl Frame {
                     bounds.x += offset;
                     fallback.bounds.x += offset;
                 }
+                FrameCommand::Bubble { bounds, .. } => bounds.x += offset,
                 FrameCommand::Icon {
                     bounds, fallback, ..
                 } => {
@@ -270,6 +510,10 @@ impl Frame {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum FrameCommand {
     Fill(usize),
+    Bubble {
+        texture: u8,
+        bounds: Rect,
+    },
     AppCard {
         grid: bool,
         focused: bool,
@@ -293,6 +537,28 @@ pub enum FrameCommand {
         bounds: Rect,
         fallback: FillRect,
     },
+}
+
+impl Frame {
+    /// Add rising bubbles before foreground UI elements.
+    pub fn set_background_bubbles(&mut self, bubbles: &[BackgroundBubble]) {
+        self.bubbles.clear();
+        self.bubbles.extend_from_slice(bubbles);
+        let insert_at = self
+            .commands
+            .iter()
+            .position(|c| !matches!(c, FrameCommand::Fill(_)))
+            .unwrap_or(self.commands.len());
+        for (offset, bubble) in bubbles.iter().enumerate() {
+            self.commands.insert(
+                insert_at + offset,
+                FrameCommand::Bubble {
+                    texture: bubble.texture.min(2),
+                    bounds: bubble.bounds,
+                },
+            );
+        }
+    }
 }
 
 impl Frame {
@@ -1793,5 +2059,51 @@ mod tests {
             map_rect(rect(f32::NAN, 0, 10, 10), 640, 480, 640, 480),
             None
         );
+    }
+    #[test]
+    fn animated_background_bubbles_rise_at_hbc_dimensions() {
+        let mut animation = BackgroundAnimation::new(LOGICAL_WIDTH, 7, 720);
+        let first = animation.tick(LOGICAL_WIDTH, 720, None);
+        let second = animation.tick(LOGICAL_WIDTH, 720, None);
+        assert_eq!(first.len(), 20);
+        assert_eq!(second.len(), 20);
+        assert!(second
+            .iter()
+            .zip(first.iter())
+            .all(|(next, prev)| next.bounds.y < prev.bounds.y || next.bounds.y > 480.0));
+        assert!(second.iter().all(|bubble| bubble.texture < 3));
+    }
+
+    #[test]
+    fn animated_background_bubble_count_tracks_the_daily_cycle() {
+        assert_eq!(bubble_count_for_minute(0), 4);
+        assert_eq!(bubble_count_for_minute(720), 20);
+        assert_eq!(bubble_count_for_minute(1439), 4);
+
+        let mut animation = BackgroundAnimation::new(LOGICAL_WIDTH, 11, 0);
+        for _ in 0..600 {
+            animation.tick(LOGICAL_WIDTH, 720, None);
+        }
+        assert_eq!(animation.desired_count, 20);
+        assert_eq!(animation.bubbles.len(), 5);
+    }
+
+    #[test]
+    fn pointer_and_pop_all_create_bubble_fragments() {
+        let mut animation = BackgroundAnimation::new(LOGICAL_WIDTH, 23, 720);
+        let bubble = animation.tick(LOGICAL_WIDTH, 720, None)[0];
+        let size = bubble.bounds.width;
+        let pointer = (bubble.bounds.x + 32.0, bubble.bounds.y + size - 32.0);
+        let fragments = animation.tick(LOGICAL_WIDTH, 720, Some(pointer));
+        assert!(animation.bubbles[0].popped);
+        assert!(!animation.particles.is_empty());
+        assert!(fragments.len() > 4);
+        assert!(fragments.len() < 30);
+
+        animation.pop_all();
+        assert!(animation.bubbles.iter().all(|bubble| bubble.popped));
+        let all_fragments = animation.tick(LOGICAL_WIDTH, 720, None);
+        assert!(all_fragments.len() >= 20);
+        assert!(all_fragments.len() <= 180);
     }
 }

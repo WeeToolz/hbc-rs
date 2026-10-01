@@ -10,6 +10,8 @@ startup-diagnostics = []
 [dependencies]
 crc32fast = { version = "1.5.0", default-features = false }
 miniz_oxide = { version = "0.8.9", default-features = false, features = ["with-alloc"] }
+<<<<<<< HEAD
+libm = { version = "0.2", default-features = false }
 ogc-alloc = { path = "../libogc-rs/crates/core/ogc-alloc" }
 
 [target.'cfg(target_arch = "powerpc")'.dependencies]

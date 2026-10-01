@@ -32,6 +32,7 @@ const BUTTON_HEIGHT: u32 = 48;
 const ABOUT_WIDTH: u32 = 236;
 const ABOUT_HEIGHT: u32 = 104;
 const THROBBER_SIZE: u32 = 64;
+const BUBBLE_SIZE: u32 = 64;
 const PROGRESS_WIDTH: u32 = 400;
 const PROGRESS_HEIGHT: u32 = 112;
 const THEME_IMAGE_MAX_BYTES: usize = 8 * 1024 * 1024;
@@ -54,6 +55,11 @@ const DEFAULT_DIALOG_WARNING: &[u8] = include_bytes!("../../assets/dlg_warning.p
 const DEFAULT_DIALOG_ERROR: &[u8] = include_bytes!("../../assets/dlg_error.png");
 const DEFAULT_ABOUT: &[u8] = include_bytes!("../../assets/about.png");
 const DEFAULT_THROBBER: &[u8] = include_bytes!("../../assets/throbber.png");
+const DEFAULT_BUBBLES: [&[u8]; 3] = [
+    include_bytes!("../../assets/bubble1.png"),
+    include_bytes!("../../assets/bubble2.png"),
+    include_bytes!("../../assets/bubble3.png"),
+];
 const DEFAULT_PROGRESS: &[u8] = include_bytes!("../../assets/progress.png");
 const DEFAULT_LARGE_BUTTON: &[u8] = include_bytes!("../../assets/button.png");
 const DEFAULT_LARGE_BUTTON_FOCUS: &[u8] = include_bytes!("../../assets/button_focus.png");
@@ -87,6 +93,7 @@ pub struct ThemeTextures {
     pub tiny_button_focused: Option<crate::png::GxRgba8Texture>,
     pub about: Option<crate::png::GxRgba8Texture>,
     pub throbber: Option<crate::png::GxRgba8Texture>,
+    pub bubbles: [Option<crate::png::GxRgba8Texture>; 3],
     pub progress: Option<crate::png::GxRgba8Texture>,
 }
 
@@ -246,6 +253,29 @@ impl ThemeTextures {
                 THROBBER_SIZE,
                 DEFAULT_THROBBER,
             ),
+            bubbles: [
+                theme_image_texture(
+                    package,
+                    "bubble1.png",
+                    BUBBLE_SIZE,
+                    BUBBLE_SIZE,
+                    DEFAULT_BUBBLES[0],
+                ),
+                theme_image_texture(
+                    package,
+                    "bubble2.png",
+                    BUBBLE_SIZE,
+                    BUBBLE_SIZE,
+                    DEFAULT_BUBBLES[1],
+                ),
+                theme_image_texture(
+                    package,
+                    "bubble3.png",
+                    BUBBLE_SIZE,
+                    BUBBLE_SIZE,
+                    DEFAULT_BUBBLES[2],
+                ),
+            ],
             progress: theme_image_texture(
                 package,
                 "progress.png",

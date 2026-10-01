@@ -28,6 +28,7 @@ name = "hbc-rs"
 version = "0.1.0"
 dependencies = [
  "crc32fast",
+ "libm",
  "miniz_oxide",
  "ogc-alloc",
  "ogc-cache",

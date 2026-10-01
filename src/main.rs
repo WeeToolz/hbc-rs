@@ -66,6 +66,13 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     video.configure_2d();
 
     let mut startup = hbc_rs::platform::startup::WiiStartup::initialize(view_width, 480);
+    let now = ogc_system::time();
+    let now_minutes = now / 60;
+    let minute_cycle = ((now_minutes % 1440 + 1200) % 1440) as u16;
+    let mut bubble_clock_frames = 0u16;
+    let mut bubble_minute_cycle = minute_cycle;
+    let mut background_animation =
+        hbc_rs::render::BackgroundAnimation::new(view_width, now as u32, minute_cycle);
     #[cfg(feature = "startup-diagnostics")]
     hbc_rs::platform::diagnostics::mark("NETWORK WORKER START");
     if hbc_rs::platform::wiiload::start().is_err() {
@@ -226,6 +233,9 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             pointer_pressed,
             pointer_held,
         ));
+        if actions.contains(&hbc_rs::app::Action::DeleteSelected) {
+            background_animation.pop_all();
+        }
         #[cfg(feature = "startup-diagnostics")]
         if !display_ready {
             hbc_rs::platform::diagnostics::mark("FIRST ICON LOAD");
@@ -237,6 +247,17 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             startup.runtime().theme(),
             startup.logical_width(),
         );
+        bubble_clock_frames += 1;
+        if bubble_clock_frames >= 600 {
+            bubble_clock_frames = 0;
+            let now_minutes = ogc_system::time() / 60;
+            bubble_minute_cycle = ((now_minutes % 1440 + 1200) % 1440) as u16;
+        }
+        scene.set_background_bubbles(&background_animation.tick(
+            view_width,
+            bubble_minute_cycle,
+            pointer.map(|point| (f32::from(point.x), f32::from(point.y))),
+        ));
         if let Some(pointer) = pointer {
             scene.pointer_cursor(f32::from(pointer.x), f32::from(pointer.y));
         }
