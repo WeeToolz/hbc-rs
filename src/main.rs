@@ -255,6 +255,10 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 startup.runtime().theme(),
             ),
         );
+        if startup.runtime().controller().screen == hbc_rs::app::Screen::Browser {
+            let indicators = hbc_rs::platform::wiiload::indicator_state();
+            scene.status_indicators(indicators.network_active, indicators.gecko_active);
+        }
         bubble_clock_frames += 1;
         if bubble_clock_frames >= 600 {
             bubble_clock_frames = 0;

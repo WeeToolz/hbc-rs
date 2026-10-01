@@ -6,7 +6,10 @@ use crate::{
         theme::ThemeTextures,
         video::{VideoError, VideoSystem},
     },
-    render::{map_rect, ButtonSize, DialogIcon, Frame, FrameCommand, ThemeArt, LOGICAL_HEIGHT},
+    render::{
+        map_rect, ButtonSize, DialogIcon, Frame, FrameCommand, StatusIndicator, ThemeArt,
+        LOGICAL_HEIGHT,
+    },
 };
 
 /// Submit the theme background and logo, solid fills, and app icons through GX.
@@ -246,6 +249,34 @@ pub unsafe fn draw_frame(
                         fallback,
                     )?
                 };
+            }
+            FrameCommand::StatusIndicator { indicator, bounds } => {
+                let texture = match indicator {
+                    StatusIndicator::Network { active: true } => theme.network_icon_active.as_ref(),
+                    StatusIndicator::Network { active: false } => theme.network_icon.as_ref(),
+                    StatusIndicator::Gecko { active: true } => theme.gecko_icon_active.as_ref(),
+                    StatusIndicator::Gecko { active: false } => theme.gecko_icon.as_ref(),
+                };
+                let Some(bounds) = map_rect(
+                    bounds,
+                    frame.logical_width(),
+                    LOGICAL_HEIGHT,
+                    info.width,
+                    info.height,
+                ) else {
+                    continue;
+                };
+                if let Some(texture) = texture {
+                    unsafe {
+                        video.draw_texture(
+                            texture,
+                            bounds.x,
+                            bounds.y,
+                            bounds.width,
+                            bounds.height,
+                        )?;
+                    }
+                }
             }
         }
     }

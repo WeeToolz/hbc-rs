@@ -122,6 +122,12 @@ pub enum ThemeArt {
     Button(ButtonSize),
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StatusIndicator {
+    Network { active: bool },
+    Gecko { active: bool },
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Frame {
     pub fills: Vec<FillRect>,
@@ -493,6 +499,7 @@ impl Frame {
                     bounds.x += offset;
                     fallback.bounds.x += offset;
                 }
+                FrameCommand::StatusIndicator { bounds, .. } => bounds.x += offset,
             }
         }
         for hit in &mut self.hit_targets {
@@ -537,9 +544,31 @@ pub enum FrameCommand {
         bounds: Rect,
         fallback: FillRect,
     },
+    StatusIndicator {
+        indicator: StatusIndicator,
+        bounds: Rect,
+    },
 }
 
 impl Frame {
+    /// Add the two HBC connection indicators to the browser footer.
+    pub fn status_indicators(&mut self, network_active: bool, gecko_active: bool) {
+        let y = 412.0;
+        let right = f32::from(self.logical_width()) - 32.0;
+        self.commands.push(FrameCommand::StatusIndicator {
+            indicator: StatusIndicator::Gecko {
+                active: gecko_active,
+            },
+            bounds: rect(right - 64.0, y, 32.0, 32.0),
+        });
+        self.commands.push(FrameCommand::StatusIndicator {
+            indicator: StatusIndicator::Network {
+                active: network_active,
+            },
+            bounds: rect(right - 32.0, y, 32.0, 32.0),
+        });
+    }
+
     /// Add rising bubbles before foreground UI elements.
     pub fn set_background_bubbles(&mut self, bubbles: &[BackgroundBubble]) {
         self.bubbles.clear();
@@ -1593,6 +1622,37 @@ fn rect(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn status_indicators_use_hbc_footer_positions_and_states() {
+        let mut frame = Frame::default();
+        frame.logical_width = LOGICAL_WIDTH;
+        frame.status_indicators(true, false);
+        assert!(matches!(
+            frame.commands[0],
+            FrameCommand::StatusIndicator {
+                indicator: StatusIndicator::Gecko { active: false },
+                bounds: Rect {
+                    x: 544.0,
+                    y: 412.0,
+                    width: 32.0,
+                    height: 32.0
+                },
+            }
+        ));
+        assert!(matches!(
+            frame.commands[1],
+            FrameCommand::StatusIndicator {
+                indicator: StatusIndicator::Network { active: true },
+                bounds: Rect {
+                    x: 576.0,
+                    y: 412.0,
+                    width: 32.0,
+                    height: 32.0
+                },
+            }
+        ));
+    }
     use crate::catalog::{AppEntry, AppKind};
     use alloc::{string::String, vec};
 

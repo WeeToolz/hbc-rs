@@ -9,6 +9,40 @@ pub const WIILOAD_MAX_ARGS: usize = 1024;
 /// This matches HBC's launch-memory bound: `0x81330000 - 1 - args - 0x80003400`.
 pub const WIILOAD_MAX_DATA: usize = 0x0132_c7ff;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(u8)]
+pub enum ReceiverStatus {
+    Stopped = 0,
+    Starting = 1,
+    NetworkUnavailable = 2,
+    Listening = 3,
+    Receiving = 4,
+    PayloadReady = 5,
+    InvalidUpload = 6,
+    ListenerError = 7,
+    MemoryError = 8,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct IndicatorState {
+    pub network_active: bool,
+    pub gecko_active: bool,
+}
+
+pub fn indicator_state(status: ReceiverStatus, gecko_ready: bool) -> IndicatorState {
+    IndicatorState {
+        network_active: matches!(
+            status,
+            ReceiverStatus::Listening
+                | ReceiverStatus::Receiving
+                | ReceiverStatus::PayloadReady
+                | ReceiverStatus::InvalidUpload
+                | ReceiverStatus::MemoryError
+        ),
+        gecko_active: gecko_ready,
+    }
+}
+
 /// HBC accepts Wiiload clients from the same IPv4 `/16` as the console.
 pub fn same_local_subnet_16(peer_ip: u32, local_ip: u32) -> bool {
     (peer_ip & 0xffff_0000) == (local_ip & 0xffff_0000)
@@ -124,6 +158,29 @@ pub struct WiiloadPayload {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn maps_receiver_status_and_gecko_readiness_to_indicators() {
+        for status in [
+            ReceiverStatus::Stopped,
+            ReceiverStatus::Starting,
+            ReceiverStatus::NetworkUnavailable,
+            ReceiverStatus::ListenerError,
+        ] {
+            assert!(!indicator_state(status, false).network_active);
+        }
+        for status in [
+            ReceiverStatus::Listening,
+            ReceiverStatus::Receiving,
+            ReceiverStatus::PayloadReady,
+            ReceiverStatus::InvalidUpload,
+            ReceiverStatus::MemoryError,
+        ] {
+            assert!(indicator_state(status, false).network_active);
+        }
+        assert!(!indicator_state(ReceiverStatus::Stopped, false).gecko_active);
+        assert!(indicator_state(ReceiverStatus::Listening, true).gecko_active);
+    }
     use miniz_oxide::deflate::compress_to_vec_zlib;
 
     fn header(version: u16, args_len: u16, data_len: u32, data_un: u32) -> [u8; 16] {

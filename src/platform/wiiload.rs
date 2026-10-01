@@ -8,7 +8,11 @@ use core::cell::UnsafeCell;
 use core::ffi::c_void;
 use core::sync::atomic::{AtomicBool, AtomicU32, AtomicU8, Ordering};
 
-use crate::wiiload::{same_local_subnet_16, WiiloadHeader, WiiloadPayload, WIILOAD_HEADER_LEN};
+pub use crate::wiiload::ReceiverStatus;
+use crate::wiiload::{
+    indicator_state as map_indicator_state, same_local_subnet_16, IndicatorState, WiiloadHeader,
+    WiiloadPayload, WIILOAD_HEADER_LEN,
+};
 use ogc_lwp::{sys as lwp_sys, ThreadHandle};
 use ogc_network::sys::{F_GETFL, F_SETFL};
 use ogc_network::{self as network, SockaddrIn, AF_INET, O_NONBLOCK, PF_INET, SOCK_STREAM};
@@ -30,20 +34,6 @@ const USBGECKO_RETRIES: i32 = 1000;
 const GECKO_IDLE_POLLS: usize = 6;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[repr(u8)]
-pub enum ReceiverStatus {
-    Stopped = 0,
-    Starting = 1,
-    NetworkUnavailable = 2,
-    Listening = 3,
-    Receiving = 4,
-    PayloadReady = 5,
-    InvalidUpload = 6,
-    ListenerError = 7,
-    MemoryError = 8,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ReceiverError {
     AlreadyStarted,
     ThreadCreation,
@@ -52,6 +42,7 @@ pub enum ReceiverError {
 struct Shared {
     stopped: AtomicBool,
     status: AtomicU8,
+    gecko_ready: AtomicBool,
     receive_completed: AtomicU32,
     receive_total: AtomicU32,
     payload_lock: AtomicBool,
@@ -66,6 +57,7 @@ impl Shared {
         Self {
             stopped: AtomicBool::new(false),
             status: AtomicU8::new(ReceiverStatus::Stopped as u8),
+            gecko_ready: AtomicBool::new(false),
             receive_completed: AtomicU32::new(0),
             receive_total: AtomicU32::new(0),
             payload_lock: AtomicBool::new(false),
@@ -132,6 +124,7 @@ pub fn start() -> Result<(), ReceiverError> {
     }
     SHARED.stopped.store(false, Ordering::Release);
     SHARED.set_status(ReceiverStatus::Starting);
+    SHARED.gecko_ready.store(false, Ordering::Release);
     // SAFETY: SHARED and the aligned static stack have process lifetime.
     let result = unsafe {
         ThreadHandle::create(
@@ -166,6 +159,11 @@ pub fn status() -> ReceiverStatus {
     }
 }
 
+/// Return browser indicator states with atomic reads only.
+pub fn indicator_state() -> IndicatorState {
+    map_indicator_state(status(), SHARED.gecko_ready.load(Ordering::Acquire))
+}
+
 /// Return the current TCP upload receive counts. The total is zero until the
 /// header has been decoded and after the upload body has been received.
 pub fn receive_progress() -> (u32, u32) {
@@ -195,6 +193,7 @@ pub fn stop() {
     // SAFETY: THREAD is written once by start and read only for this join.
     let _ = unsafe { ThreadHandle::new(THREAD) }.join();
     STARTED.store(false, Ordering::Release);
+    SHARED.gecko_ready.store(false, Ordering::Release);
     SHARED.set_status(ReceiverStatus::Stopped);
 }
 
@@ -202,6 +201,7 @@ unsafe fn worker(arg: *mut c_void) -> *mut c_void {
     // SAFETY: start passes the address of the static SHARED value.
     let shared = unsafe { &*arg.cast::<Shared>() };
     let result = worker_main(shared);
+    shared.gecko_ready.store(false, Ordering::Release);
     shared.set_status(result);
     core::ptr::null_mut()
 }
@@ -225,6 +225,9 @@ fn worker_main(shared: &Shared) -> ReceiverStatus {
     }
     let local_ip = network::get_host_ip();
     let _ = usbgecko::flush(USBGECKO_CHANNEL);
+    // The inline poller is ready here. C HBC enables its Gecko icon after the
+    // Gecko receiver worker reports initialized.
+    shared.gecko_ready.store(true, Ordering::Release);
     shared.set_status(ReceiverStatus::Listening);
     let mut gecko = GeckoReceive::new();
 

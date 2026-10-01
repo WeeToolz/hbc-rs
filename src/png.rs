@@ -936,6 +936,22 @@ mod tests {
                 include_bytes!("../assets/progress.png").as_slice(),
                 (400, 112),
             ),
+            (
+                include_bytes!("../assets/icon_network.png").as_slice(),
+                (32, 32),
+            ),
+            (
+                include_bytes!("../assets/icon_network_active.png").as_slice(),
+                (32, 32),
+            ),
+            (
+                include_bytes!("../assets/icon_usbgecko.png").as_slice(),
+                (32, 32),
+            ),
+            (
+                include_bytes!("../assets/icon_usbgecko_active.png").as_slice(),
+                (32, 32),
+            ),
         ] {
             let image = decode_png(
                 bytes,

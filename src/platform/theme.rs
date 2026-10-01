@@ -67,6 +67,10 @@ const DEFAULT_SMALL_BUTTON: &[u8] = include_bytes!("../../assets/button_small.pn
 const DEFAULT_SMALL_BUTTON_FOCUS: &[u8] = include_bytes!("../../assets/button_small_focus.png");
 const DEFAULT_TINY_BUTTON: &[u8] = include_bytes!("../../assets/button_tiny.png");
 const DEFAULT_TINY_BUTTON_FOCUS: &[u8] = include_bytes!("../../assets/button_tiny_focus.png");
+const DEFAULT_NETWORK_ICON: &[u8] = include_bytes!("../../assets/icon_network.png");
+const DEFAULT_NETWORK_ICON_ACTIVE: &[u8] = include_bytes!("../../assets/icon_network_active.png");
+const DEFAULT_GECKO_ICON: &[u8] = include_bytes!("../../assets/icon_usbgecko.png");
+const DEFAULT_GECKO_ICON_ACTIVE: &[u8] = include_bytes!("../../assets/icon_usbgecko_active.png");
 
 pub struct ThemeTextures {
     pub background: Option<crate::png::GxRgba8Texture>,
@@ -95,6 +99,10 @@ pub struct ThemeTextures {
     pub throbber: Option<crate::png::GxRgba8Texture>,
     pub bubbles: [Option<crate::png::GxRgba8Texture>; 3],
     pub progress: Option<crate::png::GxRgba8Texture>,
+    pub network_icon: Option<crate::png::GxRgba8Texture>,
+    pub network_icon_active: Option<crate::png::GxRgba8Texture>,
+    pub gecko_icon: Option<crate::png::GxRgba8Texture>,
+    pub gecko_icon_active: Option<crate::png::GxRgba8Texture>,
 }
 
 impl ThemeTextures {
@@ -282,6 +290,34 @@ impl ThemeTextures {
                 PROGRESS_WIDTH,
                 PROGRESS_HEIGHT,
                 DEFAULT_PROGRESS,
+            ),
+            network_icon: theme_image_texture(
+                package,
+                "icon_network.png",
+                32,
+                32,
+                DEFAULT_NETWORK_ICON,
+            ),
+            network_icon_active: theme_image_texture(
+                package,
+                "icon_network_active.png",
+                32,
+                32,
+                DEFAULT_NETWORK_ICON_ACTIVE,
+            ),
+            gecko_icon: theme_image_texture(
+                package,
+                "icon_usbgecko.png",
+                32,
+                32,
+                DEFAULT_GECKO_ICON,
+            ),
+            gecko_icon_active: theme_image_texture(
+                package,
+                "icon_usbgecko_active.png",
+                32,
+                32,
+                DEFAULT_GECKO_ICON_ACTIVE,
             ),
         }
     }
