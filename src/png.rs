@@ -511,6 +511,20 @@ fn decode_passes(chunks: &Chunks, inflated: &[u8], output: &mut [u8]) -> Result<
         current.resize(row_bytes, 0);
 
         for row_index in 0..height {
+            #[cfg(all(feature = "startup-diagnostics", target_arch = "powerpc"))]
+            if row_index % 64 == 0 {
+                const ROW_STAGES: [&str; 8] = [
+                    "PNG FILTER ROW 000",
+                    "PNG FILTER ROW 064",
+                    "PNG FILTER ROW 128",
+                    "PNG FILTER ROW 192",
+                    "PNG FILTER ROW 256",
+                    "PNG FILTER ROW 320",
+                    "PNG FILTER ROW 384",
+                    "PNG FILTER ROW 448",
+                ];
+                crate::platform::diagnostics::mark(ROW_STAGES[(row_index / 64).min(7)]);
+            }
             let filter = *inflated.get(cursor).ok_or(PngError::InvalidScanline)?;
             cursor += 1;
             let encoded_end = cursor
