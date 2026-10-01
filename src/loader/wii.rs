@@ -166,10 +166,10 @@ pub unsafe fn prepare_launch(
 /// # Safety
 ///
 /// `entry` must point to initialized executable Wii RAM. The caller must stop
-/// HBC-owned worker threads and unmount storage first. The current Rust IRQ
-/// vector remains installed because libogc-rs has no safe close operation; the
-/// executable's crt0 must install its own handlers and set its stack before it
-/// enables interrupts. The selected policy can restore AHB access after reload.
+/// HBC-owned worker threads and unmount storage first. The prior external IRQ
+/// vector is restored before the executable starts. The executable's crt0 must
+/// install any required handlers and set its stack before it enables interrupts.
+/// The selected policy can restore AHB access after reload.
 pub unsafe fn transfer_control(entry: u32, policy: super::IosLaunchPolicy) -> ! {
     const EXEC_STUB: [u32; 8] = [
         0x7c69_03a6, // mtctr r3
@@ -221,6 +221,7 @@ pub unsafe fn transfer_control(entry: u32, policy: super::IosLaunchPolicy) -> ! 
             out("r4") _,
             options(nostack)
         );
+        ogc_irq::restore_exception_vector();
     }
 
     // SAFETY: The Arena2 code is initialized and instruction-cache coherent.
