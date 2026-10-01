@@ -65,6 +65,9 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     hbc_rs::platform::diagnostics::mark("GX 2D SETUP");
     video.configure_2d();
 
+    #[cfg(feature = "startup-diagnostics")]
+    hbc_rs::platform::diagnostics::begin_reporting();
+
     let mut startup = hbc_rs::platform::startup::WiiStartup::initialize(view_width, 480);
     let now = ogc_system::time();
     let now_minutes = now / 60;

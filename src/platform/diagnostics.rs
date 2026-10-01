@@ -112,6 +112,28 @@ struct ReportIdentity {
     sample_frames: u32,
 }
 
+const PROGRESS_TEXT_LIMIT: usize = 256;
+
+fn progress_packet(identity: &ReportIdentity, sequence: u32, text: &str) -> ([u8; 408], usize) {
+    let mut packet = [0u8; 408];
+    let text_len = text.len().min(PROGRESS_TEXT_LIMIT);
+    packet[..4].copy_from_slice(b"WIP1");
+    packet[4..6].copy_from_slice(&1u16.to_be_bytes());
+    packet[6..8].copy_from_slice(&u16::from(text.len() > text_len).to_be_bytes());
+    packet[8..12].copy_from_slice(&sequence.to_be_bytes());
+    packet[12..16].copy_from_slice(&8u32.to_be_bytes());
+    packet[16..18].copy_from_slice(&u16::from(identity.run_id_len).to_be_bytes());
+    packet[18..20].copy_from_slice(&64u16.to_be_bytes());
+    packet[20..24].copy_from_slice(&(text_len as u32).to_be_bytes());
+    let run_end = 24 + usize::from(identity.run_id_len);
+    packet[24..run_end].copy_from_slice(&identity.run_id[..usize::from(identity.run_id_len)]);
+    let build_end = run_end + 64;
+    packet[run_end..build_end].copy_from_slice(&identity.build_id);
+    let end = build_end + text_len;
+    packet[build_end..end].copy_from_slice(&text.as_bytes()[..text_len]);
+    (packet, end)
+}
+
 fn parse_report_identity(args: &[&str]) -> Option<ReportIdentity> {
     let mut endpoint = None;
     let mut run_id = None;
@@ -282,6 +304,21 @@ mod wii {
 
     pub fn mark(label: &str) {
         show(label, false);
+        send_progress(label);
+    }
+
+    /// Establish reporting before NAND/theme loading can block startup.
+    pub fn begin_reporting() {
+        if !REPORT_READY.load(Ordering::Acquire) {
+            return;
+        }
+        show("REPORT NETWORK START", false);
+        if initialize_report_network() {
+            PROGRESS_ENABLED.store(true, Ordering::Release);
+            mark("REPORT CHANNEL READY");
+        } else {
+            show(report_error_label(), true);
+        }
     }
 
     pub fn fail(label: &str) -> bool {
@@ -354,6 +391,9 @@ mod wii {
     static REPORT_SENT: AtomicBool = AtomicBool::new(false);
     static REPORT_READY: AtomicBool = AtomicBool::new(false);
     static REPORT_ERROR: AtomicUsize = AtomicUsize::new(0);
+    static REPORT_NETWORK_READY: AtomicBool = AtomicBool::new(false);
+    static PROGRESS_ENABLED: AtomicBool = AtomicBool::new(false);
+    static PROGRESS_SEQUENCE: AtomicUsize = AtomicUsize::new(0);
     static mut REPORT_IDENTITY: ReportIdentity = ReportIdentity {
         host: [0; 4],
         port: 0,
@@ -536,9 +576,31 @@ mod wii {
             performance[start..start + 4].copy_from_slice(&value.to_be_bytes());
         }
 
-        // Match C HBC: retry network startup while the listener worker finishes
-        // its asynchronous initialization. A newly loaded DOL has new
-        // process-local network state, even when IOS already runs the service.
+        let socket = connect_report_socket(&identity);
+        if socket < 0 {
+            return false;
+        }
+        let framebuffer = if framebuffer == 0 || framebuffer_bytes == 0 {
+            &[][..]
+        } else {
+            unsafe { core::slice::from_raw_parts(framebuffer as *const u8, framebuffer_bytes) }
+        };
+        let sent = write_all(socket, &header)
+            && write_all(socket, &log[..report_log_len])
+            && write_all(socket, framebuffer)
+            && write_all(socket, &performance);
+        if !sent {
+            REPORT_ERROR.store(REPORT_ERROR_WRITE, Ordering::Release);
+        }
+        network::close(socket);
+        sent
+    }
+
+    fn initialize_report_network() -> bool {
+        use ogc_network as network;
+        if REPORT_NETWORK_READY.load(Ordering::Acquire) {
+            return true;
+        }
         let network_ready = super::retry_report_network(
             || {
                 // Prefer the regular libogc startup path. Attach to an active IOS
@@ -555,10 +617,19 @@ mod wii {
             REPORT_ERROR.store(REPORT_ERROR_NET_INIT, Ordering::Release);
             return false;
         }
+        REPORT_NETWORK_READY.store(true, Ordering::Release);
+        true
+    }
+
+    fn connect_report_socket(identity: &ReportIdentity) -> i32 {
+        use ogc_network as network;
+        if !initialize_report_network() {
+            return -1;
+        }
         let socket = network::socket(network::PF_INET, network::SOCK_STREAM, 0);
         if socket < 0 {
             REPORT_ERROR.store(REPORT_ERROR_SOCKET, Ordering::Release);
-            return false;
+            return socket;
         }
         let timeout = network::Timeval {
             tv_sec: 2,
@@ -587,26 +658,30 @@ mod wii {
             },
             sin_zero: [0; 8],
         };
-        let connected = network::connect_addr(socket, &address) == 0;
-        let sent = if connected {
-            let framebuffer = if framebuffer == 0 || framebuffer_bytes == 0 {
-                &[][..]
-            } else {
-                unsafe { core::slice::from_raw_parts(framebuffer as *const u8, framebuffer_bytes) }
-            };
-            write_all(socket, &header)
-                && write_all(socket, &log[..report_log_len])
-                && write_all(socket, framebuffer)
-                && write_all(socket, &performance)
-        } else {
+        if network::connect_addr(socket, &address) != 0 {
             REPORT_ERROR.store(REPORT_ERROR_CONNECT, Ordering::Release);
-            false
-        };
-        if connected && !sent {
-            REPORT_ERROR.store(REPORT_ERROR_WRITE, Ordering::Release);
+            network::close(socket);
+            return -1;
         }
-        network::close(socket);
-        sent
+        socket
+    }
+
+    fn send_progress(label: &str) {
+        if !PROGRESS_ENABLED.load(Ordering::Acquire) || REPORT_SENT.load(Ordering::Acquire) {
+            return;
+        }
+        let identity = unsafe { core::ptr::addr_of!(REPORT_IDENTITY).read() };
+        let sequence = PROGRESS_SEQUENCE.fetch_add(1, Ordering::Relaxed) as u32 + 1;
+        let (packet, length) = super::progress_packet(&identity, sequence, label);
+        let socket = connect_report_socket(&identity);
+        let sent = socket >= 0 && write_all(socket, &packet[..length]);
+        if socket >= 0 {
+            ogc_network::close(socket);
+        }
+        if !sent {
+            PROGRESS_ENABLED.store(false, Ordering::Release);
+            show("REPORT PROGRESS SEND FAIL", true);
+        }
     }
 
     fn report_restart_requested() -> bool {
@@ -640,11 +715,35 @@ mod wii {
 }
 
 #[cfg(target_arch = "powerpc")]
-pub use wii::{complete, fail, hold, initialize, mark, sample_frame, set_gx_framebuffer_info};
+pub use wii::{
+    begin_reporting, complete, fail, hold, initialize, mark, sample_frame, set_gx_framebuffer_info,
+};
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn startup_progress_uses_the_host_wip1_identity_and_length_fields() {
+        let identity = parse_report_identity(&[
+            "--report=10.0.0.238:4298",
+            "--run-id=freeze-test",
+            "--build-id=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        ])
+        .unwrap();
+        let (packet, length) = progress_packet(&identity, 3, "THEME PATH LOOKUP");
+        assert_eq!(&packet[..8], b"WIP1\0\x01\0\0");
+        assert_eq!(u32::from_be_bytes(packet[8..12].try_into().unwrap()), 3);
+        assert_eq!(u32::from_be_bytes(packet[12..16].try_into().unwrap()), 8);
+        assert_eq!(u16::from_be_bytes(packet[16..18].try_into().unwrap()), 11);
+        assert_eq!(u16::from_be_bytes(packet[18..20].try_into().unwrap()), 64);
+        assert_eq!(&packet[24..35], b"freeze-test");
+        assert_eq!(&packet[35..99], &identity.build_id);
+        assert_eq!(&packet[99..length], b"THEME PATH LOOKUP");
+        let (truncated, length) = progress_packet(&identity, 4, &"A".repeat(300));
+        assert_eq!(u16::from_be_bytes(truncated[6..8].try_into().unwrap()), 1);
+        assert_eq!(length, 99 + 256);
+    }
 
     #[test]
     fn status_screen_respects_padded_rows_and_allocation_bounds() {
