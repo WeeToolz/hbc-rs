@@ -156,12 +156,12 @@ impl PageNavigation {
     }
 }
 
-/// Build the two-device status snapshot. An already mounted active device is
+/// Build the four-device status snapshot. An already mounted active device is
 /// available even if an alternate-device probe failed.
 pub fn device_availability_snapshot(
     active_mounted: Option<usize>,
-    detected: [bool; 2],
-) -> [bool; 2] {
+    detected: [bool; 4],
+) -> [bool; 4] {
     let mut snapshot = detected;
     if let Some(active) = active_mounted.filter(|index| *index < snapshot.len()) {
         snapshot[active] = true;
@@ -197,7 +197,7 @@ pub struct AppController {
     bootmii_available: bool,
     preferred_device: i32,
     active_device: Option<i32>,
-    device_available: [Option<bool>; 2],
+    device_available: [Option<bool>; 4],
     pending_device: i32,
     pending_sort: SortOrder,
     options_focus: usize,
@@ -391,8 +391,8 @@ impl AppController {
         self.device_available.get(device).copied().flatten()
     }
 
-    pub fn set_device_availability(&mut self, availability: [bool; 2]) {
-        self.device_available = [Some(availability[0]), Some(availability[1])];
+    pub fn set_device_availability(&mut self, availability: [bool; 4]) {
+        self.device_available = availability.map(Some);
     }
 
     pub fn menu_item_count(&self) -> usize {
@@ -678,7 +678,7 @@ impl AppController {
                 }
             }
             (Screen::WiiloadInstalling | Screen::WiiloadReceiving, _) => Action::None,
-            (Screen::Options, PointerTarget::Option(index)) if index < 6 => {
+            (Screen::Options, PointerTarget::Option(index)) if index < 8 => {
                 self.options_focus = index;
                 if pressed {
                     self.handle(Input::Confirm, catalog)
@@ -786,11 +786,11 @@ impl AppController {
             }
             Input::OpenOptions => {
                 self.pending_device = match self.active_device {
-                    Some(device @ (0 | 1)) => device,
-                    _ => i32::from(self.preferred_device == 1),
+                    Some(device @ (0..=3)) => device,
+                    _ => self.preferred_device.clamp(0, 3),
                 };
                 self.pending_sort = self.sort;
-                self.options_focus = 5;
+                self.options_focus = 6;
                 self.screen = Screen::Options;
                 Action::None
             }
@@ -853,7 +853,7 @@ impl AppController {
                 Action::None
             }
             Input::Down => {
-                self.options_focus = (self.options_focus + 2).min(5);
+                self.options_focus = (self.options_focus + 2).min(7);
                 Action::None
             }
             Input::Confirm => match self.options_focus {
@@ -866,14 +866,22 @@ impl AppController {
                     Action::None
                 }
                 2 => {
-                    self.pending_sort = SortOrder::Name;
+                    self.pending_device = 2;
                     Action::None
                 }
                 3 => {
-                    self.pending_sort = SortOrder::ReleaseDate;
+                    self.pending_device = 3;
                     Action::None
                 }
                 4 => {
+                    self.pending_sort = SortOrder::Name;
+                    Action::None
+                }
+                5 => {
+                    self.pending_sort = SortOrder::ReleaseDate;
+                    Action::None
+                }
+                6 => {
                     self.preferred_device = self.pending_device;
                     self.sort = self.pending_sort;
                     self.filter = match self.pending_sort {
@@ -884,7 +892,7 @@ impl AppController {
                     self.screen = Screen::Browser;
                     Action::ApplyOptions
                 }
-                5 => {
+                7 => {
                     self.screen = Screen::Browser;
                     Action::None
                 }
@@ -1207,13 +1215,13 @@ mod tests {
         let mut controller = AppController::new();
         controller.handle(Input::OpenOptions, &catalog);
         assert_eq!(
-            controller.handle_pointer(Some(PointerTarget::Option(2)), true, &catalog),
+            controller.handle_pointer(Some(PointerTarget::Option(4)), true, &catalog),
             Action::None
         );
         assert_eq!(controller.pending_sort(), SortOrder::Name);
-        assert_eq!(controller.options_focus(), 2);
+        assert_eq!(controller.options_focus(), 4);
         assert_eq!(
-            controller.handle_pointer(Some(PointerTarget::Option(4)), true, &catalog),
+            controller.handle_pointer(Some(PointerTarget::Option(6)), true, &catalog),
             Action::ApplyOptions
         );
         assert_eq!(controller.screen, Screen::Browser);
@@ -1455,7 +1463,7 @@ mod tests {
         assert_eq!(controller.pending_sort(), SortOrder::ReleaseDate);
         controller.handle(Input::Up, &catalog);
         controller.handle(Input::Left, &catalog);
-        assert_eq!(controller.options_focus(), 2);
+        assert_eq!(controller.options_focus(), 4);
         controller.handle(Input::Confirm, &catalog);
         assert_eq!(controller.pending_sort(), SortOrder::Name);
         assert_eq!(controller.handle(Input::Back, &catalog), Action::None);
@@ -1468,7 +1476,7 @@ mod tests {
         controller.handle(Input::Left, &catalog);
         controller.handle(Input::Confirm, &catalog);
         controller.handle(Input::Down, &catalog);
-        assert_eq!(controller.options_focus(), 4);
+        assert_eq!(controller.options_focus(), 6);
         assert_eq!(
             controller.handle(Input::Confirm, &catalog),
             Action::ApplyOptions
@@ -1608,9 +1616,9 @@ mod tests {
     #[test]
     fn options_availability_is_a_snapshot_and_does_not_change_pending_choice() {
         let mut controller = AppController::new();
-        let snapshot = device_availability_snapshot(Some(0), [false, true]);
-        assert_eq!(snapshot, [true, true]);
-        controller.set_device_availability([true, false]);
+        let snapshot = device_availability_snapshot(Some(0), [false, true, false, false]);
+        assert_eq!(snapshot, [true, true, false, false]);
+        controller.set_device_availability([true, false, false, false]);
         controller.set_preferred_device(0);
         controller.handle(Input::OpenOptions, &[]);
         assert_eq!(controller.device_available(0), Some(true));
@@ -1618,11 +1626,32 @@ mod tests {
         assert_eq!(controller.pending_device(), 0);
         controller.handle(Input::Up, &[]);
         controller.handle(Input::Up, &[]);
+        controller.handle(Input::Up, &[]);
+        controller.handle(Input::Right, &[]);
         controller.handle(Input::Confirm, &[]);
         assert_eq!(controller.pending_device(), 1);
         assert_eq!(controller.device_available(1), Some(false));
         controller.handle(Input::Back, &[]);
         controller.handle(Input::OpenOptions, &[]);
         assert_eq!(controller.pending_device(), 0);
+    }
+
+    #[test]
+    fn options_can_select_and_report_each_sd_gecko_slot() {
+        let mut controller = AppController::new();
+        let catalog = Vec::new();
+        controller.set_device_availability([false, false, true, false]);
+        controller.handle(Input::OpenOptions, &catalog);
+        controller.handle(Input::Up, &catalog);
+        controller.handle(Input::Up, &catalog);
+        controller.handle(Input::Up, &catalog);
+        controller.handle(Input::Down, &catalog);
+        controller.handle(Input::Confirm, &catalog);
+        assert_eq!(controller.pending_device(), 2);
+        assert_eq!(controller.device_available(2), Some(true));
+
+        controller.handle(Input::Right, &catalog);
+        controller.handle(Input::Confirm, &catalog);
+        assert_eq!(controller.pending_device(), 3);
     }
 }

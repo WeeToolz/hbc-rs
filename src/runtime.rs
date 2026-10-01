@@ -87,7 +87,7 @@ impl AppRuntime {
         self.controller.set_active_device(device);
     }
 
-    pub fn set_device_availability(&mut self, availability: [bool; 2]) {
+    pub fn set_device_availability(&mut self, availability: [bool; 4]) {
         self.controller.set_device_availability(availability);
     }
 
@@ -333,11 +333,17 @@ mod tests {
             ..InputFrame::default()
         });
         runtime.update(&InputFrame {
-            pressed: vec![Input::Up, Input::Right, Input::Confirm],
+            pressed: vec![Input::Up, Input::Up, Input::Confirm],
             ..InputFrame::default()
         });
         let actions = runtime.update(&InputFrame {
-            pressed: vec![Input::Down, Input::Left, Input::Down, Input::Confirm],
+            pressed: vec![
+                Input::Left,
+                Input::Down,
+                Input::Down,
+                Input::Down,
+                Input::Confirm,
+            ],
             ..InputFrame::default()
         });
         assert_eq!(actions, vec![Action::ApplyOptions]);

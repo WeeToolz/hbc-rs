@@ -10,6 +10,80 @@ use crate::catalog::{CatalogStorage, DirectoryEntry};
 pub enum Volume {
     Sd,
     Usb,
+    CardA,
+    CardB,
+}
+
+impl Volume {
+    pub fn from_settings_index(index: i32) -> Option<Self> {
+        match index {
+            0 => Some(Self::Sd),
+            1 => Some(Self::Usb),
+            2 => Some(Self::CardA),
+            3 => Some(Self::CardB),
+            _ => None,
+        }
+    }
+
+    pub fn settings_index(self) -> i32 {
+        match self {
+            Self::Sd => 0,
+            Self::Usb => 1,
+            Self::CardA => 2,
+            Self::CardB => 3,
+        }
+    }
+
+    pub fn mount_name(self) -> &'static core::ffi::CStr {
+        match self {
+            Self::Sd => c"sd",
+            Self::Usb => c"usb",
+            Self::CardA => c"carda",
+            Self::CardB => c"cardb",
+        }
+    }
+}
+
+pub fn device_scan_order(preference: i32) -> [Volume; 4] {
+    let volumes = [Volume::Sd, Volume::Usb, Volume::CardA, Volume::CardB];
+    let preferred = Volume::from_settings_index(preference).unwrap_or(Volume::Sd);
+    let mut order = [preferred; 4];
+    let mut next = 1;
+    for volume in volumes {
+        if volume != preferred {
+            order[next] = volume;
+            next += 1;
+        }
+    }
+    order
+}
+
+#[cfg(test)]
+mod device_selection_tests {
+    use super::{device_scan_order, Volume};
+
+    #[test]
+    fn settings_indices_cover_all_four_storage_devices() {
+        let volumes = [Volume::Sd, Volume::Usb, Volume::CardA, Volume::CardB];
+        for (index, volume) in volumes.into_iter().enumerate() {
+            assert_eq!(Volume::from_settings_index(index as i32), Some(volume));
+            assert_eq!(volume.settings_index(), index as i32);
+        }
+        assert_eq!(Volume::from_settings_index(-1), None);
+        assert_eq!(Volume::from_settings_index(4), None);
+    }
+
+    #[test]
+    fn preferred_storage_is_scanned_before_the_other_devices() {
+        assert_eq!(
+            device_scan_order(2),
+            [Volume::CardA, Volume::Sd, Volume::Usb, Volume::CardB]
+        );
+        assert_eq!(
+            device_scan_order(3),
+            [Volume::CardB, Volume::Sd, Volume::Usb, Volume::CardA]
+        );
+    }
 }
 
 #[cfg(target_arch = "powerpc")]
@@ -36,6 +110,8 @@ impl FatStorage {
         let (prefix, result) = match volume {
             Volume::Sd => ("sd:", ogc_fat::mount_sd()),
             Volume::Usb => ("usb:", ogc_fat::mount_usb()),
+            Volume::CardA => ("carda:", ogc_fat::mount_card_a()),
+            Volume::CardB => ("cardb:", ogc_fat::mount_card_b()),
         };
         result.map_err(StorageError::Fat)?;
         Ok(Self { prefix })
@@ -68,6 +144,8 @@ impl FatStorage {
         let name = match self.prefix {
             "sd:" => c"sd",
             "usb:" => c"usb",
+            "carda:" => c"carda",
+            "cardb:" => c"cardb",
             _ => return Err(StorageError::InvalidPath),
         };
         ogc_fat::unmount(name).map_err(StorageError::Fat)

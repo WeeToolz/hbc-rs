@@ -17,7 +17,7 @@ use crate::{
     metadata::{ThemeMetadata, UserSettings},
     platform::{
         input, settings,
-        storage::{FatStorage, StorageError, Volume},
+        storage::{device_scan_order, FatStorage, StorageError, Volume},
     },
     runtime::AppRuntime,
 };
@@ -57,7 +57,7 @@ static mut STORAGE_SCAN_RESULT: MaybeUninit<StorageScanResult> = MaybeUninit::un
 static mut STORAGE_SCAN_STACK: StorageScanStack = StorageScanStack([0; STORAGE_SCAN_STACK_SIZE]);
 static DEVICE_PROBE_STATE: AtomicU8 = AtomicU8::new(DEVICE_PROBE_IDLE);
 static DEVICE_PROBE_ACTIVE: AtomicU8 = AtomicU8::new(2);
-static mut DEVICE_PROBE_RESULT: MaybeUninit<[bool; 2]> = MaybeUninit::uninit();
+static mut DEVICE_PROBE_RESULT: MaybeUninit<[bool; 4]> = MaybeUninit::uninit();
 static mut DEVICE_PROBE_STACK: StorageScanStack = StorageScanStack([0; STORAGE_SCAN_STACK_SIZE]);
 
 struct ZipInstallRequest {
@@ -129,10 +129,7 @@ fn probe_one_device(volume: Volume) -> bool {
     if ogc_fat::is_mounted(name) {
         return true;
     }
-    let mounted = match volume {
-        Volume::Sd => ogc_fat::mount_sd().is_ok(),
-        Volume::Usb => ogc_fat::mount_usb().is_ok(),
-    };
+    let mounted = FatStorage::mount(volume).is_ok();
     if !mounted {
         return false;
     }
@@ -144,13 +141,19 @@ fn probe_one_device(volume: Volume) -> bool {
 unsafe fn device_probe_entry(_argument: *mut c_void) -> *mut c_void {
     DEVICE_PROBE_STATE.store(DEVICE_PROBE_RUNNING, Ordering::Release);
     let active = match DEVICE_PROBE_ACTIVE.load(Ordering::Acquire) {
-        0 if ogc_fat::is_mounted(Volume::Sd.mount_name()) => Some(0),
-        1 if ogc_fat::is_mounted(Volume::Usb.mount_name()) => Some(1),
+        index @ 0..=3 => Volume::from_settings_index(i32::from(index))
+            .filter(|volume| ogc_fat::is_mounted(volume.mount_name()))
+            .map(|_| index as usize),
         _ => None,
     };
     let availability = crate::app::device_availability_snapshot(
         active,
-        [probe_one_device(Volume::Sd), probe_one_device(Volume::Usb)],
+        [
+            probe_one_device(Volume::Sd),
+            probe_one_device(Volume::Usb),
+            probe_one_device(Volume::CardA),
+            probe_one_device(Volume::CardB),
+        ],
     );
     unsafe { addr_of_mut!(DEVICE_PROBE_RESULT).write(MaybeUninit::new(availability)) };
     DEVICE_PROBE_STATE.store(DEVICE_PROBE_READY, Ordering::Release);
@@ -773,11 +776,7 @@ impl WiiStartup {
             return Err(StartupError::StorageScanPending);
         }
         let preferred = self.runtime.settings().current().device;
-        let wanted = if preferred == 1 {
-            Volume::Usb
-        } else {
-            Volume::Sd
-        };
+        let wanted = Volume::from_settings_index(preferred).unwrap_or(Volume::Sd);
         if self.volume == Some(wanted) && ogc_fat::is_mounted(wanted.mount_name()) {
             return Ok(true);
         }
@@ -816,22 +815,6 @@ impl WiiStartup {
         self.storage = None;
         self.volume = None;
         Ok(())
-    }
-}
-
-impl Volume {
-    fn settings_index(self) -> i32 {
-        match self {
-            Self::Sd => 0,
-            Self::Usb => 1,
-        }
-    }
-
-    fn mount_name(self) -> &'static core::ffi::CStr {
-        match self {
-            Self::Sd => c"sd",
-            Self::Usb => c"usb",
-        }
     }
 }
 
@@ -893,12 +876,7 @@ pub enum StartupError {
 fn mount_preferred_volume(
     preference: i32,
 ) -> (Option<Volume>, Option<FatStorage>, Vec<AppEntry>, bool) {
-    let volumes = match preference {
-        1 => [Volume::Usb, Volume::Sd],
-        _ => [Volume::Sd, Volume::Usb],
-    };
-
-    for volume in volumes {
+    for volume in device_scan_order(preference) {
         let Ok(mut storage) = FatStorage::mount(volume) else {
             continue;
         };

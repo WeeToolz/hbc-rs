@@ -1,5 +1,6 @@
 //! Narrow adapters for Wii services provided by `libogc-rs`.
 
+#[cfg(target_arch = "powerpc")]
 pub mod allocator;
 #[cfg(all(feature = "startup-diagnostics", any(target_arch = "powerpc", test)))]
 pub mod diagnostics;

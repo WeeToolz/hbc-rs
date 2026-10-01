@@ -1130,24 +1130,13 @@ pub fn browser_frame_with_language(
             };
             frame.text(133.0, 145.0, status(0), 0.8, MUTED, 18);
             frame.text(349.0, 145.0, status(1), 0.8, MUTED, 18);
-            frame.button(112.0, 172.0, ButtonSize::Small, false, "SD Gecko A", MUTED);
-            frame.button(328.0, 172.0, ButtonSize::Small, false, "SD Gecko B", MUTED);
-            frame.set_text_style(theme_text_style(theme, "label", text_color));
-            frame.text(
-                92.0,
-                252.0,
-                tr("Sort applications by:"),
-                1.0,
-                text_color,
-                32,
-            );
             let bounds = frame.button(
                 112.0,
-                260.0,
+                172.0,
                 ButtonSize::Small,
                 controller.options_focus() == 2,
-                tr("Name"),
-                if controller.pending_sort() == crate::catalog::SortOrder::Name {
+                "SD Gecko A",
+                if controller.pending_device() == 2 {
                     ACCENT
                 } else {
                     text_color
@@ -1156,9 +1145,46 @@ pub fn browser_frame_with_language(
             frame.hit_target(PointerTarget::Option(2), bounds);
             let bounds = frame.button(
                 328.0,
-                260.0,
+                172.0,
                 ButtonSize::Small,
                 controller.options_focus() == 3,
+                "SD Gecko B",
+                if controller.pending_device() == 3 {
+                    ACCENT
+                } else {
+                    text_color
+                },
+            );
+            frame.hit_target(PointerTarget::Option(3), bounds);
+            frame.text(133.0, 205.0, status(2), 0.8, MUTED, 18);
+            frame.text(349.0, 205.0, status(3), 0.8, MUTED, 18);
+            frame.set_text_style(theme_text_style(theme, "label", text_color));
+            frame.text(
+                92.0,
+                226.0,
+                tr("Sort applications by:"),
+                1.0,
+                text_color,
+                32,
+            );
+            let bounds = frame.button(
+                112.0,
+                232.0,
+                ButtonSize::Small,
+                controller.options_focus() == 4,
+                tr("Name"),
+                if controller.pending_sort() == crate::catalog::SortOrder::Name {
+                    ACCENT
+                } else {
+                    text_color
+                },
+            );
+            frame.hit_target(PointerTarget::Option(4), bounds);
+            let bounds = frame.button(
+                328.0,
+                232.0,
+                ButtonSize::Small,
+                controller.options_focus() == 5,
                 tr("Date"),
                 if controller.pending_sort() == crate::catalog::SortOrder::ReleaseDate {
                     ACCENT
@@ -1166,25 +1192,25 @@ pub fn browser_frame_with_language(
                     text_color
                 },
             );
-            frame.hit_target(PointerTarget::Option(3), bounds);
+            frame.hit_target(PointerTarget::Option(5), bounds);
             let bounds = frame.button(
                 92.0,
                 340.0,
                 ButtonSize::Small,
-                controller.options_focus() == 4,
+                controller.options_focus() == 6,
                 "OK",
                 text_color,
             );
-            frame.hit_target(PointerTarget::Option(4), bounds);
+            frame.hit_target(PointerTarget::Option(6), bounds);
             let bounds = frame.button(
                 348.0,
                 340.0,
                 ButtonSize::Small,
-                controller.options_focus() == 5,
+                controller.options_focus() == 7,
                 tr("Back"),
                 text_color,
             );
-            frame.hit_target(PointerTarget::Option(5), bounds);
+            frame.hit_target(PointerTarget::Option(7), bounds);
         } else if controller.screen == Screen::AppDetails {
             if let Some(app) = controller
                 .selected_app

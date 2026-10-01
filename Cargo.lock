@@ -173,6 +173,7 @@ name = "ogc-fat"
 version = "0.1.0"
 dependencies = [
  "ogc-filesystem-sys",
+ "ogc-gcsd",
  "ogc-lwp-sys",
  "ogc-sysbase",
  "ogc-usbstorage-sys",
@@ -193,6 +194,16 @@ name = "ogc-filesystem-sys"
 version = "0.1.0"
 dependencies = [
  "ogc-sys",
+]
+
+[[package]]
+name = "ogc-gcsd"
+version = "0.1.0"
+dependencies = [
+ "ogc-exi",
+ "ogc-filesystem-sys",
+ "ogc-sys",
+ "ogc-system",
 ]
 
 [[package]]
