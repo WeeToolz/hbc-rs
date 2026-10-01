@@ -41,6 +41,8 @@ fn resolve_title_data_directory() -> Result<TitleDataDirectory, TitlePathError> 
     let mut title_id = AlignedTitleId(0);
     let rc = unsafe { es::get_title_id(&mut title_id.0) };
     if rc < 0 {
+        #[cfg(feature = "startup-diagnostics")]
+        super::diagnostics::mark("ES TITLE ID FAILED");
         return Err(TitlePathError::Es(rc));
     }
     let mut data_dir = AlignedDataDir([0; TITLE_DATA_DIR_BUFFER_LEN]);
@@ -48,15 +50,25 @@ fn resolve_title_data_directory() -> Result<TitleDataDirectory, TitlePathError> 
     super::diagnostics::mark("ES DATA DIR REQUEST");
     let rc = unsafe { es::get_data_dir(title_id.0, data_dir.0.as_mut_ptr()) };
     if rc < 0 {
+        #[cfg(feature = "startup-diagnostics")]
+        super::diagnostics::mark("ES DATA DIR FAILED");
         return Err(TitlePathError::Es(rc));
     }
     TitleDataDirectory::from_es_buffer(data_dir.0)
 }
 
 fn title_data_directory() -> Result<TitleDataDirectory, SettingsIoError> {
-    TITLE_DIR_CACHE
+    let result = TITLE_DIR_CACHE
         .get_or_init(resolve_title_data_directory)
-        .map_err(map_title_path_error)
+        .map_err(map_title_path_error);
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark(match result {
+        Ok(_) => "TITLE DIR CACHE READY",
+        Err(SettingsIoError::Es(_)) => "TITLE DIR CACHE ES ERROR",
+        Err(SettingsIoError::TitlePathBusy) => "TITLE DIR CACHE BUSY",
+        Err(_) => "TITLE DIR CACHE INVALID",
+    });
+    result
 }
 
 pub(crate) fn title_data_file_path(name: &str) -> Result<CString, SettingsIoError> {

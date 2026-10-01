@@ -420,7 +420,14 @@ struct AlignedChunk([u8; IO_CHUNK_SIZE]);
 pub fn load() -> Result<Option<Vec<u8>>, SettingsIoError> {
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("THEME PATH LOOKUP");
-    let path = title_data_file_path(THEME_FILENAME)?;
+    let path = match title_data_file_path(THEME_FILENAME) {
+        Ok(path) => path,
+        Err(error) => {
+            #[cfg(feature = "startup-diagnostics")]
+            super::diagnostics::mark("THEME TITLE PATH ERROR");
+            return Err(error);
+        }
+    };
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("THEME ISFS INIT");
     let rc = isfs::initialize();

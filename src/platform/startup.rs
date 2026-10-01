@@ -47,6 +47,15 @@ struct StorageScanResult {
     scan_failed: bool,
 }
 
+fn load_default_theme_textures(widescreen: bool) -> super::theme::ThemeTextures {
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("DEFAULT THEME BUILD");
+    let textures = super::theme::ThemeTextures::load_for_viewport(None, widescreen);
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("DEFAULT THEME READY");
+    textures
+}
+
 #[repr(align(32))]
 struct StorageScanStack([u8; STORAGE_SCAN_STACK_SIZE]);
 
@@ -346,16 +355,10 @@ impl WiiStartup {
                         );
                         (Some(package.metadata), textures)
                     }
-                    Err(_) => (
-                        None,
-                        super::theme::ThemeTextures::load_for_viewport(None, widescreen),
-                    ),
+                    Err(_) => (None, load_default_theme_textures(widescreen)),
                 }
             }
-            _ => (
-                None,
-                super::theme::ThemeTextures::load_for_viewport(None, widescreen),
-            ),
+            _ => (None, load_default_theme_textures(widescreen)),
         };
         #[cfg(feature = "startup-diagnostics")]
         super::diagnostics::mark("THEME TEXTURES READY");
