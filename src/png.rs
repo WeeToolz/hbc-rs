@@ -160,7 +160,11 @@ struct Chunks {
 
 /// Decode a non-animated PNG to RGBA8 after applying dimension and size caps.
 pub fn decode_png(data: &[u8], limits: PngLimits) -> Result<RgbaImage, PngError> {
+    #[cfg(all(feature = "startup-diagnostics", target_arch = "powerpc"))]
+    crate::platform::diagnostics::mark("PNG CHUNK PARSE START");
     let chunks = parse_chunks(data, limits)?;
+    #[cfg(all(feature = "startup-diagnostics", target_arch = "powerpc"))]
+    crate::platform::diagnostics::mark("PNG CHUNK PARSE DONE");
     let header = chunks.header;
     let pixels = header
         .width
@@ -169,8 +173,12 @@ pub fn decode_png(data: &[u8], limits: PngLimits) -> Result<RgbaImage, PngError>
         .ok_or(PngError::InvalidDimensions)?;
     let output_len = pixels.checked_mul(4).ok_or(PngError::InvalidDimensions)?;
     let expected_inflated = inflated_size(header)?;
+    #[cfg(all(feature = "startup-diagnostics", target_arch = "powerpc"))]
+    crate::platform::diagnostics::mark("PNG INFLATE START");
     let inflated = decompress_to_vec_zlib_with_limit(&chunks.compressed, expected_inflated)
         .map_err(|_| PngError::InvalidCompressedData)?;
+    #[cfg(all(feature = "startup-diagnostics", target_arch = "powerpc"))]
+    crate::platform::diagnostics::mark("PNG INFLATE DONE");
     if inflated.len() != expected_inflated {
         return Err(PngError::InvalidCompressedData);
     }
@@ -179,7 +187,11 @@ pub fn decode_png(data: &[u8], limits: PngLimits) -> Result<RgbaImage, PngError>
     rgba.try_reserve_exact(output_len)
         .map_err(|_| PngError::AllocationFailed)?;
     rgba.resize(output_len, 0);
+    #[cfg(all(feature = "startup-diagnostics", target_arch = "powerpc"))]
+    crate::platform::diagnostics::mark("PNG FILTER START");
     decode_passes(&chunks, &inflated, &mut rgba)?;
+    #[cfg(all(feature = "startup-diagnostics", target_arch = "powerpc"))]
+    crate::platform::diagnostics::mark("PNG FILTER DONE");
     Ok(RgbaImage {
         width: header.width as u32,
         height: header.height as u32,
