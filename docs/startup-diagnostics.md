@@ -22,6 +22,11 @@ reported an error or panic. The early labels include heap setup, video setup,
 GX setup, network startup, NAND settings, theme loading, controller input, and
 the first rendered frame.
 
+Theme loading has separate progress labels for title-path lookup, ISFS setup,
+NAND recovery, file open and stats, file read and close, ZIP parsing, and theme
+texture creation. The last visible label identifies the operation that did not
+finish.
+
 The diagnostic framebuffer stays visible while GX writes to a separate
 framebuffer. Its first GX frame draws only a white square over the initial gray
 clear. This isolates the solid-shape and copy path from HBC's textured scene.
@@ -35,9 +40,18 @@ If the fixed white-square sample check fails, it writes a gray field with a
 centered white square and red outline through the CPU to the GX XFB, then holds
 that image. This checks VI scanout separately from GX drawing and copying.
 
-The diagnostic does not implement the Wiiload report protocol. A Wiiload
-`report_timeout` can therefore occur even when the DOL continues to run. Use
-the screen label and the emulator or console behavior to check progress.
+The diagnostic accepts the report arguments added by Wiiload-RS and sends a
+report to the host after it runs the requested probes. It then resets to HBC
+when `--restart-after-probe` is set. The DOL attaches to an IOS network stack
+that is already running; it does not call IOS network startup again. If report
+setup fails, the screen shows the failing stage (`REPORT NET INIT FAIL`,
+`REPORT SOCKET FAIL`, `REPORT CONNECT FAIL`, or `REPORT WRITE FAIL`) before it
+resets.
+
+Wiiload-RS always saves `result.json` in `target/wii-runs/<run-id>-<wii-ip>/`.
+It saves `report.wir`, `probe.log`, framebuffer captures, and progress data
+only when the Wii connects and sends those bytes. A timeout with zero accepted
+connections therefore still has a `result.json`, but no report or probe files.
 
 The automated Dolphin GDB capture helper is `target/capture-startup.py`; its
 profile and logs are under the ignored `target/` directory. The diagnostic

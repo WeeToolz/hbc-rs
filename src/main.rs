@@ -19,7 +19,10 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     // reserving the Rust heap from MEM2 or registering hardware callbacks.
     ogc_system::init();
     #[cfg(feature = "startup-diagnostics")]
-    if hbc_rs::platform::diagnostics::initialize().is_err() {
+    if hbc_rs::platform::diagnostics::initialize(_argc, _argv).is_err() {
+        if hbc_rs::platform::diagnostics::fail("CPU VIDEO INIT ERROR") {
+            reset_after_diagnostic_report();
+        }
         return -4;
     }
     hbc_rs::platform::lifecycle::register_callbacks();
@@ -33,7 +36,9 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     };
     if heap_result.is_err() {
         #[cfg(feature = "startup-diagnostics")]
-        hbc_rs::platform::diagnostics::fail("HEAP ERROR");
+        if hbc_rs::platform::diagnostics::fail("HEAP ERROR") {
+            reset_after_diagnostic_report();
+        }
         return -1;
     }
 
@@ -50,7 +55,9 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             Ok(video) => video,
             Err(_) => {
                 #[cfg(feature = "startup-diagnostics")]
-                hbc_rs::platform::diagnostics::fail("VIDEO OR GX FIFO ERROR");
+                if hbc_rs::platform::diagnostics::fail("VIDEO OR GX FIFO ERROR") {
+                    reset_after_diagnostic_report();
+                }
                 return -2;
             }
         };
@@ -265,17 +272,20 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             }
             .is_err()
         {
-            hbc_rs::platform::diagnostics::fail("GX RENDER ERROR");
+            if hbc_rs::platform::diagnostics::fail("GX RENDER ERROR") {
+                exit_to_system(&mut startup, ogc_system::SYS_RESTART);
+            }
             return -3;
         }
         #[cfg(feature = "startup-diagnostics")]
         {
             let info = video.info();
-            let Some((square_x, square_y)) = hbc_rs::platform::diagnostics::test_square_origin(
-                info.width,
-                info.height,
-            ) else {
-                hbc_rs::platform::diagnostics::fail("GX TEST RECT BOUNDS");
+            let Some((square_x, square_y)) =
+                hbc_rs::platform::diagnostics::test_square_origin(info.width, info.height)
+            else {
+                if hbc_rs::platform::diagnostics::fail("GX TEST RECT BOUNDS") {
+                    exit_to_system(&mut startup, ogc_system::SYS_RESTART);
+                }
                 loop {
                     hbc_rs::platform::diagnostics::hold();
                 }
@@ -297,7 +307,9 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             }
             .is_err()
             {
-                hbc_rs::platform::diagnostics::fail("GX TEST RECT ERROR");
+                if hbc_rs::platform::diagnostics::fail("GX TEST RECT ERROR") {
+                    exit_to_system(&mut startup, ogc_system::SYS_RESTART);
+                }
                 loop {
                     hbc_rs::platform::diagnostics::hold();
                 }
@@ -309,7 +321,9 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         }
         if unsafe { video.present() }.is_err() {
             #[cfg(feature = "startup-diagnostics")]
-            hbc_rs::platform::diagnostics::fail("GX DRAW DONE TIMEOUT");
+            if hbc_rs::platform::diagnostics::fail("GX DRAW DONE TIMEOUT") {
+                exit_to_system(&mut startup, ogc_system::SYS_RESTART);
+            }
             return -4;
         }
         if !display_ready {
@@ -318,13 +332,17 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 hbc_rs::platform::diagnostics::mark("GX COPY QUEUED");
                 hbc_rs::platform::diagnostics::hold();
                 if !video.framebuffer_has_visible_luma() {
-                    hbc_rs::platform::diagnostics::fail("GX XFB BLACK");
+                    if hbc_rs::platform::diagnostics::fail("GX XFB BLACK") {
+                        exit_to_system(&mut startup, ogc_system::SYS_RESTART);
+                    }
                     loop {
                         hbc_rs::platform::diagnostics::hold();
                     }
                 }
                 if !video.framebuffer_has_test_square() {
-                    hbc_rs::platform::diagnostics::fail("GX TEST SQUARE MISSING");
+                    if hbc_rs::platform::diagnostics::fail("GX TEST SQUARE MISSING") {
+                        exit_to_system(&mut startup, ogc_system::SYS_RESTART);
+                    }
                     // Replace the failed GX image with a CPU-written control pattern.
                     // This separates VI scanout from GX drawing and copy behavior.
                     video.paint_scanout_probe();
@@ -339,8 +357,14 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             }
             video.show();
             display_ready = true;
+            #[cfg(feature = "startup-diagnostics")]
+            hbc_rs::platform::diagnostics::complete();
         }
         video.wait_vsync();
+        #[cfg(feature = "startup-diagnostics")]
+        if hbc_rs::platform::diagnostics::sample_frame() {
+            exit_to_system(&mut startup, ogc_system::SYS_RESTART);
+        }
 
         for action in actions {
             if action == hbc_rs::app::Action::AcceptWiiloadZip {
@@ -500,10 +524,20 @@ fn exit_to_system(startup: &mut hbc_rs::platform::startup::WiiStartup, reset: u3
 }
 
 #[cfg(target_arch = "powerpc")]
+fn reset_after_diagnostic_report() -> ! {
+    unsafe { ogc_system::reset_system(ogc_system::SYS_RESTART as i32, 0, 0) };
+    loop {
+        core::hint::spin_loop();
+    }
+}
+
+#[cfg(target_arch = "powerpc")]
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo<'_>) -> ! {
     #[cfg(feature = "startup-diagnostics")]
-    hbc_rs::platform::diagnostics::fail("RUST PANIC");
+    if hbc_rs::platform::diagnostics::fail("RUST PANIC") {
+        reset_after_diagnostic_report();
+    }
     loop {
         core::hint::spin_loop();
     }

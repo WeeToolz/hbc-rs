@@ -327,20 +327,28 @@ impl WiiStartup {
         runtime.set_widescreen(widescreen);
         #[cfg(feature = "startup-diagnostics")]
         super::diagnostics::mark("NAND THEME LOAD");
+        #[cfg(feature = "startup-diagnostics")]
+        super::diagnostics::mark("THEME FILE LOAD");
         let (loaded_theme, theme_textures) = match super::theme::load() {
-            Ok(Some(archive)) => match crate::theme::ThemePackage::parse(&archive) {
-                Ok(package) => {
-                    let textures = super::theme::ThemeTextures::load_for_viewport(
-                        Some((&package, &archive)),
-                        widescreen,
-                    );
-                    (Some(package.metadata), textures)
+            Ok(Some(archive)) => {
+                #[cfg(feature = "startup-diagnostics")]
+                super::diagnostics::mark("THEME ZIP PARSE");
+                match crate::theme::ThemePackage::parse(&archive) {
+                    Ok(package) => {
+                        #[cfg(feature = "startup-diagnostics")]
+                        super::diagnostics::mark("THEME TEXTURE BUILD");
+                        let textures = super::theme::ThemeTextures::load_for_viewport(
+                            Some((&package, &archive)),
+                            widescreen,
+                        );
+                        (Some(package.metadata), textures)
+                    }
+                    Err(_) => (
+                        None,
+                        super::theme::ThemeTextures::load_for_viewport(None, widescreen),
+                    ),
                 }
-                Err(_) => (
-                    None,
-                    super::theme::ThemeTextures::load_for_viewport(None, widescreen),
-                ),
-            },
+            }
             _ => (
                 None,
                 super::theme::ThemeTextures::load_for_viewport(None, widescreen),

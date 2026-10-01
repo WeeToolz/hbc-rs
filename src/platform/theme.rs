@@ -305,13 +305,23 @@ struct AlignedChunk([u8; IO_CHUNK_SIZE]);
 
 /// Read the installed theme archive from this channel's NAND data directory.
 pub fn load() -> Result<Option<Vec<u8>>, SettingsIoError> {
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("THEME PATH LOOKUP");
     let path = title_data_file_path(THEME_FILENAME)?;
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("THEME ISFS INIT");
     let rc = isfs::initialize();
     if rc < 0 {
         return Err(SettingsIoError::Isfs(rc));
     }
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("THEME FILE RECOVERY");
     super::nand::recover_wii(&path)?;
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("THEME FILE OPEN");
     let file = isfs::open(&path, isfs::ISFS_OPEN_READ).map_err(SettingsIoError::Isfs)?;
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("THEME FILE STATS");
     let mut stats = AlignedStats(isfs::Fstats::default());
     let rc = isfs::get_file_stats(&file, &mut stats.0);
     if rc < 0 {
@@ -324,6 +334,8 @@ pub fn load() -> Result<Option<Vec<u8>>, SettingsIoError> {
         return Err(SettingsIoError::InvalidFileSize);
     }
 
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("THEME FILE READ");
     let mut archive = Vec::new();
     if archive.try_reserve_exact(size).is_err() {
         let _ = file.close();
@@ -352,10 +364,14 @@ pub fn load() -> Result<Option<Vec<u8>>, SettingsIoError> {
             }
         }
     }
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("THEME FILE CLOSE");
     let rc = file.close();
     if rc < 0 {
         return Err(SettingsIoError::Isfs(rc));
     }
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("THEME ZIP READY");
     Ok(Some(archive))
 }
 

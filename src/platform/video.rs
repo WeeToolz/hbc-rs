@@ -203,10 +203,14 @@ pub fn initialize(widescreen: bool) -> Result<VideoSystem, VideoError> {
     if framebuffer.is_null() {
         return Err(VideoError::FramebufferAllocationFailed);
     }
-    #[cfg(feature = "startup-diagnostics")]
-    super::diagnostics::set_gx_framebuffer(framebuffer as usize);
-
     let byte_len = unsafe { ogc_video::get_frame_buffer_size(&mut mode) };
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::set_gx_framebuffer_info(
+        framebuffer as usize,
+        mode.fb_width,
+        mode.xfb_height,
+        byte_len,
+    );
     unsafe {
         ogc_cache::dc_invalidate_range(framebuffer.cast_const(), byte_len);
         // COLOR_BLACK from HBC is a zero-valued YUYV framebuffer color.
@@ -261,7 +265,12 @@ pub fn initialize(widescreen: bool) -> Result<VideoSystem, VideoError> {
             ))
         });
         if !clear_is_visible {
-            super::diagnostics::fail("GX CLEAR XFB BLACK");
+            if super::diagnostics::fail("GX CLEAR XFB BLACK") {
+                unsafe { ogc_system::reset_system(ogc_system::SYS_RESTART as i32, 0, 0) };
+                loop {
+                    core::hint::spin_loop();
+                }
+            }
             loop {
                 super::diagnostics::hold();
             }

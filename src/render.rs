@@ -1650,7 +1650,10 @@ mod tests {
         let frame = browser_frame(&controller, &[]);
         assert!(frame.commands.iter().any(|command| matches!(
             command,
-            FrameCommand::ThemeArt { art: ThemeArt::Progress, .. }
+            FrameCommand::ThemeArt {
+                art: ThemeArt::Progress,
+                ..
+            }
         )));
         let progress: Vec<_> = frame
             .fills

@@ -87,11 +87,92 @@ pub(super) fn has_bright_luma(value: u8) -> bool {
 
 pub const TEST_SQUARE_SIZE: u16 = 32;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct ReportIdentity {
+    host: [u8; 4],
+    port: u16,
+    run_id: [u8; 64],
+    run_id_len: u8,
+    build_id: [u8; 64],
+    restart_after_report: bool,
+    warmup_frames: u32,
+    sample_frames: u32,
+}
+
+fn parse_report_identity(args: &[&str]) -> Option<ReportIdentity> {
+    let mut endpoint = None;
+    let mut run_id = None;
+    let mut build_id = None;
+    let mut restart_after_report = false;
+    let mut warmup_frames = 0;
+    let mut sample_frames = 1;
+    for arg in args {
+        if let Some(value) = arg.strip_prefix("--report=") {
+            endpoint = Some(value);
+        } else if let Some(value) = arg.strip_prefix("--run-id=") {
+            run_id = Some(value);
+        } else if let Some(value) = arg.strip_prefix("--build-id=") {
+            build_id = Some(value);
+        } else if *arg == "--restart-after-probe" {
+            restart_after_report = true;
+        } else if let Some(value) = arg.strip_prefix("--warmup-frames=") {
+            warmup_frames = value.parse().ok()?;
+        } else if let Some(value) = arg.strip_prefix("--sample-frames=") {
+            sample_frames = value.parse().ok()?;
+        }
+    }
+    let (host, port) = parse_report_endpoint(endpoint?)?;
+    let run_id = run_id?;
+    let build_id = build_id?;
+    if run_id.is_empty()
+        || run_id.len() > 64
+        || !run_id.is_ascii()
+        || build_id.len() != 64
+        || !build_id.bytes().all(|byte| byte.is_ascii_hexdigit())
+        || warmup_frames > 10_000
+        || sample_frames == 0
+        || sample_frames > 10_000
+    {
+        return None;
+    }
+    let mut run_id_bytes = [0; 64];
+    run_id_bytes[..run_id.len()].copy_from_slice(run_id.as_bytes());
+    let mut build_id_bytes = [0; 64];
+    build_id_bytes.copy_from_slice(build_id.as_bytes());
+    Some(ReportIdentity {
+        host,
+        port,
+        run_id: run_id_bytes,
+        run_id_len: run_id.len() as u8,
+        build_id: build_id_bytes,
+        restart_after_report,
+        warmup_frames,
+        sample_frames,
+    })
+}
+
+fn parse_report_endpoint(value: &str) -> Option<([u8; 4], u16)> {
+    let (address, port) = value.split_once(':')?;
+    let mut octets = [0; 4];
+    let mut parts = address.split('.');
+    for octet in &mut octets {
+        *octet = parts.next()?.parse().ok()?;
+    }
+    if parts.next().is_some() {
+        return None;
+    }
+    let port = port.parse().ok()?;
+    (port != 0).then_some((octets, port))
+}
+
 pub const fn test_square_origin(width: u16, height: u16) -> Option<(u16, u16)> {
     if width < TEST_SQUARE_SIZE || height < TEST_SQUARE_SIZE {
         return None;
     }
-    Some(((width - TEST_SQUARE_SIZE) / 2, (height - TEST_SQUARE_SIZE) / 2))
+    Some((
+        (width - TEST_SQUARE_SIZE) / 2,
+        (height - TEST_SQUARE_SIZE) / 2,
+    ))
 }
 
 pub(super) fn test_square_is_white(
@@ -105,14 +186,13 @@ pub(super) fn test_square_is_white(
     };
     let step = TEST_SQUARE_SIZE / 4;
     (1..4).all(|row| {
-        (1..4).all(|column| {
-            has_bright_luma(read_luma(left + column * step, top + row * step))
-        })
+        (1..4).all(|column| has_bright_luma(read_luma(left + column * step, top + row * step)))
     })
 }
 
 #[cfg(target_arch = "powerpc")]
 mod wii {
+    use super::ReportIdentity;
     use core::{
         ffi::c_void,
         sync::atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -126,13 +206,13 @@ mod wii {
     static LENGTH: AtomicUsize = AtomicUsize::new(0);
     static DRAWING: AtomicBool = AtomicBool::new(false);
 
-    pub fn set_gx_framebuffer(framebuffer: usize) {
-        GX_FRAMEBUFFER.store(framebuffer, Ordering::Release);
-    }
-
     /// Call on the main thread after system initialization and before GX setup.
-    pub fn initialize() -> Result<(), crate::platform::video::VideoError> {
+    pub fn initialize(
+        argc: i32,
+        argv: *mut *mut u8,
+    ) -> Result<(), crate::platform::video::VideoError> {
         use crate::platform::video::VideoError;
+        unsafe { initialize_report_identity(argc, argv) };
         ogc_video::init();
         let preferred = unsafe { ogc_video::get_preferred_mode(core::ptr::null_mut()) };
         if preferred.is_null() {
@@ -161,6 +241,7 @@ mod wii {
     /// Startup labels are written by the main thread. Panic reporting uses a
     /// nonblocking guard so it cannot re-enter a framebuffer write.
     fn show(label: &str, failed: bool) {
+        record_stage(label, failed);
         let framebuffer = FRAMEBUFFER.load(Ordering::Acquire);
         if framebuffer == 0 || DRAWING.swap(true, Ordering::Acquire) {
             return;
@@ -190,8 +271,60 @@ mod wii {
         show(label, false);
     }
 
-    pub fn fail(label: &str) {
+    pub fn fail(label: &str) -> bool {
         show(label, true);
+        if !send_report(false) && REPORT_READY.load(Ordering::Acquire) {
+            show(report_error_label(), true);
+            hold_for_report_error();
+        }
+        report_restart_requested()
+    }
+
+    pub fn complete() {
+        record_stage("FIRST HBC FRAME DISPLAYED", false);
+        unsafe {
+            let now = ogc_core::powerpc::read_timebase();
+            REPORT_START_TICKS = now;
+            LAST_FRAME_TICKS = now;
+            FRAME_INDEX = 0;
+            SAMPLE_COUNT = 0;
+            SAMPLE_TOTAL_TICKS = 0;
+            SAMPLE_MIN_TICKS = u64::MAX;
+            SAMPLE_MAX_TICKS = 0;
+        }
+    }
+
+    /// Collect frame intervals after the first HBC frame. Returns true after
+    /// the report is sent when the caller requested a restart.
+    pub fn sample_frame() -> bool {
+        if !REPORT_READY.load(Ordering::Acquire) || REPORT_SENT.load(Ordering::Acquire) {
+            return false;
+        }
+        let now = ogc_core::powerpc::read_timebase();
+        let done = unsafe {
+            let delta = now.wrapping_sub(LAST_FRAME_TICKS);
+            LAST_FRAME_TICKS = now;
+            FRAME_INDEX = FRAME_INDEX.saturating_add(1);
+            let identity = core::ptr::addr_of!(REPORT_IDENTITY).read();
+            if FRAME_INDEX > identity.warmup_frames {
+                SAMPLE_COUNT = SAMPLE_COUNT.saturating_add(1);
+                SAMPLE_TOTAL_TICKS = SAMPLE_TOTAL_TICKS.saturating_add(delta);
+                SAMPLE_MIN_TICKS = SAMPLE_MIN_TICKS.min(delta);
+                SAMPLE_MAX_TICKS = SAMPLE_MAX_TICKS.max(delta);
+                SAMPLE_COUNT >= identity.sample_frames
+            } else {
+                false
+            }
+        };
+        if done {
+            if !send_report(true) {
+                show(report_error_label(), true);
+                hold_for_report_error();
+            }
+            report_restart_requested()
+        } else {
+            false
+        }
     }
 
     /// Keep a completed stage visible before switching to the GX framebuffer.
@@ -200,10 +333,298 @@ mod wii {
             ogc_video::wait_vsync();
         }
     }
+
+    const REPORT_LOG_CAPACITY: usize = 4096;
+    static REPORT_LOG: [core::sync::atomic::AtomicU8; REPORT_LOG_CAPACITY] =
+        [const { core::sync::atomic::AtomicU8::new(0) }; REPORT_LOG_CAPACITY];
+    static REPORT_LOG_LEN: AtomicUsize = AtomicUsize::new(0);
+    static REPORT_SENT: AtomicBool = AtomicBool::new(false);
+    static REPORT_READY: AtomicBool = AtomicBool::new(false);
+    static REPORT_ERROR: AtomicUsize = AtomicUsize::new(0);
+    static mut REPORT_IDENTITY: ReportIdentity = ReportIdentity {
+        host: [0; 4],
+        port: 0,
+        run_id: [0; 64],
+        run_id_len: 0,
+        build_id: [0; 64],
+        restart_after_report: false,
+        warmup_frames: 0,
+        sample_frames: 1,
+    };
+    static mut REPORT_START_TICKS: u64 = 0;
+    static mut LAST_FRAME_TICKS: u64 = 0;
+    static mut FRAME_INDEX: u32 = 0;
+    static mut SAMPLE_COUNT: u32 = 0;
+    static mut SAMPLE_TOTAL_TICKS: u64 = 0;
+    static mut SAMPLE_MIN_TICKS: u64 = u64::MAX;
+    static mut SAMPLE_MAX_TICKS: u64 = 0;
+    static GX_FRAMEBUFFER_BYTES: AtomicUsize = AtomicUsize::new(0);
+    static GX_FRAMEBUFFER_WIDTH: AtomicUsize = AtomicUsize::new(0);
+    static GX_FRAMEBUFFER_HEIGHT: AtomicUsize = AtomicUsize::new(0);
+
+    const REPORT_ERROR_NONE: usize = 0;
+    const REPORT_ERROR_NET_INIT: usize = 1;
+    const REPORT_ERROR_SOCKET: usize = 2;
+    const REPORT_ERROR_CONNECT: usize = 3;
+    const REPORT_ERROR_WRITE: usize = 4;
+
+    fn report_error_label() -> &'static str {
+        match REPORT_ERROR.load(Ordering::Acquire) {
+            REPORT_ERROR_NET_INIT => "REPORT NET INIT FAIL",
+            REPORT_ERROR_SOCKET => "REPORT SOCKET FAIL",
+            REPORT_ERROR_CONNECT => "REPORT CONNECT FAIL",
+            REPORT_ERROR_WRITE => "REPORT WRITE FAIL",
+            _ => "REPORT SEND FAIL",
+        }
+    }
+
+    fn hold_for_report_error() {
+        for _ in 0..180 {
+            ogc_video::wait_vsync();
+        }
+    }
+
+    unsafe fn initialize_report_identity(argc: i32, argv: *mut *mut u8) {
+        if argc <= 0 || argv.is_null() {
+            return;
+        }
+        let mut args = [&""[..]; 64];
+        let mut arg_count = 0;
+        for index in 0..(argc as usize).min(args.len()) {
+            let arg = unsafe { *argv.add(index) };
+            if arg.is_null() {
+                break;
+            }
+            let bytes = unsafe { core::ffi::CStr::from_ptr(arg.cast()) }.to_bytes();
+            let Ok(value) = core::str::from_utf8(bytes) else {
+                continue;
+            };
+            args[arg_count] = value;
+            arg_count += 1;
+        }
+        if let Some(identity) = super::parse_report_identity(&args[..arg_count]) {
+            unsafe { core::ptr::addr_of_mut!(REPORT_IDENTITY).write(identity) };
+            unsafe {
+                let now = ogc_core::powerpc::read_timebase();
+                REPORT_START_TICKS = now;
+                LAST_FRAME_TICKS = now;
+            }
+            REPORT_READY.store(true, Ordering::Release);
+        }
+    }
+
+    fn record_stage(label: &str, failed: bool) {
+        let prefix = if failed { b"FAIL " } else { b"INFO " };
+        let current = REPORT_LOG_LEN.load(Ordering::Relaxed);
+        let end = current.saturating_add(prefix.len() + label.len() + 1);
+        if end > REPORT_LOG_CAPACITY {
+            return;
+        }
+        for (offset, byte) in prefix
+            .iter()
+            .chain(label.as_bytes())
+            .chain(b"\n")
+            .enumerate()
+        {
+            REPORT_LOG[current + offset].store(*byte, Ordering::Relaxed);
+        }
+        REPORT_LOG_LEN.store(end, Ordering::Release);
+    }
+
+    fn send_report(passed: bool) -> bool {
+        use ogc_network as network;
+
+        if !REPORT_READY.load(Ordering::Acquire) || REPORT_SENT.swap(true, Ordering::AcqRel) {
+            return false;
+        }
+        REPORT_ERROR.store(REPORT_ERROR_NONE, Ordering::Release);
+        let identity = unsafe { core::ptr::addr_of!(REPORT_IDENTITY).read() };
+        let framebuffer = if GX_FRAMEBUFFER.load(Ordering::Acquire) != 0 {
+            ogc_core::mem_k0_to_k1(GX_FRAMEBUFFER.load(Ordering::Acquire))
+        } else {
+            FRAMEBUFFER.load(Ordering::Acquire)
+        };
+        let (width, height, framebuffer_bytes) = if GX_FRAMEBUFFER.load(Ordering::Acquire) != 0 {
+            (
+                GX_FRAMEBUFFER_WIDTH.load(Ordering::Acquire),
+                GX_FRAMEBUFFER_HEIGHT.load(Ordering::Acquire),
+                GX_FRAMEBUFFER_BYTES.load(Ordering::Acquire),
+            )
+        } else {
+            (
+                WIDTH.load(Ordering::Acquire),
+                HEIGHT.load(Ordering::Acquire),
+                LENGTH.load(Ordering::Acquire).saturating_mul(4),
+            )
+        };
+        let log_len = REPORT_LOG_LEN
+            .load(Ordering::Acquire)
+            .min(REPORT_LOG_CAPACITY);
+        let mut header = [0u8; 156];
+        header[..4].copy_from_slice(b"WIR2");
+        header[4..6].copy_from_slice(&2u16.to_be_bytes());
+        header[8..12].copy_from_slice(&(log_len as u32).to_be_bytes());
+        header[12..16].copy_from_slice(&(framebuffer_bytes as u32).to_be_bytes());
+        header[16..20].copy_from_slice(&(width as u32).to_be_bytes());
+        header[20..24].copy_from_slice(&(height as u32).to_be_bytes());
+        header[24..28].copy_from_slice(&36u32.to_be_bytes());
+        header[28..28 + identity.run_id_len as usize]
+            .copy_from_slice(&identity.run_id[..identity.run_id_len as usize]);
+        header[92..156].copy_from_slice(&identity.build_id);
+
+        let summary = if passed {
+            b"PASS summary passes=1 fails=0\n".as_slice()
+        } else {
+            b"FAIL summary passes=0 fails=1\n".as_slice()
+        };
+        let summary_start = log_len.min(REPORT_LOG_CAPACITY.saturating_sub(summary.len()));
+        let report_log_len = summary_start + summary.len();
+        header[8..12].copy_from_slice(&(report_log_len as u32).to_be_bytes());
+        let mut log = [0u8; REPORT_LOG_CAPACITY];
+        for (index, byte) in log[..log_len].iter_mut().enumerate() {
+            *byte = REPORT_LOG[index].load(Ordering::Relaxed);
+        }
+        log[summary_start..report_log_len].copy_from_slice(summary);
+        let timer_clock_hz = ogc_video::timer_clock_hz();
+        let ticks_to_us = |ticks| ogc_video::ticks_to_microseconds(ticks, timer_clock_hz);
+        let (elapsed_ticks, sample_count, total_ticks, min_ticks, max_ticks) = unsafe {
+            (
+                ogc_core::powerpc::read_timebase().wrapping_sub(REPORT_START_TICKS),
+                SAMPLE_COUNT,
+                SAMPLE_TOTAL_TICKS,
+                SAMPLE_MIN_TICKS,
+                SAMPLE_MAX_TICKS,
+            )
+        };
+        let average_ticks = if sample_count == 0 {
+            0
+        } else {
+            total_ticks / u64::from(sample_count)
+        };
+        let heap_used_bytes = crate::platform::allocator::WII_ALLOCATOR
+            .used_bytes()
+            .min(u32::MAX as usize);
+        let mut performance = [0u8; 36];
+        performance[..8].copy_from_slice(&ticks_to_us(elapsed_ticks).to_be_bytes());
+        for (index, value) in [
+            sample_count,
+            heap_used_bytes.min(u32::MAX as usize) as u32,
+            identity.warmup_frames,
+            identity.sample_frames,
+            ticks_to_us(average_ticks).min(u64::from(u32::MAX)) as u32,
+            ticks_to_us(if min_ticks == u64::MAX { 0 } else { min_ticks }).min(u64::from(u32::MAX))
+                as u32,
+            ticks_to_us(max_ticks).min(u64::from(u32::MAX)) as u32,
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let start = 8 + index * 4;
+            performance[start..start + 4].copy_from_slice(&value.to_be_bytes());
+        }
+
+        let mut network_attached = false;
+        for _ in 0..32 {
+            if network::attach_active() >= 0 {
+                network_attached = true;
+                break;
+            }
+            // HBC starts its receiver on another thread. Let an in-flight
+            // async network initialization finish before attaching this DOL.
+            for _ in 0..12 {
+                ogc_video::wait_vsync();
+            }
+        }
+        if !network_attached {
+            REPORT_ERROR.store(REPORT_ERROR_NET_INIT, Ordering::Release);
+            return false;
+        }
+        let socket = network::socket(network::PF_INET, network::SOCK_STREAM, 0);
+        if socket < 0 {
+            REPORT_ERROR.store(REPORT_ERROR_SOCKET, Ordering::Release);
+            return false;
+        }
+        let timeout = network::Timeval {
+            tv_sec: 2,
+            tv_usec: 0,
+        };
+        unsafe {
+            network::setsockopt(
+                socket,
+                network::SOL_SOCKET,
+                network::SO_SNDTIMEO,
+                (&timeout as *const network::Timeval).cast(),
+                core::mem::size_of::<network::Timeval>() as network::SockLenT,
+            );
+        }
+        let address = network::SockaddrIn {
+            sin_len: core::mem::size_of::<network::SockaddrIn>() as u8,
+            sin_family: network::AF_INET as u8,
+            sin_port: identity.port.to_be(),
+            sin_addr: network::InAddr {
+                s_addr: network::ip4_addr(
+                    identity.host[0],
+                    identity.host[1],
+                    identity.host[2],
+                    identity.host[3],
+                ),
+            },
+            sin_zero: [0; 8],
+        };
+        let connected = network::connect_addr(socket, &address) == 0;
+        let sent = if connected {
+            let framebuffer = if framebuffer == 0 || framebuffer_bytes == 0 {
+                &[][..]
+            } else {
+                unsafe { core::slice::from_raw_parts(framebuffer as *const u8, framebuffer_bytes) }
+            };
+            write_all(socket, &header)
+                && write_all(socket, &log[..report_log_len])
+                && write_all(socket, framebuffer)
+                && write_all(socket, &performance)
+        } else {
+            REPORT_ERROR.store(REPORT_ERROR_CONNECT, Ordering::Release);
+            false
+        };
+        if connected && !sent {
+            REPORT_ERROR.store(REPORT_ERROR_WRITE, Ordering::Release);
+        }
+        network::close(socket);
+        sent
+    }
+
+    fn report_restart_requested() -> bool {
+        if !REPORT_READY.load(Ordering::Acquire) {
+            return false;
+        }
+        unsafe {
+            core::ptr::addr_of!(REPORT_IDENTITY)
+                .read()
+                .restart_after_report
+        }
+    }
+
+    fn write_all(socket: i32, mut bytes: &[u8]) -> bool {
+        while !bytes.is_empty() {
+            let written = ogc_network::write_slice(socket, bytes);
+            if written <= 0 {
+                return false;
+            }
+            bytes = &bytes[written as usize..];
+        }
+        true
+    }
+
+    pub fn set_gx_framebuffer_info(framebuffer: usize, width: u16, height: u16, bytes: u32) {
+        GX_FRAMEBUFFER.store(framebuffer, Ordering::Release);
+        GX_FRAMEBUFFER_WIDTH.store(usize::from(width), Ordering::Release);
+        GX_FRAMEBUFFER_HEIGHT.store(usize::from(height), Ordering::Release);
+        GX_FRAMEBUFFER_BYTES.store(bytes as usize, Ordering::Release);
+    }
 }
 
 #[cfg(target_arch = "powerpc")]
-pub use wii::{fail, hold, initialize, mark, set_gx_framebuffer};
+pub use wii::{complete, fail, hold, initialize, mark, sample_frame, set_gx_framebuffer_info};
 
 #[cfg(test)]
 mod tests {
@@ -258,6 +679,44 @@ mod tests {
     }
 
     #[test]
+    fn parses_wiiload_report_identity() {
+        let identity = parse_report_identity(&[
+            "--report=10.0.0.238:4298",
+            "--run-id=1234-5678",
+            &format!("--build-id={}", "a".repeat(64)),
+            "--restart-after-probe",
+            "--warmup-frames=2",
+            "--sample-frames=3",
+        ])
+        .unwrap();
+        assert_eq!(identity.host, [10, 0, 0, 238]);
+        assert_eq!(identity.port, 4298);
+        assert!(identity.restart_after_report);
+        assert_eq!(identity.warmup_frames, 2);
+        assert_eq!(identity.sample_frames, 3);
+        assert_eq!(
+            &identity.run_id[..identity.run_id_len as usize],
+            b"1234-5678"
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_wiiload_report_identity() {
+        assert!(parse_report_identity(&[
+            "--report=999.0.0.1:4298",
+            "--run-id=test",
+            &format!("--build-id={}", "a".repeat(64)),
+        ])
+        .is_none());
+        assert!(parse_report_identity(&[
+            "--report=10.0.0.1:0",
+            "--run-id=test",
+            &format!("--build-id={}", "a".repeat(64)),
+        ])
+        .is_none());
+    }
+
+    #[test]
     fn test_square_check_rejects_white_elsewhere_and_partial_drawing() {
         assert_eq!(test_square_origin(640, 480), Some((304, 224)));
         assert_eq!(test_square_origin(852, 480), Some((410, 224)));
@@ -267,10 +726,12 @@ mod tests {
         } else {
             63
         }));
-        assert!(!test_square_is_white(640, 480, |x, y| if x == 320 && y == 240 {
-            63
-        } else {
-            235
+        assert!(!test_square_is_white(640, 480, |x, y| {
+            if x == 320 && y == 240 {
+                63
+            } else {
+                235
+            }
         }));
         assert!(test_square_is_white(640, 480, |_, _| 235));
     }
