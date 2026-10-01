@@ -1,5 +1,7 @@
 //! Wii GX submission for hardware-independent UI frames.
 
+use alloc::vec::Vec;
+
 use crate::{
     platform::{
         startup::IconTexture,
@@ -279,6 +281,159 @@ pub unsafe fn draw_frame(
                 }
             }
         }
+    }
+    for run in &frame.text_runs {
+        let Some(file) = run.file.as_deref() else {
+            continue;
+        };
+        let Some(face) = theme
+            .fonts
+            .iter()
+            .find(|face| face.borrow().file.eq_ignore_ascii_case(file))
+        else {
+            unsafe { draw_fallback_text(video, frame, run, &info)? };
+            continue;
+        };
+        let mut face = face.borrow_mut();
+        let Some((ascent, _, _)) = face.horizontal_line_metrics(run.size) else {
+            unsafe { draw_fallback_text(video, frame, run, &info)? };
+            continue;
+        };
+        let mut cursor_x = run.x;
+        let mut previous_character = None;
+        for character in run.value.chars() {
+            if let Some(previous) = previous_character {
+                cursor_x += face
+                    .horizontal_kern(previous, character, run.size)
+                    .unwrap_or(0.0)
+                    * run.scale;
+            }
+            let glyph = match face.rasterize(character, run.size) {
+                Ok(glyph) => glyph.clone(),
+                Err(_) => {
+                    previous_character = Some(character);
+                    continue;
+                }
+            };
+            if glyph.width != 0 && glyph.height != 0 {
+                let mut textures = theme.font_textures.borrow_mut();
+                let cached = textures.iter().position(|item| {
+                    item.file.eq_ignore_ascii_case(file)
+                        && item.character == character
+                        && item.size == run.size
+                        && item.color == run.color
+                });
+                let cached = if let Some(index) = cached {
+                    Some(index)
+                } else {
+                    let mut pixels = Vec::with_capacity(glyph.coverage.len() * 4);
+                    for coverage in &glyph.coverage {
+                        pixels.extend_from_slice(&[
+                            run.color.red,
+                            run.color.green,
+                            run.color.blue,
+                            ((u16::from(*coverage) * u16::from(run.color.alpha)) / 255) as u8,
+                        ]);
+                    }
+                    let image = crate::png::RgbaImage {
+                        width: u32::from(glyph.width),
+                        height: u32::from(glyph.height),
+                        pixels,
+                    };
+                    crate::png::GxRgba8Texture::from_image(&image)
+                        .ok()
+                        .map(|texture| {
+                            textures.push(super::theme::CachedFontTexture {
+                                file: file.into(),
+                                character,
+                                size: run.size,
+                                color: run.color,
+                                texture,
+                            });
+                            textures.len() - 1
+                        })
+                };
+                if let Some(index) = cached {
+                    let texture = &textures[index].texture;
+                    let baseline = run.y + ascent * run.scale;
+                    let x = cursor_x + glyph.xmin as f32 * run.scale;
+                    let y = baseline - (glyph.ymin + i32::from(glyph.height)) as f32 * run.scale;
+                    if let Some(bounds) = map_rect(
+                        crate::render::Rect {
+                            x,
+                            y,
+                            width: f32::from(glyph.width) * run.scale,
+                            height: f32::from(glyph.height) * run.scale,
+                        },
+                        frame.logical_width(),
+                        LOGICAL_HEIGHT,
+                        info.width,
+                        info.height,
+                    ) {
+                        video.configure_textured_2d();
+                        unsafe {
+                            video.draw_texture(
+                                texture,
+                                bounds.x,
+                                bounds.y,
+                                bounds.width,
+                                bounds.height,
+                            )?;
+                        }
+                    }
+                }
+            }
+            cursor_x += glyph.advance_width * run.scale;
+            previous_character = Some(character);
+        }
+    }
+    Ok(())
+}
+
+unsafe fn draw_fallback_text(
+    video: &VideoSystem,
+    frame: &Frame,
+    run: &crate::render::TextRun,
+    info: &crate::platform::video::FramebufferInfo,
+) -> Result<(), VideoError> {
+    video.configure_2d();
+    let mut x = run.x;
+    for character in run.value.chars() {
+        for (row, bits) in crate::render::glyph_rows(character).into_iter().enumerate() {
+            let mut column = 0;
+            while column < 5 {
+                if bits & (1 << (4 - column)) == 0 {
+                    column += 1;
+                    continue;
+                }
+                let start = column;
+                while column < 5 && bits & (1 << (4 - column)) != 0 {
+                    column += 1;
+                }
+                let Some(bounds) = map_rect(
+                    crate::render::Rect {
+                        x: x + start as f32 * run.scale,
+                        y: run.y + row as f32 * run.scale,
+                        width: (column - start) as f32 * run.scale,
+                        height: run.scale,
+                    },
+                    frame.logical_width(),
+                    LOGICAL_HEIGHT,
+                    info.width,
+                    info.height,
+                ) else {
+                    continue;
+                };
+                let fill = crate::render::FillRect {
+                    bounds,
+                    color: run.color,
+                };
+                unsafe {
+                    draw_solid_fill(video, bounds, fill)?;
+                }
+            }
+        }
+        x += 6.0 * run.scale;
     }
     Ok(())
 }

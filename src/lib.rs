@@ -10,6 +10,7 @@ extern crate alloc;
 pub mod app;
 pub mod archive;
 pub mod catalog;
+pub mod font;
 pub mod loader;
 pub mod localization;
 pub mod management;

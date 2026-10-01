@@ -1,6 +1,7 @@
 //! NAND storage for the HBC installed theme ZIP.
 
-use alloc::vec::Vec;
+use alloc::{string::String, vec::Vec};
+use core::cell::RefCell;
 
 use crate::{
     platform::settings::{title_data_file_path, SettingsIoError},
@@ -73,6 +74,8 @@ const DEFAULT_GECKO_ICON: &[u8] = include_bytes!("../../assets/icon_usbgecko.png
 const DEFAULT_GECKO_ICON_ACTIVE: &[u8] = include_bytes!("../../assets/icon_usbgecko_active.png");
 
 pub struct ThemeTextures {
+    pub fonts: Vec<RefCell<crate::font::ThemeFontFace>>,
+    pub font_textures: RefCell<Vec<CachedFontTexture>>,
     pub background: Option<crate::png::GxRgba8Texture>,
     pub background_width: u32,
     pub logo: Option<crate::png::GxRgba8Texture>,
@@ -116,6 +119,8 @@ impl ThemeTextures {
     ) -> Self {
         let (background, background_width) = load_background(package, widescreen);
         Self {
+            fonts: load_theme_fonts(package),
+            font_textures: RefCell::new(Vec::new()),
             background,
             background_width,
             // HBC reads its logo from the bundled data and does not load it from themes.
@@ -322,6 +327,48 @@ impl ThemeTextures {
         }
     }
 }
+
+pub struct CachedFontTexture {
+    pub file: String,
+    pub character: char,
+    pub size: u16,
+    pub color: crate::render::Color,
+    pub texture: crate::png::GxRgba8Texture,
+}
+
+fn load_theme_fonts(
+    package: Option<(&crate::theme::ThemePackage, &[u8])>,
+) -> Vec<RefCell<crate::font::ThemeFontFace>> {
+    let Some((package, bytes)) = package else {
+        return Vec::new();
+    };
+    let mut paths = Vec::new();
+    if let Some(file) = package.metadata.default_font.file.as_ref() {
+        paths.push(file.clone());
+    }
+    for (_, font) in &package.metadata.fonts {
+        if let Some(file) = font.file.as_ref() {
+            if !paths
+                .iter()
+                .any(|existing| existing.eq_ignore_ascii_case(file))
+            {
+                paths.push(file.clone());
+            }
+        }
+    }
+    let mut faces = Vec::new();
+    for path in paths {
+        let Ok(data) = package.extract_file(bytes, &path, THEME_FONT_MAX_BYTES) else {
+            continue;
+        };
+        if let Ok(face) = crate::font::ThemeFontFace::parse(path, data) {
+            faces.push(RefCell::new(face));
+        }
+    }
+    faces
+}
+
+const THEME_FONT_MAX_BYTES: usize = 8 * 1024 * 1024;
 
 fn load_background(
     package: Option<(&crate::theme::ThemePackage, &[u8])>,

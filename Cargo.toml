@@ -9,6 +9,7 @@ startup-diagnostics = []
 
 [dependencies]
 crc32fast = { version = "1.5.0", default-features = false }
+fontdue = { version = "0.9.4", default-features = false, features = ["hashbrown"] }
 miniz_oxide = { version = "0.8.9", default-features = false, features = ["with-alloc"] }
 libm = { version = "0.2", default-features = false }
 ogc-alloc = { path = "../libogc-rs/crates/core/ogc-alloc" }

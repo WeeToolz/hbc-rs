@@ -135,9 +135,12 @@ pub struct Frame {
     pub hit_targets: Vec<HitTarget>,
     /// Decorative bubbles from the animated HBC background.
     pub bubbles: Vec<BackgroundBubble>,
+    pub text_runs: Vec<TextRun>,
     logical_width: u16,
     text_scale: f32,
     text_color: Option<Color>,
+    text_file: Option<String>,
+    text_size: Option<u32>,
     focused_button_style: TextStyle,
     unfocused_button_style: TextStyle,
 }
@@ -379,10 +382,12 @@ fn drawable_bubble(bubble: &BackgroundBubbleState) -> BackgroundBubble {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 struct TextStyle {
     scale: f32,
     color: Option<Color>,
+    file: Option<String>,
+    size: Option<u32>,
 }
 
 impl Default for TextStyle {
@@ -390,8 +395,21 @@ impl Default for TextStyle {
         Self {
             scale: 1.0,
             color: None,
+            file: None,
+            size: None,
         }
     }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct TextRun {
+    pub x: f32,
+    pub y: f32,
+    pub value: String,
+    pub scale: f32,
+    pub color: Color,
+    pub file: Option<String>,
+    pub size: u16,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -404,6 +422,8 @@ impl Frame {
     fn set_text_style(&mut self, style: TextStyle) {
         self.text_scale = style.scale;
         self.text_color = style.color;
+        self.text_file = style.file;
+        self.text_size = style.size;
     }
     pub fn logical_width(&self) -> u16 {
         if self.logical_width == 0 {
@@ -501,6 +521,9 @@ impl Frame {
                 }
                 FrameCommand::StatusIndicator { bounds, .. } => bounds.x += offset,
             }
+        }
+        for text in &mut self.text_runs {
+            text.x += offset;
         }
         for hit in &mut self.hit_targets {
             match hit.target {
@@ -664,9 +687,9 @@ impl Frame {
         let bounds = rect(x, y, width, 48.0);
         self.theme_art(bounds, ThemeArt::Button(size), focused);
         let style = if focused {
-            self.focused_button_style
+            self.focused_button_style.clone()
         } else {
-            self.unfocused_button_style
+            self.unfocused_button_style.clone()
         };
         self.set_text_style(style);
         let text_width = label.chars().count() as f32 * 6.0 * self.text_scale;
@@ -715,6 +738,7 @@ impl Frame {
     }
 
     fn text(&mut self, x: f32, y: f32, value: &str, scale: f32, color: Color, max_chars: usize) {
+        let glyph_scale = scale;
         let style_scale = if self.text_scale == 0.0 {
             1.0
         } else {
@@ -723,6 +747,18 @@ impl Frame {
         let scale = scale * style_scale;
         let color = self.text_color.unwrap_or(color);
         if !scale.is_finite() || scale <= 0.0 {
+            return;
+        }
+        if let Some(file) = self.text_file.clone() {
+            self.text_runs.push(TextRun {
+                x,
+                y,
+                value: value.chars().take(max_chars).collect(),
+                scale: glyph_scale,
+                color,
+                file: Some(file),
+                size: self.text_size.unwrap_or(16).clamp(1, 128) as u16,
+            });
             return;
         }
         let mut cursor_x = x;
@@ -1553,6 +1589,10 @@ fn theme_text_style(theme: Option<&ThemeMetadata>, target: &str, fallback: Color
     TextStyle {
         scale,
         color: Some(color),
+        file: specific
+            .and_then(|font| font.file.clone())
+            .or_else(|| default.and_then(|font| font.file.clone())),
+        size,
     }
 }
 
@@ -1710,6 +1750,27 @@ mod tests {
         let fallback = theme_text_style(Some(&theme), "memo", Color::rgb(9, 8, 7));
         assert_eq!(fallback.scale, 2.0);
         assert_eq!(fallback.color, Some(Color::rgb(1, 2, 3)));
+    }
+
+    #[test]
+    fn custom_font_role_records_a_ttf_run_and_keeps_english_fallback_glyphs() {
+        let theme = ThemeMetadata {
+            default_font: crate::metadata::ThemeFont {
+                file: Some(String::from("droid.ttf")),
+                size: Some(18),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let mut frame = Frame::default();
+        frame.set_text_style(theme_text_style(Some(&theme), "label", Color::rgb(1, 2, 3)));
+        frame.text(4.0, 5.0, "A", 1.0, Color::rgb(0, 0, 0), 1);
+        assert!(frame.fills.is_empty());
+        assert_eq!(frame.text_runs.len(), 1);
+        assert_eq!(frame.text_runs[0].file.as_deref(), Some("droid.ttf"));
+        assert_eq!(frame.text_runs[0].size, 18);
+        assert_eq!(frame.text_runs[0].value, "A");
+        assert!(glyph_rows('A').iter().any(|row| *row != 0));
     }
 
     #[test]
