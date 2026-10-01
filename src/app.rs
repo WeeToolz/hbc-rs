@@ -274,6 +274,10 @@ impl AppController {
         self.detail_description_scroll
     }
 
+    pub fn detail_description_max_scroll(&self) -> usize {
+        self.detail_description_max_scroll
+    }
+
     pub fn scroll_detail_by_stick(&mut self, pixels: i16) {
         self.scroll_detail_by_pixels(pixels);
     }
@@ -317,6 +321,10 @@ impl AppController {
 
     pub fn notice_scroll(&self) -> usize {
         self.notice_scroll
+    }
+
+    pub fn notice_scroll_max(&self) -> usize {
+        self.notice_scroll_max
     }
 
     fn scroll_notice_by_pixels(&mut self, pixels: i16) {

@@ -1277,6 +1277,12 @@ pub fn browser_frame_with_language(
                     DETAIL_DESCRIPTION_VISIBLE_LINES,
                     controller.detail_description_scroll(),
                 );
+                draw_memo_scroll_arrows(
+                    &mut frame,
+                    controller.detail_description_scroll(),
+                    controller.detail_description_max_scroll(),
+                    320.0,
+                );
                 frame.hit_target(PointerTarget::DetailMemo, rect(88, 144, 464, 184));
             }
             let load_label = controller
@@ -1417,6 +1423,12 @@ pub fn browser_frame_with_language(
                 14,
                 controller.notice_scroll(),
             );
+            draw_memo_scroll_arrows(
+                &mut frame,
+                controller.notice_scroll(),
+                controller.notice_scroll_max(),
+                304.0,
+            );
             frame.hit_target(PointerTarget::NoticeMemo, rect(88, 144, 464, 168));
         }
         let bounds = frame.button(
@@ -1433,6 +1445,27 @@ pub fn browser_frame_with_language(
         frame.widen_canvas();
     }
     frame
+}
+
+/// Show the same directional scroll cues as HBC's decorated memo widget.
+/// The symbols use the built-in bitmap font, so themes do not need new assets.
+fn draw_memo_scroll_arrows(frame: &mut Frame, offset: usize, max_offset: usize, bottom: f32) {
+    if offset < max_offset {
+        draw_memo_chevron(frame, 318.0, 132.0, true);
+    }
+    if offset > 0 {
+        draw_memo_chevron(frame, 318.0, bottom, false);
+    }
+}
+
+fn draw_memo_chevron(frame: &mut Frame, x: f32, y: f32, up: bool) {
+    for (row, width) in [5.0, 3.0, 1.0].into_iter().enumerate() {
+        let row = if up { row } else { 2 - row };
+        frame.fill(
+            rect(x - width / 2.0, y + row as f32 * 2.0, width, 2.0),
+            MUTED,
+        );
+    }
 }
 
 fn gradient_color(stops: [Rgba; 4], position: f32) -> Color {
@@ -1562,6 +1595,23 @@ mod tests {
     use super::*;
     use crate::catalog::{AppEntry, AppKind};
     use alloc::{string::String, vec};
+
+    #[test]
+    fn memo_chevrons_follow_scroll_bounds() {
+        let mut frame = Frame::default();
+        draw_memo_scroll_arrows(&mut frame, 0, 4, 300.0);
+        assert_eq!(frame.fills.len(), 3, "top cue only at the start");
+        frame.fills.clear();
+        draw_memo_scroll_arrows(&mut frame, 2, 4, 300.0);
+        assert_eq!(frame.fills.len(), 6, "both cues in the middle");
+        frame.fills.clear();
+        draw_memo_scroll_arrows(&mut frame, 4, 4, 300.0);
+        assert_eq!(frame.fills.len(), 3, "bottom cue only at the end");
+        assert!(frame.fills.iter().all(|fill| fill.bounds.y >= 300.0));
+        frame.fills.clear();
+        draw_memo_scroll_arrows(&mut frame, 0, 0, 300.0);
+        assert!(frame.fills.is_empty(), "no cues for short content");
+    }
 
     #[test]
     fn storage_loading_frame_uses_theme_throbber_art() {
