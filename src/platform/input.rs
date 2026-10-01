@@ -270,11 +270,15 @@ pub fn scan() -> InputFrame {
     use ogc_input as pad;
     use wpad_sys as wpad;
 
+    diagnostic_scan_mark("PAD SCAN START");
     pad::scan_pads();
+    diagnostic_scan_mark("PAD SCAN DONE");
     let mut down = Buttons::default();
     let mut held = Buttons::default();
     let mut up = Buttons::default();
+    diagnostic_scan_mark("WPAD SCAN START");
     wpad::scan_pads();
+    diagnostic_scan_mark("WPAD SCAN DONE");
     // HBC reads only PAD channel zero. Other controller buttons are accepted
     // only when no Wii Remote owns the IR pointer; then they are combined.
     let pressed_pad = pad::buttons_down(0);
@@ -289,9 +293,22 @@ pub fn scan() -> InputFrame {
     for channel in 0..4 {
         let channel = channel as i32;
         let mut expansion = 0;
-        if unsafe { wpad::probe(channel, &mut expansion) } != wpad::WPAD_ERR_NONE as i32 {
+        diagnostic_scan_mark(match channel {
+            0 => "WPAD PROBE 0 START",
+            1 => "WPAD PROBE 1 START",
+            2 => "WPAD PROBE 2 START",
+            _ => "WPAD PROBE 3 START",
+        });
+        let probe_result = unsafe { wpad::probe(channel, &mut expansion) };
+        if probe_result != wpad::WPAD_ERR_NONE as i32 {
             continue;
         }
+        diagnostic_scan_mark(match channel {
+            0 => "WPAD PROBE 0 DONE",
+            1 => "WPAD PROBE 1 DONE",
+            2 => "WPAD PROBE 2 DONE",
+            _ => "WPAD PROBE 3 DONE",
+        });
         let state = wpad::data(channel);
         if state.is_null() {
             continue;
@@ -343,6 +360,15 @@ pub fn scan() -> InputFrame {
         pointer_held,
         stick_scroll_pixels: stick_scroll.clamp(i32::from(i16::MIN), i32::from(i16::MAX)) as i16,
     }
+}
+
+#[cfg(target_arch = "powerpc")]
+#[inline(always)]
+fn diagnostic_scan_mark(label: &'static str) {
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark(label);
+    #[cfg(not(feature = "startup-diagnostics"))]
+    let _ = label;
 }
 
 #[cfg(any(test, target_arch = "powerpc"))]
