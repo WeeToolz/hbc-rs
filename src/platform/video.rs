@@ -154,6 +154,13 @@ impl VideoSystem {
     /// The caller must finish drawing the frame and keep all referenced graphics
     /// resources alive until this function returns.
     pub unsafe fn present(&self) -> Result<(), VideoError> {
+        // HBC finishes rendering, waits for the next retrace, and only then copies
+        // the EFB to the XFB. This prevents GX from writing the framebuffer while
+        // VI scans the same buffer.
+        if !unsafe { ogc_gx::finish_frame_and_wait() } {
+            return Err(VideoError::GxDrawTimeout);
+        }
+        self.wait_vsync();
         if !unsafe { ogc_gx::present_frame_and_wait(self.config) } {
             return Err(VideoError::GxDrawTimeout);
         }
