@@ -537,7 +537,7 @@ fn transfer_executable(
     let _ = wpad_sys::shutdown();
     hbc_rs::platform::video::shutdown();
     unsafe {
-        hbc_rs::loader::transfer_control(plan.entry, hbc_rs::loader::should_reload_ios(ahb_access))
+        hbc_rs::loader::transfer_control(plan.entry, hbc_rs::loader::ios_launch_policy(ahb_access))
     }
 }
 

@@ -48,12 +48,18 @@ pub enum ParseError {
 
 pub const MAX_LAUNCH_ARGUMENT_BYTES: usize = 1024;
 
-/// Decide whether launch must preserve the current IOS state for AHB access.
-///
-/// HBC patches ES after an IOS reload to restore AHB access. libogc-rs does not
-/// expose that patch, so apps that request AHB access must keep the current IOS.
-pub const fn should_reload_ios(ahb_access: bool) -> bool {
-    !ahb_access
+/// Select the preferred IOS reload and post-reload AHB patch behavior.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IosLaunchPolicy {
+    pub reload: bool,
+    pub patch_ahb: bool,
+}
+
+pub const fn ios_launch_policy(ahb_access: bool) -> IosLaunchPolicy {
+    IosLaunchPolicy {
+        reload: true,
+        patch_ahb: ahb_access,
+    }
 }
 
 /// Build the Wii `__argv.commandLine` byte sequence used by HBC.
@@ -392,8 +398,20 @@ mod tests {
 
     #[test]
     fn launch_ios_policy_preserves_ahb_access() {
-        assert!(should_reload_ios(false));
-        assert!(!should_reload_ios(true));
+        assert_eq!(
+            ios_launch_policy(false),
+            IosLaunchPolicy {
+                reload: true,
+                patch_ahb: false
+            }
+        );
+        assert_eq!(
+            ios_launch_policy(true),
+            IosLaunchPolicy {
+                reload: true,
+                patch_ahb: true
+            }
+        );
     }
     use alloc::vec;
     #[test]

@@ -148,6 +148,7 @@ dependencies = [
 name = "ogc-es-sys"
 version = "0.1.0"
 dependencies = [
+ "ogc-cache",
  "ogc-ipc",
  "ogc-sys",
 ]
