@@ -313,7 +313,10 @@ mod wii {
             return;
         }
         show("REPORT NETWORK START", false);
-        if initialize_report_network() {
+        let identity = unsafe { core::ptr::addr_of!(REPORT_IDENTITY).read() };
+        let socket = connect_report_socket(&identity);
+        if socket >= 0 {
+            PROGRESS_SOCKET.store(socket, Ordering::Release);
             PROGRESS_ENABLED.store(true, Ordering::Release);
             mark("REPORT CHANNEL READY");
         } else {
@@ -394,6 +397,7 @@ mod wii {
     static REPORT_NETWORK_READY: AtomicBool = AtomicBool::new(false);
     static PROGRESS_ENABLED: AtomicBool = AtomicBool::new(false);
     static PROGRESS_SEQUENCE: AtomicUsize = AtomicUsize::new(0);
+    static PROGRESS_SOCKET: core::sync::atomic::AtomicI32 = core::sync::atomic::AtomicI32::new(-1);
     static mut REPORT_IDENTITY: ReportIdentity = ReportIdentity {
         host: [0; 4],
         port: 0,
@@ -576,7 +580,12 @@ mod wii {
             performance[start..start + 4].copy_from_slice(&value.to_be_bytes());
         }
 
-        let socket = connect_report_socket(&identity);
+        let progress_socket = PROGRESS_SOCKET.swap(-1, Ordering::AcqRel);
+        let socket = if progress_socket >= 0 {
+            progress_socket
+        } else {
+            connect_report_socket(&identity)
+        };
         if socket < 0 {
             return false;
         }
@@ -592,6 +601,7 @@ mod wii {
         if !sent {
             REPORT_ERROR.store(REPORT_ERROR_WRITE, Ordering::Release);
         }
+        PROGRESS_ENABLED.store(false, Ordering::Release);
         network::close(socket);
         sent
     }
@@ -673,13 +683,20 @@ mod wii {
         let identity = unsafe { core::ptr::addr_of!(REPORT_IDENTITY).read() };
         let sequence = PROGRESS_SEQUENCE.fetch_add(1, Ordering::Relaxed) as u32 + 1;
         let (packet, length) = super::progress_packet(&identity, sequence, label);
-        let socket = connect_report_socket(&identity);
-        let sent = socket >= 0 && write_all(socket, &packet[..length]);
-        if socket >= 0 {
-            ogc_network::close(socket);
+        let socket = PROGRESS_SOCKET.load(Ordering::Acquire);
+        if socket < 0 {
+            PROGRESS_ENABLED.store(false, Ordering::Release);
+            return;
         }
+        let sent = socket >= 0 && write_all(socket, &packet[..length]);
         if !sent {
             PROGRESS_ENABLED.store(false, Ordering::Release);
+            if PROGRESS_SOCKET
+                .compare_exchange(socket, -1, Ordering::AcqRel, Ordering::Acquire)
+                .is_ok()
+            {
+                ogc_network::close(socket);
+            }
             show("REPORT PROGRESS SEND FAIL", true);
         }
     }
