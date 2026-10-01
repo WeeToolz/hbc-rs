@@ -86,6 +86,19 @@ pub(super) fn has_bright_luma(value: u8) -> bool {
 }
 
 pub const TEST_SQUARE_SIZE: u16 = 32;
+const REPORT_NETWORK_INIT_ATTEMPTS: usize = 32;
+
+fn retry_report_network(mut initialize: impl FnMut() -> bool, mut wait: impl FnMut()) -> bool {
+    for attempt in 0..REPORT_NETWORK_INIT_ATTEMPTS {
+        if initialize() {
+            return true;
+        }
+        if attempt + 1 < REPORT_NETWORK_INIT_ATTEMPTS {
+            wait();
+        }
+    }
+    false
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct ReportIdentity {
@@ -523,19 +536,22 @@ mod wii {
             performance[start..start + 4].copy_from_slice(&value.to_be_bytes());
         }
 
-        let mut network_attached = false;
-        for _ in 0..32 {
-            if network::attach_active() >= 0 {
-                network_attached = true;
-                break;
-            }
-            // HBC starts its receiver on another thread. Let an in-flight
-            // async network initialization finish before attaching this DOL.
-            for _ in 0..12 {
-                ogc_video::wait_vsync();
-            }
-        }
-        if !network_attached {
+        // Match C HBC: retry network startup while the listener worker finishes
+        // its asynchronous initialization. A newly loaded DOL has new
+        // process-local network state, even when IOS already runs the service.
+        let network_ready = super::retry_report_network(
+            || {
+                // Prefer the regular libogc startup path. Attach to an active IOS
+                // stack when NWC24 or SO_STARTUP reports that it is already open.
+                network::init() >= 0 || network::attach_active() >= 0
+            },
+            || {
+                for _ in 0..12 {
+                    ogc_video::wait_vsync();
+                }
+            },
+        );
+        if !network_ready {
             REPORT_ERROR.store(REPORT_ERROR_NET_INIT, Ordering::Release);
             return false;
         }
@@ -714,6 +730,33 @@ mod tests {
             &format!("--build-id={}", "a".repeat(64)),
         ])
         .is_none());
+    }
+
+    #[test]
+    fn report_network_startup_retries_until_ready_and_bounds_waits() {
+        let mut attempts = 0;
+        let mut waits = 0;
+        assert!(retry_report_network(
+            || {
+                attempts += 1;
+                attempts == 3
+            },
+            || waits += 1,
+        ));
+        assert_eq!(attempts, 3);
+        assert_eq!(waits, 2);
+
+        attempts = 0;
+        waits = 0;
+        assert!(!retry_report_network(
+            || {
+                attempts += 1;
+                false
+            },
+            || waits += 1,
+        ));
+        assert_eq!(attempts, REPORT_NETWORK_INIT_ATTEMPTS);
+        assert_eq!(waits, REPORT_NETWORK_INIT_ATTEMPTS - 1);
     }
 
     #[test]

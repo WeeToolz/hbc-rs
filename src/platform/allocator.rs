@@ -25,6 +25,9 @@ pub unsafe fn initialize_wii(max_heap_bytes: usize, reserve_bytes: usize) -> Res
 
 /// The Wii MEM2 arena is not available in host builds.
 #[cfg(not(target_arch = "powerpc"))]
-pub unsafe fn initialize_wii(_max_heap_bytes: usize, _reserve_bytes: usize) -> Result<(), InitError> {
+pub unsafe fn initialize_wii(
+    _max_heap_bytes: usize,
+    _reserve_bytes: usize,
+) -> Result<(), InitError> {
     Err(InitError::NotEnoughArena)
 }
