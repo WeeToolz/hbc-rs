@@ -12,6 +12,7 @@ pub static WII_ALLOCATOR: ArenaAllocator = ArenaAllocator::new();
 ///
 /// # Safety
 /// Call after system startup and before any Rust allocation.
+#[cfg(target_arch = "powerpc")]
 pub unsafe fn initialize_wii(max_heap_bytes: usize, reserve_bytes: usize) -> Result<(), InitError> {
     let low = ogc_system::get_arena2_lo().cast::<u8>();
     let high = ogc_system::get_arena2_hi().cast::<u8>();
@@ -20,4 +21,10 @@ pub unsafe fn initialize_wii(max_heap_bytes: usize, reserve_bytes: usize) -> Res
     };
     unsafe { ogc_system::set_arena2_lo(new_low.cast()) };
     Ok(())
+}
+
+/// The Wii MEM2 arena is not available in host builds.
+#[cfg(not(target_arch = "powerpc"))]
+pub unsafe fn initialize_wii(_max_heap_bytes: usize, _reserve_bytes: usize) -> Result<(), InitError> {
+    Err(InitError::NotEnoughArena)
 }

@@ -29,6 +29,7 @@ version = "0.1.0"
 dependencies = [
  "crc32fast",
  "miniz_oxide",
+ "ogc-alloc",
  "ogc-cache",
  "ogc-conf",
  "ogc-core",
@@ -78,6 +79,10 @@ checksum = "1fa76a2c86f704bdb222d66965fb3d63269ce38518b83cb0575fca855ebb6316"
 dependencies = [
  "adler2",
 ]
+
+[[package]]
+name = "ogc-alloc"
+version = "0.1.0"
 
 [[package]]
 name = "ogc-bt-sync"
