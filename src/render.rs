@@ -460,13 +460,17 @@ impl Frame {
     }
 
     pub fn storage_loading(&mut self) {
+        self.storage_loading_with_language(crate::localization::Language::English);
+    }
+
+    pub fn storage_loading_with_language(&mut self, language: crate::localization::Language) {
         let x = (f32::from(self.logical_width()) - 272.0) / 2.0;
         self.fill(rect(x, 220.0, 272.0, 64.0), PANEL);
         self.theme_art(rect(x + 8.0, 220.0, 64.0, 64.0), ThemeArt::Throbber, false);
         self.text(
             x + 80.0,
             250.0,
-            "Scanning storage...",
+            language.text("Scanning storage..."),
             1.0,
             Color::rgb(213, 224, 233),
             30,
@@ -1109,7 +1113,7 @@ pub fn browser_frame_with_language(
             frame.text(
                 144.0,
                 218.0,
-                "Launch applications from removable storage.",
+                tr("Launch applications from removable storage."),
                 1.0,
                 MUTED,
                 56,
@@ -1117,12 +1121,12 @@ pub fn browser_frame_with_language(
             frame.text(
                 144.0,
                 246.0,
-                "Native Rust port under development.",
+                tr("Native Rust port under development."),
                 1.0,
                 MUTED,
                 56,
             );
-            frame.text(144.0, 386.0, "Press B to return", 1.0, text_color, 32);
+            frame.text(144.0, 386.0, tr("Press B to return"), 1.0, text_color, 32);
         }
         Screen::Options => {}
         Screen::Notice => {}
@@ -1167,7 +1171,7 @@ pub fn browser_frame_with_language(
                 108.0,
                 ButtonSize::Small,
                 controller.options_focus() == 0,
-                "SD",
+                tr("Internal SD Slot"),
                 if controller.pending_device() == 0 {
                     ACCENT
                 } else {
@@ -1180,7 +1184,7 @@ pub fn browser_frame_with_language(
                 108.0,
                 ButtonSize::Small,
                 controller.options_focus() == 1,
-                "USB",
+                tr("USB device"),
                 if controller.pending_device() == 1 {
                     ACCENT
                 } else {
@@ -1189,9 +1193,9 @@ pub fn browser_frame_with_language(
             );
             frame.hit_target(PointerTarget::Option(1), bounds);
             let status = |index| match controller.device_available(index) {
-                Some(true) => "Available",
-                Some(false) => "Unavailable",
-                None => "Checking",
+                Some(true) => tr("Available"),
+                Some(false) => tr("Unavailable"),
+                None => tr("Checking"),
             };
             frame.text(133.0, 145.0, status(0), 0.8, MUTED, 18);
             frame.text(349.0, 145.0, status(1), 0.8, MUTED, 18);
@@ -1200,7 +1204,7 @@ pub fn browser_frame_with_language(
                 172.0,
                 ButtonSize::Small,
                 controller.options_focus() == 2,
-                "SD Gecko A",
+                tr("SD Gecko A"),
                 if controller.pending_device() == 2 {
                     ACCENT
                 } else {
@@ -1213,7 +1217,7 @@ pub fn browser_frame_with_language(
                 172.0,
                 ButtonSize::Small,
                 controller.options_focus() == 3,
-                "SD Gecko B",
+                tr("SD Gecko B"),
                 if controller.pending_device() == 3 {
                     ACCENT
                 } else {
@@ -1263,7 +1267,7 @@ pub fn browser_frame_with_language(
                 340.0,
                 ButtonSize::Small,
                 controller.options_focus() == 6,
-                "OK",
+                tr("OK"),
                 text_color,
             );
             frame.hit_target(PointerTarget::Option(6), bounds);
@@ -1403,7 +1407,7 @@ pub fn browser_frame_with_language(
             frame.text(
                 190.0,
                 100.0,
-                "Install received ZIP? Existing files may be replaced.",
+                tr("Install received ZIP? Existing files may be replaced."),
                 1.0,
                 text_color,
                 54,
@@ -1427,9 +1431,9 @@ pub fn browser_frame_with_language(
                 if receiving { 250.0 } else { 252.0 },
                 124.0,
                 if receiving {
-                    "Receiving upload"
+                    tr("Receiving upload")
                 } else {
-                    "Installing ZIP"
+                    tr("Installing ZIP")
                 },
                 1.0,
                 text_color,
@@ -1467,7 +1471,7 @@ pub fn browser_frame_with_language(
                 }
             }
             frame.theme_art(rect(120, 220, 400, 112), ThemeArt::Progress, false);
-            frame.text(192.0, 190.0, "Please wait...", 1.0, text_color, 40);
+            frame.text(192.0, 190.0, tr("Please wait..."), 1.0, text_color, 40);
             frame.text(430.0, 292.0, label, 1.0, text_color, 5);
         }
     }
@@ -1475,13 +1479,13 @@ pub fn browser_frame_with_language(
         frame.fill(rect(0, 0, 640, 480), MODAL_SHADE);
         frame.theme_art(rect(60, 44, 520, 360), ThemeArt::Dialog, false);
         frame.set_text_style(theme_text_style(theme, "dlgtitle", text_color));
-        frame.text(286.0, 76.0, "Notice", 1.0, text_color, 24);
+        frame.text(286.0, 76.0, tr("Notice"), 1.0, text_color, 24);
         if let Some(message) = controller.notice() {
             frame.set_text_style(theme_text_style(theme, "memo", text_color));
             frame.text_wrapped_scrolled(
                 92.0,
                 148.0,
-                message,
+                language.text(message),
                 1.0,
                 text_color,
                 74,
@@ -1501,7 +1505,7 @@ pub fn browser_frame_with_language(
             324.0,
             ButtonSize::Small,
             controller.pointer_target() == Some(PointerTarget::NoticeConfirm),
-            "OK",
+            tr("OK"),
             text_color,
         );
         frame.hit_target(PointerTarget::NoticeConfirm, bounds);

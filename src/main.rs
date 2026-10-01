@@ -219,15 +219,16 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 .retain(|input| *input != hbc_rs::app::Input::Confirm);
         }
         let mut actions = startup.runtime_mut().update(&frame);
+        let language = hbc_rs::localization::Language::from_console(
+            ogc_conf::get_language(),
+            startup.runtime().theme(),
+        );
         let hit_frame = hbc_rs::render::browser_frame_with_language(
             startup.runtime().controller(),
             startup.runtime().catalog(),
             startup.runtime().theme(),
             startup.logical_width(),
-            hbc_rs::localization::Language::from_console(
-                ogc_conf::get_language(),
-                startup.runtime().theme(),
-            ),
+            language,
         );
         let pointer_target = pointer
             .and_then(|position| hit_frame.hit_test(f32::from(position.x), f32::from(position.y)));
@@ -250,10 +251,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             startup.runtime().catalog(),
             startup.runtime().theme(),
             startup.logical_width(),
-            hbc_rs::localization::Language::from_console(
-                ogc_conf::get_language(),
-                startup.runtime().theme(),
-            ),
+            language,
         );
         if startup.runtime().controller().screen == hbc_rs::app::Screen::Browser {
             let indicators = hbc_rs::platform::wiiload::indicator_state();
@@ -274,7 +272,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             scene.pointer_cursor(f32::from(pointer.x), f32::from(pointer.y));
         }
         if storage_scan_pending {
-            scene.storage_loading();
+            scene.storage_loading_with_language(language);
         }
         #[cfg(feature = "startup-diagnostics")]
         if !display_ready {
