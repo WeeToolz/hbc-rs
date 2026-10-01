@@ -10,12 +10,12 @@ use alloc::{string::String, vec::Vec};
 
 use crate::{
     app::{
-        AppController, PointerTarget, Screen, DETAIL_DESCRIPTION_LINE_WIDTH,
-        DETAIL_DESCRIPTION_VISIBLE_LINES,
+        AppController, PointerTarget, Screen, ABOUT_CREDITS, ABOUT_MEMO_LINE_WIDTH,
+        ABOUT_MEMO_VISIBLE_LINES, DETAIL_DESCRIPTION_LINE_WIDTH, DETAIL_DESCRIPTION_VISIBLE_LINES,
     },
     catalog::AppEntry,
     metadata::{Rgba, ThemeMetadata},
-    text_layout::wrap_lines,
+    text_layout::wrap_memo_lines,
 };
 
 pub const LOGICAL_WIDTH: u16 = 640;
@@ -815,7 +815,7 @@ impl Frame {
         };
         let line_scale = scale * style_scale;
         let styled_max_chars = ((max_chars as f32) / style_scale).max(1.0) as usize;
-        let lines = wrap_lines(value, styled_max_chars);
+        let lines = wrap_memo_lines(value, styled_max_chars);
         let visible_lines = wrapped_line_window(&lines, max_lines, scroll_lines);
         for (line_index, line) in visible_lines.iter().enumerate() {
             self.text(
@@ -1108,23 +1108,16 @@ pub fn browser_frame_with_language(
         Screen::About => {
             frame.theme_art(rect(60, 44, 520, 360), ThemeArt::Dialog, false);
             frame.theme_art(rect(202, 60, 236, 104), ThemeArt::About, false);
-            frame.set_text_style(theme_text_style(theme, "label", text_color));
-            frame.text(144.0, 190.0, "Homebrew Channel", 1.0, text_color, 36);
-            frame.text(
-                144.0,
-                218.0,
-                tr("Launch applications from removable storage."),
+            frame.set_text_style(theme_text_style(theme, "memo", text_color));
+            frame.text_wrapped_scrolled(
+                92.0,
+                176.0,
+                ABOUT_CREDITS,
                 1.0,
-                MUTED,
-                56,
-            );
-            frame.text(
-                144.0,
-                246.0,
-                tr("Native Rust port under development."),
-                1.0,
-                MUTED,
-                56,
+                text_color,
+                ABOUT_MEMO_LINE_WIDTH,
+                ABOUT_MEMO_VISIBLE_LINES,
+                controller.about_scroll(),
             );
             frame.text(144.0, 386.0, tr("Press B to return"), 1.0, text_color, 32);
         }
@@ -2054,6 +2047,16 @@ mod tests {
             FrameCommand::ThemeArt { art: ThemeArt::About, bounds, .. }
                 if *bounds == rect(202, 60, 236, 104)
         )));
+        assert!(ABOUT_CREDITS.starts_with("Credits\n\n"));
+        assert!(ABOUT_CREDITS.contains("dhewg (EWRONGCHAN) - application code, geckoloader code"));
+        assert!(ABOUT_CREDITS.contains("FreeType - the free TrueType/OpenType font renderer"));
+        assert!(!frame.commands.iter().any(|command| matches!(
+            command,
+            FrameCommand::ThemeArt {
+                art: ThemeArt::Button(_),
+                ..
+            }
+        )));
     }
 
     #[test]
@@ -2224,7 +2227,7 @@ mod tests {
 
     #[test]
     fn wrapped_text_can_select_a_clamped_scrolled_window() {
-        let lines = wrap_lines("ONE TWO THREE FOUR", 7);
+        let lines = crate::text_layout::wrap_lines("ONE TWO THREE FOUR", 7);
         assert_eq!(lines, vec!["ONE TWO", "THREE", "FOUR"]);
         assert_eq!(wrapped_line_window(&lines, 2, 99), &["THREE", "FOUR"]);
 

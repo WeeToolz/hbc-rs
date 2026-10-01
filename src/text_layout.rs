@@ -34,3 +34,32 @@ pub fn wrap_lines(value: &str, max_chars: usize) -> Vec<String> {
     }
     lines
 }
+
+/// Wrap text while preserving explicit paragraph breaks, including blank lines.
+pub fn wrap_memo_lines(value: &str, max_chars: usize) -> Vec<String> {
+    if max_chars == 0 {
+        return Vec::new();
+    }
+    let mut lines = Vec::new();
+    for paragraph in value.split('\n') {
+        if paragraph.trim().is_empty() {
+            lines.push(String::new());
+        } else {
+            lines.extend(wrap_lines(paragraph, max_chars));
+        }
+    }
+    lines
+}
+
+#[cfg(test)]
+mod tests {
+    use super::wrap_memo_lines;
+
+    #[test]
+    fn memo_wrapping_keeps_paragraph_gaps() {
+        assert_eq!(
+            wrap_memo_lines("First paragraph\n\nSecond paragraph", 40),
+            ["First paragraph", "", "Second paragraph",]
+        );
+    }
+}

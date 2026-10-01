@@ -113,6 +113,9 @@ const MENU_ITEMS_WITH_BOOTMII: usize = 5;
 const DEFAULT_BROWSER_ROWS: usize = 5;
 pub const DETAIL_DESCRIPTION_LINE_WIDTH: usize = 76;
 pub const DETAIL_DESCRIPTION_VISIBLE_LINES: usize = 20;
+pub const ABOUT_MEMO_LINE_WIDTH: usize = 76;
+pub const ABOUT_MEMO_VISIBLE_LINES: usize = 20;
+pub const ABOUT_CREDITS: &str = "Credits\n\nThis port is written in Rust and uses libogc-rs for Wii platform support.\n\nThe following credits are from the original C Homebrew Channel:\n\nThe Homebrew Channel was made possible by the following people:\n\ndhewg (EWRONGCHAN) - application code, geckoloader code\nblasty (ESTONED) - application code\nmarcan (EFAILURE) - reload stub, banner, installer, packaging\nbushing (EWANTPONY) - socket code, loader code\nsegher (EBUGFOUND) - nandloader stub code\nsouLLy (ENOTHERE) - banner graphics\ndrmr (EMORECOWBELL) - banner audio, channel graphics\nmha (E404) - update server and hosting\n\nThe original C HBC used devkitPPC and libogc, by shagkur, WinterMute, and everyone else who contributed.\n\nThanks to all the beta testers\n\nKind regards to the following people too:\n\nsepp256 - dropped some good GX hints\nchishm, svpe, rodries, hermes - libfat port\nalien - some graphics\njodi - the lulz\n\nThe following library credits are from the original C HBC:\n\nwiiuse - para's Wiimote library, then integrated with libogc\nlibpng - the official PNG library\nMini-XML - small and efficient XML parsing library\nFreeType - the free TrueType/OpenType font renderer\n";
 
 /// Number of app columns and rows shown by the browser.
 ///
@@ -182,6 +185,8 @@ pub struct AppController {
     detail_focus: usize,
     detail_description_scroll: usize,
     detail_description_max_scroll: usize,
+    about_scroll: usize,
+    about_scroll_ticks: usize,
     detail_scroll_app: Option<String>,
     detail_scroll_pixel_remainder: i16,
     memo_drag: MemoDrag,
@@ -286,7 +291,26 @@ impl AppController {
         match self.screen {
             Screen::AppDetails => self.scroll_detail_by_pixels(pixels),
             Screen::Notice => self.scroll_notice_by_pixels(pixels),
+            Screen::About => {}
             _ => {}
+        }
+    }
+
+    pub fn about_scroll(&self) -> usize {
+        self.about_scroll
+    }
+
+    /// Match the C About memo's delayed, slow upward crawl.
+    pub fn tick_about_scroll(&mut self) {
+        if self.screen != Screen::About {
+            return;
+        }
+        self.about_scroll_ticks = self.about_scroll_ticks.saturating_add(1);
+        if self.about_scroll_ticks > 120 && self.about_scroll_ticks % 3 == 0 {
+            let max = crate::text_layout::wrap_memo_lines(ABOUT_CREDITS, ABOUT_MEMO_LINE_WIDTH)
+                .len()
+                .saturating_sub(ABOUT_MEMO_VISIBLE_LINES);
+            self.about_scroll = self.about_scroll.saturating_add(1).min(max);
         }
     }
 
@@ -582,6 +606,20 @@ impl AppController {
             Screen::About => match input {
                 Input::Back | Input::Confirm => {
                     self.screen = Screen::MainMenu;
+                    self.about_scroll = 0;
+                    self.about_scroll_ticks = 0;
+                    Action::None
+                }
+                Input::Up => {
+                    self.about_scroll = self.about_scroll.saturating_sub(1);
+                    Action::None
+                }
+                Input::Down => {
+                    let max =
+                        crate::text_layout::wrap_memo_lines(ABOUT_CREDITS, ABOUT_MEMO_LINE_WIDTH)
+                            .len()
+                            .saturating_sub(ABOUT_MEMO_VISIBLE_LINES);
+                    self.about_scroll = self.about_scroll.saturating_add(1).min(max);
                     Action::None
                 }
                 _ => Action::None,
@@ -1037,6 +1075,27 @@ mod tests {
                 ..AppMetadata::default()
             }),
         }
+    }
+
+    #[test]
+    fn about_credits_scroll_after_delay_and_clamp_at_end() {
+        let mut controller = AppController::new();
+        controller.screen = Screen::About;
+        for _ in 0..120 {
+            controller.tick_about_scroll();
+        }
+        assert_eq!(controller.about_scroll(), 0);
+        for _ in 0..3 {
+            controller.tick_about_scroll();
+        }
+        assert_eq!(controller.about_scroll(), 1);
+        for _ in 0..10_000 {
+            controller.tick_about_scroll();
+        }
+        let max = crate::text_layout::wrap_memo_lines(ABOUT_CREDITS, ABOUT_MEMO_LINE_WIDTH)
+            .len()
+            .saturating_sub(ABOUT_MEMO_VISIBLE_LINES);
+        assert_eq!(controller.about_scroll(), max);
     }
 
     #[test]

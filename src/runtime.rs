@@ -142,6 +142,7 @@ impl AppRuntime {
     /// applied twice when the platform reports it as both pressed and held.
     pub fn update(&mut self, frame: &InputFrame) -> Vec<Action> {
         self.controller.reconcile_catalog(&self.catalog);
+        self.controller.tick_about_scroll();
         self.controller
             .scroll_active_memo_by_stick(frame.stick_scroll_pixels);
         let mut actions = Vec::new();
