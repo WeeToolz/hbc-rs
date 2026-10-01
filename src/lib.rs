@@ -21,6 +21,8 @@ pub mod runtime;
 pub mod settings;
 pub mod text_layout;
 pub mod theme;
+#[cfg_attr(not(target_arch = "powerpc"), allow(dead_code))]
+mod title_path;
 pub mod wiiload;
 pub mod wiiload_zip;
 
