@@ -38,6 +38,10 @@ impl AppRuntime {
         self.controller.request_wiiload_zip_confirmation();
     }
 
+    pub fn set_wiiload_confirmation_text(&mut self, text: String) {
+        self.controller.set_wiiload_confirmation_text(text);
+    }
+
     pub fn show_wiiload_installing(&mut self) {
         self.controller.show_wiiload_installing();
     }

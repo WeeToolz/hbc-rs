@@ -83,6 +83,7 @@ pub enum PointerTarget {
     Detail(usize),
     DetailMemo,
     NoticeMemo,
+    WiiloadMemo,
     DeleteChoice { yes: bool },
     WiiloadChoice { yes: bool },
     Option(usize),
@@ -193,6 +194,10 @@ pub struct AppController {
     memo_drag_target: Option<PointerTarget>,
     delete_confirmation_yes: bool,
     wiiload_confirmation_yes: bool,
+    wiiload_confirmation_text: String,
+    wiiload_confirmation_scroll: usize,
+    wiiload_confirmation_max_scroll: usize,
+    wiiload_confirmation_scroll_pixel_remainder: i16,
     wiiload_install_progress: u8,
     notice: Option<String>,
     notice_scroll: usize,
@@ -233,7 +238,32 @@ impl AppController {
 
     pub fn request_wiiload_zip_confirmation(&mut self) {
         self.wiiload_confirmation_yes = false;
+        self.wiiload_confirmation_text = String::from("Extract the received ZIP file?");
+        self.wiiload_confirmation_scroll = 0;
+        self.wiiload_confirmation_max_scroll = 0;
+        self.wiiload_confirmation_scroll_pixel_remainder = 0;
         self.screen = Screen::WiiloadConfirm;
+    }
+
+    pub fn set_wiiload_confirmation_text(&mut self, text: String) {
+        self.wiiload_confirmation_text = text;
+        self.wiiload_confirmation_scroll = 0;
+        self.wiiload_confirmation_scroll_pixel_remainder = 0;
+        self.wiiload_confirmation_max_scroll = wrap_lines(&self.wiiload_confirmation_text, 74)
+            .len()
+            .saturating_sub(14);
+    }
+
+    pub fn wiiload_confirmation_text(&self) -> &str {
+        &self.wiiload_confirmation_text
+    }
+
+    pub fn wiiload_confirmation_scroll(&self) -> usize {
+        self.wiiload_confirmation_scroll
+    }
+
+    pub fn wiiload_confirmation_max_scroll(&self) -> usize {
+        self.wiiload_confirmation_max_scroll
     }
 
     pub fn wiiload_confirmation_yes(&self) -> bool {
@@ -292,6 +322,7 @@ impl AppController {
             Screen::AppDetails => self.scroll_detail_by_pixels(pixels),
             Screen::Notice => self.scroll_notice_by_pixels(pixels),
             Screen::About => {}
+            Screen::WiiloadConfirm => self.scroll_wiiload_confirmation_by_pixels(pixels),
             _ => {}
         }
     }
@@ -364,6 +395,24 @@ impl AppController {
         } else if lines < 0 {
             self.notice_scroll = self
                 .notice_scroll
+                .saturating_sub(lines.unsigned_abs() as usize);
+        }
+    }
+
+    fn scroll_wiiload_confirmation_by_pixels(&mut self, pixels: i16) {
+        self.wiiload_confirmation_scroll_pixel_remainder = self
+            .wiiload_confirmation_scroll_pixel_remainder
+            .saturating_add(pixels);
+        let lines = self.wiiload_confirmation_scroll_pixel_remainder / 9;
+        self.wiiload_confirmation_scroll_pixel_remainder %= 9;
+        if lines > 0 {
+            self.wiiload_confirmation_scroll = self
+                .wiiload_confirmation_scroll
+                .saturating_add(lines as usize)
+                .min(self.wiiload_confirmation_max_scroll);
+        } else if lines < 0 {
+            self.wiiload_confirmation_scroll = self
+                .wiiload_confirmation_scroll
                 .saturating_sub(lines.unsigned_abs() as usize);
         }
     }
@@ -582,6 +631,18 @@ impl AppController {
                     self.wiiload_confirmation_yes = !self.wiiload_confirmation_yes;
                     Action::None
                 }
+                Input::Up => {
+                    self.wiiload_confirmation_scroll =
+                        self.wiiload_confirmation_scroll.saturating_sub(1);
+                    Action::None
+                }
+                Input::Down => {
+                    self.wiiload_confirmation_scroll = self
+                        .wiiload_confirmation_scroll
+                        .saturating_add(1)
+                        .min(self.wiiload_confirmation_max_scroll);
+                    Action::None
+                }
                 Input::Back => {
                     self.screen = Screen::Browser;
                     Action::RejectWiiloadZip
@@ -723,6 +784,7 @@ impl AppController {
                     Action::None
                 }
             }
+            (Screen::WiiloadConfirm, PointerTarget::WiiloadMemo) => Action::None,
             (Screen::WiiloadInstalling | Screen::WiiloadReceiving, _) => Action::None,
             (Screen::Options, PointerTarget::Option(index)) if index < 8 => {
                 self.options_focus = index;
@@ -754,6 +816,9 @@ impl AppController {
                 (Screen::Notice, Some(PointerTarget::NoticeMemo)) => {
                     Some(PointerTarget::NoticeMemo)
                 }
+                (Screen::WiiloadConfirm, Some(PointerTarget::WiiloadMemo)) => {
+                    Some(PointerTarget::WiiloadMemo)
+                }
                 _ => None,
             };
         }
@@ -762,16 +827,20 @@ impl AppController {
             self.screen == Screen::AppDetails && drag_target == Some(PointerTarget::DetailMemo);
         let notice_memo =
             self.screen == Screen::Notice && drag_target == Some(PointerTarget::NoticeMemo);
-        let can_scroll = detail_memo || notice_memo;
+        let wiiload_memo = self.screen == Screen::WiiloadConfirm
+            && drag_target == Some(PointerTarget::WiiloadMemo);
+        let can_scroll = detail_memo || notice_memo || wiiload_memo;
         let scroll_pixels = self.memo_drag.update(
-            can_scroll && pressed && (detail_memo || notice_memo),
+            can_scroll && pressed,
             pointer_y,
-            (detail_memo || notice_memo || self.memo_drag.active) && held,
+            (detail_memo || notice_memo || wiiload_memo || self.memo_drag.active) && held,
         );
         if detail_memo && scroll_pixels != 0 {
             self.scroll_detail_by_pixels(scroll_pixels);
         } else if (notice_memo || self.screen == Screen::Notice) && scroll_pixels != 0 {
             self.scroll_notice_by_pixels(scroll_pixels);
+        } else if wiiload_memo && scroll_pixels != 0 {
+            self.scroll_wiiload_confirmation_by_pixels(scroll_pixels);
         }
         if !held && !pressed {
             self.memo_drag_target = None;
@@ -1396,6 +1465,57 @@ mod tests {
             Action::RejectWiiloadZip
         );
         assert_eq!(controller.screen, Screen::MainMenu);
+    }
+
+    #[test]
+    fn long_received_zip_confirmation_scrolls_without_changing_yes_no_actions() {
+        let mut controller = AppController::new();
+        controller.request_wiiload_zip_confirmation();
+        controller.set_wiiload_confirmation_text("ZIP details ".repeat(120));
+        let max_scroll = controller.wiiload_confirmation_max_scroll();
+        assert!(max_scroll > 0);
+        assert_eq!(controller.wiiload_confirmation_scroll(), 0);
+
+        assert_eq!(controller.handle(Input::Down, &[]), Action::None);
+        assert_eq!(controller.wiiload_confirmation_scroll(), 1);
+        assert_eq!(controller.handle(Input::Up, &[]), Action::None);
+        assert_eq!(controller.wiiload_confirmation_scroll(), 0);
+        for _ in 0..max_scroll.saturating_add(2) {
+            controller.handle(Input::Down, &[]);
+        }
+        assert_eq!(controller.wiiload_confirmation_scroll(), max_scroll);
+
+        assert_eq!(controller.handle(Input::Right, &[]), Action::None);
+        assert!(controller.wiiload_confirmation_yes());
+        assert_eq!(controller.handle(Input::Left, &[]), Action::None);
+        assert!(!controller.wiiload_confirmation_yes());
+        assert_eq!(controller.handle(Input::Right, &[]), Action::None);
+        assert!(controller.wiiload_confirmation_yes());
+        assert_eq!(
+            controller.handle(Input::Confirm, &[]),
+            Action::AcceptWiiloadZip
+        );
+    }
+
+    #[test]
+    fn notice_and_received_zip_memos_keep_separate_pixel_remainders() {
+        let mut controller = AppController::new();
+        controller.show_notice("Long notice ".repeat(120));
+        controller.scroll_active_memo_by_stick(8);
+        assert_eq!(controller.notice_scroll(), 0);
+        assert_eq!(controller.notice_scroll_pixel_remainder, 8);
+
+        controller.request_wiiload_zip_confirmation();
+        controller.set_wiiload_confirmation_text("Long ZIP details ".repeat(120));
+        controller.scroll_active_memo_by_stick(1);
+        assert_eq!(controller.wiiload_confirmation_scroll(), 0);
+        assert_eq!(controller.wiiload_confirmation_scroll_pixel_remainder, 1);
+        assert_eq!(controller.notice_scroll_pixel_remainder, 8);
+
+        controller.scroll_active_memo_by_stick(8);
+        assert_eq!(controller.wiiload_confirmation_scroll(), 1);
+        assert_eq!(controller.wiiload_confirmation_scroll_pixel_remainder, 0);
+        assert_eq!(controller.notice_scroll_pixel_remainder, 8);
     }
 
     #[test]

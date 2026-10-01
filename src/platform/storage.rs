@@ -121,6 +121,16 @@ impl FatStorage {
         self.prefix
     }
 
+    /// Check whether a validated path is an existing directory on this volume.
+    pub fn path_is_directory(&self, path: &str) -> Result<bool, StorageError> {
+        let full = self.full_path(path)?;
+        match ogc_fat::stat(&full) {
+            Ok(metadata) => Ok(metadata.is_directory),
+            Err(ogc_fat::FatError::NotFound) => Ok(false),
+            Err(error) => Err(StorageError::Fat(error)),
+        }
+    }
+
     /// Create a directory, accepting an existing directory at the same path.
     pub fn ensure_directory(&self, path: &str) -> Result<(), StorageError> {
         let full = self.full_path(path)?;

@@ -1,5 +1,6 @@
 //! HBC's system-language selection and UI string catalog.
 use crate::metadata::ThemeMetadata;
+use alloc::{format, string::String};
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum Language {
@@ -45,6 +46,12 @@ impl Language {
             (Dutch, "About") => "Info",
             (Italian, "About") => "Informazioni",
             (Japanese, "About") => "このアプリケーションについて",
+            (Spanish, "Confirmation") => "Confirmación",
+            (French, "Confirmation") => "Confirmation",
+            (German, "Confirmation") => "Bestätigung",
+            (Dutch, "Confirmation") => "Bevestiging",
+            (Italian, "Confirmation") => "Conferma",
+            (Japanese, "Confirmation") => "確認",
             (Spanish, "Launch BootMii") => "Lanzar BootMii",
             (French, "Launch BootMii") => "Lancer BootMii",
             (German, "Launch BootMii") => "BootMii starten",
@@ -593,8 +600,68 @@ impl Language {
             (Dutch, "Could not stop storage. Application launch stopped.") => "Opslag kan niet worden gestopt. De applicatie wordt niet gestart.",
             (Italian, "Could not stop storage. Application launch stopped.") => "Impossibile arrestare il dispositivo. Avvio dell’applicazione annullato.",
             (Japanese, "Could not stop storage. Application launch stopped.") => "ストレージを停止できません。アプリの起動を中止しました。",
+            (Spanish, "Extract the received ZIP file?") => "¿Extraer el archivo ZIP recibido?",
+            (French, "Extract the received ZIP file?") => "Extraire le fichier ZIP reçu ?",
+            (German, "Extract the received ZIP file?") => "Empfangene ZIP-Datei entpacken?",
+            (Dutch, "Extract the received ZIP file?") => "Het ontvangen ZIP-bestand uitpakken?",
+            (Italian, "Extract the received ZIP file?") => "Estrarre il file ZIP ricevuto?",
+            (Japanese, "Extract the received ZIP file?") => "受信したZIPファイルを展開しますか？",
+            (Spanish, "of free space are required.") => "de espacio libre son necesarios.",
+            (French, "of free space are required.") => "d'espace libre sont nécessaires.",
+            (German, "of free space are required.") => "freier Speicherplatz wird benötigt.",
+            (Dutch, "of free space are required.") => "vrije ruimte is vereist.",
+            (Italian, "of free space are required.") => "di spazio libero sono necessari.",
+            (Japanese, "of free space are required.") => "の空き容量が必要です。",
+            (Spanish, "WARNING: Files in '%s' will be overwritten") => {
+                "AVISO: Se sobrescribirán los archivos de '%s'."
+            }
+            (French, "WARNING: Files in '%s' will be overwritten") => {
+                "ATTENTION : les fichiers de '%s' seront remplacés."
+            }
+            (German, "WARNING: Files in '%s' will be overwritten") => {
+                "WARNUNG: Dateien in '%s' werden überschrieben."
+            }
+            (Dutch, "WARNING: Files in '%s' will be overwritten") => {
+                "WAARSCHUWING: Bestanden in '%s' worden overschreven."
+            }
+            (Italian, "WARNING: Files in '%s' will be overwritten") => {
+                "ATTENZIONE: i file in '%s' verranno sovrascritti."
+            }
+            (Japanese, "WARNING: Files in '%s' will be overwritten") => {
+                "警告: '%s' 内のファイルは上書きされます。"
+            }
             _ => source,
         }
+    }
+
+    /// Build the received-app ZIP confirmation body with localized fixed text.
+    pub fn received_zip_confirmation(
+        self,
+        directory: &str,
+        required_bytes: u64,
+        overwrite: bool,
+    ) -> String {
+        let size = if required_bytes / 1024 > 999 {
+            let hundredths = required_bytes.saturating_mul(100) / (1024 * 1024);
+            format!("{}.{:02} MB", hundredths / 100, hundredths % 100)
+        } else {
+            format!("{} KB", required_bytes / 1024)
+        };
+        let mut message = format!(
+            "{}\n{} {}",
+            self.text("Extract the received ZIP file?"),
+            size,
+            self.text("of free space are required.")
+        );
+        if overwrite {
+            message.push_str("\n\n");
+            message.push_str(
+                &self
+                    .text("WARNING: Files in '%s' will be overwritten")
+                    .replace("%s", directory),
+            );
+        }
+        message
     }
 }
 
@@ -647,5 +714,16 @@ mod tests {
         assert_eq!(Language::German.text("Name"), "Name");
         let dynamic_message = String::from("unmapped message");
         assert_eq!(Language::French.text(&dynamic_message), dynamic_message);
+    }
+
+    #[test]
+    fn received_zip_confirmation_includes_space_and_overwrite_context() {
+        let plain = Language::English.received_zip_confirmation("demo", 2048, false);
+        assert!(plain.contains("2 KB of free space"));
+        assert!(!plain.contains("overwritten"));
+        let overwrite = Language::German.received_zip_confirmation("demo", 1024 * 1024, true);
+        assert!(overwrite.contains("1.00 MB"));
+        assert!(overwrite.contains("'demo'"));
+        assert!(overwrite.contains("überschrieben"));
     }
 }

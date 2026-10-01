@@ -140,7 +140,32 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 if let Some(payload) = hbc_rs::platform::wiiload::take_payload() {
                     if payload.data.starts_with(b"PK\x03\x04") {
                         match hbc_rs::wiiload_zip::classify_received_zip(&payload.data) {
-                            Ok(_) => {
+                            Ok(hbc_rs::wiiload_zip::WiiloadZipClassification::App {
+                                directory,
+                                extraction,
+                                ..
+                            }) => match startup.received_zip_destination_exists(&directory) {
+                                Ok(overwrite) => {
+                                    let language = hbc_rs::localization::Language::from_console(
+                                        ogc_conf::get_language(),
+                                        startup.runtime().theme(),
+                                    );
+                                    let confirmation = language.received_zip_confirmation(
+                                        &directory,
+                                        extraction.total_bytes(),
+                                        overwrite,
+                                    );
+                                    pending_zip = Some(payload.data);
+                                    startup.runtime_mut().request_wiiload_zip_confirmation();
+                                    startup
+                                        .runtime_mut()
+                                        .set_wiiload_confirmation_text(confirmation);
+                                }
+                                Err(_) => startup
+                                    .runtime_mut()
+                                    .show_notice("Could not check the target storage folder."),
+                            },
+                            Ok(hbc_rs::wiiload_zip::WiiloadZipClassification::Theme { .. }) => {
                                 pending_zip = Some(payload.data);
                                 startup.runtime_mut().request_wiiload_zip_confirmation();
                             }

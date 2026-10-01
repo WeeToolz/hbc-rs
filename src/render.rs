@@ -1391,20 +1391,33 @@ pub fn browser_frame_with_language(
                 frame.hit_target(PointerTarget::DeleteChoice { yes: *yes }, bounds);
             }
         } else if controller.screen == Screen::WiiloadConfirm {
+            frame.fill(rect(0, 0, 640, 480), MODAL_SHADE);
+            frame.theme_art(rect(60, 44, 520, 360), ThemeArt::Dialog, false);
             frame.theme_art(
-                rect(188, 68, 32, 32),
+                rect(124, 70, 32, 32),
                 ThemeArt::DialogIcon(DialogIcon::Confirm),
                 false,
             );
             frame.set_text_style(theme_text_style(theme, "dlgtitle", text_color));
-            frame.text(
-                190.0,
-                100.0,
-                tr("Install received ZIP? Existing files may be replaced."),
+            frame.text(164.0, 76.0, tr("Confirmation"), 1.0, text_color, 36);
+            frame.set_text_style(theme_text_style(theme, "memo", text_color));
+            frame.text_wrapped_scrolled(
+                92.0,
+                148.0,
+                controller.wiiload_confirmation_text(),
                 1.0,
                 text_color,
-                54,
+                74,
+                14,
+                controller.wiiload_confirmation_scroll(),
             );
+            draw_memo_scroll_arrows(
+                &mut frame,
+                controller.wiiload_confirmation_scroll(),
+                controller.wiiload_confirmation_max_scroll(),
+                304.0,
+            );
+            frame.hit_target(PointerTarget::WiiloadMemo, rect(88, 144, 464, 168));
             for (index, yes) in [true, false].iter().enumerate() {
                 let bounds = frame.button(
                     100.0 + index as f32 * 240.0,

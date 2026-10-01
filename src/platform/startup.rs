@@ -403,6 +403,15 @@ impl WiiStartup {
         self.volume
     }
 
+    /// Check whether a received app ZIP would replace an existing app folder.
+    pub fn received_zip_destination_exists(&self, directory: &str) -> Result<bool, StartupError> {
+        let storage = self.storage.as_ref().ok_or(StartupError::NoStorage)?;
+        let path = alloc::format!("apps/{directory}");
+        storage
+            .path_is_directory(&path)
+            .map_err(StartupError::Storage)
+    }
+
     pub fn logical_width(&self) -> u16 {
         if self.widescreen {
             crate::render::WIDE_LOGICAL_WIDTH
