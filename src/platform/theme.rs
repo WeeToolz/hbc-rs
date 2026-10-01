@@ -548,7 +548,9 @@ fn decode_fixed_size_image(
     width: u32,
     height: u32,
 ) -> Option<crate::png::GxRgba8Texture> {
-    let image = crate::png::decode_png(
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("PNG DECODE START");
+    let image = match crate::png::decode_png(
         data,
         crate::png::PngLimits {
             max_width: width,
@@ -556,14 +558,39 @@ fn decode_fixed_size_image(
             max_pixels: (width * height) as usize,
             max_input_bytes: crate::theme::MAX_THEME_ARCHIVE_BYTES,
         },
-    )
-    .ok()?;
+    ) {
+        Ok(image) => image,
+        Err(_) => {
+            #[cfg(feature = "startup-diagnostics")]
+            super::diagnostics::mark("PNG DECODE FAILED");
+            return None;
+        }
+    };
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("PNG DECODE DONE");
     if image.width != width || image.height != height {
+        #[cfg(feature = "startup-diagnostics")]
+        super::diagnostics::mark("PNG SIZE MISMATCH");
         return None;
     }
-    let texture = crate::png::GxRgba8Texture::from_image(&image).ok()?;
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("PNG GX TILE START");
+    let texture = match crate::png::GxRgba8Texture::from_image(&image) {
+        Ok(texture) => texture,
+        Err(_) => {
+            #[cfg(feature = "startup-diagnostics")]
+            super::diagnostics::mark("PNG GX TILE FAILED");
+            return None;
+        }
+    };
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("PNG GX TILE DONE");
     if let Ok(byte_len) = u32::try_from(texture.len()) {
+        #[cfg(feature = "startup-diagnostics")]
+        super::diagnostics::mark("PNG CACHE FLUSH START");
         unsafe { ogc_cache::dc_flush_range(texture.as_ptr().cast(), byte_len) };
+        #[cfg(feature = "startup-diagnostics")]
+        super::diagnostics::mark("PNG CACHE FLUSH DONE");
         Some(texture)
     } else {
         None
