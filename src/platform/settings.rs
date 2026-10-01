@@ -4,14 +4,14 @@ use alloc::ffi::CString;
 
 use crate::metadata::UserSettings;
 use crate::settings::{
-    MAX_SETTINGS_XML_SIZE, SETTINGS_PATH, decode_settings_xml, encode_settings_xml,
+    decode_settings_xml, encode_settings_xml, MAX_SETTINGS_XML_SIZE, SETTINGS_PATH,
 };
 
 use ogc_es_sys as es;
 use ogc_filesystem as isfs;
 
 use crate::title_path::{
-    CachedTitleDataDirectory, TITLE_DATA_DIR_BUFFER_LEN, TitleDataDirectory, TitlePathError,
+    CachedTitleDataDirectory, TitleDataDirectory, TitlePathError, TITLE_DATA_DIR_BUFFER_LEN,
 };
 
 static TITLE_DIR_CACHE: CachedTitleDataDirectory = CachedTitleDataDirectory::new();
@@ -32,15 +32,20 @@ pub enum SettingsIoError {
     InvalidPath,
     InvalidFileSize,
     Codec,
+    TitlePathBusy,
 }
 
 fn resolve_title_data_directory() -> Result<TitleDataDirectory, TitlePathError> {
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("ES TITLE ID REQUEST");
     let mut title_id = AlignedTitleId(0);
     let rc = unsafe { es::get_title_id(&mut title_id.0) };
     if rc < 0 {
         return Err(TitlePathError::Es(rc));
     }
     let mut data_dir = AlignedDataDir([0; TITLE_DATA_DIR_BUFFER_LEN]);
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("ES DATA DIR REQUEST");
     let rc = unsafe { es::get_data_dir(title_id.0, data_dir.0.as_mut_ptr()) };
     if rc < 0 {
         return Err(TitlePathError::Es(rc));
@@ -55,15 +60,22 @@ fn title_data_directory() -> Result<TitleDataDirectory, SettingsIoError> {
 }
 
 pub(crate) fn title_data_file_path(name: &str) -> Result<CString, SettingsIoError> {
-    title_data_directory()?
-        .file_path(name)
-        .map_err(map_title_path_error)
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("TITLE DIR CACHE READ");
+    let directory = title_data_directory()?;
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("TITLE FILE PATH BUILD");
+    let path = directory.file_path(name).map_err(map_title_path_error)?;
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("TITLE FILE PATH READY");
+    Ok(path)
 }
 
 fn map_title_path_error(error: TitlePathError) -> SettingsIoError {
     match error {
         TitlePathError::Es(rc) => SettingsIoError::Es(rc),
         TitlePathError::InvalidPath => SettingsIoError::InvalidPath,
+        TitlePathError::Busy => SettingsIoError::TitlePathBusy,
     }
 }
 

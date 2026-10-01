@@ -17,6 +17,7 @@ const INVALID_DIRECTORY_ERROR: i32 = i32::MIN;
 pub(crate) enum TitlePathError {
     Es(i32),
     InvalidPath,
+    Busy,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -84,7 +85,9 @@ impl TitleDataDirectoryCache {
                         Err(TitlePathError::Es(error))
                     };
                 }
-                INITIALIZING => core::hint::spin_loop(),
+                // The Wii has one CPU. Spinning here can prevent the thread
+                // that owns the lookup from ever finishing its IOS request.
+                INITIALIZING => return Err(TitlePathError::Busy),
                 UNINITIALIZED => {
                     if self
                         .state
@@ -111,9 +114,13 @@ impl TitleDataDirectoryCache {
                             self.error.store(INVALID_DIRECTORY_ERROR, Ordering::Relaxed);
                             self.state.store(FAILED, Ordering::Release);
                         }
+                        Err(TitlePathError::Busy) => {
+                            self.state.store(UNINITIALIZED, Ordering::Release);
+                            return Err(TitlePathError::Busy);
+                        }
                     }
                 }
-                _ => unreachable!(),
+                _ => return Err(TitlePathError::InvalidPath),
             }
         }
     }
@@ -187,6 +194,21 @@ mod tests {
             );
         }
         assert_eq!(calls.get(), 1);
+    }
+
+    #[test]
+    fn overlapping_lookup_returns_busy_without_spinning_or_poisoning_the_cache() {
+        let cache = CachedTitleDataDirectory::new();
+        let resolved = cache
+            .get_or_init(|| {
+                assert_eq!(
+                    cache.get_or_init(|| unreachable!()),
+                    Err(TitlePathError::Busy)
+                );
+                Ok(title_data_directory())
+            })
+            .unwrap();
+        assert_eq!(cache.get_or_init(|| unreachable!()), Ok(resolved));
     }
 
     #[test]
