@@ -3,7 +3,7 @@
 //! The FAT mount and initial catalog scan run on a worker. The app thread owns
 //! the mounted adapter after the worker returns and performs later file access.
 
-use alloc::{format, string::String, vec::Vec};
+use alloc::{collections::BTreeSet, format, string::String, vec::Vec};
 use core::{
     ffi::c_void,
     mem::MaybeUninit,
@@ -79,19 +79,33 @@ struct ZipInstallRequest {
     storage: FatStorage,
     bytes: Vec<u8>,
     directory: alloc::string::String,
+    kind: crate::wiiload_zip::WiiloadZipKind,
     plan: crate::management::ExtractionPlan,
 }
 
 struct ZipInstallResult {
     storage: FatStorage,
     catalog: Result<Vec<AppEntry>, ZipInstallError>,
+    cleanup_error: Option<StorageError>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ZipInstallError {
     Archive(crate::archive::ZipError),
     Storage(StorageError),
+    StorageCleanup {
+        operation: StorageError,
+        cleanup: StorageError,
+    },
+    StorageRollback {
+        operation: StorageError,
+        rollback: StorageError,
+    },
     CatalogRefresh(crate::catalog::ScanError<StorageError>),
+    CatalogRollback {
+        operation: crate::catalog::ScanError<StorageError>,
+        rollback: StorageError,
+    },
 }
 
 impl ZipInstallError {
@@ -103,8 +117,26 @@ impl ZipInstallError {
             Self::Storage(error) => {
                 format!("Could not write the received app files: {error:?}.")
             }
+            Self::StorageCleanup {
+                operation,
+                cleanup,
+            } => format!(
+                "Could not write the received app files ({operation:?}); cleanup also failed ({cleanup:?})."
+            ),
+            Self::StorageRollback {
+                operation,
+                rollback,
+            } => format!(
+                "Could not install the app ({operation:?}) or restore its previous files ({rollback:?})."
+            ),
             Self::CatalogRefresh(error) => format!(
                 "The app files were written, but HBC could not refresh its app list: {error:?}."
+            ),
+            Self::CatalogRollback {
+                operation,
+                rollback,
+            } => format!(
+                "Could not refresh HBC's app list ({operation:?}) or restore the previous app ({rollback:?})."
             ),
         }
     }
@@ -127,7 +159,254 @@ impl ZipInstallJoinError {
 
 pub struct ZipInstallCompletion {
     pub operation: Result<(), ZipInstallError>,
+    pub cleanup_error: Option<StorageError>,
     pub worker_join: Result<(), ZipInstallJoinError>,
+}
+
+struct InstalledApp {
+    catalog: Vec<AppEntry>,
+    cleanup_error: Option<StorageError>,
+}
+
+fn fail_stage_install(
+    storage: &FatStorage,
+    stage: &str,
+    operation: StorageError,
+) -> ZipInstallError {
+    match storage.path_exists(stage) {
+        Ok(true) => match storage.remove_directory_tree(stage) {
+            Ok(()) => ZipInstallError::Storage(operation),
+            Err(cleanup) => ZipInstallError::StorageCleanup { operation, cleanup },
+        },
+        Ok(false) => ZipInstallError::Storage(operation),
+        Err(cleanup) => ZipInstallError::StorageCleanup { operation, cleanup },
+    }
+}
+
+fn install_received_app(
+    storage: &mut FatStorage,
+    bytes: &[u8],
+    directory: &str,
+    kind: crate::wiiload_zip::WiiloadZipKind,
+    plan: &crate::management::ExtractionPlan,
+    archive: &crate::archive::ZipArchive,
+) -> Result<InstalledApp, ZipInstallError> {
+    storage
+        .ensure_directory("apps")
+        .map_err(ZipInstallError::Storage)?;
+    let target = alloc::format!("apps/{directory}");
+    let stage = alloc::format!("apps/.{directory}.hbc-stage");
+    let backup = alloc::format!("apps/.{directory}.hbc-backup");
+
+    recover_app_install(storage, &target, &stage, &backup, false)?;
+    storage
+        .ensure_directory(&stage)
+        .map_err(ZipInstallError::Storage)?;
+    if let Err(operation) =
+        storage.extract_archive_with_progress(bytes, archive, plan, &stage, |completed, total| {
+            ZIP_INSTALL_TOTAL_BYTES.store(total.min(u32::MAX as u64) as u32, Ordering::Relaxed);
+            ZIP_INSTALL_PROGRESS_BYTES
+                .store(completed.min(u32::MAX as u64) as u32, Ordering::Release);
+        })
+    {
+        return match storage.remove_directory_tree(&stage) {
+            Ok(()) => Err(ZipInstallError::Storage(operation)),
+            Err(cleanup) => Err(ZipInstallError::StorageCleanup { operation, cleanup }),
+        };
+    }
+
+    let executable = match kind {
+        crate::wiiload_zip::WiiloadZipKind::Elf => "boot.elf",
+        crate::wiiload_zip::WiiloadZipKind::Dol => "boot.dol",
+        crate::wiiload_zip::WiiloadZipKind::Theme => "theme.zip",
+    };
+    let executable_path = alloc::format!("{stage}/{executable}");
+    let executable_size = match storage.file_size(&executable_path) {
+        Ok(size) => size,
+        Err(operation) => return Err(fail_stage_install(storage, &stage, operation)),
+    }
+    .filter(|size| {
+        *size > 0
+            && *size <= EXECUTABLE_SIZE_LIMIT
+            && (kind != crate::wiiload_zip::WiiloadZipKind::Theme || *size <= THEME_SIZE_LIMIT)
+    });
+    if executable_size.is_none() {
+        return Err(fail_stage_install(
+            storage,
+            &stage,
+            StorageError::InvalidPath,
+        ));
+    }
+
+    let had_previous = match storage.path_exists(&target) {
+        Ok(exists) => exists,
+        Err(operation) => return Err(fail_stage_install(storage, &stage, operation)),
+    };
+    if had_previous {
+        let target_is_directory = match storage.path_is_directory(&target) {
+            Ok(is_directory) => is_directory,
+            Err(operation) => return Err(fail_stage_install(storage, &stage, operation)),
+        };
+        if !target_is_directory {
+            return Err(fail_stage_install(
+                storage,
+                &stage,
+                StorageError::InvalidPath,
+            ));
+        }
+    }
+
+    match crate::management::commit_staged_directory(
+        had_previous,
+        &target,
+        &stage,
+        &backup,
+        |old, new| storage.rename_path(old, new),
+    ) {
+        Ok(()) => {}
+        Err(crate::management::DirectoryCommitError::Install(operation)) => {
+            return Err(fail_stage_install(storage, &stage, operation));
+        }
+        Err(crate::management::DirectoryCommitError::Restore { install, restore }) => {
+            return Err(ZipInstallError::StorageRollback {
+                operation: install,
+                rollback: restore,
+            });
+        }
+    }
+
+    let catalog = match scan_apps(storage, "apps", EXECUTABLE_SIZE_LIMIT, THEME_SIZE_LIMIT) {
+        Ok(catalog) => catalog,
+        Err(operation) => {
+            let rollback = crate::management::rollback_staged_directory(
+                had_previous,
+                &target,
+                &stage,
+                &backup,
+                |old, new| storage.rename_path(old, new),
+            )
+            .and_then(|()| storage.remove_directory_tree(&stage));
+            return match rollback {
+                Ok(()) => Err(ZipInstallError::CatalogRefresh(operation)),
+                Err(rollback) => Err(ZipInstallError::CatalogRollback {
+                    operation,
+                    rollback,
+                }),
+            };
+        }
+    };
+
+    let cleanup_error = if had_previous {
+        storage.remove_directory_tree(&backup).err()
+    } else {
+        None
+    };
+    Ok(InstalledApp {
+        catalog,
+        cleanup_error,
+    })
+}
+
+fn recover_app_install(
+    storage: &mut FatStorage,
+    target: &str,
+    stage: &str,
+    backup: &str,
+    preserve_valid_backup: bool,
+) -> Result<(), ZipInstallError> {
+    let target_exists = storage
+        .path_exists(target)
+        .map_err(ZipInstallError::Storage)?;
+    let mut stage_exists = storage
+        .path_exists(stage)
+        .map_err(ZipInstallError::Storage)?;
+    let mut backup_exists = storage
+        .path_exists(backup)
+        .map_err(ZipInstallError::Storage)?;
+
+    if target_exists && stage_exists {
+        stage_exists = !storage
+            .repair_interrupted_directory_rename(target, stage)
+            .map_err(ZipInstallError::Storage)?;
+    }
+    if target_exists && backup_exists {
+        backup_exists = !storage
+            .repair_interrupted_directory_rename(target, backup)
+            .map_err(ZipInstallError::Storage)?;
+    }
+
+    if backup_exists && !target_exists {
+        storage
+            .rename_path(backup, target)
+            .map_err(ZipInstallError::Storage)?;
+    } else if backup_exists {
+        let catalog = scan_apps(storage, "apps", EXECUTABLE_SIZE_LIMIT, THEME_SIZE_LIMIT)
+            .map_err(ZipInstallError::CatalogRefresh)?;
+        if catalog
+            .iter()
+            .any(|entry| entry.directory == target.rsplit('/').next().unwrap_or(""))
+        {
+            if !preserve_valid_backup {
+                storage
+                    .remove_directory_tree(backup)
+                    .map_err(ZipInstallError::Storage)?;
+            }
+        } else {
+            if stage_exists {
+                storage
+                    .remove_directory_tree(stage)
+                    .map_err(ZipInstallError::Storage)?;
+            }
+            storage
+                .rename_path(target, stage)
+                .map_err(ZipInstallError::Storage)?;
+            storage
+                .rename_path(backup, target)
+                .map_err(ZipInstallError::Storage)?;
+            storage
+                .remove_directory_tree(stage)
+                .map_err(ZipInstallError::Storage)?;
+        }
+    }
+    if stage_exists
+        && storage
+            .path_exists(stage)
+            .map_err(ZipInstallError::Storage)?
+    {
+        storage
+            .remove_directory_tree(stage)
+            .map_err(ZipInstallError::Storage)?;
+    }
+    Ok(())
+}
+
+fn recover_app_install_artifacts(storage: &mut FatStorage) -> Result<(), ZipInstallError> {
+    let entries = match storage.read_dir("apps") {
+        Ok(entries) => entries,
+        Err(StorageError::Fat(ogc_fat::FatError::NotFound)) => return Ok(()),
+        Err(error) => return Err(ZipInstallError::Storage(error)),
+    };
+    let mut directories = BTreeSet::new();
+    for entry in entries.into_iter().filter(|entry| entry.is_directory) {
+        let Some(name) = entry.name.strip_prefix('.') else {
+            continue;
+        };
+        let directory = [".hbc-stage", ".hbc-backup"]
+            .into_iter()
+            .find_map(|suffix| name.strip_suffix(suffix));
+        if let Some(directory) = directory {
+            if crate::management::plan_app_deletion(directory).is_ok() {
+                directories.insert(String::from(directory));
+            }
+        }
+    }
+    for directory in directories {
+        let target = alloc::format!("apps/{directory}");
+        let stage = alloc::format!("apps/.{directory}.hbc-stage");
+        let backup = alloc::format!("apps/.{directory}.hbc-backup");
+        recover_app_install(storage, &target, &stage, &backup, true)?;
+    }
+    Ok(())
 }
 
 static ZIP_INSTALL_STATE: AtomicU8 = AtomicU8::new(ZIP_INSTALL_IDLE);
@@ -140,44 +419,30 @@ static mut ZIP_INSTALL_STACK: StorageScanStack = StorageScanStack([0; STORAGE_SC
 
 unsafe fn zip_install_entry(_argument: *mut c_void) -> *mut c_void {
     ZIP_INSTALL_STATE.store(ZIP_INSTALL_RUNNING, Ordering::Release);
-    let request = unsafe { addr_of_mut!(ZIP_INSTALL_REQUEST).read().assume_init_read() };
-    let mut storage = request.storage;
-    let catalog = crate::archive::ZipArchive::parse_limited(
-        &request.bytes,
+    let ZipInstallRequest {
+        mut storage,
+        bytes,
+        directory,
+        kind,
+        plan,
+    } = unsafe { addr_of_mut!(ZIP_INSTALL_REQUEST).read().assume_init_read() };
+    let result = crate::archive::ZipArchive::parse_limited(
+        &bytes,
         crate::wiiload_zip::WIILOAD_ZIP_MAX_ENTRIES,
     )
     .map_err(ZipInstallError::Archive)
     .and_then(|archive| {
-        storage
-            .ensure_directory("apps")
-            .map_err(ZipInstallError::Storage)?;
-        let destination = alloc::format!("apps/{}", request.directory);
-        storage
-            .ensure_directory(&destination)
-            .map_err(ZipInstallError::Storage)?;
-        storage
-            .extract_archive_with_progress(
-                &request.bytes,
-                &archive,
-                &request.plan,
-                &destination,
-                |completed, total| {
-                    ZIP_INSTALL_TOTAL_BYTES
-                        .store(total.min(u32::MAX as u64) as u32, Ordering::Relaxed);
-                    ZIP_INSTALL_PROGRESS_BYTES
-                        .store(completed.min(u32::MAX as u64) as u32, Ordering::Release);
-                },
-            )
-            .map_err(ZipInstallError::Storage)?;
-        scan_apps(
-            &mut storage,
-            "apps",
-            EXECUTABLE_SIZE_LIMIT,
-            THEME_SIZE_LIMIT,
-        )
-        .map_err(ZipInstallError::CatalogRefresh)
+        install_received_app(&mut storage, &bytes, &directory, kind, &plan, &archive)
     });
-    let result = ZipInstallResult { storage, catalog };
+    let (catalog, cleanup_error) = match result {
+        Ok(result) => (Ok(result.catalog), result.cleanup_error),
+        Err(error) => (Err(error), None),
+    };
+    let result = ZipInstallResult {
+        storage,
+        catalog,
+        cleanup_error,
+    };
     unsafe { addr_of_mut!(ZIP_INSTALL_RESULT).write(MaybeUninit::new(result)) };
     ZIP_INSTALL_STATE.store(ZIP_INSTALL_READY, Ordering::Release);
     null_mut()
@@ -287,7 +552,7 @@ impl WiiStartup {
             }
             WiiloadZipClassification::App {
                 directory,
-                kind: _,
+                kind,
                 extraction,
             } => {
                 if self.storage_scan_pending()
@@ -304,6 +569,7 @@ impl WiiStartup {
                     storage,
                     bytes,
                     directory,
+                    kind,
                     plan: extraction,
                 };
                 ZIP_INSTALL_PROGRESS_BYTES.store(0, Ordering::Relaxed);
@@ -367,6 +633,7 @@ impl WiiStartup {
         self.runtime.finish_wiiload_installing();
         Some(ZipInstallCompletion {
             operation,
+            cleanup_error: result.cleanup_error,
             worker_join,
         })
     }
@@ -969,6 +1236,9 @@ fn mount_preferred_volume(
         let Ok(mut storage) = FatStorage::mount(volume) else {
             continue;
         };
+        if recover_app_install_artifacts(&mut storage).is_err() {
+            return (Some(volume), Some(storage), Vec::new(), true);
+        }
         // A missing apps directory is a valid empty catalog. Keep the mounted
         // volume so later install, refresh, and delete actions can use it.
         let (catalog, scan_failed) = match scan_apps(

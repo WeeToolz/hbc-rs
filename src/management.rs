@@ -70,6 +70,50 @@ pub enum ManagementError {
     SizeOverflow,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum DirectoryCommitError<E> {
+    Install(E),
+    Restore { install: E, restore: E },
+}
+
+/// Move a fully prepared app folder into place while retaining the prior
+/// folder until the caller validates the refreshed catalog.
+pub fn commit_staged_directory<E>(
+    had_previous: bool,
+    target: &str,
+    stage: &str,
+    backup: &str,
+    mut rename: impl FnMut(&str, &str) -> Result<(), E>,
+) -> Result<(), DirectoryCommitError<E>> {
+    if had_previous {
+        rename(target, backup).map_err(DirectoryCommitError::Install)?;
+    }
+    if let Err(install) = rename(stage, target) {
+        if had_previous {
+            if let Err(restore) = rename(backup, target) {
+                return Err(DirectoryCommitError::Restore { install, restore });
+            }
+        }
+        return Err(DirectoryCommitError::Install(install));
+    }
+    Ok(())
+}
+
+/// Restore the old app folder after the new folder fails catalog validation.
+pub fn rollback_staged_directory<E>(
+    had_previous: bool,
+    target: &str,
+    stage: &str,
+    backup: &str,
+    mut rename: impl FnMut(&str, &str) -> Result<(), E>,
+) -> Result<(), E> {
+    rename(target, stage)?;
+    if had_previous {
+        rename(backup, target)?;
+    }
+    Ok(())
+}
+
 /// A validated immediate child of the HBC apps directory for recursive removal.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AppDeletionPlan {
@@ -384,5 +428,80 @@ mod tests {
         assert!(plan_app_deletion("../other").is_err());
         assert!(plan_app_deletion("demo/nested").is_err());
         assert!(plan_app_deletion(".hidden").is_err());
+    }
+
+    #[test]
+    fn staged_app_commit_restores_the_old_folder_when_install_rename_fails() {
+        let mut folders = BTreeMap::new();
+        folders.insert(String::from("apps/demo"), b"old executable".to_vec());
+        folders.insert(
+            String::from("apps/.demo.hbc-stage"),
+            b"new executable".to_vec(),
+        );
+        let mut rename_count = 0;
+        let result = commit_staged_directory(
+            true,
+            "apps/demo",
+            "apps/.demo.hbc-stage",
+            "apps/.demo.hbc-backup",
+            |old, new| {
+                rename_count += 1;
+                if rename_count == 2 {
+                    return Err(-8);
+                }
+                let bytes = folders.remove(old).ok_or(-6)?;
+                if folders.contains_key(new) {
+                    folders.insert(String::from(old), bytes);
+                    return Err(-9);
+                }
+                folders.insert(String::from(new), bytes);
+                Ok(())
+            },
+        );
+        assert_eq!(result, Err(DirectoryCommitError::Install(-8)));
+        assert_eq!(folders.get("apps/demo"), Some(&b"old executable".to_vec()));
+        assert_eq!(
+            folders.get("apps/.demo.hbc-stage"),
+            Some(&b"new executable".to_vec())
+        );
+        assert!(!folders.contains_key("apps/.demo.hbc-backup"));
+    }
+
+    #[test]
+    fn staged_app_commit_keeps_old_data_in_backup_if_restore_fails() {
+        let mut folders = BTreeMap::new();
+        folders.insert(String::from("apps/demo"), b"old executable".to_vec());
+        folders.insert(
+            String::from("apps/.demo.hbc-stage"),
+            b"new executable".to_vec(),
+        );
+        let mut rename_count = 0;
+        let result = commit_staged_directory(
+            true,
+            "apps/demo",
+            "apps/.demo.hbc-stage",
+            "apps/.demo.hbc-backup",
+            |old, new| {
+                rename_count += 1;
+                if rename_count >= 2 {
+                    return Err(-8);
+                }
+                let bytes = folders.remove(old).ok_or(-6)?;
+                folders.insert(String::from(new), bytes);
+                Ok(())
+            },
+        );
+        assert_eq!(
+            result,
+            Err(DirectoryCommitError::Restore {
+                install: -8,
+                restore: -8
+            })
+        );
+        assert!(!folders.contains_key("apps/demo"));
+        assert_eq!(
+            folders.get("apps/.demo.hbc-backup"),
+            Some(&b"old executable".to_vec())
+        );
     }
 }

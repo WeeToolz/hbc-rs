@@ -88,6 +88,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     let mut frames_since_storage_scan = 0u8;
     let mut pending_zip: Option<Vec<u8>> = None;
     let mut deferred_exit: Option<hbc_rs::platform::lifecycle::ExitRequest> = None;
+    let mut wiiload_cleanup_notice_shown = false;
 
     loop {
         if let Some(request) = hbc_rs::platform::lifecycle::take_request() {
@@ -116,6 +117,17 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             );
         }
         let receiver_status = hbc_rs::platform::wiiload::status();
+        if receiver_status == hbc_rs::platform::wiiload::ReceiverStatus::CleanupError
+            && !wiiload_cleanup_notice_shown
+        {
+            if let Some(error) = hbc_rs::platform::wiiload::cleanup_error() {
+                startup.runtime_mut().show_notice_with_kind(
+                    &format!("Wiiload cleanup failed ({error})."),
+                    hbc_rs::app::NoticeKind::Error,
+                );
+                wiiload_cleanup_notice_shown = true;
+            }
+        }
         if receiver_status == hbc_rs::platform::wiiload::ReceiverStatus::Receiving {
             if startup.runtime().controller().screen != hbc_rs::app::Screen::WiiloadReceiving {
                 startup.runtime_mut().show_wiiload_receiving();
@@ -128,14 +140,22 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             startup.runtime_mut().finish_wiiload_receiving();
         }
         if let Some(completion) = startup.poll_received_zip_install() {
-            let (message, kind) = match (completion.operation, completion.worker_join) {
-                (Ok(()), Ok(())) => (
+            let (message, kind) = match (
+                completion.operation,
+                completion.cleanup_error,
+                completion.worker_join,
+            ) {
+                (Ok(()), None, Ok(())) => (
                     String::from("Received ZIP is complete."),
                     hbc_rs::app::NoticeKind::Information,
                 ),
-                (Err(operation), Ok(())) => (operation.notice(), hbc_rs::app::NoticeKind::Error),
-                (Ok(()), Err(join)) => (join.notice(), hbc_rs::app::NoticeKind::Error),
-                (Err(operation), Err(join)) => (
+                (Ok(()), Some(cleanup), Ok(())) => (
+                    format!("The app was installed, but its previous copy remains: {cleanup:?}."),
+                    hbc_rs::app::NoticeKind::Warning,
+                ),
+                (Err(operation), _, Ok(())) => (operation.notice(), hbc_rs::app::NoticeKind::Error),
+                (Ok(()), _, Err(join)) => (join.notice(), hbc_rs::app::NoticeKind::Error),
+                (Err(operation), _, Err(join)) => (
                     format!("{} {}", operation.notice(), join.notice()),
                     hbc_rs::app::NoticeKind::Error,
                 ),

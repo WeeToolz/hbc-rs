@@ -9,6 +9,7 @@ use crate::{
 };
 
 pub const WIILOAD_ZIP_MAX_ENTRIES: usize = 1024;
+const MAX_STAGED_APP_DIRECTORY_BYTES: usize = 243;
 const MAX_FILE_BYTES: u64 = 64 * 1024 * 1024;
 const MAX_TOTAL_BYTES: u64 = 128 * 1024 * 1024;
 
@@ -99,6 +100,9 @@ fn classify_app(data: &[u8]) -> Result<WiiloadZipClassification, WiiloadZipError
         }
     }
     let directory = directory.ok_or(WiiloadZipError::InvalidApp)?;
+    if directory.starts_with('.') || directory.len() > MAX_STAGED_APP_DIRECTORY_BYTES {
+        return Err(WiiloadZipError::InvalidApp);
+    }
     let (_, kind) = executable.ok_or(WiiloadZipError::InvalidApp)?;
     let full_plan = plan_extraction(
         &archive,
@@ -254,6 +258,26 @@ mod tests {
     fn rejects_unsafe_path_and_invalid_zip() {
         assert!(classify_received_zip(&zip(&[("a/boot.elf", b"e"), ("/a/file", b"x")])).is_err());
         assert!(classify_received_zip(b"not a zip").is_err());
+    }
+
+    #[test]
+    fn rejects_hidden_or_oversized_app_folder_names_for_staging() {
+        let hidden = zip(&[
+            (".hidden/boot.elf", b"elf"),
+            (".hidden/meta.xml", b"<app/>"),
+        ]);
+        assert!(matches!(
+            classify_received_zip(&hidden),
+            Err(WiiloadZipError::InvalidTheme(_))
+        ));
+
+        let long_name = alloc::format!("{}/boot.elf", "a".repeat(244));
+        let long_meta = alloc::format!("{}/meta.xml", "a".repeat(244));
+        let oversized = zip(&[(&long_name, b"elf"), (&long_meta, b"<app/>")]);
+        assert!(matches!(
+            classify_received_zip(&oversized),
+            Err(WiiloadZipError::InvalidTheme(_))
+        ));
     }
 
     #[test]

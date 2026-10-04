@@ -6,7 +6,7 @@
 use alloc::vec::Vec;
 use core::cell::UnsafeCell;
 use core::ffi::c_void;
-use core::sync::atomic::{AtomicBool, AtomicU32, AtomicU8, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicU8, Ordering};
 
 pub use crate::wiiload::ReceiverStatus;
 use crate::wiiload::{
@@ -38,6 +38,7 @@ pub enum ReceiverError {
     AlreadyStarted,
     ThreadCreation,
     WorkerJoin(i32),
+    Cleanup(i32),
 }
 
 struct Shared {
@@ -46,6 +47,7 @@ struct Shared {
     gecko_ready: AtomicBool,
     receive_completed: AtomicU32,
     receive_total: AtomicU32,
+    cleanup_error: AtomicI32,
     payload_lock: AtomicBool,
     payload: UnsafeCell<Option<WiiloadPayload>>,
 }
@@ -61,6 +63,7 @@ impl Shared {
             gecko_ready: AtomicBool::new(false),
             receive_completed: AtomicU32::new(0),
             receive_total: AtomicU32::new(0),
+            cleanup_error: AtomicI32::new(0),
             payload_lock: AtomicBool::new(false),
             payload: UnsafeCell::new(None),
         }
@@ -115,8 +118,14 @@ pub fn start() -> Result<(), ReceiverError> {
                 crate::wiiload::complete_worker_join(&STARTED, joined)
                     .map_err(ReceiverError::WorkerJoin)?;
             }
+            ReceiverStatus::CleanupError => {
+                return Err(ReceiverError::Cleanup(cleanup_error().unwrap_or(-1)));
+            }
             _ => return Err(ReceiverError::AlreadyStarted),
         }
+    }
+    if let Some(error) = cleanup_error() {
+        return Err(ReceiverError::Cleanup(error));
     }
     if STARTED
         .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
@@ -127,6 +136,7 @@ pub fn start() -> Result<(), ReceiverError> {
     SHARED.stopped.store(false, Ordering::Release);
     SHARED.set_status(ReceiverStatus::Starting);
     SHARED.gecko_ready.store(false, Ordering::Release);
+    SHARED.cleanup_error.store(0, Ordering::Release);
     // SAFETY: SHARED and the aligned static stack have process lifetime.
     let result = unsafe {
         ThreadHandle::create(
@@ -157,6 +167,7 @@ pub fn status() -> ReceiverStatus {
         6 => ReceiverStatus::InvalidUpload,
         7 => ReceiverStatus::ListenerError,
         8 => ReceiverStatus::MemoryError,
+        9 => ReceiverStatus::CleanupError,
         _ => ReceiverStatus::Stopped,
     }
 }
@@ -175,6 +186,11 @@ pub fn receive_progress() -> (u32, u32) {
     )
 }
 
+pub fn cleanup_error() -> Option<i32> {
+    let error = SHARED.cleanup_error.load(Ordering::Acquire);
+    (error < 0).then_some(error)
+}
+
 /// Take ownership of one completed payload. The worker can publish another after this call.
 pub fn take_payload() -> Option<WiiloadPayload> {
     let _guard = SHARED.lock_payload();
@@ -189,13 +205,17 @@ pub fn take_payload() -> Option<WiiloadPayload> {
 /// Ask the worker to stop and wait for it to close its listener and network stack.
 pub fn stop() -> Result<(), ReceiverError> {
     if !STARTED.load(Ordering::Acquire) {
-        return Ok(());
+        return cleanup_error().map_or(Ok(()), |error| Err(ReceiverError::Cleanup(error)));
     }
     SHARED.stopped.store(true, Ordering::Release);
     // SAFETY: THREAD is written once by start and read only for this join.
     let joined = unsafe { ThreadHandle::new(THREAD) }.join().map(|_| ());
     crate::wiiload::complete_worker_join(&STARTED, joined).map_err(ReceiverError::WorkerJoin)?;
     SHARED.gecko_ready.store(false, Ordering::Release);
+    if let Some(error) = cleanup_error() {
+        SHARED.set_status(ReceiverStatus::CleanupError);
+        return Err(ReceiverError::Cleanup(error));
+    }
     SHARED.set_status(ReceiverStatus::Stopped);
     Ok(())
 }
@@ -211,21 +231,22 @@ unsafe fn worker(arg: *mut c_void) -> *mut c_void {
 
 fn worker_main(shared: &Shared) -> ReceiverStatus {
     if !initialize_network(shared) {
-        // init_async can leave IOS network setup in progress if stop or the
-        // bounded status loop ends early. Deinit also handles an uninitialized
-        // SOC wrapper state.
-        let _ = network::deinit();
-        return if shared.is_stopped() {
+        let status = if shared.is_stopped() {
             ReceiverStatus::Stopped
         } else {
             ReceiverStatus::NetworkUnavailable
         };
+        return finish_worker(shared, None, status);
     }
-    let listener = create_listener();
-    if listener < 0 {
-        let _ = network::deinit();
-        return ReceiverStatus::ListenerError;
-    }
+    let listener = match create_listener() {
+        Ok(listener) => listener,
+        Err(error) => {
+            if let Some(cleanup) = error.cleanup {
+                record_cleanup_error(shared, cleanup);
+            }
+            return finish_worker(shared, None, ReceiverStatus::ListenerError);
+        }
+    };
     let local_ip = network::get_host_ip();
     let _ = usbgecko::flush(USBGECKO_CHANNEL);
     // The inline poller is ready here. C HBC enables its Gecko icon after the
@@ -233,6 +254,7 @@ fn worker_main(shared: &Shared) -> ReceiverStatus {
     shared.gecko_ready.store(true, Ordering::Release);
     shared.set_status(ReceiverStatus::Listening);
     let mut gecko = GeckoReceive::new();
+    let mut terminal_status = ReceiverStatus::Stopped;
 
     while !shared.is_stopped() {
         if has_pending_payload(shared) {
@@ -265,24 +287,35 @@ fn worker_main(shared: &Shared) -> ReceiverStatus {
             continue;
         }
         if client < 0 {
-            let _ = network::close(listener);
-            let _ = network::deinit();
-            return ReceiverStatus::ListenerError;
+            terminal_status = ReceiverStatus::ListenerError;
+            break;
         }
         if !same_local_subnet_16(peer.sin_addr.s_addr, local_ip) {
-            let _ = network::close(client);
+            if let Err(error) = close_socket(client) {
+                record_cleanup_error(shared, error);
+                terminal_status = ReceiverStatus::CleanupError;
+                break;
+            }
             continue;
         }
         let flags = network::fcntl(client, F_GETFL, 0);
         if flags < 0 || network::fcntl(client, F_SETFL, (flags as u32) | O_NONBLOCK) < 0 {
-            let _ = network::close(client);
+            if let Err(error) = close_socket(client) {
+                record_cleanup_error(shared, error);
+                terminal_status = ReceiverStatus::CleanupError;
+                break;
+            }
             continue;
         }
         shared.set_status(ReceiverStatus::Receiving);
         let received = receive_client(shared, client);
         shared.receive_completed.store(0, Ordering::Release);
         shared.receive_total.store(0, Ordering::Release);
-        let _ = network::close(client);
+        if let Err(error) = close_socket(client) {
+            record_cleanup_error(shared, error);
+            terminal_status = ReceiverStatus::CleanupError;
+            break;
+        }
         match received {
             Ok(payload) => {
                 let _guard = shared.lock_payload();
@@ -301,9 +334,61 @@ fn worker_main(shared: &Shared) -> ReceiverStatus {
             shared.set_status(ReceiverStatus::Listening);
         }
     }
-    let _ = network::close(listener);
-    let _ = network::deinit();
-    ReceiverStatus::Stopped
+    finish_worker(shared, Some(listener), terminal_status)
+}
+
+struct ListenerCreateError {
+    cleanup: Option<i32>,
+}
+
+fn create_listener() -> Result<i32, ListenerCreateError> {
+    let socket = network::socket(PF_INET, SOCK_STREAM, 0);
+    if socket < 0 {
+        return Err(ListenerCreateError { cleanup: None });
+    }
+    let flags = network::fcntl(socket, F_GETFL, 0);
+    if flags < 0 || network::fcntl(socket, F_SETFL, (flags as u32) | O_NONBLOCK) < 0 {
+        return Err(ListenerCreateError {
+            cleanup: close_socket(socket).err(),
+        });
+    }
+    let mut address = SockaddrIn::default();
+    address.sin_len = core::mem::size_of::<SockaddrIn>() as u8;
+    address.sin_family = AF_INET as u8;
+    address.sin_port = WIILOAD_PORT.to_be();
+    address.sin_addr.s_addr = network::get_host_ip();
+    if network::bind_addr(socket, &address) < 0 || network::listen(socket, LISTEN_BACKLOG) < 0 {
+        return Err(ListenerCreateError {
+            cleanup: close_socket(socket).err(),
+        });
+    }
+    Ok(socket)
+}
+
+fn close_socket(socket: i32) -> Result<(), i32> {
+    let result = network::close(socket);
+    if result < 0 {
+        Err(result)
+    } else {
+        Ok(())
+    }
+}
+
+fn finish_worker(shared: &Shared, listener: Option<i32>, status: ReceiverStatus) -> ReceiverStatus {
+    let close_result = listener.map_or(0, network::close);
+    let deinit_result = network::deinit();
+    if let Some(error) = crate::wiiload::first_cleanup_failure(&[close_result, deinit_result]) {
+        record_cleanup_error(shared, error);
+    }
+    if shared.cleanup_error.load(Ordering::Acquire) < 0 {
+        ReceiverStatus::CleanupError
+    } else {
+        status
+    }
+}
+
+fn record_cleanup_error(shared: &Shared, error: i32) {
+    crate::wiiload::remember_cleanup_error(&shared.cleanup_error, error);
 }
 
 fn initialize_network(shared: &Shared) -> bool {
@@ -338,28 +423,6 @@ fn initialize_network(shared: &Shared) -> bool {
         sleep_poll();
     }
     false
-}
-
-fn create_listener() -> i32 {
-    let socket = network::socket(PF_INET, SOCK_STREAM, 0);
-    if socket < 0 {
-        return socket;
-    }
-    let flags = network::fcntl(socket, F_GETFL, 0);
-    if flags < 0 || network::fcntl(socket, F_SETFL, (flags as u32) | O_NONBLOCK) < 0 {
-        let _ = network::close(socket);
-        return -1;
-    }
-    let mut address = SockaddrIn::default();
-    address.sin_len = core::mem::size_of::<SockaddrIn>() as u8;
-    address.sin_family = AF_INET as u8;
-    address.sin_port = WIILOAD_PORT.to_be();
-    address.sin_addr.s_addr = network::get_host_ip();
-    if network::bind_addr(socket, &address) < 0 || network::listen(socket, LISTEN_BACKLOG) < 0 {
-        let _ = network::close(socket);
-        return -1;
-    }
-    socket
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

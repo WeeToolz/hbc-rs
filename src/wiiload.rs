@@ -1,7 +1,7 @@
 //! Host-testable decoding and bounds checks for the HBC Wiiload TCP header.
 
 use alloc::vec::Vec;
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use miniz_oxide::inflate::decompress_to_vec_zlib_with_limit;
 
 pub const WIILOAD_HEADER_LEN: usize = 16;
@@ -22,6 +22,7 @@ pub enum ReceiverStatus {
     InvalidUpload = 6,
     ListenerError = 7,
     MemoryError = 8,
+    CleanupError = 9,
 }
 
 /// Clear worker ownership only after the join confirms thread completion.
@@ -33,6 +34,28 @@ pub(crate) fn complete_worker_join(
     result?;
     started.store(false, Ordering::Release);
     Ok(())
+}
+
+#[cfg_attr(not(any(target_arch = "powerpc", test)), allow(dead_code))]
+pub(crate) fn remember_cleanup_error(slot: &AtomicI32, error: i32) {
+    if error >= 0 {
+        return;
+    }
+    loop {
+        let current = slot.load(Ordering::Acquire);
+        if current < 0 {
+            return;
+        }
+        match slot.compare_exchange(current, error, Ordering::AcqRel, Ordering::Acquire) {
+            Ok(_) => return,
+            Err(_) => continue,
+        }
+    }
+}
+
+#[cfg_attr(not(any(target_arch = "powerpc", test)), allow(dead_code))]
+pub(crate) fn first_cleanup_failure(results: &[i32]) -> Option<i32> {
+    results.iter().copied().find(|result| *result < 0)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -187,12 +210,30 @@ mod tests {
     }
 
     #[test]
+    fn remembers_the_first_cleanup_failure() {
+        let error = AtomicI32::new(0);
+        remember_cleanup_error(&error, -9);
+        remember_cleanup_error(&error, -11);
+        remember_cleanup_error(&error, 0);
+        assert_eq!(error.load(Ordering::Acquire), -9);
+    }
+
+    #[test]
+    fn reports_socket_or_network_cleanup_failures() {
+        assert_eq!(first_cleanup_failure(&[0, 0]), None);
+        assert_eq!(first_cleanup_failure(&[-9, 0]), Some(-9));
+        assert_eq!(first_cleanup_failure(&[0, -11]), Some(-11));
+        assert_eq!(first_cleanup_failure(&[-9, -11]), Some(-9));
+    }
+
+    #[test]
     fn maps_receiver_status_and_gecko_readiness_to_indicators() {
         for status in [
             ReceiverStatus::Stopped,
             ReceiverStatus::Starting,
             ReceiverStatus::NetworkUnavailable,
             ReceiverStatus::ListenerError,
+            ReceiverStatus::CleanupError,
         ] {
             assert!(!indicator_state(status, false).network_active);
         }

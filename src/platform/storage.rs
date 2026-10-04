@@ -131,6 +131,42 @@ impl FatStorage {
         }
     }
 
+    pub fn path_exists(&self, path: &str) -> Result<bool, StorageError> {
+        let full = self.full_path(path)?;
+        match ogc_fat::stat(&full) {
+            Ok(_) => Ok(true),
+            Err(ogc_fat::FatError::NotFound) => Ok(false),
+            Err(error) => Err(StorageError::Fat(error)),
+        }
+    }
+
+    pub fn file_size(&self, path: &str) -> Result<Option<u64>, StorageError> {
+        let full = self.full_path(path)?;
+        match ogc_fat::stat(&full) {
+            Ok(metadata) if metadata.is_directory => Err(StorageError::InvalidPath),
+            Ok(metadata) => Ok(Some(u64::from(metadata.size))),
+            Err(ogc_fat::FatError::NotFound) => Ok(None),
+            Err(error) => Err(StorageError::Fat(error)),
+        }
+    }
+
+    pub fn rename_path(&self, old_path: &str, new_path: &str) -> Result<(), StorageError> {
+        let old_path = self.full_path(old_path)?;
+        let new_path = self.full_path(new_path)?;
+        ogc_fat::rename(&old_path, &new_path).map_err(StorageError::Fat)
+    }
+
+    pub fn repair_interrupted_directory_rename(
+        &self,
+        primary_path: &str,
+        alias_path: &str,
+    ) -> Result<bool, StorageError> {
+        let primary_path = self.full_path(primary_path)?;
+        let alias_path = self.full_path(alias_path)?;
+        ogc_fat::repair_interrupted_directory_rename(&primary_path, &alias_path)
+            .map_err(StorageError::Fat)
+    }
+
     /// Create a directory, accepting an existing directory at the same path.
     pub fn ensure_directory(&self, path: &str) -> Result<(), StorageError> {
         let full = self.full_path(path)?;
@@ -239,8 +275,13 @@ impl FatStorage {
         let plan = crate::management::plan_app_deletion(directory)
             .map_err(|_| StorageError::InvalidPath)?;
         let path = alloc::format!("apps/{}", plan.directory);
+        self.remove_directory_tree(&path)
+    }
+
+    pub fn remove_directory_tree(&self, path: &str) -> Result<(), StorageError> {
+        crate::archive::validate_archive_path(path).map_err(|_| StorageError::InvalidPath)?;
         self.remove_tree(&path, 0)?;
-        let full = self.full_path(&path)?;
+        let full = self.full_path(path)?;
         ogc_fat::remove_directory(&full).map_err(StorageError::Fat)
     }
 

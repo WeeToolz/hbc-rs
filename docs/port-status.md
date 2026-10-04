@@ -147,7 +147,15 @@ separate targets.
   below `apps/<folder>`, and saves and applies theme ZIPs through NAND. App
   extraction runs on a worker and displays per-file progress based on bytes
   written. Archive, storage, catalog refresh, and worker-join failures reach the
-  UI with stage-specific error notices.
+  UI with stage-specific error notices. App files are written below a hidden
+  staging folder. HBC checks the staged executable, moves the prior app folder
+  to a hidden backup, and swaps in the completed folder. If catalog refresh
+  fails, HBC restores the prior folder. Startup recovers interrupted stage and
+  backup moves. Recovery checks whether two names point to the same FAT
+  directory cluster before removing an interrupted-rename alias; it unlinks only
+  that duplicate entry and keeps the shared data. A backup remains in place if
+  cleanup fails, and HBC reports it.
+  Directory rename and interrupted-install recovery still need Wii testing.
   The browser displays the network and USB Gecko status indicators. Settings
   save when HBC exits, as in the original. Settings and theme replacement now
   write a temporary NAND file, rename with a backup, and recover an interrupted
@@ -206,13 +214,13 @@ target has no `test` crate.
 - Verify GX display and texture output, storage discovery, app launch, BootMii
   launch, NAND replacement and recovery on a real Wii. Confirm whether
   startup hangs with a HID controller and no USB drive.
-- Wiiload app extraction still truncates existing destination files as it writes
-  them. A storage failure can leave an overwritten app folder partially updated.
-  Safe staged directory replacement needs a FAT rename and recovery design and
-  remains open work.
-- The Wiiload worker still ignores some socket-close and network-deinit errors.
-  A successful thread join confirms that the worker stopped; it does not confirm
-  that every network resource closed successfully.
+- Verify staged Wiiload app replacement and recovery after write, rename, and
+  catalog-scan failures on Wii storage. The implementation uses the local FAT
+  directory-rename operation; host tests cover the shared commit and rollback
+  policy, but they do not verify FAT behavior on the console.
+- Verify Wiiload socket-close and network-deinit failures on Wii hardware. These
+  failures now stop the receiver, set a visible cleanup error, and block a later
+  app or system handoff.
 
 ## Other out-of-scope targets
 
