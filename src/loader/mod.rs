@@ -48,17 +48,17 @@ pub enum ParseError {
 
 pub const MAX_LAUNCH_ARGUMENT_BYTES: usize = 1024;
 
-/// Select the preferred IOS reload and post-reload AHB patch behavior.
+/// Select whether to reload the preferred IOS before starting an app.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct IosLaunchPolicy {
     pub reload: bool,
-    pub patch_ahb: bool,
+    pub ahb_access: bool,
 }
 
 pub const fn ios_launch_policy(ahb_access: bool) -> IosLaunchPolicy {
     IosLaunchPolicy {
         reload: true,
-        patch_ahb: ahb_access,
+        ahb_access,
     }
 }
 
@@ -397,19 +397,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn launch_ios_policy_preserves_ahb_access() {
-        assert_eq!(
-            ios_launch_policy(false),
-            IosLaunchPolicy {
-                reload: true,
-                patch_ahb: false
-            }
-        );
+    fn launch_ios_policy_reloads_preferred_ios() {
         assert_eq!(
             ios_launch_policy(true),
             IosLaunchPolicy {
                 reload: true,
-                patch_ahb: true
+                ahb_access: true,
             }
         );
     }

@@ -16,10 +16,16 @@ pub static WII_ALLOCATOR: ArenaAllocator = ArenaAllocator::new();
 pub unsafe fn initialize_wii(max_heap_bytes: usize, reserve_bytes: usize) -> Result<(), InitError> {
     let low = ogc_system::get_arena2_lo().cast::<u8>();
     let high = ogc_system::get_arena2_hi().cast::<u8>();
-    let new_low = unsafe {
-        ogc_alloc::initialize_wii(&WII_ALLOCATOR, low, high, max_heap_bytes, reserve_bytes)?
+    unsafe {
+        ogc_alloc::initialize_wii(
+            &WII_ALLOCATOR,
+            low,
+            high,
+            max_heap_bytes,
+            reserve_bytes,
+            |new_low| ogc_system::set_arena2_lo(new_low),
+        )?
     };
-    unsafe { ogc_system::set_arena2_lo(new_low.cast()) };
     Ok(())
 }
 

@@ -191,24 +191,41 @@ pub unsafe fn transfer_control(entry: u32, policy: super::IosLaunchPolicy) -> ! 
     let stub_address = (arena2_hi - stub_len) & !31;
     let stub = stub_address as *mut u32;
 
-    // Match HBC's SDK compatibility clock values before entering an app.
+    // Match C HBC: patch current IOS before reloading it, then stop libogc
+    // after the reload and before the final branch.
     unsafe {
         ptr::write_volatile(0x8000_00f8usize as *mut u32, 0x0e7b_e2c0);
         ptr::write_volatile(0x8000_00fcusize as *mut u32, 0x2b73_a840);
         ptr::copy_nonoverlapping(EXEC_STUB.as_ptr(), stub, EXEC_STUB.len());
         ogc_cache::dc_flush_range(stub.cast::<c_void>(), stub_len as u32);
         ogc_cache::ic_invalidate_range(stub.cast::<c_void>(), stub_len as u32);
-        ogc_system::reset_system(ogc_system::SYS_SHUTDOWN as i32, 0, 0);
+        if policy.ahb_access && ogc_es_sys::patch_ahbprot_reset() != 0 {
+            // HBC services are already stopped. Do not start the app without
+            // its requested access; return to the System Menu instead.
+            ogc_system::reset_system(ogc_system::SYS_RETURNTOMENU as i32, 0, 0);
+            loop {
+                core::hint::spin_loop();
+            }
+        }
         if policy.reload {
-            let _ = ogc_ios::launch_new_ios(ogc_ios::get_preferred_version());
-            if policy.patch_ahb {
-                let _ = ogc_es_sys::patch_ahbprot_reset();
+            let reload_result = ogc_ios::launch_new_ios(ogc_ios::get_preferred_version());
+            if reload_result < 0 {
+                // The HBC runtime is already stopped. Return to System Menu
+                // while the prior IOS is still available instead of starting
+                // the app after a failed IOS transition.
+                ogc_system::reset_system(ogc_system::SYS_RETURNTOMENU as i32, 0, 0);
+                loop {
+                    core::hint::spin_loop();
+                }
+            }
+            if policy.ahb_access {
                 core::ptr::write_volatile(
                     0x0D80_0180usize as *mut u32,
                     core::ptr::read_volatile(0x0D80_0180usize as *const u32) & !(1 << 21),
                 );
             }
         }
+        ogc_system::reset_system(ogc_system::SYS_SHUTDOWN as i32, 0, 0);
         ogc_irq::disable(u32::MAX);
         core::arch::asm!(
             "mfmsr 3",

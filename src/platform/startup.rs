@@ -3,7 +3,7 @@
 //! The FAT mount and initial catalog scan run on a worker. The app thread owns
 //! the mounted adapter after the worker returns and performs later file access.
 
-use alloc::vec::Vec;
+use alloc::{format, string::String, vec::Vec};
 use core::{
     ffi::c_void,
     mem::MaybeUninit,
@@ -47,6 +47,12 @@ struct StorageScanResult {
     scan_failed: bool,
 }
 
+#[derive(Clone, Copy)]
+struct DeviceProbeResult {
+    availability: [bool; 4],
+    error: Option<ogc_fat::FatError>,
+}
+
 fn load_default_theme_textures(widescreen: bool) -> super::theme::ThemeTextures {
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("DEFAULT THEME BUILD");
@@ -66,7 +72,7 @@ static mut STORAGE_SCAN_RESULT: MaybeUninit<StorageScanResult> = MaybeUninit::un
 static mut STORAGE_SCAN_STACK: StorageScanStack = StorageScanStack([0; STORAGE_SCAN_STACK_SIZE]);
 static DEVICE_PROBE_STATE: AtomicU8 = AtomicU8::new(DEVICE_PROBE_IDLE);
 static DEVICE_PROBE_ACTIVE: AtomicU8 = AtomicU8::new(2);
-static mut DEVICE_PROBE_RESULT: MaybeUninit<[bool; 4]> = MaybeUninit::uninit();
+static mut DEVICE_PROBE_RESULT: MaybeUninit<DeviceProbeResult> = MaybeUninit::uninit();
 static mut DEVICE_PROBE_STACK: StorageScanStack = StorageScanStack([0; STORAGE_SCAN_STACK_SIZE]);
 
 struct ZipInstallRequest {
@@ -78,7 +84,50 @@ struct ZipInstallRequest {
 
 struct ZipInstallResult {
     storage: FatStorage,
-    catalog: Option<Vec<AppEntry>>,
+    catalog: Result<Vec<AppEntry>, ZipInstallError>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ZipInstallError {
+    Archive(crate::archive::ZipError),
+    Storage(StorageError),
+    CatalogRefresh(crate::catalog::ScanError<StorageError>),
+}
+
+impl ZipInstallError {
+    pub fn notice(&self) -> String {
+        match self {
+            Self::Archive(error) => {
+                format!("The received ZIP archive failed validation: {error:?}.")
+            }
+            Self::Storage(error) => {
+                format!("Could not write the received app files: {error:?}.")
+            }
+            Self::CatalogRefresh(error) => format!(
+                "The app files were written, but HBC could not refresh its app list: {error:?}."
+            ),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ZipInstallJoinError {
+    MissingWorker,
+    Failed(i32),
+}
+
+impl ZipInstallJoinError {
+    pub fn notice(&self) -> String {
+        match self {
+            Self::MissingWorker => String::from("The ZIP install worker handle is missing."),
+            Self::Failed(code) => format!("Could not join the ZIP install worker ({code})."),
+        }
+    }
+}
+
+pub struct ZipInstallCompletion {
+    pub operation: Result<(), ZipInstallError>,
+    pub worker_join: Result<(), ZipInstallJoinError>,
 }
 
 static ZIP_INSTALL_STATE: AtomicU8 = AtomicU8::new(ZIP_INSTALL_IDLE);
@@ -93,39 +142,40 @@ unsafe fn zip_install_entry(_argument: *mut c_void) -> *mut c_void {
     ZIP_INSTALL_STATE.store(ZIP_INSTALL_RUNNING, Ordering::Release);
     let request = unsafe { addr_of_mut!(ZIP_INSTALL_REQUEST).read().assume_init_read() };
     let mut storage = request.storage;
-    let archive = crate::archive::ZipArchive::parse_limited(
+    let catalog = crate::archive::ZipArchive::parse_limited(
         &request.bytes,
         crate::wiiload_zip::WIILOAD_ZIP_MAX_ENTRIES,
-    );
-    let catalog = archive.ok().and_then(|archive| {
+    )
+    .map_err(ZipInstallError::Archive)
+    .and_then(|archive| {
         storage
             .ensure_directory("apps")
-            .and_then(|()| {
-                let destination = alloc::format!("apps/{}", request.directory);
-                storage.ensure_directory(&destination)?;
-                storage.extract_archive_with_progress(
-                    &request.bytes,
-                    &archive,
-                    &request.plan,
-                    &destination,
-                    |completed, total| {
-                        ZIP_INSTALL_TOTAL_BYTES
-                            .store(total.min(u32::MAX as u64) as u32, Ordering::Relaxed);
-                        ZIP_INSTALL_PROGRESS_BYTES
-                            .store(completed.min(u32::MAX as u64) as u32, Ordering::Release);
-                    },
-                )
-            })
-            .ok()
-            .and_then(|()| {
-                scan_apps(
-                    &mut storage,
-                    "apps",
-                    EXECUTABLE_SIZE_LIMIT,
-                    THEME_SIZE_LIMIT,
-                )
-                .ok()
-            })
+            .map_err(ZipInstallError::Storage)?;
+        let destination = alloc::format!("apps/{}", request.directory);
+        storage
+            .ensure_directory(&destination)
+            .map_err(ZipInstallError::Storage)?;
+        storage
+            .extract_archive_with_progress(
+                &request.bytes,
+                &archive,
+                &request.plan,
+                &destination,
+                |completed, total| {
+                    ZIP_INSTALL_TOTAL_BYTES
+                        .store(total.min(u32::MAX as u64) as u32, Ordering::Relaxed);
+                    ZIP_INSTALL_PROGRESS_BYTES
+                        .store(completed.min(u32::MAX as u64) as u32, Ordering::Release);
+                },
+            )
+            .map_err(ZipInstallError::Storage)?;
+        scan_apps(
+            &mut storage,
+            "apps",
+            EXECUTABLE_SIZE_LIMIT,
+            THEME_SIZE_LIMIT,
+        )
+        .map_err(ZipInstallError::CatalogRefresh)
     });
     let result = ZipInstallResult { storage, catalog };
     unsafe { addr_of_mut!(ZIP_INSTALL_RESULT).write(MaybeUninit::new(result)) };
@@ -133,18 +183,14 @@ unsafe fn zip_install_entry(_argument: *mut c_void) -> *mut c_void {
     null_mut()
 }
 
-fn probe_one_device(volume: Volume) -> bool {
-    let name = volume.mount_name();
-    if ogc_fat::is_mounted(name) {
-        return true;
-    }
-    let mounted = FatStorage::mount(volume).is_ok();
-    if !mounted {
-        return false;
-    }
-    let available = ogc_fat::is_mounted(name);
-    let _ = ogc_fat::unmount(name);
-    available
+fn probe_one_device(volume: Volume) -> Result<bool, ogc_fat::FatError> {
+    let source = match volume {
+        Volume::Sd => ogc_fat::MountSource::Sd,
+        Volume::Usb => ogc_fat::MountSource::Usb,
+        Volume::CardA => ogc_fat::MountSource::CardA,
+        Volume::CardB => ogc_fat::MountSource::CardB,
+    };
+    ogc_fat::device_is_inserted(source)
 }
 
 unsafe fn device_probe_entry(_argument: *mut c_void) -> *mut c_void {
@@ -155,16 +201,23 @@ unsafe fn device_probe_entry(_argument: *mut c_void) -> *mut c_void {
             .map(|_| index as usize),
         _ => None,
     };
+    let probes = [
+        probe_one_device(Volume::Sd),
+        probe_one_device(Volume::Usb),
+        probe_one_device(Volume::CardA),
+        probe_one_device(Volume::CardB),
+    ];
     let availability = crate::app::device_availability_snapshot(
         active,
-        [
-            probe_one_device(Volume::Sd),
-            probe_one_device(Volume::Usb),
-            probe_one_device(Volume::CardA),
-            probe_one_device(Volume::CardB),
-        ],
+        probes.map(|result| matches!(result, Ok(true))),
     );
-    unsafe { addr_of_mut!(DEVICE_PROBE_RESULT).write(MaybeUninit::new(availability)) };
+    let error = probes.into_iter().find_map(Result::err);
+    unsafe {
+        addr_of_mut!(DEVICE_PROBE_RESULT).write(MaybeUninit::new(DeviceProbeResult {
+            availability,
+            error,
+        }))
+    };
     DEVICE_PROBE_STATE.store(DEVICE_PROBE_READY, Ordering::Release);
     null_mut()
 }
@@ -289,26 +342,33 @@ impl WiiStartup {
     }
 
     /// Join a completed ZIP install, restore storage ownership, and report success.
-    pub fn poll_received_zip_install(&mut self) -> Option<bool> {
+    pub fn poll_received_zip_install(&mut self) -> Option<ZipInstallCompletion> {
         if ZIP_INSTALL_STATE.load(Ordering::Acquire) != ZIP_INSTALL_READY {
             return None;
         }
-        if let Some(thread) = self.zip_install_thread.take() {
-            let _ = thread.join();
-        }
+        let worker_join = self
+            .zip_install_thread
+            .take()
+            .ok_or(ZipInstallJoinError::MissingWorker)
+            .and_then(|thread| {
+                thread
+                    .join()
+                    .map(|_| ())
+                    .map_err(ZipInstallJoinError::Failed)
+            });
         let result = unsafe { addr_of_mut!(ZIP_INSTALL_RESULT).read().assume_init_read() };
         self.storage = Some(result.storage);
-        let succeeded = if let Some(catalog) = result.catalog {
+        let operation = result.catalog.map(|catalog| {
             self.runtime.replace_catalog(catalog);
             self.icon_textures.clear();
             self.attempted_icon_indices.clear();
-            true
-        } else {
-            false
-        };
+        });
         ZIP_INSTALL_STATE.store(ZIP_INSTALL_IDLE, Ordering::Release);
         self.runtime.finish_wiiload_installing();
-        Some(succeeded)
+        Some(ZipInstallCompletion {
+            operation,
+            worker_join,
+        })
     }
 
     pub fn received_zip_install_pending(&self) -> bool {
@@ -550,17 +610,23 @@ impl WiiStartup {
         }
     }
 
-    pub fn poll_device_availability(&mut self) -> bool {
+    pub fn poll_device_availability(&mut self) -> Result<bool, StartupError> {
         if DEVICE_PROBE_STATE.load(Ordering::Acquire) != DEVICE_PROBE_READY {
-            return false;
+            return Ok(false);
         }
-        if let Some(thread) = self.device_probe_thread.take() {
-            let _ = thread.join();
-        }
-        let availability = unsafe { addr_of_mut!(DEVICE_PROBE_RESULT).read().assume_init_read() };
-        self.runtime.set_device_availability(availability);
+        let join_result = self
+            .device_probe_thread
+            .take()
+            .map(|thread| thread.join().map(|_| ()))
+            .transpose();
+        let result = unsafe { addr_of_mut!(DEVICE_PROBE_RESULT).read().assume_init_read() };
+        self.runtime.set_device_availability(result.availability);
         DEVICE_PROBE_STATE.store(DEVICE_PROBE_IDLE, Ordering::Release);
-        true
+        join_result.map_err(StartupError::ScanWorker)?;
+        if let Some(error) = result.error {
+            return Err(StartupError::Storage(StorageError::Fat(error)));
+        }
+        Ok(true)
     }
 
     pub fn device_probe_pending(&self) -> bool {

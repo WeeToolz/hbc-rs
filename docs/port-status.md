@@ -1,8 +1,16 @@
 # HBC Rust port status
 
-This file tracks behavior coverage. A target check proves that code compiles for
-the Wii target. It does not prove behavior on a Wii. Real hardware testing is
-deferred.
+This file tracks behavior coverage against the published C HBC channel app.
+The user has confirmed that the C source runs on a Wii. The Rust port still
+needs its own real-hardware verification; a target check proves compilation,
+not device behavior.
+
+The parity target is the running channel application, including the C HBC
+support for SD Gecko adapters in GameCube ports A and B. This is FAT storage
+on an SD Gecko, not support for proprietary GameCube Memory Cards. The C update
+check, download, and installer path in `update.c` are out of scope. The reload
+stub, banner builder, WiiPAX, host-side wiiload tool, and WAD packaging are
+separate targets.
 
 ## Implemented in `hbc-rs`
 
@@ -25,6 +33,10 @@ deferred.
 - Input scanning for PAD and Wii Remotes, a frame-level application state
   driver, a bounded MEM2 allocator, and a Wii executable segment copier with
   cache maintenance and a one-way branch.
+- The animated bubble background, pointer bubble popping, network and USB Gecko
+  connection indicators, memo scroll arrows, and theme description in About are
+  implemented. Rust has translated strings for six languages. A complete
+  string-by-string comparison with the C PO catalogs has not been done.
 - VI/framebuffer setup and a minimal GX FIFO/display-copy path in the local
   `libogc-rs` copy. The Wii entry point now starts a frame loop that scans
   input, updates the controller state, draws the initial browser layout with a
@@ -40,13 +52,12 @@ deferred.
   by the other volume, scans `apps`, and keeps the mounted volume for later
   operations. Wii Remote setup matches the active HBC viewport's padded IR
   range and pointer-owner button priority.
-- Wii Remote 1 opens an Options dialog for SD or USB preference and Name or
-  Date sorting. Changes stay pending until OK. Confirmed device changes remount
-  the selected volume and refresh the catalog. The two GameCube memory card
-  choices are shown as disabled because the current FAT backends do not support
-  them. HBC also updates device availability while its dialog is open; Rust
-  probes SD and USB availability on a worker while Options is open, then displays
-  the completed availability snapshot without blocking the main loop. The worker
+- Wii Remote 1 opens an Options dialog for SD, USB, and both SD Gecko slots,
+  plus Name or Date sorting. Changes stay pending until OK. Confirmed device
+  changes remount the selected volume and refresh the catalog. HBC also updates
+  device availability while its dialog is open; Rust probes SD, USB, and both
+  SD Gecko slots on a worker while Options is open, then displays the completed
+  availability snapshot without blocking the main loop. The worker
   leaves existing mounts registered and unmounts only a volume it mounted itself.
 
 ## Remaining runtime work
@@ -72,10 +83,12 @@ deferred.
   Wiiload install dialog uses the theme progress frame. Both use bundled C
   artwork when an active theme image is missing or has invalid dimensions.
   Long notices also wrap and scroll by line with Up and Down buttons, controller
-  sticks, or pointer dragging, matching the C message-dialog memo. Animated
-  bubble backgrounds, network and USBGecko status indicators, memo scroll arrows,
-  other memo contexts, localized strings, and complete HBC widget behavior are
-  not ported.
+  sticks, or pointer dragging, matching the C message-dialog memo. App details,
+  About, notices, and Wiiload confirmation use Rust memo handling, including memo
+  scroll arrows. Per-file Wiiload app extraction progress is drawn from bytes
+  written. Theme metadata controls and some less common modal and memo states
+  still need a widget-by-widget comparison against C. Some scene areas still use
+  solid fills and the native bitmap font.
 - A pure Rust theme ZIP parser enforces HBC's `LD_MAX_SIZE` and 20 MiB archive
   limits, a 64-entry
   limit, safe paths, supported ZIP entry types and compression, duplicate-name
@@ -87,9 +100,8 @@ deferred.
   uses the bundled image, as in HBC. The native Rust bitmap glyph renderer
   applies default and target-specific font colors and sizes to HBC's
   `label`, `dlgtitle`, `memo`, `appname`, `appdesc`, `button`, and `button_desel`
-  text roles. It uses scaled built-in glyphs; custom TTF files are parsed as
-  metadata only and are not rasterized. Theme controls and custom fonts are not
-  yet drawn. The ZIP install meter uses the four parsed progress-gradient stops,
+  text roles. Custom theme TTF files are rasterized and cached through
+  `fontdue`. The ZIP install meter uses the four parsed progress-gradient stops,
   with a blue default when a theme has no gradient.
   Startup loads and validates that archive again. Theme PNG resources use the bounded pure
   Rust decoder for grayscale, RGB, indexed, gray-alpha, and RGBA images, including
@@ -100,8 +112,9 @@ deferred.
   remounts available media, and replaces the catalog while preserving the
   selected app where possible. Options displays SD and USB availability. A missing
   `apps` directory is treated as an empty
-  catalog; other top-level scan errors show a notice. GameCube memory cards are
-  not supported. USB storage candidates exclude HID devices. USB storage now
+  catalog; other top-level scan errors show a notice. SD Gecko adapters in both
+  GameCube ports use the FAT SDGecko backend. USB storage candidates exclude HID
+  devices. USB storage now
   starts and stops only the vendor watcher. Its IOS open and ioctl calls remain
   synchronous. The reported NAND/HID hang still needs hardware confirmation.
 - BootMii IOS availability now uses HBC's bounded TMD-view `BM` marker check.
@@ -120,21 +133,22 @@ deferred.
 - ELF/DOL launch now reads the selected file, validates and applies its load
   plan, patches the HBC crt0 byte when present, and writes argv data into the
   reserved area. It saves settings, unmounts storage, shuts down WPAD and system
-  services, reloads the preferred IOS for apps that do not request AHB access,
-  disables IRQ masks and external interrupts, clears HBC's runtime memory
-  through an Arena2 trampoline, and branches to the entry point. Apps that
-  request AHB access keep the current IOS because the local libogc-rs API does
-  not provide HBC's post-reload ES patch. The local API also has no safe
-  exception-vector close operation, so the Rust IRQ vector remains installed.
-  The loaded program's crt0 must set the stack and install its own interrupt
-  handlers before enabling interrupts. This path is not verified on hardware.
+  services, applies the AHB patch for apps that request AHB access, reloads the
+  preferred IOS, disables IRQ masks and external interrupts, clears HBC's
+  runtime memory through an Arena2 trampoline, and branches to the entry point.
+  The external interrupt vector is restored before handoff. The decrementer
+  exception vector still lacks a safe restore API in the local library. AHB patch
+  and IOS reload failures now return to System Menu. AHB access apps do not yet
+  receive C's post-reload ES patch. The loaded crt0 must set
+  the stack and install its own interrupt handlers before enabling interrupts.
+  This path is not verified on Rust hardware.
 - Wiiload now accepts ELF and DOL uploads through the launch path. It checks
   received app and theme ZIPs, asks before applying them, extracts app files
   below `apps/<folder>`, and saves and applies theme ZIPs through NAND. App
-  extraction runs on a worker and displays a loading dialog. It does not show
-  per-file progress.
-  There is no Rust per-device status UI yet, so the theme network and USBGecko
-  status images do not have a runtime consumer. Settings
+  extraction runs on a worker and displays per-file progress based on bytes
+  written. Archive, storage, catalog refresh, and worker-join failures reach the
+  UI with stage-specific error notices.
+  The browser displays the network and USB Gecko status indicators. Settings
   save when HBC exits, as in the original. Settings and theme replacement now
   write a temporary NAND file, rename with a backup, and recover an interrupted
   replacement at the next load. Hardware behavior of ISFS rename remains
@@ -144,8 +158,9 @@ deferred.
 ## Local checks
 
 The current host suite runs with `cargo test`. The Wii code has passed a
-nightly `cargo check` using `libogc-rs/targets/powerpc-unknown-wii.json` and
-`-Z build-std=core,alloc -Z json-target-spec`, with warnings denied. Unit tests
+nightly `cargo check` using `libogc-rs/targets/powerpc-nintendo-none.json` and
+`-Z build-std=core,alloc -Z json-target-spec`. One existing diagnostic-build
+function is unused in this configuration. Unit tests
 inside target-only `libogc-rs` crates cannot run because the custom bare-metal
 target has no `test` crate.
 
@@ -166,10 +181,26 @@ target has no `test` crate.
   The vendor host still makes synchronous IOS calls, so storage discovery may
   still stall and the reported hardware hang needs confirmation.
 
-## Out of scope for the first runtime target
+## Open parity and verification work
 
-The reload stub, banner builder, WiiPAX tool, wiiload host tool, WAD packaging,
-and translations remain separate targets or assets. The C tree includes a POT
-template and Dutch, French, German, Italian, Japanese, and Spanish PO catalogs.
-HBC-rs has no localization loader or catalog build path yet; it still uses
-English UI strings. Revisit the reload stub after the application runtime works.
+- Compare every in-scope C runtime behavior with the Rust implementation,
+  including uncommon modal and memo states. Some scene areas still use solid
+  fills. Button art loads from theme packages and applies to menu and dialog
+  buttons, but full visual parity has not been confirmed. The C update feature
+  is excluded by scope.
+- Verify SD Gecko A/B insertion, mounting, scanning, selection, app loading, hot
+  removal, and reinsertion on Wii hardware with actual adapters. Rust probes
+  physical presence and routes both choices through `ogc-fat`'s SDGecko backend;
+  source and API inspection do not prove hardware behavior.
+- App launch parity remains incomplete: AHB-access apps do not receive the C
+  post-reload ES patch, and the local library has no safe operation to close and
+  restore every exception vector.
+- Verify GX display and texture output, storage discovery, app launch, BootMii
+  launch, NAND replacement and recovery on a real Wii. Confirm whether
+  startup hangs with a HID controller and no USB drive.
+
+## Other out-of-scope targets
+
+The C translation catalogs and their build pipeline remain separate assets.
+Rust has an in-crate translation map, but full PO-catalog parity has not been
+audited. Revisit the reload stub after the application runtime works.

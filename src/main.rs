@@ -4,7 +4,7 @@
 extern crate alloc;
 
 #[cfg(target_arch = "powerpc")]
-use alloc::vec::Vec;
+use alloc::{format, string::String, vec::Vec};
 
 #[cfg(not(target_arch = "powerpc"))]
 fn main() {
@@ -79,9 +79,10 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     #[cfg(feature = "startup-diagnostics")]
     hbc_rs::platform::diagnostics::mark("NETWORK WORKER START");
     if hbc_rs::platform::wiiload::start().is_err() {
-        startup
-            .runtime_mut()
-            .show_notice("Could not start the network receiver.");
+        startup.runtime_mut().show_notice_with_kind(
+            "Could not start the network receiver.",
+            hbc_rs::app::NoticeKind::Error,
+        );
     }
     let mut display_ready = false;
     let mut frames_since_storage_scan = 0u8;
@@ -104,7 +105,12 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         }
 
         startup.poll_storage_scan();
-        startup.poll_device_availability();
+        if startup.poll_device_availability().is_err() {
+            startup.runtime_mut().show_notice_with_kind(
+                "Could not refresh storage devices.",
+                hbc_rs::app::NoticeKind::Error,
+            );
+        }
         let receiver_status = hbc_rs::platform::wiiload::status();
         if receiver_status == hbc_rs::platform::wiiload::ReceiverStatus::Receiving {
             if startup.runtime().controller().screen != hbc_rs::app::Screen::WiiloadReceiving {
@@ -117,12 +123,20 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         } else if startup.runtime().controller().screen == hbc_rs::app::Screen::WiiloadReceiving {
             startup.runtime_mut().finish_wiiload_receiving();
         }
-        if let Some(succeeded) = startup.poll_received_zip_install() {
-            startup.runtime_mut().show_notice(if succeeded {
-                "Received ZIP is complete."
-            } else {
-                "Could not install the received ZIP."
-            });
+        if let Some(completion) = startup.poll_received_zip_install() {
+            let (message, kind) = match (completion.operation, completion.worker_join) {
+                (Ok(()), Ok(())) => (
+                    String::from("Received ZIP is complete."),
+                    hbc_rs::app::NoticeKind::Information,
+                ),
+                (Err(operation), Ok(())) => (operation.notice(), hbc_rs::app::NoticeKind::Error),
+                (Ok(()), Err(join)) => (join.notice(), hbc_rs::app::NoticeKind::Error),
+                (Err(operation), Err(join)) => (
+                    format!("{} {}", operation.notice(), join.notice()),
+                    hbc_rs::app::NoticeKind::Error,
+                ),
+            };
+            startup.runtime_mut().show_notice_with_kind(&message, kind);
         }
         if let Some(progress) = startup.received_zip_install_progress() {
             startup.runtime_mut().set_wiiload_install_progress(progress);
@@ -213,12 +227,18 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         if frames_since_storage_scan == 30 {
             frames_since_storage_scan = 0;
             if startup.runtime().controller().screen == hbc_rs::app::Screen::Options {
-                let _ = startup.refresh_device_availability();
+                if startup.refresh_device_availability().is_err() {
+                    startup.runtime_mut().show_notice_with_kind(
+                        "Could not refresh storage devices.",
+                        hbc_rs::app::NoticeKind::Error,
+                    );
+                }
             }
             if startup.refresh_storage().is_err() {
-                startup
-                    .runtime_mut()
-                    .show_notice("Could not refresh storage devices.");
+                startup.runtime_mut().show_notice_with_kind(
+                    "Could not refresh storage devices.",
+                    hbc_rs::app::NoticeKind::Error,
+                );
             }
         }
         #[cfg(feature = "startup-diagnostics")]
@@ -382,9 +402,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             #[cfg(feature = "startup-diagnostics")]
             {
                 let message = match _error {
-                    hbc_rs::platform::video::VideoError::ViRetraceTimeout => {
-                        "VI IRQ COUNT STALLED"
-                    }
+                    hbc_rs::platform::video::VideoError::ViRetraceTimeout => "VI IRQ COUNT STALLED",
                     _ => "GX DRAW DONE TIMEOUT",
                 };
                 if hbc_rs::platform::diagnostics::fail(message) {
@@ -437,9 +455,10 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             if action == hbc_rs::app::Action::AcceptWiiloadZip {
                 if let Some(bytes) = pending_zip.take() {
                     if startup.start_received_zip(bytes).is_err() {
-                        startup
-                            .runtime_mut()
-                            .show_notice("Could not install the app or apply the theme.");
+                        startup.runtime_mut().show_notice_with_kind(
+                            "Could not install the app or apply the theme.",
+                            hbc_rs::app::NoticeKind::Error,
+                        );
                     }
                 }
                 continue;
@@ -466,27 +485,34 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                     notice = Some("Could not save the new settings to NAND.");
                 }
                 if let Some(notice) = notice {
-                    startup.runtime_mut().show_notice(notice);
+                    startup
+                        .runtime_mut()
+                        .show_notice_with_kind(notice, hbc_rs::app::NoticeKind::Error);
                 }
                 continue;
             }
             if action == hbc_rs::app::Action::ApplyTheme {
                 match startup.prepare_selected_theme() {
                     Ok(theme) => startup.apply_theme(theme),
-                    Err(hbc_rs::platform::startup::StartupError::ThemeStorage(_)) => startup
-                        .runtime_mut()
-                        .show_notice("Could not save this theme to NAND."),
-                    Err(_) => startup
-                        .runtime_mut()
-                        .show_notice("Could not read or validate this theme."),
+                    Err(hbc_rs::platform::startup::StartupError::ThemeStorage(_)) => {
+                        startup.runtime_mut().show_notice_with_kind(
+                            "Could not save this theme to NAND.",
+                            hbc_rs::app::NoticeKind::Error,
+                        )
+                    }
+                    Err(_) => startup.runtime_mut().show_notice_with_kind(
+                        "Could not read or validate this theme.",
+                        hbc_rs::app::NoticeKind::Error,
+                    ),
                 }
                 continue;
             }
             if action == hbc_rs::app::Action::LaunchSelected {
                 let Ok(image) = startup.prepare_selected_executable() else {
-                    startup
-                        .runtime_mut()
-                        .show_notice("Could not read or validate this application.");
+                    startup.runtime_mut().show_notice_with_kind(
+                        "Could not read or validate this application.",
+                        hbc_rs::app::NoticeKind::Error,
+                    );
                     continue;
                 };
                 if let Err(notice) = transfer_executable(
@@ -497,15 +523,18 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                     image.ahb_access,
                     "Could not prepare this application to run.",
                 ) {
-                    startup.runtime_mut().show_notice(notice);
+                    startup
+                        .runtime_mut()
+                        .show_notice_with_kind(notice, hbc_rs::app::NoticeKind::Error);
                     continue;
                 }
             }
             if action == hbc_rs::app::Action::DeleteSelected {
                 if startup.delete_selected_app().is_err() {
-                    startup
-                        .runtime_mut()
-                        .show_notice("Could not delete this application.");
+                    startup.runtime_mut().show_notice_with_kind(
+                        "Could not delete this application.",
+                        hbc_rs::app::NoticeKind::Error,
+                    );
                 }
                 continue;
             }
@@ -521,9 +550,10 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                         .runtime_mut()
                         .save_settings_if_dirty(hbc_rs::platform::settings::save);
                     if startup.unmount_storage().is_err() {
-                        startup
-                            .runtime_mut()
-                            .show_notice("Could not stop storage. BootMii launch stopped.");
+                        startup.runtime_mut().show_notice_with_kind(
+                            "Could not stop storage. BootMii launch stopped.",
+                            hbc_rs::app::NoticeKind::Error,
+                        );
                         continue;
                     }
                     hbc_rs::platform::wiiload::stop();
