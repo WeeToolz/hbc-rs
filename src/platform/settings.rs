@@ -27,12 +27,26 @@ struct AlignedXml([u8; MAX_SETTINGS_XML_SIZE]);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SettingsIoError {
+    Missing,
     Es(i32),
     Isfs(i32),
+    RecoveryConflict,
+    TemporaryMismatch,
     InvalidPath,
     InvalidFileSize,
     Codec,
     TitlePathBusy,
+}
+
+impl SettingsIoError {
+    #[cfg(any(target_arch = "powerpc", test))]
+    pub(crate) fn from_replace(error: super::nand::ReplaceError) -> Self {
+        match error {
+            super::nand::ReplaceError::Backend(error) => Self::Isfs(error),
+            super::nand::ReplaceError::BackupNeedsValidation => Self::RecoveryConflict,
+            super::nand::ReplaceError::TemporaryMismatch => Self::TemporaryMismatch,
+        }
+    }
 }
 
 fn resolve_title_data_directory() -> Result<TitleDataDirectory, TitlePathError> {
@@ -102,8 +116,14 @@ pub fn load() -> Result<UserSettings, SettingsIoError> {
     if rc < 0 {
         return Err(SettingsIoError::Isfs(rc));
     }
-    super::nand::recover_wii(&path)?;
-    let file = isfs::open(&path, isfs::ISFS_OPEN_READ).map_err(SettingsIoError::Isfs)?;
+    super::nand::recover_wii(&path, MAX_SETTINGS_XML_SIZE, |bytes| {
+        decode_settings_xml(bytes).is_ok()
+    })?;
+    let file = match isfs::open(&path, isfs::ISFS_OPEN_READ) {
+        Ok(file) => file,
+        Err(ogc_ipc::IPC_ENOENT) => return Err(SettingsIoError::Missing),
+        Err(error) => return Err(SettingsIoError::Isfs(error)),
+    };
     let mut stats = AlignedFstats(isfs::Fstats::default());
     let rc = isfs::get_file_stats(&file, &mut stats.0);
     if rc < 0 {

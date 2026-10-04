@@ -392,9 +392,20 @@ impl WiiStartup {
 
         #[cfg(feature = "startup-diagnostics")]
         super::diagnostics::mark("NAND SETTINGS LOAD");
-        let loaded_settings = settings::load().unwrap_or_default();
+        let (loaded_settings, settings_load_error) = match settings::load() {
+            Ok(settings) => (settings, None),
+            Err(settings::SettingsIoError::Missing) => (UserSettings::default(), None),
+            Err(error) => (UserSettings::default(), Some(error)),
+        };
         let preference = loaded_settings.device;
         let mut runtime = AppRuntime::new(Vec::new());
+        runtime.set_settings_persistence_enabled(settings_load_error.is_none());
+        if let Some(error) = settings_load_error {
+            runtime.show_notice_with_kind(
+                &format!("Could not load saved settings ({error:?}). HBC will not overwrite them."),
+                crate::app::NoticeKind::Warning,
+            );
+        }
         let widescreen = view_width > crate::render::LOGICAL_WIDTH;
         runtime.set_widescreen(widescreen);
         #[cfg(feature = "startup-diagnostics")]

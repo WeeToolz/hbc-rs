@@ -152,8 +152,16 @@ separate targets.
   save when HBC exits, as in the original. Settings and theme replacement now
   write a temporary NAND file, rename with a backup, and recover an interrupted
   replacement at the next load. Hardware behavior of ISFS rename remains
-  unverified. Theme replacement needs enough free NAND space for both the old
-  and new archive during the write.
+  unverified. Staged settings and theme bytes are read back and compared before
+  the old file moves. Recovery validates the primary before removing its backup;
+  it restores a valid backup when the primary fails validation and keeps both
+  files if neither validates. A settings load error blocks later saves so HBC
+  does not overwrite unreadable settings with defaults. Theme replacement needs
+  enough free NAND space for both the old and new archive during the write.
+- System exit and app or BootMii handoff now stop if required save, unmount,
+  WPAD shutdown, or Wiiload worker join steps fail. A failed Wiiload join keeps
+  the worker marked as started. If BootMii IOS launch returns an error after
+  input services stop, HBC returns to the System Menu.
 
 ## Local checks
 
@@ -198,6 +206,10 @@ target has no `test` crate.
 - Verify GX display and texture output, storage discovery, app launch, BootMii
   launch, NAND replacement and recovery on a real Wii. Confirm whether
   startup hangs with a HID controller and no USB drive.
+- Wiiload app extraction still truncates existing destination files as it writes
+  them. A storage failure can leave an overwritten app folder partially updated.
+  Safe staged directory replacement needs a FAT rename and recovery design and
+  remains open work.
 
 ## Other out-of-scope targets
 

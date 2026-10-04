@@ -1,15 +1,31 @@
 //! Failure-safe replacement of files in the running channel's NAND data dir.
 
 #[cfg(any(target_arch = "powerpc", test))]
-use alloc::{format, string::String};
+use alloc::{format, string::String, vec::Vec};
 
 /// The operations needed to replace a file without deleting its last good copy.
 #[cfg(any(target_arch = "powerpc", test))]
 pub(crate) trait ReplaceBackend {
     fn exists(&mut self, path: &str) -> Result<bool, i32>;
+    fn read_bounded(&mut self, path: &str, max_size: usize) -> Result<Option<Vec<u8>>, i32>;
     fn write_new(&mut self, path: &str, bytes: &[u8]) -> Result<(), i32>;
     fn rename(&mut self, old_path: &str, new_path: &str) -> i32;
     fn delete(&mut self, path: &str) -> i32;
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg(any(target_arch = "powerpc", test))]
+pub(crate) enum ReplaceError {
+    Backend(i32),
+    BackupNeedsValidation,
+    TemporaryMismatch,
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+impl From<i32> for ReplaceError {
+    fn from(error: i32) -> Self {
+        Self::Backend(error)
+    }
 }
 
 /// Write to a sibling temporary file, then move the old version to a backup
@@ -20,42 +36,48 @@ pub(crate) fn replace_file(
     backend: &mut impl ReplaceBackend,
     path: &str,
     bytes: &[u8],
-) -> Result<(), i32> {
+) -> Result<(), ReplaceError> {
     let temporary = sibling_path(path, ".tmp");
     let backup = sibling_path(path, ".bak");
 
-    recover_interrupted_replace(backend, path, &temporary, &backup)?;
+    recover_interrupted_replace(backend, &temporary, &backup)?;
     if let Err(error) = backend.write_new(&temporary, bytes) {
         let _ = backend.delete(&temporary);
-        return Err(error);
+        return Err(error.into());
+    }
+    let staged = backend
+        .read_bounded(&temporary, bytes.len())?
+        .ok_or(ReplaceError::TemporaryMismatch)?;
+    if staged != bytes {
+        return Err(ReplaceError::TemporaryMismatch);
     }
 
     let original_exists = match backend.exists(path) {
         Ok(exists) => exists,
         Err(error) => {
             let _ = backend.delete(&temporary);
-            return Err(error);
+            return Err(error.into());
         }
     };
 
     if !original_exists {
         if let Err(error) = rename(backend, &temporary, path) {
             let _ = backend.delete(&temporary);
-            return Err(error);
+            return Err(error.into());
         }
         return Ok(());
     }
 
     if let Err(error) = rename(backend, path, &backup) {
         let _ = backend.delete(&temporary);
-        return Err(error);
+        return Err(error.into());
     }
     if let Err(error) = rename(backend, &temporary, path) {
         if let Err(restore_error) = rename(backend, &backup, path) {
-            return Err(restore_error);
+            return Err(restore_error.into());
         }
         let _ = backend.delete(&temporary);
-        return Err(error);
+        return Err(error.into());
     }
 
     let _ = backend.delete(&backup);
@@ -67,18 +89,38 @@ pub(crate) fn replace_file(
 pub(crate) fn recover_file_for_load(
     backend: &mut impl ReplaceBackend,
     path: &str,
-) -> Result<(), i32> {
+    max_size: usize,
+    mut validate: impl FnMut(&[u8]) -> bool,
+) -> Result<(), ReplaceError> {
     let backup = sibling_path(path, ".bak");
     let temporary = sibling_path(path, ".tmp");
     let path_exists = backend.exists(path)?;
     let backup_exists = backend.exists(&backup)?;
-    if !path_exists && backup_exists {
-        rename(backend, &backup, path)?;
-    } else if path_exists && backup_exists {
-        let _ = backend.delete(&backup);
+    if backup_exists {
+        let primary_valid = if path_exists {
+            backend
+                .read_bounded(path, max_size)?
+                .is_some_and(|bytes| validate(&bytes))
+        } else {
+            false
+        };
+        let backup_valid = backend
+            .read_bounded(&backup, max_size)?
+            .is_some_and(|bytes| validate(&bytes));
+
+        if primary_valid {
+            check(backend.delete(&backup))?;
+        } else if backup_valid {
+            if path_exists {
+                check(backend.delete(path))?;
+            }
+            rename(backend, &backup, path)?;
+        } else if !path_exists {
+            return Err(ReplaceError::BackupNeedsValidation);
+        }
     }
     if backend.exists(&temporary)? {
-        let _ = backend.delete(&temporary);
+        check(backend.delete(&temporary))?;
     }
     Ok(())
 }
@@ -86,17 +128,15 @@ pub(crate) fn recover_file_for_load(
 #[cfg(any(target_arch = "powerpc", test))]
 fn recover_interrupted_replace(
     backend: &mut impl ReplaceBackend,
-    path: &str,
     temporary: &str,
     backup: &str,
-) -> Result<(), i32> {
-    let path_exists = backend.exists(path)?;
+) -> Result<(), ReplaceError> {
     let backup_exists = backend.exists(backup)?;
 
-    if !path_exists && backup_exists {
-        rename(backend, backup, path)?;
-    } else if path_exists && backup_exists {
-        check(backend.delete(backup))?;
+    if backup_exists {
+        // Keep the backup until the caller validates the primary on load.
+        // A missing primary is also ambiguous until load has checked the copy.
+        return Err(ReplaceError::BackupNeedsValidation);
     }
 
     if backend.exists(temporary)? {
@@ -106,14 +146,18 @@ fn recover_interrupted_replace(
 }
 
 #[cfg(any(target_arch = "powerpc", test))]
-fn rename(backend: &mut impl ReplaceBackend, old_path: &str, new_path: &str) -> Result<(), i32> {
+fn rename(
+    backend: &mut impl ReplaceBackend,
+    old_path: &str,
+    new_path: &str,
+) -> Result<(), ReplaceError> {
     check(backend.rename(old_path, new_path))
 }
 
 #[cfg(any(target_arch = "powerpc", test))]
-fn check(result: i32) -> Result<(), i32> {
+fn check(result: i32) -> Result<(), ReplaceError> {
     if result < 0 {
-        Err(result)
+        Err(ReplaceError::Backend(result))
     } else {
         Ok(())
     }
@@ -129,12 +173,16 @@ mod wii {
     use super::{recover_file_for_load, replace_file, ReplaceBackend};
     use crate::platform::settings::SettingsIoError;
     use alloc::ffi::CString;
+    use alloc::vec::Vec;
     use ogc_filesystem as isfs;
 
     const WRITE_CHUNK_SIZE: usize = 16 * 1024;
 
     #[repr(align(32))]
     struct AlignedChunk([u8; WRITE_CHUNK_SIZE]);
+
+    #[repr(align(32))]
+    struct AlignedFstats(isfs::Fstats);
 
     struct IsfsBackend;
 
@@ -153,6 +201,77 @@ mod wii {
                 Err(ogc_ipc::IPC_ENOENT) => Ok(false),
                 Err(error) => Err(error),
             }
+        }
+
+        fn read_bounded(&mut self, path: &str, max_size: usize) -> Result<Option<Vec<u8>>, i32> {
+            let path = CString::new(path).map_err(|_| isfs::ISFS_EINVAL)?;
+            let file = match isfs::open(&path, isfs::ISFS_OPEN_READ) {
+                Ok(file) => file,
+                Err(ogc_ipc::IPC_ENOENT) => return Ok(None),
+                Err(error) => return Err(error),
+            };
+            let mut stats = AlignedFstats(isfs::Fstats::default());
+            let result = isfs::get_file_stats(&file, &mut stats.0);
+            if result < 0 {
+                let close_result = file.close();
+                if close_result < 0 {
+                    return Err(close_result);
+                }
+                return Err(result);
+            }
+            let size = usize::try_from(stats.0.file_length).map_err(|_| isfs::ISFS_EINVAL)?;
+            if size > max_size {
+                let close_result = file.close();
+                if close_result < 0 {
+                    return Err(close_result);
+                }
+                return Err(isfs::ISFS_EINVAL);
+            }
+            let mut bytes = Vec::new();
+            if bytes.try_reserve_exact(size).is_err() {
+                let close_result = file.close();
+                if close_result < 0 {
+                    return Err(close_result);
+                }
+                return Err(isfs::ISFS_ENOMEM);
+            }
+            let mut chunk = AlignedChunk([0; WRITE_CHUNK_SIZE]);
+            let mut remaining = size;
+            while remaining > 0 {
+                let requested = remaining.min(WRITE_CHUNK_SIZE);
+                match file.read(&mut chunk.0[..requested]) {
+                    Ok(0) => {
+                        let close_result = file.close();
+                        if close_result < 0 {
+                            return Err(close_result);
+                        }
+                        return Err(isfs::ISFS_EINVAL);
+                    }
+                    Ok(count) if count <= requested => {
+                        bytes.extend_from_slice(&chunk.0[..count]);
+                        remaining -= count;
+                    }
+                    Ok(_) => {
+                        let close_result = file.close();
+                        if close_result < 0 {
+                            return Err(close_result);
+                        }
+                        return Err(isfs::ISFS_EINVAL);
+                    }
+                    Err(error) => {
+                        let close_result = file.close();
+                        if close_result < 0 {
+                            return Err(close_result);
+                        }
+                        return Err(error);
+                    }
+                }
+            }
+            let close_result = file.close();
+            if close_result < 0 {
+                return Err(close_result);
+            }
+            Ok(Some(bytes))
         }
 
         fn write_new(&mut self, path: &str, bytes: &[u8]) -> Result<(), i32> {
@@ -197,12 +316,17 @@ mod wii {
 
     pub(crate) fn save(path: &CString, bytes: &[u8]) -> Result<(), SettingsIoError> {
         let path = path.to_str().map_err(|_| SettingsIoError::InvalidPath)?;
-        replace_file(&mut IsfsBackend, path, bytes).map_err(SettingsIoError::Isfs)
+        replace_file(&mut IsfsBackend, path, bytes).map_err(SettingsIoError::from_replace)
     }
 
-    pub(crate) fn recover(path: &CString) -> Result<(), SettingsIoError> {
+    pub(crate) fn recover(
+        path: &CString,
+        max_size: usize,
+        validate: impl FnMut(&[u8]) -> bool,
+    ) -> Result<(), SettingsIoError> {
         let path = path.to_str().map_err(|_| SettingsIoError::InvalidPath)?;
-        recover_file_for_load(&mut IsfsBackend, path).map_err(SettingsIoError::Isfs)
+        recover_file_for_load(&mut IsfsBackend, path, max_size, validate)
+            .map_err(SettingsIoError::from_replace)
     }
 }
 
@@ -221,6 +345,7 @@ mod tests {
     struct MemoryBackend {
         files: BTreeMap<String, Vec<u8>>,
         fail_write: Option<WriteFailure>,
+        corrupt_staged_file: bool,
         fail_rename_call: Option<usize>,
         fail_rollback: bool,
         rename_calls: usize,
@@ -239,6 +364,14 @@ mod tests {
             Ok(self.files.contains_key(path))
         }
 
+        fn read_bounded(&mut self, path: &str, max_size: usize) -> Result<Option<Vec<u8>>, i32> {
+            match self.files.get(path) {
+                Some(bytes) if bytes.len() <= max_size => Ok(Some(bytes.clone())),
+                Some(_) => Err(-7),
+                None => Ok(None),
+            }
+        }
+
         fn write_new(&mut self, path: &str, bytes: &[u8]) -> Result<(), i32> {
             match self.fail_write {
                 Some(WriteFailure::Create | WriteFailure::Open) => return Err(-7),
@@ -253,7 +386,11 @@ mod tests {
                 }
                 None => {}
             }
-            self.files.insert(String::from(path), bytes.into());
+            let mut stored = bytes.to_vec();
+            if self.corrupt_staged_file && !stored.is_empty() {
+                stored[0] ^= 0xff;
+            }
+            self.files.insert(String::from(path), stored);
             Ok(())
         }
 
@@ -302,10 +439,28 @@ mod tests {
             let mut backend = MemoryBackend::default();
             backend.files.insert(String::from("settings.xml"), vec![1]);
             backend.fail_write = Some(failure);
-            assert_eq!(replace_file(&mut backend, "settings.xml", &[2, 3]), Err(-7));
+            assert_eq!(
+                replace_file(&mut backend, "settings.xml", &[2, 3]),
+                Err(ReplaceError::Backend(-7))
+            );
             assert_eq!(backend.files.get("settings.xml"), Some(&vec![1]));
             assert!(!backend.files.contains_key("settings.xml.tmp"));
         }
+    }
+
+    #[test]
+    fn staged_bytes_are_verified_before_replacing_the_original() {
+        let mut backend = MemoryBackend {
+            corrupt_staged_file: true,
+            ..MemoryBackend::default()
+        };
+        backend.files.insert(String::from("settings.xml"), vec![1]);
+        assert_eq!(
+            replace_file(&mut backend, "settings.xml", &[2, 3]),
+            Err(ReplaceError::TemporaryMismatch)
+        );
+        assert_eq!(backend.files.get("settings.xml"), Some(&vec![1]));
+        assert!(!backend.files.contains_key("settings.xml.bak"));
     }
 
     #[test]
@@ -313,7 +468,10 @@ mod tests {
         let mut backend = MemoryBackend::default();
         backend.files.insert(String::from("settings.xml"), vec![1]);
         backend.fail_rename_call = Some(2);
-        assert_eq!(replace_file(&mut backend, "settings.xml", &[2]), Err(-8));
+        assert_eq!(
+            replace_file(&mut backend, "settings.xml", &[2]),
+            Err(ReplaceError::Backend(-8))
+        );
         assert_eq!(backend.files.get("settings.xml"), Some(&vec![1]));
         assert!(!backend.files.contains_key("settings.xml.bak"));
         assert!(!backend.files.contains_key("settings.xml.tmp"));
@@ -328,6 +486,10 @@ mod tests {
         backend
             .files
             .insert(String::from("settings.xml.tmp"), vec![2]);
+        assert_eq!(
+            recover_file_for_load(&mut backend, "settings.xml", 10, |bytes| bytes == [1]),
+            Ok(())
+        );
         assert_eq!(replace_file(&mut backend, "settings.xml", &[3]), Ok(()));
         assert_eq!(backend.files.get("settings.xml"), Some(&vec![3]));
         assert!(!backend.files.contains_key("settings.xml.bak"));
@@ -343,8 +505,91 @@ mod tests {
         backend
             .files
             .insert(String::from("settings.xml.tmp"), vec![2]);
-        assert_eq!(recover_file_for_load(&mut backend, "settings.xml"), Ok(()));
+        assert_eq!(
+            recover_file_for_load(&mut backend, "settings.xml", 10, |bytes| bytes == [1]),
+            Ok(())
+        );
         assert_eq!(backend.files.get("settings.xml"), Some(&vec![1]));
+        assert!(!backend.files.contains_key("settings.xml.tmp"));
+    }
+
+    #[test]
+    fn load_recovery_keeps_the_backup_when_primary_fails_validation() {
+        let mut backend = MemoryBackend::default();
+        backend.files.insert(String::from("settings.xml"), vec![2]);
+        backend
+            .files
+            .insert(String::from("settings.xml.bak"), vec![1]);
+
+        assert_eq!(
+            recover_file_for_load(&mut backend, "settings.xml", 10, |bytes| bytes == [1]),
+            Ok(())
+        );
+        assert_eq!(backend.files.get("settings.xml"), Some(&vec![1]));
+        assert!(!backend.files.contains_key("settings.xml.bak"));
+    }
+
+    #[test]
+    fn load_recovery_deletes_backup_only_after_primary_validation() {
+        let mut backend = MemoryBackend::default();
+        backend.files.insert(String::from("settings.xml"), vec![1]);
+        backend
+            .files
+            .insert(String::from("settings.xml.bak"), vec![2]);
+
+        assert_eq!(
+            recover_file_for_load(&mut backend, "settings.xml", 10, |bytes| bytes == [1]),
+            Ok(())
+        );
+        assert_eq!(backend.files.get("settings.xml"), Some(&vec![1]));
+        assert!(!backend.files.contains_key("settings.xml.bak"));
+    }
+
+    #[test]
+    fn invalid_primary_and_backup_are_both_preserved() {
+        let mut backend = MemoryBackend::default();
+        backend.files.insert(String::from("settings.xml"), vec![2]);
+        backend
+            .files
+            .insert(String::from("settings.xml.bak"), vec![3]);
+
+        assert_eq!(
+            recover_file_for_load(&mut backend, "settings.xml", 10, |bytes| bytes == [1]),
+            Ok(())
+        );
+        assert_eq!(backend.files.get("settings.xml"), Some(&vec![2]));
+        assert_eq!(backend.files.get("settings.xml.bak"), Some(&vec![3]));
+    }
+
+    #[test]
+    fn invalid_backup_without_primary_blocks_load_recovery() {
+        let mut backend = MemoryBackend::default();
+        backend
+            .files
+            .insert(String::from("settings.xml.bak"), vec![3]);
+
+        assert_eq!(
+            recover_file_for_load(&mut backend, "settings.xml", 10, |bytes| bytes == [1]),
+            Err(ReplaceError::BackupNeedsValidation)
+        );
+        assert_eq!(backend.files.get("settings.xml.bak"), Some(&vec![3]));
+        assert!(!backend.files.contains_key("settings.xml"));
+    }
+
+    #[test]
+    fn save_refuses_to_replace_unvalidated_recovery_files() {
+        let mut backend = MemoryBackend::default();
+        backend.files.insert(String::from("settings.xml"), vec![1]);
+        backend
+            .files
+            .insert(String::from("settings.xml.bak"), vec![2]);
+
+        assert_eq!(
+            replace_file(&mut backend, "settings.xml", &[3]),
+            Err(ReplaceError::BackupNeedsValidation)
+        );
+        assert_eq!(backend.files.get("settings.xml"), Some(&vec![1]));
+        assert_eq!(backend.files.get("settings.xml.bak"), Some(&vec![2]));
         assert!(!backend.files.contains_key("settings.xml.tmp"));
     }
 
@@ -354,11 +599,17 @@ mod tests {
         backend.files.insert(String::from("settings.xml"), vec![1]);
         backend.fail_rename_call = Some(2);
         backend.fail_rollback = true;
-        assert_eq!(replace_file(&mut backend, "settings.xml", &[2]), Err(-8));
+        assert_eq!(
+            replace_file(&mut backend, "settings.xml", &[2]),
+            Err(ReplaceError::Backend(-8))
+        );
         assert!(!backend.files.contains_key("settings.xml"));
         assert_eq!(backend.files.get("settings.xml.bak"), Some(&vec![1]));
 
-        assert_eq!(recover_file_for_load(&mut backend, "settings.xml"), Ok(()));
+        assert_eq!(
+            recover_file_for_load(&mut backend, "settings.xml", 10, |bytes| bytes == [1]),
+            Ok(())
+        );
         assert_eq!(backend.files.get("settings.xml"), Some(&vec![1]));
         assert!(!backend.files.contains_key("settings.xml.bak"));
         assert!(!backend.files.contains_key("settings.xml.tmp"));

@@ -12,12 +12,25 @@ use crate::{
 
 /// Owns the current catalog and applies platform input to the app controller.
 /// Storage, drawing, and service actions remain at the platform edge.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AppRuntime {
     controller: AppController,
     catalog: Vec<AppEntry>,
     settings: SettingsState,
+    settings_persistence_enabled: bool,
     theme: Option<ThemeMetadata>,
+}
+
+impl Default for AppRuntime {
+    fn default() -> Self {
+        Self::new(Vec::new())
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SettingsSaveError<E> {
+    PreviousLoadFailed,
+    Backend(E),
 }
 
 impl AppRuntime {
@@ -26,6 +39,7 @@ impl AppRuntime {
             controller: AppController::new(),
             catalog,
             settings: SettingsState::default(),
+            settings_persistence_enabled: true,
             theme: None,
         }
     }
@@ -116,8 +130,17 @@ impl AppRuntime {
     pub fn save_settings_if_dirty<E>(
         &mut self,
         save: impl FnOnce(&UserSettings) -> Result<(), E>,
-    ) -> Result<bool, E> {
-        self.settings.save_if_dirty(save)
+    ) -> Result<bool, SettingsSaveError<E>> {
+        if !self.settings_persistence_enabled && self.settings.is_dirty() {
+            return Err(SettingsSaveError::PreviousLoadFailed);
+        }
+        self.settings
+            .save_if_dirty(save)
+            .map_err(SettingsSaveError::Backend)
+    }
+
+    pub fn set_settings_persistence_enabled(&mut self, enabled: bool) {
+        self.settings_persistence_enabled = enabled;
     }
 
     /// Apply settings loaded from NAND before the first rendered frame.
@@ -383,5 +406,23 @@ mod tests {
             runtime.settings().current().selected_app.as_deref(),
             Some("a")
         );
+    }
+
+    #[test]
+    fn blocked_settings_persistence_does_not_overwrite_unreadable_data() {
+        let mut runtime = AppRuntime::new(vec![app("a")]);
+        runtime.set_preferred_device(1);
+        runtime.set_settings_persistence_enabled(false);
+        let mut save_called = false;
+
+        assert_eq!(
+            runtime.save_settings_if_dirty(|_| {
+                save_called = true;
+                Ok::<(), i32>(())
+            }),
+            Err(SettingsSaveError::PreviousLoadFailed)
+        );
+        assert!(!save_called);
+        assert!(runtime.settings().is_dirty());
     }
 }

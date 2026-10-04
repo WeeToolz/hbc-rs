@@ -456,10 +456,16 @@ pub fn load() -> Result<Option<Vec<u8>>, SettingsIoError> {
     }
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("THEME FILE RECOVERY");
-    super::nand::recover_wii(&path)?;
+    super::nand::recover_wii(&path, MAX_THEME_ARCHIVE_BYTES, |bytes| {
+        crate::theme::ThemePackage::parse(bytes).is_ok()
+    })?;
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("THEME FILE OPEN");
-    let file = isfs::open(&path, isfs::ISFS_OPEN_READ).map_err(SettingsIoError::Isfs)?;
+    let file = match isfs::open(&path, isfs::ISFS_OPEN_READ) {
+        Ok(file) => file,
+        Err(ogc_ipc::IPC_ENOENT) => return Ok(None),
+        Err(error) => return Err(SettingsIoError::Isfs(error)),
+    };
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("THEME FILE STATS");
     let mut stats = AlignedStats(isfs::Fstats::default());
