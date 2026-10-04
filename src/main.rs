@@ -100,7 +100,11 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                     }
                     hbc_rs::platform::lifecycle::ExitRequest::PowerOff => ogc_system::SYS_POWEROFF,
                 };
-                exit_to_system(&mut startup, reset);
+                if let Err(message) = exit_to_system(&mut startup, reset) {
+                    startup
+                        .runtime_mut()
+                        .show_notice_with_kind(message, hbc_rs::app::NoticeKind::Error);
+                }
             }
         }
 
@@ -149,7 +153,11 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                     }
                     hbc_rs::platform::lifecycle::ExitRequest::PowerOff => ogc_system::SYS_POWEROFF,
                 };
-                exit_to_system(&mut startup, reset);
+                if let Err(message) = exit_to_system(&mut startup, reset) {
+                    startup
+                        .runtime_mut()
+                        .show_notice_with_kind(message, hbc_rs::app::NoticeKind::Error);
+                }
             }
         }
         if !startup.storage_scan_pending() {
@@ -352,7 +360,9 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             .is_err()
         {
             if hbc_rs::platform::diagnostics::fail("GX RENDER ERROR") {
-                exit_to_system(&mut startup, ogc_system::SYS_RESTART);
+                if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
+                    hbc_rs::platform::diagnostics::fail(message);
+                }
             }
             return -3;
         }
@@ -363,7 +373,9 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 hbc_rs::platform::diagnostics::test_square_origin(info.width, info.height)
             else {
                 if hbc_rs::platform::diagnostics::fail("GX TEST RECT BOUNDS") {
-                    exit_to_system(&mut startup, ogc_system::SYS_RESTART);
+                    if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
+                        hbc_rs::platform::diagnostics::fail(message);
+                    }
                 }
                 loop {
                     hbc_rs::platform::diagnostics::hold();
@@ -387,7 +399,9 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             .is_err()
             {
                 if hbc_rs::platform::diagnostics::fail("GX TEST RECT ERROR") {
-                    exit_to_system(&mut startup, ogc_system::SYS_RESTART);
+                    if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
+                        hbc_rs::platform::diagnostics::fail(message);
+                    }
                 }
                 loop {
                     hbc_rs::platform::diagnostics::hold();
@@ -406,7 +420,9 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                     _ => "GX DRAW DONE TIMEOUT",
                 };
                 if hbc_rs::platform::diagnostics::fail(message) {
-                    exit_to_system(&mut startup, ogc_system::SYS_RESTART);
+                    if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
+                        hbc_rs::platform::diagnostics::fail(message);
+                    }
                 }
             }
             return -4;
@@ -418,7 +434,10 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 hbc_rs::platform::diagnostics::hold();
                 if !video.framebuffer_has_visible_luma() {
                     if hbc_rs::platform::diagnostics::fail("GX XFB BLACK") {
-                        exit_to_system(&mut startup, ogc_system::SYS_RESTART);
+                        if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART)
+                        {
+                            hbc_rs::platform::diagnostics::fail(message);
+                        }
                     }
                     loop {
                         hbc_rs::platform::diagnostics::hold();
@@ -426,7 +445,10 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 }
                 if !video.framebuffer_has_test_square() {
                     if hbc_rs::platform::diagnostics::fail("GX TEST SQUARE MISSING") {
-                        exit_to_system(&mut startup, ogc_system::SYS_RESTART);
+                        if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART)
+                        {
+                            hbc_rs::platform::diagnostics::fail(message);
+                        }
                     }
                     // Replace the failed GX image with a CPU-written control pattern.
                     // This separates VI scanout from GX drawing and copy behavior.
@@ -448,7 +470,9 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         video.wait_vsync();
         #[cfg(feature = "startup-diagnostics")]
         if hbc_rs::platform::diagnostics::sample_frame() {
-            exit_to_system(&mut startup, ogc_system::SYS_RESTART);
+            if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
+                hbc_rs::platform::diagnostics::fail(message);
+            }
         }
 
         for action in actions {
@@ -546,9 +570,17 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             };
             if let Some(reset) = reset {
                 if action == hbc_rs::app::Action::LaunchBootMii {
-                    let _ = startup
+                    if startup
                         .runtime_mut()
-                        .save_settings_if_dirty(hbc_rs::platform::settings::save);
+                        .save_settings_if_dirty(hbc_rs::platform::settings::save)
+                        .is_err()
+                    {
+                        startup.runtime_mut().show_notice_with_kind(
+                            "Could not save settings. BootMii launch stopped.",
+                            hbc_rs::app::NoticeKind::Error,
+                        );
+                        continue;
+                    }
                     if startup.unmount_storage().is_err() {
                         startup.runtime_mut().show_notice_with_kind(
                             "Could not stop storage. BootMii launch stopped.",
@@ -556,11 +588,34 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                         );
                         continue;
                     }
-                    hbc_rs::platform::wiiload::stop();
-                    let _ = wpad_sys::shutdown();
-                    let _ = ogc_ios::launch_new_ios(254);
+                    if hbc_rs::platform::wiiload::stop().is_err() {
+                        startup.runtime_mut().show_notice_with_kind(
+                            "Could not stop the network receiver. BootMii launch stopped.",
+                            hbc_rs::app::NoticeKind::Error,
+                        );
+                        continue;
+                    }
+                    if wpad_sys::shutdown() < 0 {
+                        startup.runtime_mut().show_notice_with_kind(
+                            "Could not stop Wii Remote services. BootMii launch stopped.",
+                            hbc_rs::app::NoticeKind::Error,
+                        );
+                        continue;
+                    }
+                    if ogc_ios::launch_new_ios(254) < 0 {
+                        // WPAD and storage are already stopped. Return to the
+                        // System Menu instead of leaving HBC without input.
+                        hbc_rs::platform::video::shutdown();
+                        reset_system(ogc_system::SYS_RETURNTOMENU);
+                    }
+                    hbc_rs::platform::video::shutdown();
+                    reset_system(reset);
                 }
-                exit_to_system(&mut startup, reset);
+                if let Err(message) = exit_to_system(&mut startup, reset) {
+                    startup
+                        .runtime_mut()
+                        .show_notice_with_kind(message, hbc_rs::app::NoticeKind::Error);
+                }
             }
         }
     }
@@ -597,8 +652,11 @@ fn transfer_executable(
     if startup.unmount_storage().is_err() {
         return Err("Could not stop storage. Application launch stopped.");
     }
-    hbc_rs::platform::wiiload::stop();
-    let _ = wpad_sys::shutdown();
+    hbc_rs::platform::wiiload::stop()
+        .map_err(|_| "Could not stop the network receiver. Application launch stopped.")?;
+    if wpad_sys::shutdown() < 0 {
+        return Err("Could not stop Wii Remote services. Application launch stopped.");
+    }
     hbc_rs::platform::video::shutdown();
     unsafe {
         hbc_rs::loader::transfer_control(plan.entry, hbc_rs::loader::ios_launch_policy(ahb_access))
@@ -606,14 +664,34 @@ fn transfer_executable(
 }
 
 #[cfg(target_arch = "powerpc")]
-fn exit_to_system(startup: &mut hbc_rs::platform::startup::WiiStartup, reset: u32) -> ! {
-    let _ = startup
+fn exit_to_system(
+    startup: &mut hbc_rs::platform::startup::WiiStartup,
+    reset: u32,
+) -> Result<(), &'static str> {
+    match startup
         .runtime_mut()
-        .save_settings_if_dirty(hbc_rs::platform::settings::save);
-    let _ = startup.unmount_storage();
-    hbc_rs::platform::wiiload::stop();
-    let _ = wpad_sys::shutdown();
+        .save_settings_if_dirty(hbc_rs::platform::settings::save)
+    {
+        Ok(_) | Err(hbc_rs::runtime::SettingsSaveError::PreviousLoadFailed) => {}
+        Err(hbc_rs::runtime::SettingsSaveError::Backend(_)) => {
+            return Err("Could not save settings. System exit stopped.");
+        }
+    }
+    if startup.unmount_storage().is_err() {
+        return Err("Could not stop storage. System exit stopped.");
+    }
+    if hbc_rs::platform::wiiload::stop().is_err() {
+        return Err("Could not stop the network receiver. System exit stopped.");
+    }
+    if wpad_sys::shutdown() < 0 {
+        return Err("Could not stop Wii Remote services. System exit stopped.");
+    }
     hbc_rs::platform::video::shutdown();
+    reset_system(reset)
+}
+
+#[cfg(target_arch = "powerpc")]
+fn reset_system(reset: u32) -> ! {
     unsafe { ogc_system::reset_system(reset as i32, 0, 0) };
     loop {
         core::hint::spin_loop();

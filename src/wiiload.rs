@@ -1,6 +1,7 @@
 //! Host-testable decoding and bounds checks for the HBC Wiiload TCP header.
 
 use alloc::vec::Vec;
+use core::sync::atomic::{AtomicBool, Ordering};
 use miniz_oxide::inflate::decompress_to_vec_zlib_with_limit;
 
 pub const WIILOAD_HEADER_LEN: usize = 16;
@@ -21,6 +22,17 @@ pub enum ReceiverStatus {
     InvalidUpload = 6,
     ListenerError = 7,
     MemoryError = 8,
+}
+
+/// Clear worker ownership only after the join confirms thread completion.
+#[cfg_attr(not(any(target_arch = "powerpc", test)), allow(dead_code))]
+pub(crate) fn complete_worker_join(
+    started: &AtomicBool,
+    result: Result<(), i32>,
+) -> Result<(), i32> {
+    result?;
+    started.store(false, Ordering::Release);
+    Ok(())
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -158,6 +170,21 @@ pub struct WiiloadPayload {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use core::sync::atomic::AtomicBool;
+
+    #[test]
+    fn failed_worker_join_keeps_worker_marked_as_started() {
+        let started = AtomicBool::new(true);
+        assert_eq!(complete_worker_join(&started, Err(-8)), Err(-8));
+        assert!(started.load(Ordering::Acquire));
+    }
+
+    #[test]
+    fn successful_worker_join_clears_worker_started_state() {
+        let started = AtomicBool::new(true);
+        assert_eq!(complete_worker_join(&started, Ok(())), Ok(()));
+        assert!(!started.load(Ordering::Acquire));
+    }
 
     #[test]
     fn maps_receiver_status_and_gecko_readiness_to_indicators() {

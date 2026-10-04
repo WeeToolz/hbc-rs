@@ -37,6 +37,7 @@ const GECKO_IDLE_POLLS: usize = 6;
 pub enum ReceiverError {
     AlreadyStarted,
     ThreadCreation,
+    WorkerJoin(i32),
 }
 
 struct Shared {
@@ -110,8 +111,9 @@ pub fn start() -> Result<(), ReceiverError> {
             ReceiverStatus::NetworkUnavailable | ReceiverStatus::ListenerError => {
                 // A terminal worker can be joined and restarted by this control thread.
                 // SAFETY: the terminal status is published only after worker_main exits.
-                let _ = unsafe { ThreadHandle::new(THREAD) }.join();
-                STARTED.store(false, Ordering::Release);
+                let joined = unsafe { ThreadHandle::new(THREAD) }.join().map(|_| ());
+                crate::wiiload::complete_worker_join(&STARTED, joined)
+                    .map_err(ReceiverError::WorkerJoin)?;
             }
             _ => return Err(ReceiverError::AlreadyStarted),
         }
@@ -185,16 +187,17 @@ pub fn take_payload() -> Option<WiiloadPayload> {
 }
 
 /// Ask the worker to stop and wait for it to close its listener and network stack.
-pub fn stop() {
+pub fn stop() -> Result<(), ReceiverError> {
     if !STARTED.load(Ordering::Acquire) {
-        return;
+        return Ok(());
     }
     SHARED.stopped.store(true, Ordering::Release);
     // SAFETY: THREAD is written once by start and read only for this join.
-    let _ = unsafe { ThreadHandle::new(THREAD) }.join();
-    STARTED.store(false, Ordering::Release);
+    let joined = unsafe { ThreadHandle::new(THREAD) }.join().map(|_| ());
+    crate::wiiload::complete_worker_join(&STARTED, joined).map_err(ReceiverError::WorkerJoin)?;
     SHARED.gecko_ready.store(false, Ordering::Release);
     SHARED.set_status(ReceiverStatus::Stopped);
+    Ok(())
 }
 
 unsafe fn worker(arg: *mut c_void) -> *mut c_void {
