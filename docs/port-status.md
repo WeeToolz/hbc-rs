@@ -210,6 +210,9 @@ target has no `test` crate.
   them. A storage failure can leave an overwritten app folder partially updated.
   Safe staged directory replacement needs a FAT rename and recovery design and
   remains open work.
+- The Wiiload worker still ignores some socket-close and network-deinit errors.
+  A successful thread join confirms that the worker stopped; it does not confirm
+  that every network resource closed successfully.
 
 ## Other out-of-scope targets
 
