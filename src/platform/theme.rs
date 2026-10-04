@@ -36,6 +36,8 @@ const THROBBER_SIZE: u32 = 64;
 const BUBBLE_SIZE: u32 = 64;
 const PROGRESS_WIDTH: u32 = 400;
 const PROGRESS_HEIGHT: u32 = 112;
+const MEMO_ARROW_WIDTH: u32 = 32;
+const MEMO_ARROW_HEIGHT: u32 = 8;
 const THEME_IMAGE_MAX_BYTES: usize = 8 * 1024 * 1024;
 
 const DEFAULT_BACKGROUND: &[u8] = include_bytes!("../../assets/background.png");
@@ -62,6 +64,8 @@ const DEFAULT_BUBBLES: [&[u8]; 3] = [
     include_bytes!("../../assets/bubble3.png"),
 ];
 const DEFAULT_PROGRESS: &[u8] = include_bytes!("../../assets/progress.png");
+const DEFAULT_MEMO_ARROW_UP: &[u8] = include_bytes!("../../assets/content_arrow_up.png");
+const DEFAULT_MEMO_ARROW_DOWN: &[u8] = include_bytes!("../../assets/content_arrow_down.png");
 const DEFAULT_LARGE_BUTTON: &[u8] = include_bytes!("../../assets/button.png");
 const DEFAULT_LARGE_BUTTON_FOCUS: &[u8] = include_bytes!("../../assets/button_focus.png");
 const DEFAULT_SMALL_BUTTON: &[u8] = include_bytes!("../../assets/button_small.png");
@@ -102,6 +106,8 @@ pub struct ThemeTextures {
     pub throbber: Option<crate::png::GxRgba8Texture>,
     pub bubbles: [Option<crate::png::GxRgba8Texture>; 3],
     pub progress: Option<crate::png::GxRgba8Texture>,
+    pub memo_arrow_up: Option<crate::png::GxRgba8Texture>,
+    pub memo_arrow_down: Option<crate::png::GxRgba8Texture>,
     pub network_icon: Option<crate::png::GxRgba8Texture>,
     pub network_icon_active: Option<crate::png::GxRgba8Texture>,
     pub gecko_icon: Option<crate::png::GxRgba8Texture>,
@@ -295,6 +301,20 @@ impl ThemeTextures {
                 PROGRESS_WIDTH,
                 PROGRESS_HEIGHT,
                 DEFAULT_PROGRESS,
+            ),
+            memo_arrow_up: theme_image_texture(
+                package,
+                "content_arrow_up.png",
+                MEMO_ARROW_WIDTH,
+                MEMO_ARROW_HEIGHT,
+                DEFAULT_MEMO_ARROW_UP,
+            ),
+            memo_arrow_down: theme_image_texture(
+                package,
+                "content_arrow_down.png",
+                MEMO_ARROW_WIDTH,
+                MEMO_ARROW_HEIGHT,
+                DEFAULT_MEMO_ARROW_DOWN,
             ),
             network_icon: theme_image_texture(
                 package,

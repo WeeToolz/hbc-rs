@@ -3,7 +3,7 @@
 use alloc::{string::String, vec::Vec};
 
 use crate::{
-    app::{Action, AppController, Input, PointerTarget},
+    app::{Action, AppController, Input, NoticeKind, PointerTarget},
     catalog::AppEntry,
     metadata::{ThemeMetadata, UserSettings},
     platform::input::InputFrame,
@@ -75,12 +75,20 @@ impl AppRuntime {
     }
 
     pub fn apply_theme(&mut self, theme: ThemeMetadata) {
+        self.controller.set_about_theme_description(
+            theme.description.as_deref().is_some_and(|s| !s.is_empty()),
+        );
         self.theme = Some(theme);
     }
 
     /// Show a platform action failure in the shared notice dialog.
     pub fn show_notice(&mut self, message: &str) {
         self.controller.show_notice(String::from(message));
+    }
+
+    pub fn show_notice_with_kind(&mut self, message: &str, kind: NoticeKind) {
+        self.controller
+            .show_notice_with_kind(String::from(message), kind);
     }
 
     pub fn set_bootmii_available(&mut self, available: bool) {

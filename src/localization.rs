@@ -166,6 +166,30 @@ impl Language {
             (Dutch, "Information") => "Informatie",
             (Italian, "Information") => "Informazioni",
             (Japanese, "Information") => "報告",
+            (Spanish, "Warning") => "Advertencia",
+            (French, "Warning") => "Avertissement",
+            (German, "Warning") => "Warnung",
+            (Dutch, "Warning") => "Waarschuwing",
+            (Italian, "Warning") => "Avviso",
+            (Japanese, "Warning") => "警告",
+            (Spanish, "Error") => "Error",
+            (French, "Error") => "Erreur",
+            (German, "Error") => "Fehler",
+            (Dutch, "Error") => "Fout",
+            (Italian, "Error") => "Errore",
+            (Japanese, "Error") => "エラー",
+            (Spanish, "Theme:") => "Tema:",
+            (French, "Theme:") => "Thème :",
+            (German, "Theme:") => "Thema:",
+            (Dutch, "Theme:") => "Thema:",
+            (Italian, "Theme:") => "Tema:",
+            (Japanese, "Theme:") => "テーマ:",
+            (Spanish, "Notice") => "Aviso",
+            (French, "Notice") => "Avis",
+            (German, "Notice") => "Hinweis",
+            (Dutch, "Notice") => "Melding",
+            (Italian, "Notice") => "Avviso",
+            (Japanese, "Notice") => "お知らせ",
             (Spanish, "OK") => "Aceptar",
             (French, "OK") => "Ok",
             (German, "OK") => "OK",
@@ -272,12 +296,6 @@ impl Language {
             (Dutch, "Please wait...") => "Even wachten...",
             (Italian, "Please wait...") => "Attendere...",
             (Japanese, "Please wait...") => "お待ちください...",
-            (Spanish, "Notice") => "Aviso",
-            (French, "Notice") => "Information",
-            (German, "Notice") => "Hinweis",
-            (Dutch, "Notice") => "Melding",
-            (Italian, "Notice") => "Avviso",
-            (Japanese, "Notice") => "お知らせ",
             (Spanish, "Scanning storage...") => "Buscando almacenamiento...",
             (French, "Scanning storage...") => "Analyse du stockage...",
             (German, "Scanning storage...") => "Speicher wird durchsucht...",
@@ -699,6 +717,8 @@ mod tests {
     #[test]
     fn translates_catalog_labels_and_preserves_unknown_strings() {
         assert_eq!(Language::Spanish.text("Back"), "Atrás");
+        assert_eq!(Language::Spanish.text("Warning"), "Advertencia");
+        assert_eq!(Language::French.text("Theme:"), "Thème :");
         assert_eq!(Language::Dutch.text("Options"), "Opties");
         assert_eq!(Language::French.text("Device:"), "Dispositif:");
         assert_eq!(

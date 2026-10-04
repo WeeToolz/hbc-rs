@@ -57,6 +57,15 @@ pub enum Screen {
     Notice,
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum NoticeKind {
+    #[default]
+    Generic,
+    Information,
+    Warning,
+    Error,
+}
+
 /// Input after the platform layer maps controller buttons to logical actions.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Input {
@@ -113,7 +122,8 @@ const MENU_ITEMS_WITHOUT_BOOTMII: usize = 4;
 const MENU_ITEMS_WITH_BOOTMII: usize = 5;
 const DEFAULT_BROWSER_ROWS: usize = 5;
 pub const DETAIL_DESCRIPTION_LINE_WIDTH: usize = 76;
-pub const DETAIL_DESCRIPTION_VISIBLE_LINES: usize = 20;
+pub const DETAIL_DESCRIPTION_VISIBLE_LINES: usize = 16;
+pub const MESSAGE_MEMO_VISIBLE_LINES: usize = 20;
 pub const ABOUT_MEMO_LINE_WIDTH: usize = 76;
 pub const ABOUT_MEMO_VISIBLE_LINES: usize = 20;
 pub const ABOUT_CREDITS: &str = "Credits\n\nThis port is written in Rust and uses libogc-rs for Wii platform support.\n\nThe following credits are from the original C Homebrew Channel:\n\nThe Homebrew Channel was made possible by the following people:\n\ndhewg (EWRONGCHAN) - application code, geckoloader code\nblasty (ESTONED) - application code\nmarcan (EFAILURE) - reload stub, banner, installer, packaging\nbushing (EWANTPONY) - socket code, loader code\nsegher (EBUGFOUND) - nandloader stub code\nsouLLy (ENOTHERE) - banner graphics\ndrmr (EMORECOWBELL) - banner audio, channel graphics\nmha (E404) - update server and hosting\n\nThe original C HBC used devkitPPC and libogc, by shagkur, WinterMute, and everyone else who contributed.\n\nThanks to all the beta testers\n\nKind regards to the following people too:\n\nsepp256 - dropped some good GX hints\nchishm, svpe, rodries, hermes - libfat port\nalien - some graphics\njodi - the lulz\n\nThe following library credits are from the original C HBC:\n\nwiiuse - para's Wiimote library, then integrated with libogc\nlibpng - the official PNG library\nMini-XML - small and efficient XML parsing library\nFreeType - the free TrueType/OpenType font renderer\n";
@@ -188,6 +198,7 @@ pub struct AppController {
     detail_description_max_scroll: usize,
     about_scroll: usize,
     about_scroll_ticks: usize,
+    about_has_theme_description: bool,
     detail_scroll_app: Option<String>,
     detail_scroll_pixel_remainder: i16,
     memo_drag: MemoDrag,
@@ -200,6 +211,7 @@ pub struct AppController {
     wiiload_confirmation_scroll_pixel_remainder: i16,
     wiiload_install_progress: u8,
     notice: Option<String>,
+    notice_kind: NoticeKind,
     notice_scroll: usize,
     notice_scroll_max: usize,
     notice_scroll_pixel_remainder: i16,
@@ -251,7 +263,7 @@ impl AppController {
         self.wiiload_confirmation_scroll_pixel_remainder = 0;
         self.wiiload_confirmation_max_scroll = wrap_lines(&self.wiiload_confirmation_text, 74)
             .len()
-            .saturating_sub(14);
+            .saturating_sub(MESSAGE_MEMO_VISIBLE_LINES);
     }
 
     pub fn wiiload_confirmation_text(&self) -> &str {
@@ -331,6 +343,22 @@ impl AppController {
         self.about_scroll
     }
 
+    pub fn set_about_theme_description(&mut self, available: bool) {
+        self.about_has_theme_description = available;
+        self.about_scroll = self.about_scroll.min(self.about_max_scroll());
+    }
+
+    fn about_max_scroll(&self) -> usize {
+        let lines = crate::text_layout::wrap_memo_lines(ABOUT_CREDITS, ABOUT_MEMO_LINE_WIDTH)
+            .len()
+            .saturating_add(if self.about_has_theme_description {
+                1
+            } else {
+                0
+            });
+        lines.saturating_sub(ABOUT_MEMO_VISIBLE_LINES)
+    }
+
     /// Match the C About memo's delayed, slow upward crawl.
     pub fn tick_about_scroll(&mut self) {
         if self.screen != Screen::About {
@@ -338,9 +366,7 @@ impl AppController {
         }
         self.about_scroll_ticks = self.about_scroll_ticks.saturating_add(1);
         if self.about_scroll_ticks > 120 && self.about_scroll_ticks % 3 == 0 {
-            let max = crate::text_layout::wrap_memo_lines(ABOUT_CREDITS, ABOUT_MEMO_LINE_WIDTH)
-                .len()
-                .saturating_sub(ABOUT_MEMO_VISIBLE_LINES);
+            let max = self.about_max_scroll();
             self.about_scroll = self.about_scroll.saturating_add(1).min(max);
         }
     }
@@ -372,6 +398,10 @@ impl AppController {
 
     pub fn notice(&self) -> Option<&str> {
         self.notice.as_deref()
+    }
+
+    pub fn notice_kind(&self) -> NoticeKind {
+        self.notice_kind
     }
 
     pub fn notice_scroll(&self) -> usize {
@@ -419,14 +449,20 @@ impl AppController {
 
     /// Show a message and return to the current screen after dismissal.
     pub fn show_notice(&mut self, message: String) {
+        self.show_notice_with_kind(message, NoticeKind::Generic);
+    }
+
+    pub fn show_notice_with_kind(&mut self, message: String, kind: NoticeKind) {
         self.notice_return_screen = self.screen;
         self.notice_scroll = 0;
         self.notice_scroll_pixel_remainder = 0;
         self.notice = Some(message);
-        self.notice_scroll_max = self
-            .notice
-            .as_deref()
-            .map_or(0, |value| wrap_lines(value, 74).len().saturating_sub(14));
+        self.notice_kind = kind;
+        self.notice_scroll_max = self.notice.as_deref().map_or(0, |value| {
+            wrap_lines(value, 74)
+                .len()
+                .saturating_sub(MESSAGE_MEMO_VISIBLE_LINES)
+        });
         self.screen = Screen::Notice;
     }
 
@@ -1168,6 +1204,30 @@ mod tests {
     }
 
     #[test]
+    fn about_scroll_includes_one_active_theme_credit_line() {
+        let mut controller = AppController::new();
+        controller.screen = Screen::About;
+        let base_max = controller.about_max_scroll();
+        controller.set_about_theme_description(true);
+        for _ in 0..10_000 {
+            controller.tick_about_scroll();
+        }
+        assert_eq!(controller.about_scroll(), base_max + 1);
+        controller.set_about_theme_description(false);
+        assert_eq!(controller.about_scroll(), base_max);
+    }
+
+    #[test]
+    fn typed_notices_preserve_kind_and_generic_notices_remain_generic() {
+        let mut controller = AppController::new();
+        controller.show_notice_with_kind("Storage is full.".into(), NoticeKind::Warning);
+        assert_eq!(controller.notice(), Some("Storage is full."));
+        assert_eq!(controller.notice_kind(), NoticeKind::Warning);
+        controller.show_notice("Done.".into());
+        assert_eq!(controller.notice_kind(), NoticeKind::Generic);
+    }
+
+    #[test]
     fn browser_navigation_and_detail_back_keep_identity() {
         let catalog = [app("one", "One", true), app("two", "Two", true)];
         let mut controller = AppController::new();
@@ -1471,7 +1531,7 @@ mod tests {
     fn long_received_zip_confirmation_scrolls_without_changing_yes_no_actions() {
         let mut controller = AppController::new();
         controller.request_wiiload_zip_confirmation();
-        controller.set_wiiload_confirmation_text("ZIP details ".repeat(120));
+        controller.set_wiiload_confirmation_text("ZIP details ".repeat(240));
         let max_scroll = controller.wiiload_confirmation_max_scroll();
         assert!(max_scroll > 0);
         assert_eq!(controller.wiiload_confirmation_scroll(), 0);

@@ -6,12 +6,13 @@
 //! through `ogc-gx`. Text uses a small native bitmap font. Other theme textures
 //! and texture gradients remain.
 
-use alloc::{string::String, vec::Vec};
+use alloc::{format, string::String, vec::Vec};
 
 use crate::{
     app::{
-        AppController, PointerTarget, Screen, ABOUT_CREDITS, ABOUT_MEMO_LINE_WIDTH,
+        AppController, NoticeKind, PointerTarget, Screen, ABOUT_CREDITS, ABOUT_MEMO_LINE_WIDTH,
         ABOUT_MEMO_VISIBLE_LINES, DETAIL_DESCRIPTION_LINE_WIDTH, DETAIL_DESCRIPTION_VISIBLE_LINES,
+        MESSAGE_MEMO_VISIBLE_LINES,
     },
     catalog::AppEntry,
     metadata::{Rgba, ThemeMetadata},
@@ -117,6 +118,8 @@ pub enum ThemeArt {
     Dialog,
     Progress,
     Throbber,
+    MemoArrowUp,
+    MemoArrowDown,
     DialogIcon(DialogIcon),
     About,
     Button(ButtonSize),
@@ -1109,16 +1112,34 @@ pub fn browser_frame_with_language(
             frame.theme_art(rect(60, 44, 520, 360), ThemeArt::Dialog, false);
             frame.theme_art(rect(202, 60, 236, 104), ThemeArt::About, false);
             frame.set_text_style(theme_text_style(theme, "memo", text_color));
-            frame.text_wrapped_scrolled(
-                92.0,
-                176.0,
-                ABOUT_CREDITS,
-                1.0,
-                text_color,
-                ABOUT_MEMO_LINE_WIDTH,
-                ABOUT_MEMO_VISIBLE_LINES,
-                controller.about_scroll(),
-            );
+            let mut about_lines = wrap_memo_lines(ABOUT_CREDITS, ABOUT_MEMO_LINE_WIDTH);
+            if let Some(description) = theme
+                .and_then(|metadata| metadata.description.as_deref())
+                .filter(|description| !description.is_empty())
+            {
+                about_lines.extend(wrap_memo_lines(
+                    &format!("{} {}", tr("Theme:"), description),
+                    ABOUT_MEMO_LINE_WIDTH,
+                ));
+            }
+            let start = controller
+                .about_scroll()
+                .min(about_lines.len().saturating_sub(ABOUT_MEMO_VISIBLE_LINES));
+            for (line_index, line) in about_lines
+                .iter()
+                .skip(start)
+                .take(ABOUT_MEMO_VISIBLE_LINES)
+                .enumerate()
+            {
+                frame.text(
+                    92.0,
+                    176.0 + line_index as f32 * 9.0 * frame.text_scale,
+                    line,
+                    1.0,
+                    text_color,
+                    ABOUT_MEMO_LINE_WIDTH,
+                );
+            }
             frame.text(144.0, 386.0, tr("Press B to return"), 1.0, text_color, 32);
         }
         Screen::Options => {}
@@ -1331,7 +1352,7 @@ pub fn browser_frame_with_language(
                 frame.set_text_style(theme_text_style(theme, "memo", text_color));
                 frame.text_wrapped_scrolled(
                     92.0,
-                    148.0,
+                    164.0,
                     description,
                     1.0,
                     text_color,
@@ -1343,7 +1364,8 @@ pub fn browser_frame_with_language(
                     &mut frame,
                     controller.detail_description_scroll(),
                     controller.detail_description_max_scroll(),
-                    320.0,
+                    148.0,
+                    324.0,
                 );
                 frame.hit_target(PointerTarget::DetailMemo, rect(88, 144, 464, 184));
             }
@@ -1371,13 +1393,17 @@ pub fn browser_frame_with_language(
                 false,
             );
             frame.set_text_style(theme_text_style(theme, "dlgtitle", text_color));
-            frame.text(
-                190.0,
-                100.0,
-                tr("Delete this application?"),
+            frame.text(284.0, 76.0, tr("Confirmation"), 1.0, text_color, 12);
+            frame.set_text_style(theme_text_style(theme, "memo", text_color));
+            frame.text_wrapped_scrolled(
+                92.0,
+                120.0,
+                tr("Do you really want to delete this application?"),
                 1.0,
                 text_color,
-                48,
+                74,
+                MESSAGE_MEMO_VISIBLE_LINES,
+                0,
             );
             for (index, yes) in [true, false].iter().enumerate() {
                 let bounds = frame.button(
@@ -1391,33 +1417,32 @@ pub fn browser_frame_with_language(
                 frame.hit_target(PointerTarget::DeleteChoice { yes: *yes }, bounds);
             }
         } else if controller.screen == Screen::WiiloadConfirm {
-            frame.fill(rect(0, 0, 640, 480), MODAL_SHADE);
-            frame.theme_art(rect(60, 44, 520, 360), ThemeArt::Dialog, false);
             frame.theme_art(
-                rect(124, 70, 32, 32),
+                rect(188, 68, 32, 32),
                 ThemeArt::DialogIcon(DialogIcon::Confirm),
                 false,
             );
             frame.set_text_style(theme_text_style(theme, "dlgtitle", text_color));
-            frame.text(164.0, 76.0, tr("Confirmation"), 1.0, text_color, 36);
+            frame.text(284.0, 76.0, tr("Confirmation"), 1.0, text_color, 12);
             frame.set_text_style(theme_text_style(theme, "memo", text_color));
             frame.text_wrapped_scrolled(
                 92.0,
-                148.0,
+                120.0,
                 controller.wiiload_confirmation_text(),
                 1.0,
                 text_color,
                 74,
-                14,
+                MESSAGE_MEMO_VISIBLE_LINES,
                 controller.wiiload_confirmation_scroll(),
             );
             draw_memo_scroll_arrows(
                 &mut frame,
                 controller.wiiload_confirmation_scroll(),
                 controller.wiiload_confirmation_max_scroll(),
-                304.0,
+                104.0,
+                308.0,
             );
-            frame.hit_target(PointerTarget::WiiloadMemo, rect(88, 144, 464, 168));
+            frame.hit_target(PointerTarget::WiiloadMemo, rect(88, 116, 464, 200));
             for (index, yes) in [true, false].iter().enumerate() {
                 let bounds = frame.button(
                     100.0 + index as f32 * 240.0,
@@ -1485,26 +1510,38 @@ pub fn browser_frame_with_language(
         frame.fill(rect(0, 0, 640, 480), MODAL_SHADE);
         frame.theme_art(rect(60, 44, 520, 360), ThemeArt::Dialog, false);
         frame.set_text_style(theme_text_style(theme, "dlgtitle", text_color));
-        frame.text(286.0, 76.0, tr("Notice"), 1.0, text_color, 24);
+        let (title, icon) = notice_presentation(controller.notice_kind());
+        let title = tr(title);
+        frame.theme_art(rect(188, 68, 32, 32), ThemeArt::DialogIcon(icon), false);
+        let title_width = title.chars().count() as f32 * 6.0 * frame.text_scale;
+        frame.text(
+            (320.0 - title_width / 2.0).max(92.0),
+            76.0,
+            title,
+            1.0,
+            text_color,
+            52,
+        );
         if let Some(message) = controller.notice() {
             frame.set_text_style(theme_text_style(theme, "memo", text_color));
             frame.text_wrapped_scrolled(
                 92.0,
-                148.0,
+                120.0,
                 language.text(message),
                 1.0,
                 text_color,
                 74,
-                14,
+                MESSAGE_MEMO_VISIBLE_LINES,
                 controller.notice_scroll(),
             );
             draw_memo_scroll_arrows(
                 &mut frame,
                 controller.notice_scroll(),
                 controller.notice_scroll_max(),
-                304.0,
+                104.0,
+                308.0,
             );
-            frame.hit_target(PointerTarget::NoticeMemo, rect(88, 144, 464, 168));
+            frame.hit_target(PointerTarget::NoticeMemo, rect(88, 116, 464, 200));
         }
         let bounds = frame.button(
             220.0,
@@ -1522,23 +1559,32 @@ pub fn browser_frame_with_language(
     frame
 }
 
-/// Show the same directional scroll cues as HBC's decorated memo widget.
-/// The symbols use the built-in bitmap font, so themes do not need new assets.
-fn draw_memo_scroll_arrows(frame: &mut Frame, offset: usize, max_offset: usize, bottom: f32) {
-    if offset < max_offset {
-        draw_memo_chevron(frame, 318.0, 132.0, true);
-    }
-    if offset > 0 {
-        draw_memo_chevron(frame, 318.0, bottom, false);
+fn notice_presentation(kind: NoticeKind) -> (&'static str, DialogIcon) {
+    match kind {
+        NoticeKind::Generic => ("Notice", DialogIcon::Info),
+        NoticeKind::Information => ("Information", DialogIcon::Info),
+        NoticeKind::Warning => ("Warning", DialogIcon::Warning),
+        NoticeKind::Error => ("Error", DialogIcon::Error),
     }
 }
 
-fn draw_memo_chevron(frame: &mut Frame, x: f32, y: f32, up: bool) {
-    for (row, width) in [5.0, 3.0, 1.0].into_iter().enumerate() {
-        let row = if up { row } else { 2 - row };
-        frame.fill(
-            rect(x - width / 2.0, y + row as f32 * 2.0, width, 2.0),
-            MUTED,
+/// Show the same directional scroll cues as HBC's decorated memo widget.
+/// The renderer resolves each cue through the active theme's image set.
+fn draw_memo_scroll_arrows(
+    frame: &mut Frame,
+    offset: usize,
+    max_offset: usize,
+    top: f32,
+    bottom: f32,
+) {
+    if offset < max_offset {
+        frame.theme_art(rect(304.0, top, 32.0, 8.0), ThemeArt::MemoArrowUp, false);
+    }
+    if offset > 0 {
+        frame.theme_art(
+            rect(304.0, bottom, 32.0, 8.0),
+            ThemeArt::MemoArrowDown,
+            false,
         );
     }
 }
@@ -1707,20 +1753,43 @@ mod tests {
     use alloc::{string::String, vec};
 
     #[test]
-    fn memo_chevrons_follow_scroll_bounds() {
+    fn memo_theme_arrows_follow_scroll_bounds() {
         let mut frame = Frame::default();
-        draw_memo_scroll_arrows(&mut frame, 0, 4, 300.0);
-        assert_eq!(frame.fills.len(), 3, "top cue only at the start");
-        frame.fills.clear();
-        draw_memo_scroll_arrows(&mut frame, 2, 4, 300.0);
-        assert_eq!(frame.fills.len(), 6, "both cues in the middle");
-        frame.fills.clear();
-        draw_memo_scroll_arrows(&mut frame, 4, 4, 300.0);
-        assert_eq!(frame.fills.len(), 3, "bottom cue only at the end");
-        assert!(frame.fills.iter().all(|fill| fill.bounds.y >= 300.0));
-        frame.fills.clear();
-        draw_memo_scroll_arrows(&mut frame, 0, 0, 300.0);
-        assert!(frame.fills.is_empty(), "no cues for short content");
+        draw_memo_scroll_arrows(&mut frame, 0, 4, 140.0, 300.0);
+        assert!(matches!(
+            frame.commands.as_slice(),
+            [FrameCommand::ThemeArt {
+                art: ThemeArt::MemoArrowUp,
+                ..
+            }]
+        ));
+        frame.commands.clear();
+        draw_memo_scroll_arrows(&mut frame, 2, 4, 140.0, 300.0);
+        assert!(matches!(
+            frame.commands.as_slice(),
+            [
+                FrameCommand::ThemeArt {
+                    art: ThemeArt::MemoArrowUp,
+                    ..
+                },
+                FrameCommand::ThemeArt {
+                    art: ThemeArt::MemoArrowDown,
+                    ..
+                }
+            ]
+        ));
+        frame.commands.clear();
+        draw_memo_scroll_arrows(&mut frame, 4, 4, 140.0, 300.0);
+        assert!(matches!(
+            frame.commands.as_slice(),
+            [FrameCommand::ThemeArt {
+                art: ThemeArt::MemoArrowDown,
+                ..
+            }]
+        ));
+        frame.commands.clear();
+        draw_memo_scroll_arrows(&mut frame, 0, 0, 140.0, 300.0);
+        assert!(frame.commands.is_empty(), "no arrows for short content");
     }
 
     #[test]
@@ -2070,6 +2139,76 @@ mod tests {
                 ..
             }
         )));
+    }
+
+    #[test]
+    fn about_screen_draws_the_active_theme_description() {
+        let mut controller = AppController::new();
+        controller.screen = Screen::About;
+        let theme = ThemeMetadata {
+            description: Some(String::from("Water")),
+            default_font: crate::metadata::ThemeFont {
+                size: Some(16),
+                ..crate::metadata::ThemeFont::default()
+            },
+            ..ThemeMetadata::default()
+        };
+        controller.set_about_theme_description(true);
+        for _ in 0..10_000 {
+            controller.tick_about_scroll();
+        }
+        let frame = browser_frame_with_language(
+            &controller,
+            &[],
+            Some(&theme),
+            LOGICAL_WIDTH,
+            crate::localization::Language::English,
+        );
+        let without_description = browser_frame_with_language(
+            &controller,
+            &[],
+            None,
+            LOGICAL_WIDTH,
+            crate::localization::Language::English,
+        );
+        assert!(frame.fills.len() > without_description.fills.len());
+    }
+
+    #[test]
+    fn notice_kinds_select_the_hbc_title_and_icon_pair() {
+        assert_eq!(
+            notice_presentation(NoticeKind::Information),
+            ("Information", DialogIcon::Info)
+        );
+        assert_eq!(
+            notice_presentation(NoticeKind::Warning),
+            ("Warning", DialogIcon::Warning)
+        );
+        assert_eq!(
+            notice_presentation(NoticeKind::Error),
+            ("Error", DialogIcon::Error)
+        );
+        assert_eq!(
+            notice_presentation(NoticeKind::Generic),
+            ("Notice", DialogIcon::Info)
+        );
+        for (kind, expected) in [
+            (NoticeKind::Information, DialogIcon::Info),
+            (NoticeKind::Warning, DialogIcon::Warning),
+            (NoticeKind::Error, DialogIcon::Error),
+        ] {
+            let mut controller = AppController::new();
+            controller.show_notice_with_kind(String::from("Message"), kind);
+            let frame = browser_frame(&controller, &[]);
+            assert!(frame.commands.iter().any(|command| matches!(
+                command,
+                FrameCommand::ThemeArt {
+                    art: ThemeArt::DialogIcon(icon),
+                    bounds,
+                    ..
+                } if *icon == expected && *bounds == rect(188, 68, 32, 32)
+            )));
+        }
     }
 
     #[test]
