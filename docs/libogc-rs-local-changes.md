@@ -4,6 +4,17 @@ The `libogc-rs/` directory is a complete local copy and is ignored by this
 repository. Changes inside it are not included in HBC commits. Record required
 changes here so a new checkout can reproduce them in its own local copy.
 
+## HBC application handoff exception restoration
+
+The local libogc-rs baseline must include commit `dfe5b3e` or equivalent.
+`ogc-sys` snapshots the original decrementer vector before LWP installs its
+Rust deadline handler, and `ogc-irq::restore_runtime_exception_vectors()`
+restores both the external IRQ vector and that decrementer vector before HBC
+branches to a loaded application. This matches the core runtime portion of
+C HBC's `__exception_closeall()` handoff without making HBC write exception
+slots directly. Debugger-owned general exception vectors remain owned by the
+debugger rather than by the core runtime restore API.
+
 ## PowerPC floating-point startup
 
 In `crates/abi/ogc-sys/src/lib.rs`, native `_start` must set `MSR_FP` while

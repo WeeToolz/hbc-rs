@@ -208,9 +208,13 @@ target has no `test` crate.
   removal, and reinsertion on Wii hardware with actual adapters. Rust probes
   physical presence and routes both choices through `ogc-fat`'s SDGecko backend;
   source and API inspection do not prove hardware behavior.
-- App launch parity remains incomplete: AHB-access apps do not receive the C
-  post-reload ES patch, and the local library has no safe operation to close and
-  restore every exception vector.
+- App launch source parity now includes HBC's AHBPROT ES patch before the IOS
+  reload, DVD-access re-enable after reload, and restoration of the Rust runtime's
+  external-interrupt and LWP decrementer vectors before handoff. The Rust port
+  deliberately returns to the System Menu if the requested AHB patch or IOS
+  reload fails instead of continuing with a partially prepared launch; this is a
+  narrow safety divergence from C, which logs or ignores those failures and
+  continues. The launch path still needs real-Wii verification.
 - Verify GX display and texture output, storage discovery, app launch, BootMii
   launch, NAND replacement and recovery on a real Wii. Confirm whether
   startup hangs with a HID controller and no USB drive.

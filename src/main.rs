@@ -234,9 +234,9 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                             Ok(plan) => {
                                 if let Err(notice) = transfer_executable(
                                     &mut startup,
-                                    &payload.data,
-                                    &plan,
-                                    &payload.args,
+                                    payload.data,
+                                    plan,
+                                    payload.args,
                                     false,
                                     "Could not prepare the received application.",
                                 ) {
@@ -559,12 +559,13 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                     );
                     continue;
                 };
+                let ahb_access = image.ahb_access;
                 if let Err(notice) = transfer_executable(
                     &mut startup,
-                    &image.bytes,
-                    &image.plan,
-                    &image.arguments,
-                    image.ahb_access,
+                    image.bytes,
+                    image.plan,
+                    image.arguments,
+                    ahb_access,
                     "Could not prepare this application to run.",
                 ) {
                     startup
@@ -644,24 +645,19 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
 #[cfg(target_arch = "powerpc")]
 fn transfer_executable(
     startup: &mut hbc_rs::platform::startup::WiiStartup,
-    bytes: &[u8],
-    plan: &hbc_rs::loader::LoadPlan,
-    arguments: &[u8],
+    bytes: Vec<u8>,
+    plan: hbc_rs::loader::LoadPlan,
+    arguments: Vec<u8>,
     ahb_access: bool,
     prepare_error: &'static str,
 ) -> Result<(), &'static str> {
-    if unsafe {
-        hbc_rs::loader::prepare_launch(
-            bytes,
-            plan,
-            arguments,
-            hbc_rs::platform::startup::EXECUTABLE_MEMORY.clone(),
-        )
-    }
-    .is_err()
-    {
-        return Err(prepare_error);
-    }
+    let launch = hbc_rs::loader::stage_launch(
+        bytes,
+        &plan,
+        arguments,
+        hbc_rs::platform::startup::EXECUTABLE_MEMORY.clone(),
+    )
+    .map_err(|_| prepare_error)?;
     if startup
         .runtime_mut()
         .save_settings_if_dirty(hbc_rs::platform::settings::save)
@@ -679,7 +675,7 @@ fn transfer_executable(
     }
     hbc_rs::platform::video::shutdown();
     unsafe {
-        hbc_rs::loader::transfer_control(plan.entry, hbc_rs::loader::ios_launch_policy(ahb_access))
+        hbc_rs::loader::transfer_control(launch, hbc_rs::loader::ios_launch_policy(ahb_access))
     }
 }
 

@@ -13,6 +13,7 @@ const PT_LOAD: u32 = 1;
 const PF_X: u32 = 1;
 const ELFDATA2MSB: u8 = 2;
 const ELFCLASS32: u8 = 1;
+const MAX_LOAD_SEGMENTS: usize = 4096;
 const ET_EXEC: u16 = 2;
 const EM_PPC: u16 = 20;
 
@@ -158,7 +159,7 @@ pub fn validate_load_plan(
 mod wii;
 
 #[cfg(target_arch = "powerpc")]
-pub use wii::{apply_load_plan, prepare_launch, transfer_control};
+pub use wii::{stage_launch, transfer_control, LaunchImage};
 
 /// Parse a DOL file. `allowed_memory` optionally limits each section to a
 /// half-open destination range, as HBC's overlap check does.
@@ -290,6 +291,9 @@ pub fn parse_elf32_ppc(
     }
     if phoff == 0 || phnum == 0 {
         return Err(ParseError::InvalidFormat("ELF has no program headers"));
+    }
+    if phnum > MAX_LOAD_SEGMENTS {
+        return Err(ParseError::InvalidFormat("too many ELF program headers"));
     }
     if phentsize != ELF_PHDR_SIZE {
         return Err(ParseError::InvalidFormat("invalid program header size"));
@@ -480,6 +484,24 @@ mod tests {
         assert_eq!(
             parse_elf32_ppc(&elf[..70], None),
             Err(ParseError::OutOfBounds)
+        );
+    }
+
+    #[test]
+    fn rejects_excessive_elf_program_headers_before_scanning_them() {
+        let mut elf = vec![0u8; ELF_HEADER_SIZE];
+        elf[..7].copy_from_slice(b"\x7fELF\x01\x02\x01");
+        put16(&mut elf, 16, ET_EXEC);
+        put16(&mut elf, 18, EM_PPC);
+        put32(&mut elf, 20, 1);
+        put32(&mut elf, 24, 0x1000);
+        put32(&mut elf, 28, ELF_HEADER_SIZE as u32);
+        put16(&mut elf, 40, ELF_HEADER_SIZE as u16);
+        put16(&mut elf, 42, ELF_PHDR_SIZE as u16);
+        put16(&mut elf, 44, (MAX_LOAD_SEGMENTS + 1) as u16);
+        assert_eq!(
+            parse_elf32_ppc(&elf, None),
+            Err(ParseError::InvalidFormat("too many ELF program headers"))
         );
     }
 
