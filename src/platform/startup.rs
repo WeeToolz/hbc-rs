@@ -31,6 +31,15 @@ const STORAGE_SCAN_PRIORITY: u8 = 62;
 const STORAGE_SCAN_IDLE: u8 = 0;
 const STORAGE_SCAN_RUNNING: u8 = 1;
 const STORAGE_SCAN_READY: u8 = 2;
+const STORAGE_STAGE_START: u8 = 0;
+const STORAGE_STAGE_SHUTDOWN: u8 = 1;
+const STORAGE_STAGE_MOUNT_SD: u8 = 2;
+const STORAGE_STAGE_MOUNT_USB: u8 = 3;
+const STORAGE_STAGE_MOUNT_CARDA: u8 = 4;
+const STORAGE_STAGE_MOUNT_CARDB: u8 = 5;
+const STORAGE_STAGE_RECOVER: u8 = 6;
+const STORAGE_STAGE_SCAN_APPS: u8 = 7;
+const STORAGE_STAGE_FINISH: u8 = 8;
 const ZIP_INSTALL_IDLE: u8 = 0;
 const ZIP_INSTALL_REQUESTED: u8 = 1;
 const ZIP_INSTALL_RUNNING: u8 = 2;
@@ -69,6 +78,7 @@ struct StorageScanStack([u8; STORAGE_SCAN_STACK_SIZE]);
 static STORAGE_SCAN_STATE: AtomicU8 = AtomicU8::new(STORAGE_SCAN_IDLE);
 static STORAGE_SCAN_PREFERENCE: AtomicI32 = AtomicI32::new(0);
 static STORAGE_SCAN_SHUTDOWN_OLD: AtomicBool = AtomicBool::new(false);
+static STORAGE_SCAN_STAGE: AtomicU8 = AtomicU8::new(STORAGE_STAGE_START);
 static mut STORAGE_SCAN_RESULT: MaybeUninit<StorageScanResult> = MaybeUninit::uninit();
 static mut STORAGE_SCAN_STACK: StorageScanStack = StorageScanStack([0; STORAGE_SCAN_STACK_SIZE]);
 static DEVICE_PROBE_STATE: AtomicU8 = AtomicU8::new(DEVICE_PROBE_IDLE);
@@ -489,6 +499,7 @@ unsafe extern "C" fn device_probe_entry(_argument: *mut c_void) -> *mut c_void {
 }
 
 unsafe extern "C" fn storage_scan_entry(_argument: *mut c_void) -> *mut c_void {
+    STORAGE_SCAN_STAGE.store(STORAGE_STAGE_SHUTDOWN, Ordering::Release);
     let shutdown_failed =
         STORAGE_SCAN_SHUTDOWN_OLD.load(Ordering::Acquire) && ogc_fat::shutdown_all().is_err();
     if shutdown_failed {
@@ -506,6 +517,7 @@ unsafe extern "C" fn storage_scan_entry(_argument: *mut c_void) -> *mut c_void {
     }
     let preference = STORAGE_SCAN_PREFERENCE.load(Ordering::Acquire);
     let (volume, storage, catalog, scan_failed) = mount_preferred_volume(preference);
+    STORAGE_SCAN_STAGE.store(STORAGE_STAGE_FINISH, Ordering::Release);
     let result = StorageScanResult {
         volume,
         storage,
@@ -783,6 +795,22 @@ impl WiiStartup {
         self.scan_thread.is_some()
     }
 
+    /// Current storage-worker stage for runtime diagnostics.
+    pub fn storage_scan_stage_label(&self) -> &'static str {
+        match STORAGE_SCAN_STAGE.load(Ordering::Acquire) {
+            STORAGE_STAGE_START => "Starting storage scan...",
+            STORAGE_STAGE_SHUTDOWN => "Stopping previous storage...",
+            STORAGE_STAGE_MOUNT_SD => "Mounting SD...",
+            STORAGE_STAGE_MOUNT_USB => "Mounting USB...",
+            STORAGE_STAGE_MOUNT_CARDA => "Mounting Card A...",
+            STORAGE_STAGE_MOUNT_CARDB => "Mounting Card B...",
+            STORAGE_STAGE_RECOVER => "Checking app install state...",
+            STORAGE_STAGE_SCAN_APPS => "Scanning apps...",
+            STORAGE_STAGE_FINISH => "Finishing storage scan...",
+            _ => "Scanning storage...",
+        }
+    }
+
     fn start_storage_scan(
         &mut self,
         preference: i32,
@@ -797,6 +825,7 @@ impl WiiStartup {
         }
 
         STORAGE_SCAN_PREFERENCE.store(preference, Ordering::Release);
+        STORAGE_SCAN_STAGE.store(STORAGE_STAGE_START, Ordering::Release);
         STORAGE_SCAN_SHUTDOWN_OLD.store(shutdown_previous_mount, Ordering::Release);
         self.scan_requested_volume = requested_volume;
         STORAGE_SCAN_STATE.store(STORAGE_SCAN_RUNNING, Ordering::Release);
@@ -1259,12 +1288,21 @@ fn mount_preferred_volume(
     preference: i32,
 ) -> (Option<Volume>, Option<FatStorage>, Vec<AppEntry>, bool) {
     for volume in device_scan_order(preference) {
+        let mount_stage = match volume {
+            Volume::Sd => STORAGE_STAGE_MOUNT_SD,
+            Volume::Usb => STORAGE_STAGE_MOUNT_USB,
+            Volume::CardA => STORAGE_STAGE_MOUNT_CARDA,
+            Volume::CardB => STORAGE_STAGE_MOUNT_CARDB,
+        };
+        STORAGE_SCAN_STAGE.store(mount_stage, Ordering::Release);
         let Ok(mut storage) = FatStorage::mount(volume) else {
             continue;
         };
+        STORAGE_SCAN_STAGE.store(STORAGE_STAGE_RECOVER, Ordering::Release);
         if recover_app_install_artifacts(&mut storage).is_err() {
             return (Some(volume), Some(storage), Vec::new(), true);
         }
+        STORAGE_SCAN_STAGE.store(STORAGE_STAGE_SCAN_APPS, Ordering::Release);
         // A missing apps directory is a valid empty catalog. Keep the mounted
         // volume so later install, refresh, and delete actions can use it.
         let (catalog, scan_failed) = match scan_apps(
