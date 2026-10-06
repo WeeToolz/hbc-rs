@@ -681,8 +681,13 @@ impl WiiStartup {
     /// preferred SD or USB volume once. Missing settings and volumes use the
     /// same empty/default state as HBC.
     pub fn initialize(view_width: u16, view_height: u16) -> Self {
-        input::initialize(view_width, view_height);
-
+        // C HBC resolves its title data directory before controls_init()/
+        // WPAD_Init(). Keep ES/NAND discovery ahead of WPAD as well: WPAD can
+        // queue IOS work, and a synchronous ES request made behind a full IPC
+        // queue returns IPC_EQUEUEFULL (-8). The title-directory result is
+        // cached for the process lifetime, so allowing that transient queue
+        // state to become the cached NAND result would disable persistence for
+        // the rest of the run.
         #[cfg(feature = "startup-diagnostics")]
         super::diagnostics::mark("NAND SETTINGS LOAD");
         let (loaded_settings, settings_load_error) = match settings::load() {
@@ -690,6 +695,9 @@ impl WiiStartup {
             Err(settings::SettingsIoError::Missing) => (UserSettings::default(), None),
             Err(error) => (UserSettings::default(), Some(error)),
         };
+        // Match C startup ordering: title/NAND discovery precedes WPAD setup.
+        input::initialize(view_width, view_height);
+
         let preference = loaded_settings.device;
         let mut runtime = AppRuntime::new(Vec::new());
         runtime.set_settings_persistence_enabled(settings_load_error.is_none());
