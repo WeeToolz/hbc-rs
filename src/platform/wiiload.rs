@@ -10,8 +10,9 @@ use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicU8, Ordering};
 
 pub use crate::wiiload::ReceiverStatus;
 use crate::wiiload::{
-    indicator_state as map_indicator_state, same_local_subnet_16, IndicatorState, WiiloadHeader,
-    WiiloadPayload, WIILOAD_HEADER_LEN,
+    client_deadline_expired, indicator_state as map_indicator_state, same_local_subnet_16,
+    IndicatorState, WiiloadError, WiiloadHeader, WiiloadPayload, WIILOAD_CLIENT_TIMEOUT_TICKS,
+    WIILOAD_HEADER_LEN,
 };
 use ogc_lwp::{sys as lwp_sys, ThreadHandle};
 use ogc_network::sys::{F_GETFL, F_SETFL};
@@ -446,6 +447,7 @@ struct GeckoReceive {
     body: Option<(WiiloadHeader, Vec<u8>)>,
     body_len: usize,
     idle_polls: usize,
+    started_at: Option<u64>,
 }
 
 impl GeckoReceive {
@@ -456,6 +458,7 @@ impl GeckoReceive {
             body: None,
             body_len: 0,
             idle_polls: 0,
+            started_at: None,
         }
     }
 
@@ -464,11 +467,22 @@ impl GeckoReceive {
         self.body = None;
         self.body_len = 0;
         self.idle_polls = 0;
+        self.started_at = None;
         shared.receive_completed.store(0, Ordering::Release);
         shared.receive_total.store(0, Ordering::Release);
     }
 
     fn poll(&mut self, shared: &Shared) -> GeckoPoll {
+        if self.started_at.is_some_and(|started| {
+            client_deadline_expired(
+                started,
+                ogc_core::powerpc::read_timebase(),
+                WIILOAD_CLIENT_TIMEOUT_TICKS,
+            )
+        }) {
+            self.reset(shared);
+            return GeckoPoll::Invalid;
+        }
         if usbgecko::is_gecko_alive(USBGECKO_CHANNEL) == 0 {
             self.reset(shared);
             return GeckoPoll::Idle;
@@ -510,6 +524,8 @@ impl GeckoReceive {
             return GeckoPoll::Invalid;
         }
         self.header_len += received;
+        self.started_at
+            .get_or_insert_with(ogc_core::powerpc::read_timebase);
         self.idle_polls = 0;
         if self.header_len < WIILOAD_HEADER_LEN {
             return GeckoPoll::Idle;
@@ -578,7 +594,10 @@ impl GeckoReceive {
             self.body = Some((header, core::mem::take(body)));
             return GeckoPoll::Pending;
         }
-        let result = header.decode_body(body).map_err(|_| GeckoPoll::Invalid);
+        let result = header.decode_body(body).map_err(|error| match error {
+            WiiloadError::AllocationFailed => GeckoPoll::Memory,
+            _ => GeckoPoll::Invalid,
+        });
         self.reset(shared);
         match result {
             Ok(payload) => GeckoPoll::Complete(payload),
@@ -588,8 +607,9 @@ impl GeckoReceive {
 }
 
 fn receive_client(shared: &Shared, client: i32) -> Result<WiiloadPayload, ReceiveError> {
+    let started_at = ogc_core::powerpc::read_timebase();
     let mut header_bytes = [0; WIILOAD_HEADER_LEN];
-    read_exact(shared, client, &mut header_bytes, false)?;
+    read_exact(shared, client, &mut header_bytes, false, started_at)?;
     let header = WiiloadHeader::decode(&header_bytes).map_err(|_| ReceiveError::Invalid)?;
     let body_len = header.body_len().map_err(|_| ReceiveError::Invalid)?;
     shared.receive_completed.store(0, Ordering::Release);
@@ -602,8 +622,11 @@ fn receive_client(shared: &Shared, client: i32) -> Result<WiiloadPayload, Receiv
     body.try_reserve_exact(body_len)
         .map_err(|_| ReceiveError::Memory)?;
     body.resize(body_len, 0);
-    read_exact(shared, client, &mut body, true)?;
-    header.decode_body(&body).map_err(|_| ReceiveError::Invalid)
+    read_exact(shared, client, &mut body, true, started_at)?;
+    header.decode_body(&body).map_err(|error| match error {
+        WiiloadError::AllocationFailed => ReceiveError::Memory,
+        _ => ReceiveError::Invalid,
+    })
 }
 
 fn read_exact(
@@ -611,12 +634,20 @@ fn read_exact(
     client: i32,
     buffer: &mut [u8],
     track_progress: bool,
+    started_at: u64,
 ) -> Result<(), ReceiveError> {
     let mut offset = 0;
     let mut idle_polls = 0;
     while offset < buffer.len() {
         if shared.is_stopped() {
             return Err(ReceiveError::Stopped);
+        }
+        if client_deadline_expired(
+            started_at,
+            ogc_core::powerpc::read_timebase(),
+            WIILOAD_CLIENT_TIMEOUT_TICKS,
+        ) {
+            return Err(ReceiveError::Invalid);
         }
         let read = network::read_slice(client, &mut buffer[offset..]);
         if read > 0 {
@@ -640,6 +671,13 @@ fn read_exact(
             }
             sleep_poll();
         }
+    }
+    if client_deadline_expired(
+        started_at,
+        ogc_core::powerpc::read_timebase(),
+        WIILOAD_CLIENT_TIMEOUT_TICKS,
+    ) {
+        return Err(ReceiveError::Invalid);
     }
     Ok(())
 }

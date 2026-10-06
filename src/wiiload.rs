@@ -2,13 +2,21 @@
 
 use alloc::vec::Vec;
 use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
-use miniz_oxide::inflate::decompress_to_vec_zlib_with_limit;
+use miniz_oxide::inflate::decompress_slice_iter_to_slice;
 
 pub const WIILOAD_HEADER_LEN: usize = 16;
 pub const WIILOAD_MIN_VERSION: u16 = 0x0005;
 pub const WIILOAD_MAX_ARGS: usize = 1024;
 /// This matches HBC's launch-memory bound: `0x81330000 - 1 - args - 0x80003400`.
 pub const WIILOAD_MAX_DATA: usize = 0x0132_c7ff;
+/// Maximum time allowed for one TCP upload, including the header and body.
+pub const WIILOAD_CLIENT_TIMEOUT_TICKS: u64 = 120 * 60_750_000;
+
+/// Return true when the elapsed time reaches a fixed client-wide deadline.
+/// Wrapping subtraction keeps this valid across the timebase counter rollover.
+pub fn client_deadline_expired(started_at: u64, now: u64, timeout_ticks: u64) -> bool {
+    now.wrapping_sub(started_at) >= timeout_ticks
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
@@ -102,6 +110,7 @@ pub enum WiiloadError {
     IncompleteBody,
     DecompressionFailed,
     DecompressedSizeMismatch,
+    AllocationFailed,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -168,20 +177,38 @@ impl WiiloadHeader {
         }
         let wire_data_len = self.data_len as usize;
         let wire_data = &body[..wire_data_len];
-        let args = body[wire_data_len..].to_vec();
+        let args = copy_bytes(&body[wire_data_len..])?;
         let data = if self.is_compressed() {
             let expected = self.data_len_uncompressed as usize;
-            let decoded = decompress_to_vec_zlib_with_limit(wire_data, expected)
-                .map_err(|_| WiiloadError::DecompressionFailed)?;
-            if decoded.len() != expected {
+            let mut decoded = Vec::new();
+            decoded
+                .try_reserve_exact(expected)
+                .map_err(|_| WiiloadError::AllocationFailed)?;
+            decoded.resize(expected, 0);
+            let decoded_len = decompress_slice_iter_to_slice(
+                &mut decoded,
+                core::iter::once(wire_data),
+                true,
+                false,
+            )
+            .map_err(|_| WiiloadError::DecompressionFailed)?;
+            if decoded_len != expected {
                 return Err(WiiloadError::DecompressedSizeMismatch);
             }
             decoded
         } else {
-            wire_data.to_vec()
+            copy_bytes(wire_data)?
         };
         Ok(WiiloadPayload { data, args })
     }
+}
+
+fn copy_bytes(bytes: &[u8]) -> Result<Vec<u8>, WiiloadError> {
+    let mut copy = Vec::new();
+    copy.try_reserve_exact(bytes.len())
+        .map_err(|_| WiiloadError::AllocationFailed)?;
+    copy.extend_from_slice(bytes);
+    Ok(copy)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -382,5 +409,13 @@ mod tests {
         assert_eq!(progress_percent(0, 100), 0);
         assert_eq!(progress_percent(37, 100), 37);
         assert_eq!(progress_percent(200, 100), 100);
+    }
+
+    #[test]
+    fn client_deadline_is_absolute_and_handles_timebase_wrap() {
+        assert!(!client_deadline_expired(100, 199, 100));
+        assert!(client_deadline_expired(100, 200, 100));
+        assert!(client_deadline_expired(u64::MAX - 4, 5, 10));
+        assert!(!client_deadline_expired(u64::MAX - 4, 4, 10));
     }
 }
