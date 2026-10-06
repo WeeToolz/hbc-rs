@@ -8,6 +8,10 @@ pub mod input;
 pub mod lifecycle;
 pub mod nand;
 #[cfg(target_arch = "powerpc")]
+pub mod network_config;
+#[cfg(target_arch = "powerpc")]
+pub mod network_scan;
+#[cfg(target_arch = "powerpc")]
 pub mod renderer;
 #[cfg(target_arch = "powerpc")]
 pub mod settings;

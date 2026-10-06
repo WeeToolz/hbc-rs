@@ -15,6 +15,7 @@ pub mod loader;
 pub mod localization;
 pub mod management;
 pub mod metadata;
+pub mod network_config;
 pub mod png;
 pub mod render;
 pub mod runtime;

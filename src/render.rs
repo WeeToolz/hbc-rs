@@ -1142,7 +1142,10 @@ pub fn browser_frame_with_language(
             }
             frame.text(144.0, 386.0, tr("Press B to return"), 1.0, text_color, 32);
         }
-        Screen::Options => {}
+        Screen::Options
+        | Screen::NetworkSettings
+        | Screen::NetworkKeyboard
+        | Screen::NetworkScan => {}
         Screen::Notice => {}
     }
 
@@ -1172,6 +1175,9 @@ pub fn browser_frame_with_language(
             | Screen::WiiloadInstalling
             | Screen::WiiloadReceiving
             | Screen::Options
+            | Screen::NetworkSettings
+            | Screen::NetworkKeyboard
+            | Screen::NetworkScan
     ) {
         frame.fill(rect(0, 0, 640, 480), MODAL_SHADE);
         frame.theme_art(rect(60, 44, 520, 360), ThemeArt::Dialog, false);
@@ -1277,6 +1283,15 @@ pub fn browser_frame_with_language(
             );
             frame.hit_target(PointerTarget::Option(5), bounds);
             let bounds = frame.button(
+                224.0,
+                286.0,
+                ButtonSize::Tiny,
+                controller.options_focus() == 8,
+                tr("Network setup"),
+                text_color,
+            );
+            frame.hit_target(PointerTarget::Option(8), bounds);
+            let bounds = frame.button(
                 92.0,
                 340.0,
                 ButtonSize::Small,
@@ -1294,6 +1309,168 @@ pub fn browser_frame_with_language(
                 text_color,
             );
             frame.hit_target(PointerTarget::Option(7), bounds);
+        } else if controller.screen == Screen::NetworkSettings {
+            frame.set_text_style(theme_text_style(theme, "dlgtitle", text_color));
+            frame.text(235.0, 60.0, tr("Network setup"), 1.0, text_color, 32);
+            let ssid = core::str::from_utf8(controller.network_ssid()).unwrap_or("(invalid text)");
+            let key = "*".repeat(controller.network_key().len());
+            for (index, (label, value)) in [
+                (tr("Network name"), ssid),
+                (
+                    tr("Security"),
+                    match controller.network_encryption() {
+                        0 => "Open",
+                        1 => "WEP64",
+                        2 => "WEP128",
+                        4 => "WPA TKIP",
+                        5 => "WPA2 AES",
+                        6 => "WPA AES",
+                        _ => "Unknown",
+                    },
+                ),
+                (tr("Password"), &key),
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let y = 112.0 + index as f32 * 62.0;
+                frame.set_text_style(theme_text_style(theme, "label", text_color));
+                frame.text(92.0, y + 14.0, label, 1.0, text_color, 24);
+                let shown = if value.is_empty() { "(empty)" } else { value };
+                frame.text(244.0, y + 14.0, shown, 1.0, text_color, 46);
+                let bounds = frame.button(
+                    420.0,
+                    y,
+                    ButtonSize::Tiny,
+                    controller.network_focus() == index,
+                    if index == 1 { tr("Change") } else { tr("Edit") },
+                    text_color,
+                );
+                frame.hit_target(PointerTarget::NetworkOption(index), bounds);
+            }
+            let bounds = frame.button(
+                92.0,
+                330.0,
+                ButtonSize::Small,
+                controller.network_focus() == 3,
+                tr("Save and test"),
+                text_color,
+            );
+            frame.hit_target(PointerTarget::NetworkOption(3), bounds);
+            let bounds = frame.button(
+                348.0,
+                330.0,
+                ButtonSize::Small,
+                controller.network_focus() == 4,
+                tr("Back"),
+                text_color,
+            );
+            frame.hit_target(PointerTarget::NetworkOption(4), bounds);
+            let bounds = frame.button(
+                220.0,
+                374.0,
+                ButtonSize::Small,
+                controller.network_focus() == 5,
+                tr("Scan networks"),
+                text_color,
+            );
+            frame.hit_target(PointerTarget::NetworkOption(5), bounds);
+        } else if controller.screen == Screen::NetworkScan {
+            frame.set_text_style(theme_text_style(theme, "dlgtitle", text_color));
+            frame.text(235.0, 60.0, tr("Choose a network"), 1.0, text_color, 32);
+            for (index, network) in controller.scanned_networks().iter().take(8).enumerate() {
+                let y = 104.0 + index as f32 * 32.0;
+                let ssid =
+                    core::str::from_utf8(network.name_bytes()).unwrap_or("(unsupported SSID)");
+                frame.text(92.0, y, ssid, 0.9, text_color, 28);
+                frame.text(352.0, y, network.security.label(), 0.8, MUTED, 18);
+                frame.text(494.0, y, network.signal_label(), 0.75, MUTED, 10);
+                let bounds = rect(84, y as i32 - 10, 472, 28);
+                frame.hit_target(PointerTarget::NetworkOption(index), bounds);
+            }
+            if controller.scanned_networks().is_empty() {
+                frame.text(
+                    100.0,
+                    180.0,
+                    tr("No visible networks found."),
+                    1.0,
+                    text_color,
+                    48,
+                );
+            }
+            frame.text(112.0, 374.0, tr("Confirm: select  B: back"), 0.9, MUTED, 44);
+        } else if controller.screen == Screen::NetworkKeyboard {
+            frame.set_text_style(theme_text_style(theme, "dlgtitle", text_color));
+            let title = if controller.keyboard_target_key() {
+                tr("Enter network password")
+            } else {
+                tr("Enter network name")
+            };
+            frame.text(198.0, 58.0, title, 1.0, text_color, 46);
+            let value = if controller.keyboard_target_key() {
+                "*".repeat(controller.network_key().len())
+            } else {
+                core::str::from_utf8(controller.network_ssid())
+                    .unwrap_or("(invalid text)")
+                    .into()
+            };
+            frame.theme_art(
+                rect(92.0, 86.0, 456.0, 34.0),
+                ThemeArt::Button(ButtonSize::Small),
+                false,
+            );
+            frame.set_text_style(theme_text_style(theme, "label", text_color));
+            frame.text(104.0, 98.0, &value, 1.0, text_color, 72);
+            for index in 0..40 {
+                let x = 88.0 + (index % 10) as f32 * 47.0;
+                let y = 132.0 + (index / 10) as f32 * 38.0;
+                let bounds = rect(x, y, 44.0, 34.0);
+                frame.theme_art(
+                    bounds,
+                    ThemeArt::Button(ButtonSize::Tiny),
+                    controller.keyboard_focus() == index,
+                );
+                let character = controller.keyboard_char(index).unwrap_or('?');
+                let label = [character as u8];
+                frame.text(
+                    x + 18.0,
+                    y + 12.0,
+                    core::str::from_utf8(&label).unwrap_or("?"),
+                    1.0,
+                    text_color,
+                    4,
+                );
+                frame.hit_target(PointerTarget::KeyboardKey(index), bounds);
+            }
+            for index in 40..46 {
+                let x = 88.0 + (index - 40) as f32 * 77.0;
+                let y = 294.0;
+                let bounds = rect(x, y, 72.0, 34.0);
+                frame.theme_art(
+                    bounds,
+                    ThemeArt::Button(ButtonSize::Tiny),
+                    controller.keyboard_focus() == index,
+                );
+                let label = controller.keyboard_command_label(index);
+                frame.text(x + 3.0, y + 12.0, label, 0.8, text_color, 12);
+                frame.hit_target(PointerTarget::KeyboardKey(index), bounds);
+            }
+            frame.text(
+                96.0,
+                352.0,
+                tr("Select a key, then choose Done."),
+                0.85,
+                MUTED,
+                64,
+            );
+            frame.text(
+                96.0,
+                374.0,
+                tr("B returns without closing the editor."),
+                0.85,
+                MUTED,
+                64,
+            );
         } else if controller.screen == Screen::AppDetails {
             if let Some(app) = controller
                 .selected_app

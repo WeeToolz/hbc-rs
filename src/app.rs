@@ -53,6 +53,9 @@ pub enum Screen {
     WiiloadInstalling,
     WiiloadReceiving,
     Options,
+    NetworkSettings,
+    NetworkScan,
+    NetworkKeyboard,
     About,
     Notice,
 }
@@ -96,6 +99,8 @@ pub enum PointerTarget {
     DeleteChoice { yes: bool },
     WiiloadChoice { yes: bool },
     Option(usize),
+    NetworkOption(usize),
+    KeyboardKey(usize),
     NoticeConfirm,
 }
 
@@ -113,6 +118,9 @@ pub enum Action {
     PreviousPage,
     NextPage,
     ApplyOptions,
+    LoadNetworkConfig,
+    SaveNetworkConfig,
+    ScanNetworks,
     AcceptWiiloadZip,
     RejectWiiloadZip,
 }
@@ -126,6 +134,11 @@ pub const DETAIL_DESCRIPTION_VISIBLE_LINES: usize = 16;
 pub const MESSAGE_MEMO_VISIBLE_LINES: usize = 20;
 pub const ABOUT_MEMO_LINE_WIDTH: usize = 76;
 pub const ABOUT_MEMO_VISIBLE_LINES: usize = 20;
+pub const NETWORK_KEYBOARD_COLUMNS: usize = 10;
+pub const NETWORK_KEYBOARD_KEYS: usize = 46;
+const KEYBOARD_ALPHA: [&[u8; 10]; 4] = [b"1234567890", b"qwertyuiop", b"asdfghjkl;", b"zxcvbnm,./"];
+const KEYBOARD_SYMBOL: [&[u8; 10]; 4] =
+    [b"!@#$%^&*()", b"`~[]{}<>?/", b"\\|:;\"'=-_+", b"~`#$%^&*()"];
 pub const ABOUT_CREDITS: &str = "Credits\n\nThis port is written in Rust and uses libogc-rs for Wii platform support.\n\nThe following credits are from the original C Homebrew Channel:\n\nThe Homebrew Channel was made possible by the following people:\n\ndhewg (EWRONGCHAN) - application code, geckoloader code\nblasty (ESTONED) - application code\nmarcan (EFAILURE) - reload stub, banner, installer, packaging\nbushing (EWANTPONY) - socket code, loader code\nsegher (EBUGFOUND) - nandloader stub code\nsouLLy (ENOTHERE) - banner graphics\ndrmr (EMORECOWBELL) - banner audio, channel graphics\nmha (E404) - update server and hosting\n\nThe original C HBC used devkitPPC and libogc, by shagkur, WinterMute, and everyone else who contributed.\n\nThanks to all the beta testers\n\nKind regards to the following people too:\n\nsepp256 - dropped some good GX hints\nchishm, svpe, rodries, hermes - libfat port\nalien - some graphics\njodi - the lulz\n\nThe following library credits are from the original C HBC:\n\nwiiuse - para's Wiimote library, then integrated with libogc\nlibpng - the official PNG library\nMini-XML - small and efficient XML parsing library\nFreeType - the free TrueType/OpenType font renderer\n";
 
 /// Number of app columns and rows shown by the browser.
@@ -223,6 +236,17 @@ pub struct AppController {
     pending_device: i32,
     pending_sort: SortOrder,
     options_focus: usize,
+    network_config: Option<crate::network_config::NetworkConfig>,
+    network_ssid: Vec<u8>,
+    network_key: Vec<u8>,
+    network_encryption: u8,
+    network_focus: usize,
+    scanned_networks: crate::network_config::ScannedNetworks,
+    network_scan_focus: usize,
+    keyboard_focus: usize,
+    keyboard_symbols: bool,
+    keyboard_shift: bool,
+    keyboard_target_key: bool,
     pointer_target: Option<PointerTarget>,
 }
 
@@ -484,6 +508,129 @@ impl AppController {
         self.options_focus
     }
 
+    pub fn network_config(&self) -> Option<&crate::network_config::NetworkConfig> {
+        self.network_config.as_ref()
+    }
+
+    pub fn network_ssid(&self) -> &[u8] {
+        &self.network_ssid
+    }
+
+    pub fn network_key(&self) -> &[u8] {
+        &self.network_key
+    }
+
+    pub fn network_encryption(&self) -> u8 {
+        self.network_encryption
+    }
+
+    pub fn network_focus(&self) -> usize {
+        self.network_focus
+    }
+
+    pub fn keyboard_focus(&self) -> usize {
+        self.keyboard_focus
+    }
+
+    pub fn keyboard_target_key(&self) -> bool {
+        self.keyboard_target_key
+    }
+
+    pub fn keyboard_char(&self, index: usize) -> Option<char> {
+        if index >= 40 {
+            return None;
+        }
+        let row = index / NETWORK_KEYBOARD_COLUMNS;
+        let column = index % NETWORK_KEYBOARD_COLUMNS;
+        let byte = if self.keyboard_symbols {
+            KEYBOARD_SYMBOL[row][column]
+        } else {
+            KEYBOARD_ALPHA[row][column]
+        };
+        Some(if self.keyboard_shift && byte.is_ascii_lowercase() {
+            byte.to_ascii_uppercase() as char
+        } else {
+            byte as char
+        })
+    }
+
+    pub fn keyboard_command_label(&self, index: usize) -> &'static str {
+        match index {
+            40 => {
+                if self.keyboard_symbols {
+                    "ABC"
+                } else {
+                    "123"
+                }
+            }
+            41 => {
+                if self.keyboard_shift {
+                    "SHIFT*"
+                } else {
+                    "SHIFT"
+                }
+            }
+            42 => "SPACE",
+            43 => "BACK",
+            44 => "CLEAR",
+            45 => "DONE",
+            _ => "",
+        }
+    }
+
+    pub fn set_network_config(&mut self, config: crate::network_config::NetworkConfig) {
+        let wifi = config.profile(0).expect("profile zero exists").wifi();
+        let ssid_len = usize::from(wifi.ssid_len()).min(32);
+        let key_len = usize::from(wifi.key_len()).min(64);
+        self.network_ssid.clear();
+        self.network_ssid
+            .extend_from_slice(&wifi.ssid()[..ssid_len]);
+        self.network_key.clear();
+        self.network_key.extend_from_slice(&wifi.key()[..key_len]);
+        self.network_encryption = wifi.encryption();
+        self.network_config = Some(config);
+        self.network_focus = 0;
+        self.keyboard_focus = 0;
+        self.keyboard_symbols = false;
+        self.keyboard_shift = false;
+        self.screen = Screen::NetworkSettings;
+    }
+
+    pub fn set_scanned_networks(&mut self, networks: crate::network_config::ScannedNetworks) {
+        self.scanned_networks = networks;
+        self.network_scan_focus = 0;
+        self.screen = Screen::NetworkScan;
+    }
+
+    pub fn scanned_networks(&self) -> &[crate::network_config::ScannedNetwork] {
+        self.scanned_networks.as_slice()
+    }
+
+    pub fn network_scan_focus(&self) -> usize {
+        self.network_scan_focus
+    }
+
+    pub fn network_config_for_save(
+        &self,
+    ) -> Result<crate::network_config::NetworkConfig, crate::network_config::WifiValidationError>
+    {
+        let mut config = self
+            .network_config
+            .clone()
+            .ok_or(crate::network_config::WifiValidationError::InvalidSsidLength)?;
+        let mut profile = config.profile_mut(0).expect("profile zero exists");
+        let mut wifi = profile.wifi_mut();
+        if !wifi.set_ssid(&self.network_ssid)
+            || !wifi.set_encryption(self.network_encryption)
+            || !wifi.set_key(&self.network_key)
+        {
+            return Err(crate::network_config::WifiValidationError::InvalidWpaKey);
+        }
+        drop(wifi);
+        crate::network_config::validate_wifi(config.profile(0).unwrap().wifi())?;
+        Ok(config)
+    }
+
     pub fn pointer_target(&self) -> Option<PointerTarget> {
         self.pointer_target
     }
@@ -700,6 +847,9 @@ impl AppController {
             },
             Screen::WiiloadInstalling | Screen::WiiloadReceiving => Action::None,
             Screen::Options => self.handle_options(input, catalog),
+            Screen::NetworkSettings => self.handle_network_settings(input),
+            Screen::NetworkScan => self.handle_network_scan(input),
+            Screen::NetworkKeyboard => self.handle_network_keyboard(input),
             Screen::About => match input {
                 Input::Back | Input::Confirm => {
                     self.screen = Screen::MainMenu;
@@ -822,8 +972,34 @@ impl AppController {
             }
             (Screen::WiiloadConfirm, PointerTarget::WiiloadMemo) => Action::None,
             (Screen::WiiloadInstalling | Screen::WiiloadReceiving, _) => Action::None,
-            (Screen::Options, PointerTarget::Option(index)) if index < 8 => {
+            (Screen::Options, PointerTarget::Option(index)) if index < 9 => {
                 self.options_focus = index;
+                if pressed {
+                    self.handle(Input::Confirm, catalog)
+                } else {
+                    Action::None
+                }
+            }
+            (Screen::NetworkSettings, PointerTarget::NetworkOption(index)) if index < 6 => {
+                self.network_focus = index;
+                if pressed {
+                    self.handle(Input::Confirm, catalog)
+                } else {
+                    Action::None
+                }
+            }
+            (Screen::NetworkScan, PointerTarget::NetworkOption(index))
+                if index < self.scanned_networks.len && index < 8 =>
+            {
+                self.network_scan_focus = index;
+                if pressed {
+                    self.handle(Input::Confirm, catalog)
+                } else {
+                    Action::None
+                }
+            }
+            (Screen::NetworkKeyboard, PointerTarget::KeyboardKey(index)) if index < 46 => {
+                self.keyboard_focus = index;
                 if pressed {
                     self.handle(Input::Confirm, catalog)
                 } else {
@@ -992,11 +1168,15 @@ impl AppController {
                 Action::None
             }
             Input::Left => {
-                self.options_focus &= !1;
+                if self.options_focus < 8 {
+                    self.options_focus &= !1;
+                }
                 Action::None
             }
             Input::Right => {
-                self.options_focus |= 1;
+                if self.options_focus < 8 {
+                    self.options_focus |= 1;
+                }
                 Action::None
             }
             Input::Up => {
@@ -1004,7 +1184,7 @@ impl AppController {
                 Action::None
             }
             Input::Down => {
-                self.options_focus = (self.options_focus + 2).min(7);
+                self.options_focus = (self.options_focus + 2).min(8);
                 Action::None
             }
             Input::Confirm => match self.options_focus {
@@ -1047,8 +1227,169 @@ impl AppController {
                     self.screen = Screen::Browser;
                     Action::None
                 }
+                8 => {
+                    self.screen = Screen::Options;
+                    Action::LoadNetworkConfig
+                }
                 _ => Action::None,
             },
+            _ => Action::None,
+        }
+    }
+
+    fn handle_network_settings(&mut self, input: Input) -> Action {
+        match input {
+            Input::Back | Input::OpenOptions => {
+                self.screen = Screen::Options;
+                Action::None
+            }
+            Input::Up => {
+                self.network_focus = self.network_focus.saturating_sub(1);
+                Action::None
+            }
+            Input::Down => {
+                self.network_focus = (self.network_focus + 1).min(5);
+                Action::None
+            }
+            Input::Left | Input::Right if self.network_focus == 1 => {
+                self.network_encryption =
+                    cycle_encryption(self.network_encryption, input == Input::Right);
+                Action::None
+            }
+            Input::Confirm => match self.network_focus {
+                0 | 2 => {
+                    self.keyboard_target_key = self.network_focus == 2;
+                    self.keyboard_focus = 0;
+                    self.keyboard_symbols = false;
+                    self.keyboard_shift = false;
+                    self.screen = Screen::NetworkKeyboard;
+                    Action::None
+                }
+                1 => {
+                    self.network_encryption = cycle_encryption(self.network_encryption, true);
+                    Action::None
+                }
+                3 => {
+                    self.screen = Screen::Options;
+                    Action::SaveNetworkConfig
+                }
+                4 => {
+                    self.screen = Screen::Options;
+                    Action::None
+                }
+                5 => Action::ScanNetworks,
+                _ => Action::None,
+            },
+            _ => Action::None,
+        }
+    }
+
+    fn handle_network_scan(&mut self, input: Input) -> Action {
+        match input {
+            Input::Back => {
+                self.screen = Screen::NetworkSettings;
+                Action::None
+            }
+            Input::Up => {
+                self.network_scan_focus = self.network_scan_focus.saturating_sub(1);
+                Action::None
+            }
+            Input::Down => {
+                self.network_scan_focus = (self.network_scan_focus + 1)
+                    .min(self.scanned_networks.len.saturating_sub(1))
+                    .min(7);
+                Action::None
+            }
+            Input::Confirm => {
+                if let Some(network) = self
+                    .scanned_networks
+                    .as_slice()
+                    .get(self.network_scan_focus)
+                    .copied()
+                {
+                    self.network_ssid.clear();
+                    self.network_ssid.extend_from_slice(network.name_bytes());
+                    self.network_key.clear();
+                    if let Some(encryption) = network.security.config_encryption() {
+                        self.network_encryption = encryption;
+                    }
+                }
+                self.screen = Screen::NetworkSettings;
+                Action::None
+            }
+            _ => Action::None,
+        }
+    }
+
+    fn handle_network_keyboard(&mut self, input: Input) -> Action {
+        match input {
+            Input::Back => {
+                self.screen = Screen::NetworkSettings;
+                Action::None
+            }
+            Input::Left => {
+                self.keyboard_focus = self.keyboard_focus.saturating_sub(1);
+                Action::None
+            }
+            Input::Right => {
+                self.keyboard_focus = (self.keyboard_focus + 1).min(NETWORK_KEYBOARD_KEYS - 1);
+                Action::None
+            }
+            Input::Up => {
+                self.keyboard_focus = self.keyboard_focus.saturating_sub(NETWORK_KEYBOARD_COLUMNS);
+                Action::None
+            }
+            Input::Down => {
+                self.keyboard_focus =
+                    (self.keyboard_focus + NETWORK_KEYBOARD_COLUMNS).min(NETWORK_KEYBOARD_KEYS - 1);
+                Action::None
+            }
+            Input::Confirm => {
+                if let Some(character) = self.keyboard_char(self.keyboard_focus) {
+                    let value = if self.keyboard_target_key {
+                        &mut self.network_key
+                    } else {
+                        &mut self.network_ssid
+                    };
+                    let max_len = if self.keyboard_target_key { 64 } else { 32 };
+                    if value.len() < max_len {
+                        value.push(character as u8);
+                    }
+                } else {
+                    match self.keyboard_focus {
+                        40 => self.keyboard_symbols = !self.keyboard_symbols,
+                        41 => self.keyboard_shift = !self.keyboard_shift,
+                        42 => {
+                            let value = if self.keyboard_target_key {
+                                &mut self.network_key
+                            } else {
+                                &mut self.network_ssid
+                            };
+                            let max_len = if self.keyboard_target_key { 64 } else { 32 };
+                            if value.len() < max_len {
+                                value.push(b' ');
+                            }
+                        }
+                        43 => {
+                            if self.keyboard_target_key {
+                                self.network_key.pop();
+                            } else {
+                                self.network_ssid.pop();
+                            }
+                        }
+                        44 => {
+                            if self.keyboard_target_key {
+                                self.network_key.clear();
+                            } else {
+                                self.network_ssid.clear();
+                            }
+                        }
+                        45 => self.screen = Screen::NetworkSettings,
+                        _ => {}
+                    }
+                }
+                Action::None
+            }
             _ => Action::None,
         }
     }
@@ -1163,6 +1504,17 @@ impl AppController {
     }
 }
 
+fn cycle_encryption(current: u8, forward: bool) -> u8 {
+    const MODES: [u8; 6] = [0, 1, 2, 4, 5, 6];
+    let index = MODES.iter().position(|mode| *mode == current).unwrap_or(0);
+    let next = if forward {
+        (index + 1) % MODES.len()
+    } else {
+        (index + MODES.len() - 1) % MODES.len()
+    };
+    MODES[next]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1180,6 +1532,23 @@ mod tests {
                 ..AppMetadata::default()
             }),
         }
+    }
+
+    #[test]
+    fn saving_unchanged_network_settings_preserves_non_ascii_credentials() {
+        let mut config = crate::network_config::NetworkConfig::from_bytes(
+            [0; crate::network_config::CONFIG_LEN],
+        );
+        {
+            let mut profile = config.profile_mut(0).unwrap();
+            let mut wifi = profile.wifi_mut();
+            assert!(wifi.set_ssid(&[0x57, 0xc3, 0xa9]));
+            assert!(wifi.set_encryption(5));
+            assert!(wifi.set_key(&[0xc3, 0xa9, b'1', b'2', b'3', b'4', b'5', b'6']));
+        }
+        let mut controller = AppController::new();
+        controller.set_network_config(config.clone());
+        assert_eq!(controller.network_config_for_save(), Ok(config));
     }
 
     #[test]

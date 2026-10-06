@@ -192,6 +192,26 @@ pub fn cleanup_error() -> Option<i32> {
     (error < 0).then_some(error)
 }
 
+/// Return the Wii's assigned IPv4 address while the receiver has a live socket stack.
+pub fn local_ip() -> Option<[u8; 4]> {
+    if !matches!(
+        status(),
+        ReceiverStatus::Listening | ReceiverStatus::Receiving
+    ) {
+        return None;
+    }
+    let address = network::get_host_ip();
+    if address == 0 {
+        return None;
+    }
+    Some([
+        network::ip4_addr1(address) as u8,
+        network::ip4_addr2(address) as u8,
+        network::ip4_addr3(address) as u8,
+        network::ip4_addr4(address) as u8,
+    ])
+}
+
 /// Take ownership of one completed payload. The worker can publish another after this call.
 pub fn take_payload() -> Option<WiiloadPayload> {
     let _guard = SHARED.lock_payload();

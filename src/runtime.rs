@@ -76,6 +76,21 @@ impl AppRuntime {
         self.controller.set_wiiload_install_progress(percent);
     }
 
+    pub fn set_network_config(&mut self, config: crate::network_config::NetworkConfig) {
+        self.controller.set_network_config(config);
+    }
+
+    pub fn set_scanned_networks(&mut self, networks: crate::network_config::ScannedNetworks) {
+        self.controller.set_scanned_networks(networks);
+    }
+
+    pub fn network_config_for_save(
+        &self,
+    ) -> Result<crate::network_config::NetworkConfig, crate::network_config::WifiValidationError>
+    {
+        self.controller.network_config_for_save()
+    }
+
     pub fn catalog(&self) -> &[AppEntry] {
         &self.catalog
     }

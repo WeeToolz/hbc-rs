@@ -89,6 +89,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     let mut pending_zip: Option<Vec<u8>> = None;
     let mut deferred_exit: Option<hbc_rs::platform::lifecycle::ExitRequest> = None;
     let mut wiiload_cleanup_notice_shown = false;
+    let mut network_check_frames: Option<u16> = None;
 
     loop {
         if let Some(request) = hbc_rs::platform::lifecycle::take_request() {
@@ -117,6 +118,37 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             );
         }
         let receiver_status = hbc_rs::platform::wiiload::status();
+        if let Some(frames) = network_check_frames.as_mut() {
+            if let Some(address) = hbc_rs::platform::wiiload::local_ip() {
+                network_check_frames = None;
+                startup.runtime_mut().show_notice_with_kind(
+                    &format!(
+                        "Network connection succeeded. Wii address: {}.{}.{}.{}. Wiiload is listening.",
+                        address[0], address[1], address[2], address[3]
+                    ),
+                    hbc_rs::app::NoticeKind::Information,
+                );
+            } else if matches!(
+                receiver_status,
+                hbc_rs::platform::wiiload::ReceiverStatus::NetworkUnavailable
+                    | hbc_rs::platform::wiiload::ReceiverStatus::ListenerError
+            ) {
+                network_check_frames = None;
+                startup.runtime_mut().show_notice_with_kind(
+                    &format!("Network connection failed: Wiiload state is {receiver_status:?}."),
+                    hbc_rs::app::NoticeKind::Error,
+                );
+            } else {
+                *frames = frames.saturating_add(1);
+                if *frames >= 3_600 {
+                    network_check_frames = None;
+                    startup.runtime_mut().show_notice_with_kind(
+                        "Network connection timed out. Check the saved Wii network profile.",
+                        hbc_rs::app::NoticeKind::Error,
+                    );
+                }
+            }
+        }
         if receiver_status == hbc_rs::platform::wiiload::ReceiverStatus::CleanupError
             && !wiiload_cleanup_notice_shown
         {
@@ -509,6 +541,87 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             }
             if action == hbc_rs::app::Action::RejectWiiloadZip {
                 pending_zip = None;
+                continue;
+            }
+            if action == hbc_rs::app::Action::LoadNetworkConfig {
+                match hbc_rs::platform::network_config::load() {
+                    Ok(config) => startup.runtime_mut().set_network_config(config),
+                    Err(error) => startup.runtime_mut().show_notice_with_kind(
+                        &format!("Could not read Wii network settings: {error:?}."),
+                        hbc_rs::app::NoticeKind::Error,
+                    ),
+                }
+                continue;
+            }
+            if action == hbc_rs::app::Action::SaveNetworkConfig {
+                let result = startup
+                    .runtime()
+                    .network_config_for_save()
+                    .map_err(|error| format!("WiFi settings are invalid: {error:?}."))
+                    .and_then(|config| {
+                        hbc_rs::platform::network_config::save(&config).map_err(|error| {
+                            format!("Could not save Wii network settings: {error:?}.")
+                        })
+                    });
+                match result {
+                    Err(message) => startup
+                        .runtime_mut()
+                        .show_notice_with_kind(&message, hbc_rs::app::NoticeKind::Error),
+                    Ok(()) => match hbc_rs::platform::wiiload::stop() {
+                        Err(error) => startup.runtime_mut().show_notice_with_kind(
+                            &format!(
+                                "Settings saved, but Wiiload could not stop cleanly: {error:?}."
+                            ),
+                            hbc_rs::app::NoticeKind::Warning,
+                        ),
+                        Ok(()) => match hbc_rs::platform::wiiload::start() {
+                            Ok(()) => {
+                                network_check_frames = Some(0);
+                                startup.runtime_mut().show_notice_with_kind(
+                                    "Settings saved. Connecting to the network...",
+                                    hbc_rs::app::NoticeKind::Information,
+                                );
+                            }
+                            Err(error) => startup.runtime_mut().show_notice_with_kind(
+                                &format!(
+                                    "Settings saved, but Wiiload could not restart: {error:?}."
+                                ),
+                                hbc_rs::app::NoticeKind::Warning,
+                            ),
+                        },
+                    },
+                }
+                continue;
+            }
+            if action == hbc_rs::app::Action::ScanNetworks {
+                let stopped = hbc_rs::platform::wiiload::stop();
+                if let Err(error) = stopped {
+                    startup.runtime_mut().show_notice_with_kind(
+                        &format!("Could not stop Wiiload before scanning: {error:?}."),
+                        hbc_rs::app::NoticeKind::Error,
+                    );
+                    continue;
+                }
+                let scan = hbc_rs::platform::network_scan::scan();
+                let restart = hbc_rs::platform::wiiload::start();
+                match (scan, restart) {
+                    (Ok(networks), Ok(())) => startup.runtime_mut().set_scanned_networks(networks),
+                    (Ok(networks), Err(error)) => {
+                        startup.runtime_mut().set_scanned_networks(networks);
+                        startup.runtime_mut().show_notice_with_kind(
+                            &format!("Scan finished, but Wiiload could not restart: {error:?}."),
+                            hbc_rs::app::NoticeKind::Warning,
+                        );
+                    }
+                    (Err(error), Ok(())) => startup.runtime_mut().show_notice_with_kind(
+                        &format!("Could not scan nearby networks: {error:?}."),
+                        hbc_rs::app::NoticeKind::Error,
+                    ),
+                    (Err(error), Err(restart_error)) => startup.runtime_mut().show_notice_with_kind(
+                        &format!("Network scan failed: {error:?}. Wiiload restart failed: {restart_error:?}."),
+                        hbc_rs::app::NoticeKind::Error,
+                    ),
+                }
                 continue;
             }
             if action == hbc_rs::app::Action::ApplyOptions {

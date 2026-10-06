@@ -96,6 +96,7 @@ dependencies = [
  "ogc-system",
  "ogc-usbgecko",
  "ogc-video",
+ "ogc-wd",
  "ogc-wiilaunch",
  "wpad-sys",
 ]
@@ -105,6 +106,7 @@ name = "iso9660"
 version = "0.1.0"
 dependencies = [
  "ogc-filesystem-sys",
+ "ogc-sysbase",
 ]
 
 [[package]]
@@ -133,6 +135,9 @@ dependencies = [
 [[package]]
 name = "ogc-alloc"
 version = "0.1.0"
+dependencies = [
+ "ogc-irq-sys",
+]
 
 [[package]]
 name = "ogc-bt-sync"
@@ -199,7 +204,9 @@ version = "0.1.0"
 dependencies = [
  "ogc-cache",
  "ogc-ipc",
+ "ogc-lwp-sys",
  "ogc-sys",
+ "ogc-sysbase",
 ]
 
 [[package]]
@@ -226,6 +233,7 @@ dependencies = [
  "ogc-gcsd",
  "ogc-lwp-sys",
  "ogc-sysbase",
+ "ogc-system-sys",
  "ogc-usbstorage-sys",
  "ogc-wiisd",
 ]
@@ -252,6 +260,7 @@ version = "0.1.0"
 dependencies = [
  "ogc-exi",
  "ogc-filesystem-sys",
+ "ogc-lwp-sys",
  "ogc-sys",
  "ogc-system",
 ]
@@ -275,12 +284,16 @@ dependencies = [
 name = "ogc-gx"
 version = "0.1.0"
 dependencies = [
+ "libm",
  "ogc-cache",
  "ogc-core",
  "ogc-gu",
  "ogc-gx-sys",
  "ogc-irq",
+ "ogc-lwp-sys",
+ "ogc-sysbase",
  "ogc-system",
+ "ogc-video-sys",
 ]
 
 [[package]]
@@ -320,6 +333,8 @@ dependencies = [
  "ogc-es-sys",
  "ogc-ipc",
  "ogc-irq",
+ "ogc-lwp-driver",
+ "ogc-stm",
  "ogc-sys",
 ]
 
@@ -360,6 +375,7 @@ version = "0.1.0"
 dependencies = [
  "ogc-core",
  "ogc-runtime",
+ "ogc-sys",
 ]
 
 [[package]]
@@ -384,6 +400,7 @@ dependencies = [
  "lwip-sys",
  "ogc-core",
  "ogc-ipc",
+ "ogc-lwp-driver",
  "ogc-sys",
 ]
 
@@ -404,8 +421,17 @@ version = "0.1.0"
 dependencies = [
  "ogc-core",
  "ogc-irq",
+ "ogc-lwp-sys",
  "ogc-sys",
  "ogc-video",
+]
+
+[[package]]
+name = "ogc-stm"
+version = "0.1.0"
+dependencies = [
+ "ogc-ipc",
+ "ogc-sys",
 ]
 
 [[package]]
@@ -415,12 +441,14 @@ version = "0.1.0"
 [[package]]
 name = "ogc-sysbase"
 version = "0.1.0"
+dependencies = [
+ "ogc-lwp-driver",
+]
 
 [[package]]
 name = "ogc-system"
 version = "0.1.0"
 dependencies = [
- "ogc-conf",
  "ogc-system-sys",
  "ogc-video",
 ]
@@ -429,6 +457,7 @@ dependencies = [
 name = "ogc-system-sys"
 version = "0.1.0"
 dependencies = [
+ "ogc-alloc",
  "ogc-cache",
  "ogc-conf",
  "ogc-dsp",
@@ -494,10 +523,20 @@ dependencies = [
 name = "ogc-video-sys"
 version = "0.1.0"
 dependencies = [
+ "ogc-conf",
  "ogc-core",
  "ogc-irq",
  "ogc-lwp-sys",
  "ogc-sys",
+]
+
+[[package]]
+name = "ogc-wd"
+version = "0.1.0"
+dependencies = [
+ "ogc-ipc",
+ "ogc-sys",
+ "ogc-system-sys",
 ]
 
 [[package]]
@@ -524,6 +563,7 @@ dependencies = [
  "ogc-cache",
  "ogc-filesystem-sys",
  "ogc-ipc",
+ "ogc-lwp-sys",
  "ogc-sys",
 ]
 
