@@ -140,7 +140,9 @@ pub fn load() -> Result<UserSettings, SettingsIoError> {
     })?;
     let file = match isfs::open(&path, isfs::ISFS_OPEN_READ) {
         Ok(file) => file,
-        Err(ogc_ipc::IPC_ENOENT) => return Err(SettingsIoError::Missing),
+        Err(error) if super::nand::is_missing_isfs_error(error) => {
+            return Err(SettingsIoError::Missing);
+        },
         Err(error) => return Err(SettingsIoError::Isfs(error)),
     };
     let mut stats = AlignedFstats(isfs::Fstats::default());

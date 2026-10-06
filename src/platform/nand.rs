@@ -27,6 +27,11 @@ pub(crate) enum ReplaceError {
 }
 
 #[cfg(any(target_arch = "powerpc", test))]
+pub(crate) fn is_missing_isfs_error(error: i32) -> bool {
+    error == ogc_filesystem::ISFS_ENOENT
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
 impl From<i32> for ReplaceError {
     fn from(error: i32) -> Self {
         Self::Backend(error)
@@ -221,7 +226,9 @@ fn sibling_path(path: &str, suffix: &str) -> String {
 
 #[cfg(target_arch = "powerpc")]
 mod wii {
-    use super::{recover_file_for_load, replace_file, ReplaceBackend};
+    use super::{
+        is_missing_isfs_error, recover_file_for_load, replace_file, ReplaceBackend,
+    };
     use crate::platform::settings::SettingsIoError;
     use alloc::ffi::CString;
     use alloc::vec::Vec;
@@ -272,7 +279,7 @@ mod wii {
                         Ok(true)
                     }
                 }
-                Err(ogc_ipc::IPC_ENOENT) => Ok(false),
+                Err(error) if is_missing_isfs_error(error) => Ok(false),
                 Err(error) => Err(error),
             }
         }
@@ -281,7 +288,7 @@ mod wii {
             let path = CString::new(path).map_err(|_| isfs::ISFS_EINVAL)?;
             let file = match isfs::open(&path, isfs::ISFS_OPEN_READ) {
                 Ok(file) => file,
-                Err(ogc_ipc::IPC_ENOENT) => return Ok(None),
+                Err(error) if is_missing_isfs_error(error) => return Ok(None),
                 Err(error) => return Err(error),
             };
             let mut stats = AlignedFstats(isfs::Fstats::default());
@@ -376,6 +383,12 @@ pub(crate) use wii::read_exact_aligned as read_exact_wii;
 mod tests {
     use super::*;
     use alloc::{collections::BTreeMap, vec};
+
+    #[test]
+    fn isfs_missing_uses_filesystem_error_namespace() {
+        assert!(is_missing_isfs_error(-106));
+        assert!(!is_missing_isfs_error(ogc_ipc::IPC_ENOENT));
+    }
 
     #[derive(Default)]
     struct MemoryBackend {

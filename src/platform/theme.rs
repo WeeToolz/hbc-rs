@@ -459,7 +459,7 @@ pub fn load() -> Result<Option<Vec<u8>>, SettingsIoError> {
     super::diagnostics::mark("THEME FILE OPEN");
     let file = match isfs::open(&path, isfs::ISFS_OPEN_READ) {
         Ok(file) => file,
-        Err(ogc_ipc::IPC_ENOENT) => return Ok(None),
+        Err(error) if super::nand::is_missing_isfs_error(error) => return Ok(None),
         Err(error) => return Err(SettingsIoError::Isfs(error)),
     };
     #[cfg(feature = "startup-diagnostics")]
