@@ -417,7 +417,7 @@ static mut ZIP_INSTALL_RESULT: MaybeUninit<ZipInstallResult> = MaybeUninit::unin
 static mut ZIP_INSTALL_THREAD: ogc_lwp::sys::LwpThread = ogc_lwp::sys::LWP_THREAD_NULL;
 static mut ZIP_INSTALL_STACK: StorageScanStack = StorageScanStack([0; STORAGE_SCAN_STACK_SIZE]);
 
-unsafe fn zip_install_entry(_argument: *mut c_void) -> *mut c_void {
+unsafe extern "C" fn zip_install_entry(_argument: *mut c_void) -> *mut c_void {
     ZIP_INSTALL_STATE.store(ZIP_INSTALL_RUNNING, Ordering::Release);
     let ZipInstallRequest {
         mut storage,
@@ -458,7 +458,7 @@ fn probe_one_device(volume: Volume) -> Result<bool, ogc_fat::FatError> {
     ogc_fat::device_is_inserted(source)
 }
 
-unsafe fn device_probe_entry(_argument: *mut c_void) -> *mut c_void {
+unsafe extern "C" fn device_probe_entry(_argument: *mut c_void) -> *mut c_void {
     DEVICE_PROBE_STATE.store(DEVICE_PROBE_RUNNING, Ordering::Release);
     let active = match DEVICE_PROBE_ACTIVE.load(Ordering::Acquire) {
         index @ 0..=3 => Volume::from_settings_index(i32::from(index))
@@ -487,7 +487,7 @@ unsafe fn device_probe_entry(_argument: *mut c_void) -> *mut c_void {
     null_mut()
 }
 
-unsafe fn storage_scan_entry(_argument: *mut c_void) -> *mut c_void {
+unsafe extern "C" fn storage_scan_entry(_argument: *mut c_void) -> *mut c_void {
     if STORAGE_SCAN_SHUTDOWN_OLD.load(Ordering::Acquire) {
         let _ = ogc_fat::shutdown_all();
     }

@@ -220,7 +220,7 @@ pub fn stop() -> Result<(), ReceiverError> {
     Ok(())
 }
 
-unsafe fn worker(arg: *mut c_void) -> *mut c_void {
+unsafe extern "C" fn worker(arg: *mut c_void) -> *mut c_void {
     // SAFETY: start passes the address of the static SHARED value.
     let shared = unsafe { &*arg.cast::<Shared>() };
     let result = worker_main(shared);

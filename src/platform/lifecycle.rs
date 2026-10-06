@@ -52,12 +52,12 @@ pub fn take_request() -> Option<ExitRequest> {
 }
 
 #[cfg(target_arch = "powerpc")]
-unsafe fn reset_callback(_irq: u32, _context: *mut core::ffi::c_void) {
+unsafe extern "C" fn reset_callback(_irq: u32, _context: *mut core::ffi::c_void) {
     EXIT_SIGNAL.request_reset();
 }
 
 #[cfg(target_arch = "powerpc")]
-unsafe fn power_callback() {
+unsafe extern "C" fn power_callback() {
     EXIT_SIGNAL.request_power_off();
 }
 
