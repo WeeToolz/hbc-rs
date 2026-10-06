@@ -237,6 +237,29 @@ mod wii {
 
     struct IsfsBackend;
 
+    /// Read exactly `output.len()` bytes without ever passing an unaligned
+    /// destination pointer to ISFS. IOS requires the IPC data buffer itself to
+    /// be 32-byte aligned. Advancing a caller-owned slice after a short read can
+    /// therefore make a later read invalid even when the original allocation
+    /// was aligned.
+    pub(crate) fn read_exact_aligned(file: &isfs::IsfsFile, output: &mut [u8]) -> Result<(), i32> {
+        let mut chunk = AlignedChunk([0; WRITE_CHUNK_SIZE]);
+        let mut offset = 0usize;
+        while offset < output.len() {
+            let requested = (output.len() - offset).min(WRITE_CHUNK_SIZE);
+            match file.read(&mut chunk.0[..requested]) {
+                Ok(0) => return Err(isfs::ISFS_EINVAL),
+                Ok(count) if count <= requested => {
+                    output[offset..offset + count].copy_from_slice(&chunk.0[..count]);
+                    offset += count;
+                }
+                Ok(_) => return Err(isfs::ISFS_EINVAL),
+                Err(error) => return Err(error),
+            }
+        }
+        Ok(())
+    }
+
     impl ReplaceBackend for IsfsBackend {
         fn exists(&mut self, path: &str) -> Result<bool, i32> {
             let path = CString::new(path).map_err(|_| isfs::ISFS_EINVAL)?;
@@ -275,20 +298,8 @@ mod wii {
                 bytes
                     .try_reserve_exact(size)
                     .map_err(|_| isfs::ISFS_ENOMEM)?;
-                let mut chunk = AlignedChunk([0; WRITE_CHUNK_SIZE]);
-                let mut remaining = size;
-                while remaining > 0 {
-                    let requested = remaining.min(WRITE_CHUNK_SIZE);
-                    match file.read(&mut chunk.0[..requested]) {
-                        Ok(0) => return Err(isfs::ISFS_EINVAL),
-                        Ok(count) if count <= requested => {
-                            bytes.extend_from_slice(&chunk.0[..count]);
-                            remaining -= count;
-                        }
-                        Ok(_) => return Err(isfs::ISFS_EINVAL),
-                        Err(error) => return Err(error),
-                    }
-                }
+                bytes.resize(size, 0);
+                read_exact_aligned(&file, &mut bytes)?;
                 Ok(bytes)
             })();
             let close_result = file.close();
@@ -358,6 +369,8 @@ pub(crate) use wii::save as save_wii;
 
 #[cfg(target_arch = "powerpc")]
 pub(crate) use wii::recover as recover_wii;
+#[cfg(target_arch = "powerpc")]
+pub(crate) use wii::read_exact_aligned as read_exact_wii;
 
 #[cfg(test)]
 mod tests {

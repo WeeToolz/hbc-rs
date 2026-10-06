@@ -101,20 +101,7 @@ fn initialize_isfs() -> Result<(), NetworkConfigError> {
 }
 
 fn read_all(file: &isfs::IsfsFile, output: &mut [u8]) -> Result<(), NetworkConfigError> {
-    let mut offset = 0;
-    while offset < output.len() {
-        match file.read(&mut output[offset..]) {
-            Ok(0) => return Err(NetworkConfigError::InvalidFileSize),
-            Ok(count) => {
-                offset = offset
-                    .checked_add(count)
-                    .filter(|next| *next <= output.len())
-                    .ok_or(NetworkConfigError::InvalidFileSize)?
-            }
-            Err(error) => return Err(NetworkConfigError::Isfs(error)),
-        }
-    }
-    Ok(())
+    nand::read_exact_wii(file, output).map_err(NetworkConfigError::Isfs)
 }
 
 fn close_after_error<T>(file: isfs::IsfsFile, error: i32) -> Result<T, NetworkConfigError> {

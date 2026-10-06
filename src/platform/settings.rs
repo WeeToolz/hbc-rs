@@ -156,15 +156,8 @@ pub fn load() -> Result<UserSettings, SettingsIoError> {
         }
 
         let mut xml = AlignedXml([0; MAX_SETTINGS_XML_SIZE]);
-        let mut offset = 0;
-        while offset < size {
-            match file.read(&mut xml.0[offset..size]) {
-                Ok(0) => return Err(SettingsIoError::InvalidFileSize),
-                Ok(count) if count <= size - offset => offset += count,
-                Ok(_) => return Err(SettingsIoError::InvalidFileSize),
-                Err(rc) => return Err(SettingsIoError::Isfs(rc)),
-            }
-        }
+        super::nand::read_exact_wii(&file, &mut xml.0[..size])
+            .map_err(SettingsIoError::Isfs)?;
         Ok((xml, size))
     })();
     let close_rc = file.close();

@@ -11,7 +11,6 @@ use crate::{
 use ogc_filesystem as isfs;
 
 const THEME_FILENAME: &str = "theme.zip";
-const IO_CHUNK_SIZE: usize = 16 * 1024;
 const BACKGROUND_WIDTH: u32 = 640;
 const WIDE_BACKGROUND_WIDTH: u32 = 852;
 const BACKGROUND_HEIGHT: u32 = 480;
@@ -433,9 +432,6 @@ fn load_background(
     )
 }
 
-#[repr(align(32))]
-struct AlignedChunk([u8; IO_CHUNK_SIZE]);
-
 /// Read the installed theme archive from this channel's NAND data directory.
 pub fn load() -> Result<Option<Vec<u8>>, SettingsIoError> {
     #[cfg(feature = "startup-diagnostics")]
@@ -487,28 +483,10 @@ pub fn load() -> Result<Option<Vec<u8>>, SettingsIoError> {
         let _ = file.close();
         return Err(SettingsIoError::InvalidFileSize);
     }
-    let mut chunk = AlignedChunk([0; IO_CHUNK_SIZE]);
-    let mut remaining = size;
-    while remaining > 0 {
-        let requested = remaining.min(IO_CHUNK_SIZE);
-        match file.read(&mut chunk.0[..requested]) {
-            Ok(0) => {
-                let _ = file.close();
-                return Err(SettingsIoError::InvalidFileSize);
-            }
-            Ok(count) if count <= requested => {
-                archive.extend_from_slice(&chunk.0[..count]);
-                remaining -= count;
-            }
-            Ok(_) => {
-                let _ = file.close();
-                return Err(SettingsIoError::InvalidFileSize);
-            }
-            Err(rc) => {
-                let _ = file.close();
-                return Err(SettingsIoError::Isfs(rc));
-            }
-        }
+    archive.resize(size, 0);
+    if let Err(rc) = super::nand::read_exact_wii(&file, &mut archive) {
+        let _ = file.close();
+        return Err(SettingsIoError::Isfs(rc));
     }
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("THEME FILE CLOSE");
