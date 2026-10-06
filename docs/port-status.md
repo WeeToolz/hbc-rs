@@ -136,10 +136,11 @@ separate targets.
   services, applies the AHB patch for apps that request AHB access, reloads the
   preferred IOS, disables IRQ masks and external interrupts, clears HBC's
   runtime memory through an Arena2 trampoline, and branches to the entry point.
-  The external interrupt vector is restored before handoff. The decrementer
-  exception vector still lacks a safe restore API in the local library. AHB patch
-  and IOS reload failures now return to System Menu. AHB access apps do not yet
-  receive C's post-reload ES patch. The loaded crt0 must set
+  The Rust runtime's external-interrupt and LWP decrementer exception vectors
+  are restored before handoff. AHB patch and IOS reload failures return to the
+  System Menu as narrow safety divergences from C. AHB launches re-enable DVD
+  access after the IOS reload, matching the C handoff sequence. The loaded crt0
+  must set
   the stack and install its own interrupt handlers before enabling interrupts.
   This path is not verified on Rust hardware.
 - Wiiload now accepts ELF and DOL uploads through the launch path. It checks
@@ -166,6 +167,24 @@ separate targets.
   files if neither validates. A settings load error blocks later saves so HBC
   does not overwrite unreadable settings with defaults. Theme replacement needs
   enough free NAND space for both the old and new archive during the write.
+- Rust-only extension: Options includes a themed WiFi profile editor with a full
+  on-screen keyboard. This is not part of the C HBC parity claim.
+  It edits profile zero in `/shared2/sys/net/02/config.dat`, validates the
+  SSID and security key, preserves other config bytes, and saves through the
+  temporary-file and backup recovery path. After save, HBC stops and starts the
+  Wiiload receiver so the network stack can reconnect. HBC polls for the
+  receiver's assigned IPv4 address for up to 60 seconds without blocking the UI.
+  It reports the address only when Wiiload is listening. Read, save, restart,
+  and connection timeout failures are shown in the shared notice dialog. This
+  NAND config and connection check still need real Wii validation.
+- Rust-only extension: Network setup can scan visible access points through the
+  `ogc-wd` Wii
+  wireless driver API. It shows detected SSIDs and security modes, then fills
+  the selected SSID and recognized mode in the editor. Hidden SSIDs need
+  manual entry. Unknown security modes do not change the selected mode.
+  Scanning stops and restarts the Wiiload receiver and reports restart errors.
+  Scan output, router security modes, and receiver recovery need Wii hardware
+  validation.
 - System exit and app or BootMii handoff now stop if required save, unmount,
   WPAD shutdown, or Wiiload worker join steps fail. A failed Wiiload join keeps
   the worker marked as started. If BootMii IOS launch returns an error after
@@ -225,6 +244,9 @@ target has no `test` crate.
 - Verify Wiiload socket-close and network-deinit failures on Wii hardware. These
   failures now stop the receiver, set a visible cleanup error, and block a later
   app or system handoff.
+- Verify reading, saving, backup recovery, and the assigned IP check after
+  changing the Wii network profile on hardware. Confirm that Wiiload returns
+  without a console restart after a profile change.
 
 ## Other out-of-scope targets
 
