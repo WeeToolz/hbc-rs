@@ -60,7 +60,12 @@ impl ThemePackage {
                 max_total_bytes: MAX_THEME_TOTAL_BYTES,
             },
         )
-        .map_err(ThemePackageError::UnsafeArchive)?;
+        .map_err(|error| match error {
+            ManagementError::DuplicatePath | ManagementError::PathCollision => {
+                ThemePackageError::InvalidEntry
+            }
+            other => ThemePackageError::UnsafeArchive(other),
+        })?;
 
         let mut folded_names = BTreeSet::new();
         let mut theme_xml_name = None;
