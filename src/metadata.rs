@@ -9,6 +9,12 @@ use alloc::{
     vec::Vec,
 };
 
+const MAX_XML_BYTES: usize = 1024 * 1024;
+const MAX_XML_DEPTH: usize = 64;
+const MAX_XML_NODES: usize = 16 * 1024;
+const MAX_XML_ATTRIBUTES_PER_NODE: usize = 64;
+const MAX_XML_TEXT_PER_NODE: usize = 64 * 1024;
+
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct AppMetadata {
     pub name: Option<String>,
@@ -230,10 +236,15 @@ struct XmlNode {
 }
 impl XmlNode {
     fn find(&self, name: &str) -> Option<&XmlNode> {
-        if self.name == name {
-            return Some(self);
+        let mut pending = alloc::vec::Vec::new();
+        pending.push(self);
+        while let Some(node) = pending.pop() {
+            if node.name == name {
+                return Some(node);
+            }
+            pending.extend(node.children.iter().rev());
         }
-        self.children.iter().find_map(|c| c.find(name))
+        None
     }
     fn children_named<'a>(&'a self, name: &'a str) -> impl Iterator<Item = &'a XmlNode> + 'a {
         self.children.iter().filter(move |n| n.name == name)
@@ -250,6 +261,9 @@ impl XmlNode {
 // A small, strict XML reader for HBC's metadata vocabulary. Reject malformed
 // nesting and decode standard entities, instead of accepting truncated input.
 fn parse_xml(input: &str) -> Result<XmlNode, String> {
+    if input.len() > MAX_XML_BYTES {
+        return Err("XML exceeds size limit".into());
+    }
     let mut stack = vec![XmlNode {
         name: String::new(),
         attrs: Default::default(),
@@ -257,6 +271,7 @@ fn parse_xml(input: &str) -> Result<XmlNode, String> {
         children: vec![],
     }];
     let mut pos = 0;
+    let mut node_count = 0usize;
     while pos < input.len() {
         if input[pos..].starts_with("<!--") {
             let end = input[pos + 4..].find("-->").ok_or("unclosed XML comment")?;
@@ -272,11 +287,7 @@ fn parse_xml(input: &str) -> Result<XmlNode, String> {
         }
         if input[pos..].starts_with("<![CDATA[") {
             let end = input[pos + 9..].find("]]>").ok_or("unclosed CDATA")?;
-            stack
-                .last_mut()
-                .unwrap()
-                .text
-                .push_str(&input[pos + 9..pos + 9 + end]);
+            append_xml_text(&mut stack, &input[pos + 9..pos + 9 + end])?;
             pos += 9 + end + 3;
             continue;
         }
@@ -285,11 +296,8 @@ fn parse_xml(input: &str) -> Result<XmlNode, String> {
                 .find('<')
                 .map(|n| pos + n)
                 .unwrap_or(input.len());
-            stack
-                .last_mut()
-                .unwrap()
-                .text
-                .push_str(&decode(&input[pos..end])?);
+            let decoded = decode(&input[pos..end])?;
+            append_xml_text(&mut stack, &decoded)?;
             pos = end;
             continue;
         }
@@ -317,7 +325,14 @@ fn parse_xml(input: &str) -> Result<XmlNode, String> {
         if name.is_empty() {
             return Err("empty XML tag".into());
         }
+        node_count = node_count.checked_add(1).ok_or("too many XML nodes")?;
+        if node_count > MAX_XML_NODES {
+            return Err("too many XML nodes".into());
+        }
         let attrs = parse_attrs(raw[split..].trim())?;
+        if attrs.len() > MAX_XML_ATTRIBUTES_PER_NODE {
+            return Err("too many XML attributes".into());
+        }
         let node = XmlNode {
             name: name.into(),
             attrs,
@@ -327,6 +342,9 @@ fn parse_xml(input: &str) -> Result<XmlNode, String> {
         if self_closing {
             stack.last_mut().unwrap().children.push(node);
         } else {
+            if stack.len() > MAX_XML_DEPTH {
+                return Err("XML nesting exceeds depth limit".into());
+            }
             stack.push(node);
         }
     }
@@ -338,8 +356,22 @@ fn parse_xml(input: &str) -> Result<XmlNode, String> {
     }
     Ok(stack.remove(0).children.remove(0))
 }
+fn append_xml_text(stack: &mut [XmlNode], text: &str) -> Result<(), String> {
+    let current = stack.last_mut().ok_or("invalid XML parser state")?;
+    let new_len = current
+        .text
+        .len()
+        .checked_add(text.len())
+        .ok_or("XML text exceeds limit")?;
+    if new_len > MAX_XML_TEXT_PER_NODE {
+        return Err("XML text exceeds limit".into());
+    }
+    current.text.push_str(text);
+    Ok(())
+}
 fn parse_attrs(mut s: &str) -> Result<BTreeMap<String, String>, String> {
     let mut map: BTreeMap<String, String> = Default::default();
+    let mut count = 0usize;
     while !s.is_empty() {
         s = s.trim_start();
         if s.is_empty() {
@@ -347,6 +379,9 @@ fn parse_attrs(mut s: &str) -> Result<BTreeMap<String, String>, String> {
         }
         let eq = s.find('=').ok_or("invalid XML attribute")?;
         let key = s[..eq].trim();
+        if key.is_empty() {
+            return Err("empty XML attribute name".into());
+        }
         s = s[eq + 1..].trim_start();
         let quote = s.chars().next().ok_or("missing XML attribute value")?;
         if quote != '\'' && quote != '"' {
@@ -354,6 +389,10 @@ fn parse_attrs(mut s: &str) -> Result<BTreeMap<String, String>, String> {
         }
         s = &s[quote.len_utf8()..];
         let n = s.find(quote).ok_or("unclosed XML attribute")?;
+        count += 1;
+        if count > MAX_XML_ATTRIBUTES_PER_NODE {
+            return Err("too many XML attributes".into());
+        }
         map.insert(key.into(), decode(&s[..n])?);
         s = &s[n + quote.len_utf8()..];
     }
@@ -439,6 +478,40 @@ mod tests {
     fn rejects_bad_xml_and_invalid_dates() {
         assert!(parse_app_xml("<app><name>x</app>").is_err());
         assert_eq!(parse_date("20241332"), None);
+    }
+
+    #[test]
+    fn rejects_xml_that_exceeds_structural_limits() {
+        let deep = format!(
+            "{}x{}",
+            "<a>".repeat(MAX_XML_DEPTH + 1),
+            "</a>".repeat(MAX_XML_DEPTH + 1)
+        );
+        assert_eq!(
+            parse_xml(&deep).unwrap_err(),
+            "XML nesting exceeds depth limit"
+        );
+
+        let many_nodes = format!("<root>{}</root>", "<x/>".repeat(MAX_XML_NODES));
+        assert_eq!(parse_xml(&many_nodes).unwrap_err(), "too many XML nodes");
+
+        let too_much_text = format!("<root>{}</root>", "x".repeat(MAX_XML_TEXT_PER_NODE + 1));
+        assert_eq!(
+            parse_xml(&too_much_text).unwrap_err(),
+            "XML text exceeds limit"
+        );
+
+        let attributes = (0..=MAX_XML_ATTRIBUTES_PER_NODE)
+            .map(|i| format!(" a{i}='v'"))
+            .collect::<String>();
+        assert_eq!(
+            parse_xml(&format!("<root{attributes}/>")).unwrap_err(),
+            "too many XML attributes"
+        );
+        assert_eq!(
+            parse_xml(&"x".repeat(MAX_XML_BYTES + 1)).unwrap_err(),
+            "XML exceeds size limit"
+        );
     }
 
     #[test]

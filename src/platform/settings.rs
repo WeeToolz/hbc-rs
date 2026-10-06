@@ -30,6 +30,11 @@ pub enum SettingsIoError {
     Missing,
     Es(i32),
     Isfs(i32),
+    IsfsCleanup {
+        operation: Option<i32>,
+        cleanup: i32,
+    },
+    CommittedCleanup(i32),
     RecoveryConflict,
     TemporaryMismatch,
     InvalidPath,
@@ -43,6 +48,10 @@ impl SettingsIoError {
     pub(crate) fn from_replace(error: super::nand::ReplaceError) -> Self {
         match error {
             super::nand::ReplaceError::Backend(error) => Self::Isfs(error),
+            super::nand::ReplaceError::Cleanup { operation, cleanup } => {
+                Self::IsfsCleanup { operation, cleanup }
+            }
+            super::nand::ReplaceError::CommittedCleanup(error) => Self::CommittedCleanup(error),
             super::nand::ReplaceError::BackupNeedsValidation => Self::RecoveryConflict,
             super::nand::ReplaceError::TemporaryMismatch => Self::TemporaryMismatch,
         }
@@ -50,6 +59,16 @@ impl SettingsIoError {
 }
 
 fn resolve_title_data_directory() -> Result<TitleDataDirectory, TitlePathError> {
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("ES INIT REQUEST");
+    let rc = es::init();
+    if rc < 0 {
+        #[cfg(feature = "startup-diagnostics")]
+        super::diagnostics::mark("ES INIT FAILED");
+        return Err(TitlePathError::Es(rc));
+    }
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("ES INIT READY");
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("ES TITLE ID REQUEST");
     let mut title_id = AlignedTitleId(0);
@@ -125,36 +144,41 @@ pub fn load() -> Result<UserSettings, SettingsIoError> {
         Err(error) => return Err(SettingsIoError::Isfs(error)),
     };
     let mut stats = AlignedFstats(isfs::Fstats::default());
-    let rc = isfs::get_file_stats(&file, &mut stats.0);
-    if rc < 0 {
-        let _ = file.close();
-        return Err(SettingsIoError::Isfs(rc));
-    }
-    let size = stats.0.file_length as usize;
-    if size == 0 || size > MAX_SETTINGS_XML_SIZE {
-        let _ = file.close();
-        return Err(SettingsIoError::InvalidFileSize);
-    }
+    let read_result = (|| {
+        let rc = isfs::get_file_stats(&file, &mut stats.0);
+        if rc < 0 {
+            return Err(SettingsIoError::Isfs(rc));
+        }
+        let size =
+            usize::try_from(stats.0.file_length).map_err(|_| SettingsIoError::InvalidFileSize)?;
+        if size == 0 || size > MAX_SETTINGS_XML_SIZE {
+            return Err(SettingsIoError::InvalidFileSize);
+        }
 
-    let mut xml = AlignedXml([0; MAX_SETTINGS_XML_SIZE]);
-    let mut offset = 0;
-    while offset < size {
-        match file.read(&mut xml.0[offset..size]) {
-            Ok(0) => {
-                let _ = file.close();
-                return Err(SettingsIoError::InvalidFileSize);
-            }
-            Ok(count) => offset += count,
-            Err(rc) => {
-                let _ = file.close();
-                return Err(SettingsIoError::Isfs(rc));
+        let mut xml = AlignedXml([0; MAX_SETTINGS_XML_SIZE]);
+        let mut offset = 0;
+        while offset < size {
+            match file.read(&mut xml.0[offset..size]) {
+                Ok(0) => return Err(SettingsIoError::InvalidFileSize),
+                Ok(count) if count <= size - offset => offset += count,
+                Ok(_) => return Err(SettingsIoError::InvalidFileSize),
+                Err(rc) => return Err(SettingsIoError::Isfs(rc)),
             }
         }
-    }
+        Ok((xml, size))
+    })();
     let close_rc = file.close();
     if close_rc < 0 {
-        return Err(SettingsIoError::Isfs(close_rc));
+        return match read_result {
+            Err(SettingsIoError::Isfs(operation)) => Err(SettingsIoError::IsfsCleanup {
+                operation: Some(operation),
+                cleanup: close_rc,
+            }),
+            Err(_) => Err(SettingsIoError::Isfs(close_rc)),
+            Ok(_) => Err(SettingsIoError::Isfs(close_rc)),
+        };
     }
+    let (xml, size) = read_result?;
     decode_settings_xml(&xml.0[..size]).map_err(|_| SettingsIoError::Codec)
 }
 

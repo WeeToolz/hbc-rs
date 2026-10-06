@@ -45,6 +45,7 @@ struct StorageScanResult {
     storage: Option<FatStorage>,
     catalog: Vec<AppEntry>,
     scan_failed: bool,
+    shutdown_failed: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -488,8 +489,20 @@ unsafe extern "C" fn device_probe_entry(_argument: *mut c_void) -> *mut c_void {
 }
 
 unsafe extern "C" fn storage_scan_entry(_argument: *mut c_void) -> *mut c_void {
-    if STORAGE_SCAN_SHUTDOWN_OLD.load(Ordering::Acquire) {
-        let _ = ogc_fat::shutdown_all();
+    let shutdown_failed =
+        STORAGE_SCAN_SHUTDOWN_OLD.load(Ordering::Acquire) && ogc_fat::shutdown_all().is_err();
+    if shutdown_failed {
+        unsafe {
+            addr_of_mut!(STORAGE_SCAN_RESULT).write(MaybeUninit::new(StorageScanResult {
+                volume: None,
+                storage: None,
+                catalog: Vec::new(),
+                scan_failed: false,
+                shutdown_failed: true,
+            }))
+        };
+        STORAGE_SCAN_STATE.store(STORAGE_SCAN_READY, Ordering::Release);
+        return null_mut();
     }
     let preference = STORAGE_SCAN_PREFERENCE.load(Ordering::Acquire);
     let (volume, storage, catalog, scan_failed) = mount_preferred_volume(preference);
@@ -498,6 +511,7 @@ unsafe extern "C" fn storage_scan_entry(_argument: *mut c_void) -> *mut c_void {
         storage,
         catalog,
         scan_failed,
+        shutdown_failed,
     };
     unsafe {
         addr_of_mut!(STORAGE_SCAN_RESULT).write(MaybeUninit::new(result));
@@ -814,9 +828,10 @@ impl WiiStartup {
         if STORAGE_SCAN_STATE.load(Ordering::Acquire) != STORAGE_SCAN_READY {
             return false;
         }
-        if let Some(thread) = self.scan_thread.take() {
-            let _ = thread.join();
-        }
+        let join_failed = self
+            .scan_thread
+            .take()
+            .is_some_and(|thread| thread.join().is_err());
         let result = unsafe { addr_of_mut!(STORAGE_SCAN_RESULT).read().assume_init_read() };
         STORAGE_SCAN_STATE.store(STORAGE_SCAN_IDLE, Ordering::Release);
 
@@ -834,7 +849,18 @@ impl WiiStartup {
         self.icon_textures.clear();
         self.attempted_icon_indices.clear();
 
-        if result.scan_failed {
+        if result.shutdown_failed {
+            self.runtime.show_notice(
+                "Could not stop the previous storage mount. No new device was mounted.",
+            );
+        } else if join_failed {
+            self.runtime.show_notice(
+                "The storage scan worker stopped unexpectedly. Its result was discarded.",
+            );
+            self.storage = None;
+            self.volume = None;
+            self.runtime.replace_catalog(Vec::new());
+        } else if result.scan_failed {
             self.runtime
                 .show_notice("Could not read the apps folder on this device.");
         } else if requested_volume.is_some() && self.volume != requested_volume {

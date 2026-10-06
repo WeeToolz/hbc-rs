@@ -5,6 +5,7 @@ use alloc::{format, string::String, vec::Vec};
 use core::cmp::Ordering;
 
 pub const MAX_APP_ENTRIES: usize = 1024;
+pub const MAX_APP_DIRECTORY_ENTRIES: usize = 4096;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AppKind {
@@ -56,6 +57,7 @@ pub trait CatalogStorage {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ScanError<E> {
     AppDirectory(E),
+    TooManyAppDirectoryEntries,
 }
 
 /// Read app folders below `apps_root` and create catalog entries.
@@ -70,6 +72,9 @@ pub fn scan_apps<S: CatalogStorage>(
     let folders = storage
         .read_dir(apps_root)
         .map_err(ScanError::AppDirectory)?;
+    if folders.len() > MAX_APP_DIRECTORY_ENTRIES {
+        return Err(ScanError::TooManyAppDirectoryEntries);
+    }
     let mut apps = Vec::new();
     for folder in folders {
         if !folder.is_directory || !valid_folder_name(&folder.name) {
@@ -242,16 +247,26 @@ mod tests {
         directories: BTreeMap<String, Vec<DirectoryEntry>>,
         sizes: BTreeMap<String, u64>,
         files: BTreeMap<String, Vec<u8>>,
+        failures: BTreeMap<String, &'static str>,
     }
 
     impl CatalogStorage for MemoryStorage {
-        type Error = ();
+        type Error = &'static str;
 
         fn read_dir(&mut self, path: &str) -> Result<Vec<DirectoryEntry>, Self::Error> {
-            self.directories.get(path).cloned().ok_or(())
+            if let Some(error) = self.failures.get(path) {
+                return Err(error);
+            }
+            self.directories
+                .get(path)
+                .cloned()
+                .ok_or("missing directory")
         }
 
         fn file_size(&mut self, path: &str) -> Result<Option<u64>, Self::Error> {
+            if let Some(error) = self.failures.get(path) {
+                return Err(error);
+            }
             Ok(self.sizes.get(path).copied())
         }
 
@@ -260,6 +275,9 @@ mod tests {
             path: &str,
             max_bytes: usize,
         ) -> Result<Option<Vec<u8>>, Self::Error> {
+            if let Some(error) = self.failures.get(path) {
+                return Err(error);
+            }
             Ok(self
                 .files
                 .get(path)
@@ -403,5 +421,24 @@ mod tests {
 
         let apps = scan_apps(&mut fs, root, 50, 100).unwrap();
         assert!(apps.is_empty());
+    }
+
+    #[test]
+    fn scan_rejects_an_unbounded_backend_directory_result() {
+        let root = "sd:/apps";
+        let mut fs = MemoryStorage::default();
+        fs.directories.insert(
+            root.into(),
+            (0..=MAX_APP_DIRECTORY_ENTRIES)
+                .map(|index| DirectoryEntry {
+                    name: format!("app-{index}"),
+                    is_directory: true,
+                })
+                .collect(),
+        );
+        assert_eq!(
+            scan_apps(&mut fs, root, 100, 50),
+            Err(ScanError::TooManyAppDirectoryEntries)
+        );
     }
 }

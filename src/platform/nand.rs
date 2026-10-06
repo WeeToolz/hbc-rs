@@ -17,6 +17,11 @@ pub(crate) trait ReplaceBackend {
 #[cfg(any(target_arch = "powerpc", test))]
 pub(crate) enum ReplaceError {
     Backend(i32),
+    Cleanup {
+        operation: Option<i32>,
+        cleanup: i32,
+    },
+    CommittedCleanup(i32),
     BackupNeedsValidation,
     TemporaryMismatch,
 }
@@ -42,46 +47,92 @@ pub(crate) fn replace_file(
 
     recover_interrupted_replace(backend, &temporary, &backup)?;
     if let Err(error) = backend.write_new(&temporary, bytes) {
-        let _ = backend.delete(&temporary);
-        return Err(error.into());
+        return Err(cleanup_temporary(backend, &temporary, Some(error)));
     }
-    let staged = backend
-        .read_bounded(&temporary, bytes.len())?
-        .ok_or(ReplaceError::TemporaryMismatch)?;
+    let staged = match backend.read_bounded(&temporary, bytes.len()) {
+        Ok(Some(staged)) => staged,
+        Ok(None) => {
+            return Err(cleanup_temporary(backend, &temporary, None));
+        }
+        Err(error) => return Err(cleanup_temporary(backend, &temporary, Some(error))),
+    };
     if staged != bytes {
-        return Err(ReplaceError::TemporaryMismatch);
+        return Err(cleanup_temporary(backend, &temporary, None));
     }
 
     let original_exists = match backend.exists(path) {
         Ok(exists) => exists,
         Err(error) => {
-            let _ = backend.delete(&temporary);
-            return Err(error.into());
+            return Err(cleanup_temporary(backend, &temporary, Some(error)));
         }
     };
 
     if !original_exists {
         if let Err(error) = rename(backend, &temporary, path) {
-            let _ = backend.delete(&temporary);
-            return Err(error.into());
+            return Err(cleanup_temporary(
+                backend,
+                &temporary,
+                Some(backend_error(error)),
+            ));
         }
         return Ok(());
     }
 
     if let Err(error) = rename(backend, path, &backup) {
-        let _ = backend.delete(&temporary);
-        return Err(error.into());
+        return Err(cleanup_temporary(
+            backend,
+            &temporary,
+            Some(backend_error(error)),
+        ));
     }
     if let Err(error) = rename(backend, &temporary, path) {
         if let Err(restore_error) = rename(backend, &backup, path) {
             return Err(restore_error.into());
         }
-        let _ = backend.delete(&temporary);
-        return Err(error.into());
+        return Err(cleanup_temporary(
+            backend,
+            &temporary,
+            Some(backend_error(error)),
+        ));
     }
 
-    let _ = backend.delete(&backup);
+    if let Err(error) = check(backend.delete(&backup)) {
+        // The new primary is already installed and verified. Keep it in place;
+        // report that only removal of the old recovery copy failed.
+        return Err(ReplaceError::CommittedCleanup(backend_error(error)));
+    }
     Ok(())
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+fn cleanup_temporary(
+    backend: &mut impl ReplaceBackend,
+    temporary: &str,
+    operation: Option<i32>,
+) -> ReplaceError {
+    match backend.exists(temporary) {
+        Ok(false) => {
+            return operation.map_or(ReplaceError::TemporaryMismatch, ReplaceError::Backend);
+        }
+        Ok(true) => {}
+        Err(cleanup) => return ReplaceError::Cleanup { operation, cleanup },
+    }
+    let cleanup = backend.delete(temporary);
+    if cleanup < 0 {
+        ReplaceError::Cleanup { operation, cleanup }
+    } else if let Some(operation) = operation {
+        ReplaceError::Backend(operation)
+    } else {
+        ReplaceError::TemporaryMismatch
+    }
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+fn backend_error(error: ReplaceError) -> i32 {
+    match error {
+        ReplaceError::Backend(error) => error,
+        _ => unreachable!("rename only returns backend errors"),
+    }
 }
 
 /// Restore a backup when a prior save stopped after moving the primary file.
@@ -211,67 +262,40 @@ mod wii {
                 Err(error) => return Err(error),
             };
             let mut stats = AlignedFstats(isfs::Fstats::default());
-            let result = isfs::get_file_stats(&file, &mut stats.0);
-            if result < 0 {
-                let close_result = file.close();
-                if close_result < 0 {
-                    return Err(close_result);
+            let read_result = (|| {
+                let result = isfs::get_file_stats(&file, &mut stats.0);
+                if result < 0 {
+                    return Err(result);
                 }
-                return Err(result);
-            }
-            let size = usize::try_from(stats.0.file_length).map_err(|_| isfs::ISFS_EINVAL)?;
-            if size > max_size {
-                let close_result = file.close();
-                if close_result < 0 {
-                    return Err(close_result);
+                let size = usize::try_from(stats.0.file_length).map_err(|_| isfs::ISFS_EINVAL)?;
+                if size > max_size {
+                    return Err(isfs::ISFS_EINVAL);
                 }
-                return Err(isfs::ISFS_EINVAL);
-            }
-            let mut bytes = Vec::new();
-            if bytes.try_reserve_exact(size).is_err() {
-                let close_result = file.close();
-                if close_result < 0 {
-                    return Err(close_result);
-                }
-                return Err(isfs::ISFS_ENOMEM);
-            }
-            let mut chunk = AlignedChunk([0; WRITE_CHUNK_SIZE]);
-            let mut remaining = size;
-            while remaining > 0 {
-                let requested = remaining.min(WRITE_CHUNK_SIZE);
-                match file.read(&mut chunk.0[..requested]) {
-                    Ok(0) => {
-                        let close_result = file.close();
-                        if close_result < 0 {
-                            return Err(close_result);
+                let mut bytes = Vec::new();
+                bytes
+                    .try_reserve_exact(size)
+                    .map_err(|_| isfs::ISFS_ENOMEM)?;
+                let mut chunk = AlignedChunk([0; WRITE_CHUNK_SIZE]);
+                let mut remaining = size;
+                while remaining > 0 {
+                    let requested = remaining.min(WRITE_CHUNK_SIZE);
+                    match file.read(&mut chunk.0[..requested]) {
+                        Ok(0) => return Err(isfs::ISFS_EINVAL),
+                        Ok(count) if count <= requested => {
+                            bytes.extend_from_slice(&chunk.0[..count]);
+                            remaining -= count;
                         }
-                        return Err(isfs::ISFS_EINVAL);
-                    }
-                    Ok(count) if count <= requested => {
-                        bytes.extend_from_slice(&chunk.0[..count]);
-                        remaining -= count;
-                    }
-                    Ok(_) => {
-                        let close_result = file.close();
-                        if close_result < 0 {
-                            return Err(close_result);
-                        }
-                        return Err(isfs::ISFS_EINVAL);
-                    }
-                    Err(error) => {
-                        let close_result = file.close();
-                        if close_result < 0 {
-                            return Err(close_result);
-                        }
-                        return Err(error);
+                        Ok(_) => return Err(isfs::ISFS_EINVAL),
+                        Err(error) => return Err(error),
                     }
                 }
-            }
+                Ok(bytes)
+            })();
             let close_result = file.close();
             if close_result < 0 {
                 return Err(close_result);
             }
-            Ok(Some(bytes))
+            read_result.map(Some)
         }
 
         fn write_new(&mut self, path: &str, bytes: &[u8]) -> Result<(), i32> {
@@ -281,20 +305,19 @@ mod wii {
                 return Err(result);
             }
             let file = isfs::open(&path, isfs::ISFS_OPEN_RW)?;
-            let mut chunk = AlignedChunk([0; WRITE_CHUNK_SIZE]);
-            let mut write_result = Ok(());
-            for part in bytes.chunks(WRITE_CHUNK_SIZE) {
-                chunk.0[..part.len()].copy_from_slice(part);
-                if let Err(error) = file.write_all(&chunk.0[..part.len()]) {
-                    write_result = Err(error);
-                    break;
+            let write_result: Result<(), i32> = (|| {
+                let mut chunk = AlignedChunk([0; WRITE_CHUNK_SIZE]);
+                for part in bytes.chunks(WRITE_CHUNK_SIZE) {
+                    chunk.0[..part.len()].copy_from_slice(part);
+                    file.write_all(&chunk.0[..part.len()])?;
                 }
-            }
+                Ok(())
+            })();
             let close_result = file.close();
-            write_result?;
             if close_result < 0 {
                 return Err(close_result);
             }
+            write_result?;
             Ok(())
         }
 
@@ -348,6 +371,7 @@ mod tests {
         corrupt_staged_file: bool,
         fail_rename_call: Option<usize>,
         fail_rollback: bool,
+        fail_delete_path: Option<String>,
         rename_calls: usize,
     }
 
@@ -413,6 +437,9 @@ mod tests {
         }
 
         fn delete(&mut self, path: &str) -> i32 {
+            if self.fail_delete_path.as_deref() == Some(path) {
+                return -10;
+            }
             self.files.remove(path);
             0
         }
@@ -426,6 +453,39 @@ mod tests {
         assert_eq!(backend.files.get("settings.xml"), Some(&vec![2, 3]));
         assert!(!backend.files.contains_key("settings.xml.bak"));
         assert!(!backend.files.contains_key("settings.xml.tmp"));
+    }
+
+    #[test]
+    fn backup_cleanup_failure_reports_committed_primary_without_removing_it() {
+        let mut backend = MemoryBackend::default();
+        backend.files.insert(String::from("settings.xml"), vec![1]);
+        backend.fail_delete_path = Some(String::from("settings.xml.bak"));
+
+        assert_eq!(
+            replace_file(&mut backend, "settings.xml", &[2, 3]),
+            Err(ReplaceError::CommittedCleanup(-10))
+        );
+        assert_eq!(backend.files.get("settings.xml"), Some(&vec![2, 3]));
+        assert_eq!(backend.files.get("settings.xml.bak"), Some(&vec![1]));
+        assert!(!backend.files.contains_key("settings.xml.tmp"));
+    }
+
+    #[test]
+    fn failed_operation_and_failed_temp_cleanup_are_both_reported() {
+        let mut backend = MemoryBackend::default();
+        backend.files.insert(String::from("settings.xml"), vec![1]);
+        backend.fail_write = Some(WriteFailure::Write);
+        backend.fail_delete_path = Some(String::from("settings.xml.tmp"));
+
+        assert_eq!(
+            replace_file(&mut backend, "settings.xml", &[2, 3]),
+            Err(ReplaceError::Cleanup {
+                operation: Some(-7),
+                cleanup: -10,
+            })
+        );
+        assert_eq!(backend.files.get("settings.xml"), Some(&vec![1]));
+        assert_eq!(backend.files.get("settings.xml.tmp"), Some(&vec![2]));
     }
 
     #[test]

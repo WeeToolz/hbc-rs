@@ -163,12 +163,14 @@ pub fn plan_extraction(
     }
 
     let mut nodes = BTreeMap::<String, Node>::new();
+    let mut fat_names = BTreeMap::<String, String>::new();
     let mut files = Vec::new();
     let mut total_bytes = 0u64;
 
     for entry in entries {
         validate_entry(entry)?;
         let normalized = entry.name.strip_suffix('/').unwrap_or(&entry.name);
+        validate_fat_name_aliases(normalized, &mut fat_names)?;
         let kind = if entry.is_directory {
             NodeKind::Directory
         } else {
@@ -231,6 +233,41 @@ pub fn plan_extraction(
         operations,
         total_bytes,
     })
+}
+
+/// Reject names that can identify the same component on FAT volumes.
+fn validate_fat_name_aliases(
+    path: &str,
+    names: &mut BTreeMap<String, String>,
+) -> Result<(), ManagementError> {
+    let mut folded_parent = String::new();
+    for component in path.split('/') {
+        if component.ends_with('.') || component.ends_with(' ') {
+            return Err(ManagementError::UnsafePath(
+                ArchivePathError::InvalidComponent,
+            ));
+        }
+        let mut key = String::new();
+        if !folded_parent.is_empty() {
+            key.push_str(&folded_parent);
+            key.push('/');
+        }
+        let mut folded_component = String::from(component);
+        folded_component.make_ascii_lowercase();
+        key.push_str(&folded_component);
+        match names.get(&key) {
+            Some(existing) if existing != component => return Err(ManagementError::PathCollision),
+            Some(_) => {}
+            None => {
+                names.insert(key, String::from(component));
+            }
+        }
+        if !folded_parent.is_empty() {
+            folded_parent.push('/');
+        }
+        folded_parent.push_str(&folded_component);
+    }
+    Ok(())
 }
 
 fn validate_entry(entry: &ZipEntry) -> Result<(), ManagementError> {
@@ -358,6 +395,30 @@ mod tests {
             plan_extraction(&collision, ExtractionLimits::default()),
             Err(ManagementError::PathCollision)
         );
+    }
+
+    #[test]
+    fn rejects_fat_case_aliases_and_trailing_dot_or_space_names() {
+        let case_alias = archive(&[
+            entry("apps/Demo/one.txt", false, 1),
+            entry("apps/demo/two.txt", false, 1),
+        ]);
+        assert_eq!(
+            plan_extraction(&case_alias, ExtractionLimits::default()),
+            Err(ManagementError::PathCollision)
+        );
+
+        for name in ["apps/demo./file", "apps/demo /file"] {
+            assert!(matches!(
+                plan_extraction(
+                    &archive(&[entry(name, false, 1)]),
+                    ExtractionLimits::default()
+                ),
+                Err(ManagementError::UnsafePath(
+                    ArchivePathError::InvalidComponent
+                ))
+            ));
+        }
     }
 
     #[test]

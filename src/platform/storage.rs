@@ -96,6 +96,8 @@ pub enum StorageError {
     Allocation,
     WriteZero,
     DeleteDepth,
+    DeleteEntryLimit,
+    DirectoryEntryLimit,
 }
 
 #[cfg(target_arch = "powerpc")]
@@ -280,12 +282,28 @@ impl FatStorage {
 
     pub fn remove_directory_tree(&self, path: &str) -> Result<(), StorageError> {
         crate::archive::validate_archive_path(path).map_err(|_| StorageError::InvalidPath)?;
-        self.remove_tree(&path, 0)?;
+        let mut remaining_entries = crate::catalog::MAX_APP_DIRECTORY_ENTRIES * 4;
+        let mut deletion_plan = Vec::new();
+        self.collect_tree(path, 0, &mut remaining_entries, &mut deletion_plan)?;
+        for (child, is_directory) in deletion_plan {
+            let full_child = self.full_path(&child)?;
+            if is_directory {
+                ogc_fat::remove_directory(&full_child).map_err(StorageError::Fat)?;
+            } else {
+                ogc_fat::remove_file(&full_child).map_err(StorageError::Fat)?;
+            }
+        }
         let full = self.full_path(path)?;
         ogc_fat::remove_directory(&full).map_err(StorageError::Fat)
     }
 
-    fn remove_tree(&self, path: &str, depth: usize) -> Result<(), StorageError> {
+    fn collect_tree(
+        &self,
+        path: &str,
+        depth: usize,
+        remaining_entries: &mut usize,
+        deletion_plan: &mut Vec<(String, bool)>,
+    ) -> Result<(), StorageError> {
         const MAX_DELETE_DEPTH: usize = 64;
         if depth > MAX_DELETE_DEPTH {
             return Err(StorageError::DeleteDepth);
@@ -302,6 +320,13 @@ impl FatStorage {
                 continue;
             }
             crate::archive::validate_archive_path(&name).map_err(|_| StorageError::InvalidPath)?;
+            if *remaining_entries == 0 {
+                return Err(StorageError::DeleteEntryLimit);
+            }
+            *remaining_entries -= 1;
+            children
+                .try_reserve(1)
+                .map_err(|_| StorageError::Allocation)?;
             children.push((name, entry.is_directory));
         }
         drop(directory);
@@ -309,12 +334,16 @@ impl FatStorage {
         for (name, is_directory) in children {
             let child = join_safe_path(path, &name)?;
             if is_directory {
-                self.remove_tree(&child, depth + 1)?;
-                let full_child = self.full_path(&child)?;
-                ogc_fat::remove_directory(&full_child).map_err(StorageError::Fat)?;
+                self.collect_tree(&child, depth + 1, remaining_entries, deletion_plan)?;
+                deletion_plan
+                    .try_reserve(1)
+                    .map_err(|_| StorageError::Allocation)?;
+                deletion_plan.push((child, true));
             } else {
-                let full_child = self.full_path(&child)?;
-                ogc_fat::remove_file(&full_child).map_err(StorageError::Fat)?;
+                deletion_plan
+                    .try_reserve(1)
+                    .map_err(|_| StorageError::Allocation)?;
+                deletion_plan.push((child, false));
             }
         }
         Ok(())
@@ -347,7 +376,13 @@ impl CatalogStorage for FatStorage {
             let Some(entry) = directory.next_entry().map_err(StorageError::Fat)? else {
                 break;
             };
+            if entries.len() == crate::catalog::MAX_APP_DIRECTORY_ENTRIES {
+                return Err(StorageError::DirectoryEntryLimit);
+            }
             let name = String::from_utf8_lossy(&entry.name).into_owned();
+            entries
+                .try_reserve(1)
+                .map_err(|_| StorageError::Allocation)?;
             entries.push(DirectoryEntry {
                 name,
                 is_directory: entry.is_directory,
