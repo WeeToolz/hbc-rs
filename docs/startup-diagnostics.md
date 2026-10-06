@@ -1,19 +1,21 @@
 # HBC startup diagnostic DOL
 
-Build the diagnostic DOL from the repository root:
+Build the diagnostic ELF with the Wii target from `libogc-rs`:
 
 ```sh
-RUSTC=/Users/user/.rustup/toolchains/nightly-aarch64-apple-darwin/bin/rustc \
-RUSTFLAGS='-C linker=/opt/homebrew/Caskroom/miniforge/base/envs/hummingbot/lib/rustlib/aarch64-apple-darwin/bin/gcc-ld/ld.lld -C panic=abort -C link-arg=-T/Volumes/SSD/projects/Wii/wiidev/hbc-rs/libogc-rs/targets/powerpc-unknown-wii.ld' \
-/Users/user/.rustup/toolchains/nightly-aarch64-apple-darwin/bin/cargo build \
+RUSTC="$(rustup which --toolchain nightly rustc)" \
+RUSTFLAGS='-C linker=rust-lld -C panic=abort -C link-arg=-T../libogc-rs/targets/powerpc-nintendo-none.ld --check-cfg=cfg(gamecube)' \
+rustup run nightly cargo build \
   --release --features startup-diagnostics \
-  --target libogc-rs/targets/powerpc-unknown-wii.json \
-  -Z build-std=core,alloc -Z json-target-spec
+  --target ../libogc-rs/targets/powerpc-nintendo-none.json \
+  -Z build-std=core,alloc \
+  -Z build-std-features=compiler-builtins-mem \
+  -Z json-target-spec
 
-cd libogc-rs
+cd ../libogc-rs
 cargo xtask elf-to-dol \
-  /Volumes/SSD/projects/Wii/wiidev/hbc-rs/target/powerpc-unknown-wii/release/hbc-rs \
-  /Volumes/SSD/projects/Wii/wiidev/hbc-rs/target/hbc-rs-startup.dol
+  ../hbc-rs/target/powerpc-nintendo-none/release/hbc-rs \
+  ../hbc-rs/target/hbc-rs-startup.dol
 ```
 
 The diagnostic starts with a CPU-rendered framebuffer. Its label changes as

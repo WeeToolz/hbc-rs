@@ -732,6 +732,28 @@ mod wii {
 }
 
 #[cfg(target_arch = "powerpc")]
+pub fn mark_fp_state(enabled: &'static str, disabled: &'static str) {
+    let msr: u32;
+    unsafe {
+        core::arch::asm!("mfmsr {0}", out(reg) msr, options(nostack, preserves_flags));
+    }
+    mark_fp_value(msr, enabled, disabled);
+}
+
+#[cfg(target_arch = "powerpc")]
+pub fn mark_fp_value(msr: u32, enabled: &'static str, disabled: &'static str) {
+    if msr & 0x2000 != 0 {
+        mark(enabled);
+        return;
+    }
+
+    mark(disabled);
+    loop {
+        core::hint::spin_loop();
+    }
+}
+
+#[cfg(target_arch = "powerpc")]
 pub use wii::{
     begin_reporting, complete, fail, hold, initialize, mark, sample_frame, set_gx_framebuffer_info,
 };

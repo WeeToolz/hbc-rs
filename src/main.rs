@@ -19,12 +19,58 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     // reserving the Rust heap from MEM2 or registering hardware callbacks.
     ogc_system::init();
     #[cfg(feature = "startup-diagnostics")]
+    let msr_after_system_init: u32;
+    #[cfg(feature = "startup-diagnostics")]
+    unsafe {
+        core::arch::asm!(
+            "mfmsr {0}",
+            out(reg) msr_after_system_init,
+            options(nostack, preserves_flags)
+        );
+    }
+    #[cfg(feature = "startup-diagnostics")]
     if hbc_rs::platform::diagnostics::initialize(_argc, _argv).is_err() {
         if hbc_rs::platform::diagnostics::fail("CPU VIDEO INIT ERROR") {
             reset_after_diagnostic_report();
         }
         return -4;
     }
+    #[cfg(feature = "startup-diagnostics")]
+    {
+        let fp_disabled_stage = ogc_system::runtime_fp_disabled_stage();
+        let disabled_label = match fp_disabled_stage {
+            13 => Some("FP OFF BEFORE START"),
+            1 => Some("FP OFF LOW MEMORY"),
+            2 => Some("FP OFF IPC BUFFERS"),
+            3 => Some("FP OFF LWP SETUP"),
+            4 => Some("FP OFF RESET QUEUE"),
+            5 => Some("FP OFF EXI"),
+            6 => Some("FP OFF SRAM"),
+            7 => Some("FP OFF SI"),
+            8 => Some("FP OFF DSP"),
+            9 => Some("FP OFF MEM PROTECT"),
+            10 => Some("FP OFF CALLBACKS"),
+            11 => Some("FP OFF IPC CLIENT"),
+            12 => Some("FP OFF GBS MODE"),
+            _ => None,
+        };
+        if let Some(label) = disabled_label {
+            hbc_rs::platform::diagnostics::mark(label);
+            loop {
+                core::hint::spin_loop();
+            }
+        }
+        hbc_rs::platform::diagnostics::mark_fp_value(
+            msr_after_system_init,
+            "FP AFTER SYSTEM INIT ON",
+            "FP AFTER SYSTEM INIT OFF",
+        );
+    }
+    #[cfg(feature = "startup-diagnostics")]
+    hbc_rs::platform::diagnostics::mark_fp_state(
+        "FP AFTER TRACE INIT ON",
+        "FP AFTER TRACE INIT OFF",
+    );
     hbc_rs::platform::lifecycle::register_callbacks();
     #[cfg(feature = "startup-diagnostics")]
     hbc_rs::platform::diagnostics::mark("HEAP START");
@@ -41,10 +87,14 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         }
         return -1;
     }
+    #[cfg(feature = "startup-diagnostics")]
+    hbc_rs::platform::diagnostics::mark_fp_state("FP AFTER HEAP ON", "FP AFTER HEAP OFF");
 
     #[cfg(feature = "startup-diagnostics")]
     hbc_rs::platform::diagnostics::mark("CONF START");
     let _ = ogc_conf::init();
+    #[cfg(feature = "startup-diagnostics")]
+    hbc_rs::platform::diagnostics::mark_fp_state("FP AFTER CONF ON", "FP AFTER CONF OFF");
     let view_width = if ogc_conf::get_aspect_ratio() == ogc_conf::CONF_ASPECT_16_9 as i32 {
         hbc_rs::render::WIDE_LOGICAL_WIDTH
     } else {
@@ -828,6 +878,7 @@ fn reset_system(reset: u32) -> ! {
 }
 
 #[cfg(target_arch = "powerpc")]
+#[cfg(feature = "startup-diagnostics")]
 fn reset_after_diagnostic_report() -> ! {
     unsafe { ogc_system::reset_system(ogc_system::SYS_RESTART as i32, 0, 0) };
     loop {

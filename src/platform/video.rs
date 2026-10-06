@@ -9,6 +9,10 @@ use crate::png::GxRgba8Texture;
 static POLL_FIRST_VI_RETRACE: core::sync::atomic::AtomicBool =
     core::sync::atomic::AtomicBool::new(true);
 
+#[cfg(feature = "startup-diagnostics")]
+static TRACE_FIRST_PRESENT: core::sync::atomic::AtomicBool =
+    core::sync::atomic::AtomicBool::new(true);
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct FramebufferInfo {
     pub width: u16,
@@ -137,14 +141,12 @@ impl VideoSystem {
             ogc_gx::init_tex_obj(
                 &mut object,
                 texture.as_ptr() as *mut core::ffi::c_void,
-                ogc_gx::GxTexObjInit {
-                    wd: texture.width,
-                    ht: texture.height,
-                    fmt: ogc_gx::GX_TF_RGBA8,
-                    wrap_s: 0,
-                    wrap_t: 0,
-                    mipmap: 0,
-                },
+                texture.width,
+                texture.height,
+                ogc_gx::GX_TF_RGBA8,
+                0,
+                0,
+                0,
             );
             ogc_gx::init_tex_obj_filter_mode(&mut object, ogc_gx::GX_NEAR, ogc_gx::GX_NEAR);
             ogc_gx::draw_textured_rect(&mut object, x, y, width, height, 0.0)
@@ -158,11 +160,27 @@ impl VideoSystem {
     /// The caller must finish drawing the frame and keep all referenced graphics
     /// resources alive until this function returns.
     pub unsafe fn present(&self) -> Result<(), VideoError> {
+        #[cfg(feature = "startup-diagnostics")]
+        let trace = TRACE_FIRST_PRESENT.swap(false, core::sync::atomic::Ordering::Relaxed);
+
         // HBC finishes rendering, waits for the next retrace, and only then copies
         // the EFB to the XFB. This prevents GX from writing the framebuffer while
         // VI scans the same buffer.
+        #[cfg(feature = "startup-diagnostics")]
+        if trace {
+            super::diagnostics::mark("GX DRAW WAIT START");
+        }
         if !unsafe { ogc_gx::finish_frame_and_wait() } {
+            #[cfg(feature = "startup-diagnostics")]
+            if trace {
+                super::diagnostics::mark("GX DRAW WAIT FAILED");
+            }
             return Err(VideoError::GxDrawTimeout);
+        }
+        #[cfg(feature = "startup-diagnostics")]
+        if trace {
+            super::diagnostics::mark("GX DRAW WAIT DONE");
+            super::diagnostics::mark("VI RETRACE WAIT START");
         }
         #[cfg(feature = "startup-diagnostics")]
         let poll_vi = POLL_FIRST_VI_RETRACE.swap(false, core::sync::atomic::Ordering::Relaxed);
@@ -180,11 +198,34 @@ impl VideoSystem {
         }
         #[cfg(not(feature = "startup-diagnostics"))]
         self.wait_vsync();
+        #[cfg(feature = "startup-diagnostics")]
+        if trace {
+            super::diagnostics::mark("VI RETRACE WAIT DONE");
+            super::diagnostics::mark("GX COPY WAIT START");
+        }
         if !unsafe { ogc_gx::present_frame_and_wait(self.config) } {
+            #[cfg(feature = "startup-diagnostics")]
+            if trace {
+                super::diagnostics::mark("GX COPY WAIT FAILED");
+            }
             return Err(VideoError::GxDrawTimeout);
         }
+        #[cfg(feature = "startup-diagnostics")]
+        if trace {
+            super::diagnostics::mark("GX COPY WAIT DONE");
+            super::diagnostics::mark("VI FRAMEBUFFER SET START");
+        }
         unsafe { ogc_video::set_next_framebuffer(self.framebuffer) };
+        #[cfg(feature = "startup-diagnostics")]
+        if trace {
+            super::diagnostics::mark("VI FRAMEBUFFER SET DONE");
+            super::diagnostics::mark("VI FLUSH START");
+        }
         ogc_video::flush();
+        #[cfg(feature = "startup-diagnostics")]
+        if trace {
+            super::diagnostics::mark("VI FLUSH DONE");
+        }
         Ok(())
     }
 }
@@ -207,10 +248,14 @@ pub enum VideoError {
 /// 640x480 or 852x480 logical viewport and supplies its aspect ratio here.
 pub fn initialize(widescreen: bool) -> Result<VideoSystem, VideoError> {
     ogc_video::init();
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark_fp_state("FP AFTER VIDEO INIT ON", "FP AFTER VIDEO INIT OFF");
     #[cfg(not(feature = "startup-diagnostics"))]
     ogc_video::set_black(true);
 
     let preferred = unsafe { ogc_video::get_preferred_mode(core::ptr::null_mut()) };
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark_fp_state("FP AFTER MODE GET ON", "FP AFTER MODE GET OFF");
     if preferred.is_null() {
         return Err(VideoError::NoPreferredMode);
     }
@@ -221,8 +266,12 @@ pub fn initialize(widescreen: bool) -> Result<VideoSystem, VideoError> {
     configure_vwii_aspect(widescreen);
 
     unsafe { ogc_video::configure(&mut mode) };
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark_fp_state("FP AFTER VI CONFIG ON", "FP AFTER VI CONFIG OFF");
     ogc_video::flush();
     ogc_video::wait_vsync();
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark_fp_state("FP AFTER RETRACE ON", "FP AFTER RETRACE OFF");
 
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("GX FRAMEBUFFER ALLOCATE");
@@ -246,12 +295,16 @@ pub fn initialize(widescreen: bool) -> Result<VideoSystem, VideoError> {
         let framebuffer_k1 = ogc_core::mem_k0_to_k1(framebuffer as usize) as *mut _;
         ogc_video::clear_frame_buffer(&mut mode, framebuffer_k1, 0);
     }
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark_fp_state("FP AFTER XFB CLEAR ON", "FP AFTER XFB CLEAR OFF");
 
     // GX uses the low arena2 boundary for its FIFO. The HBC allocator reserves
     // its heap first, so this FIFO cannot overlap Rust allocations.
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("GX FIFO START");
     let fifo = unsafe { ogc_gx::GxFifo::initialize_default_mem2() }.map_err(VideoError::GxFifo)?;
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark_fp_state("FP AFTER GX FIFO ON", "FP AFTER GX FIFO OFF");
     let config =
         ogc_gx::FrameConfig::new(framebuffer, mode.fb_width, mode.efb_height, mode.xfb_height)
             .ok_or(VideoError::InvalidFrameConfig)?
@@ -265,34 +318,86 @@ pub fn initialize(widescreen: bool) -> Result<VideoSystem, VideoError> {
                 mode.field_rendering != 0,
                 u32::from(mode.vi_height) == u32::from(mode.xfb_height) * 2,
             );
-    unsafe {
-        #[cfg(feature = "startup-diagnostics")]
-        super::diagnostics::mark("GX DISPLAY COMMANDS");
-        #[cfg(feature = "startup-diagnostics")]
-        let initial_clear = ogc_gx::GxColor {
-            r: 56,
-            g: 56,
-            b: 56,
-            a: 255,
-        };
-        #[cfg(not(feature = "startup-diagnostics"))]
-        let initial_clear = ogc_gx::GxColor::default();
-        if !ogc_gx::initialize_display(config, initial_clear) {
-            return Err(VideoError::GxDrawTimeout);
+    #[cfg(feature = "startup-diagnostics")]
+    let initial_clear = ogc_gx::GxColor {
+        r: 192,
+        g: 192,
+        b: 192,
+        a: 255,
+    };
+    #[cfg(not(feature = "startup-diagnostics"))]
+    let initial_clear = ogc_gx::GxColor::default();
+
+    #[cfg(feature = "startup-diagnostics")]
+    let display_initialized = unsafe {
+        super::diagnostics::mark("GX FRAME CONFIG START");
+        super::diagnostics::mark_fp_state("GX FP ENABLED", "GX FP DISABLED");
+        ogc_gx::configure_frame_with_progress(config, |stage| {
+            super::diagnostics::mark(stage);
+        });
+
+        ogc_gx::set_copy_clear(initial_clear, 0x00ff_ffff);
+        super::diagnostics::mark("GX CLEAR STATE DONE");
+
+        ogc_gx::copy_display(config, true);
+        super::diagnostics::mark("GX FIRST CLEAR QUEUED");
+        let first_clear_done = ogc_gx::finish_frame_and_wait();
+        super::diagnostics::mark(if first_clear_done {
+            "GX FIRST CLEAR DONE"
+        } else {
+            "GX FIRST CLEAR TIMEOUT"
+        });
+
+        if first_clear_done {
+            ogc_gx::copy_display(config, true);
+            super::diagnostics::mark("GX SECOND CLEAR QUEUED");
+            let second_clear_done = ogc_gx::finish_frame_and_wait();
+            super::diagnostics::mark(if second_clear_done {
+                "GX SECOND CLEAR DONE"
+            } else {
+                "GX SECOND CLEAR TIMEOUT"
+            });
+            second_clear_done
+        } else {
+            false
         }
-        #[cfg(not(feature = "startup-diagnostics"))]
+    };
+
+    #[cfg(not(feature = "startup-diagnostics"))]
+    let display_initialized = unsafe { ogc_gx::initialize_display(config, initial_clear) };
+
+    if !display_initialized {
+        return Err(VideoError::GxDrawTimeout);
+    }
+
+    #[cfg(not(feature = "startup-diagnostics"))]
+    unsafe {
         ogc_video::set_next_framebuffer(framebuffer);
     }
     #[cfg(feature = "startup-diagnostics")]
     {
         let framebuffer_k1 = ogc_core::mem_k0_to_k1(framebuffer as usize) as *const u8;
-        let clear_is_visible = (0..byte_len as usize).step_by(2).any(|offset| unsafe {
-            super::diagnostics::has_visible_luma(core::ptr::read_volatile(
-                framebuffer_k1.add(offset),
-            ))
-        });
+        let mut xfb_has_visible_luma = false;
+        let mut xfb_has_nonzero_luma = false;
+        let mut xfb_has_any_data = false;
+        for offset in 0..byte_len as usize {
+            let value = unsafe { core::ptr::read_volatile(framebuffer_k1.add(offset)) };
+            xfb_has_any_data |= value != 0;
+            if offset % 2 == 0 {
+                xfb_has_nonzero_luma |= value != 0;
+                xfb_has_visible_luma |= super::diagnostics::has_visible_luma(value);
+            }
+        }
+        let clear_is_visible = xfb_has_visible_luma;
         if !clear_is_visible {
-            if super::diagnostics::fail("GX CLEAR XFB BLACK") {
+            let reason = if xfb_has_nonzero_luma {
+                "GX XFB LOW LUMA DATA"
+            } else if xfb_has_any_data {
+                "GX XFB CHROMA ONLY"
+            } else {
+                "GX XFB ALL ZERO"
+            };
+            if super::diagnostics::fail(reason) {
                 unsafe { ogc_system::reset_system(ogc_system::SYS_RESTART as i32, 0, 0) };
                 loop {
                     core::hint::spin_loop();

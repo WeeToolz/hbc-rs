@@ -24,6 +24,11 @@ can otherwise raise a program exception. Use a nonzero GPR such as `r12` to
 read, update, and write the MSR. The `ori` instruction uses `r0` as a normal
 source register; instructions such as `addi` have special behavior for `r0`.
 
+For startup tracing, `ogc-gx::configure_frame_with_progress` marks viewport
+calculation before and after its floating-point operations, then marks the
+viewport opcode, address, and each data word as it writes the GX FIFO. These
+labels distinguish a floating-point exception from a stuck FIFO write.
+
 ## Restore the floating point enable bit after IPC and cache locks
 
 In `crates/core/ogc-ipc/src/lib.rs` and `crates/core/ogc-cache/src/lib.rs`,
@@ -35,6 +40,12 @@ point commands, so that bug stopped the startup diagnostic in GX frame setup.
 Both crates use the shared mask helpers in `crates/abi/ogc-sys/src/lib.rs`;
 the host regression test checks enabled and disabled states and preserves all
 unrelated MSR bits.
+
+`crates/core/ogc-system-sys/src/lib.rs` must also preserve both `MSR_EE` and
+`MSR_FP` in its SRAM lock. The lock masks both bits, so the unlock must restore
+both through the shared MSR helpers. The previous unlock restored only
+`MSR_EE`; `sys_init` then returned with floating point disabled after its GBS
+mode SRAM access. This stopped HBC at its first GX viewport calculation.
 
 ## Tetris example video startup
 
