@@ -66,12 +66,16 @@ separate targets.
 
 ## Remaining runtime work
 
-- C resets the four-byte `play_rec.dat` record before settings load. Rust does not do this yet. The parity ledger tracks this as open work because it writes persistent NAND data; review its contract and safe failure behavior before adding the write.
-- The display scene uses some solid-color panels. HBC’s Droid TrueType faces
+- HBC resets the four-byte System Menu `play_rec.dat` record before settings
+  load. Rust now checks the file length, writes through an aligned ISFS buffer,
+  closes the handle, and reads the value back. A reset failure appears as a
+  warning. An unexpected file size stops the write.
+- The display scene uses HBC’s full-screen background without Rust-only
+  header/footer bands. HBC’s Droid TrueType faces
   render labels, descriptions, menus, About content, and confirmation dialogs.
   Startup reports missing SD or USB storage; launch, delete, settings-save,
   and storage-stop failures use a dismissible notice. Missing, invalid,
-  oversized, or out-of-memory app icons use placeholders.
+  oversized, or out-of-memory app icons are omitted, as in C.
   HBC-sized 128x48 app icons load through the native PNG decoder and draw as GX
   RGBA8 textures. The 640x480 background and focused or normal list and grid app
   cards draw from built-in HBC images or matching active-theme PNG assets. The
@@ -84,14 +88,14 @@ separate targets.
   hit bounds. App detail descriptions wrap and scroll by line with the Up and
   Down buttons, controller sticks, or pointer dragging. This artwork uses
   bundled defaults. HBC bundles the About image instead of loading it from
-  active themes. The storage scan panel uses the theme throbber image, and the
+  active themes. The storage scan state uses the theme throbber image, and the
   Wiiload install dialog uses the theme progress frame. Both use bundled C
   artwork when an active theme image is missing or has invalid dimensions.
   Long notices also wrap and scroll by line with Up and Down buttons, controller
   sticks, or pointer dragging, matching the C message-dialog memo. App details,
   About, notices, and Wiiload confirmation use Rust memo handling, including memo
   scroll arrows. Per-file Wiiload app extraction progress is drawn from bytes
-  written. Some theme controls and scene panels still differ from C. The 5x7 glyph renderer
+  written. Dolphin and Wii visual checks remain pending. The 5x7 glyph renderer
   is a fallback when a TrueType face is unavailable.
 - A pure Rust theme ZIP parser enforces HBC's `LD_MAX_SIZE` and 20 MiB archive
   limits, a 64-entry
@@ -222,8 +226,9 @@ target has no `test` crate.
 
 ## Open parity and verification work
 
-- The source review is complete. One implementation gap remains: some scene panels still use solid fills
-  instead of C artwork. App scanning now streams directory entries and stops
+- The source review is complete for the tracked HBC paths. HBC scene artwork is
+  implemented; visual comparison on Dolphin and Wii remains pending. App
+  scanning now streams directory entries and stops
   after C’s 1024 valid-app limit, so many unrelated files do not cause a false
   scan failure. The C update feature is excluded by scope.
 - Verify SD Gecko A/B insertion, mounting, scanning, selection, app loading, hot
