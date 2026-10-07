@@ -28,7 +28,6 @@ pub unsafe fn draw_frame(
     theme: &ThemeTextures,
 ) -> Result<(), VideoError> {
     let info = video.info();
-    let mut textured_state = false;
     if let Some(background_fill) = frame.fills.first() {
         if let Some(bounds) = map_rect(
             background_fill.bounds,
@@ -37,7 +36,6 @@ pub unsafe fn draw_frame(
             info.width,
             info.height,
         ) {
-            video.configure_2d();
             unsafe { draw_solid_fill(video, bounds, *background_fill)? };
         }
     }
@@ -58,8 +56,6 @@ pub unsafe fn draw_frame(
             info.width,
             info.height,
         ) {
-            video.configure_textured_2d();
-            textured_state = true;
             unsafe {
                 video.draw_texture(background, bounds.x, bounds.y, bounds.width, bounds.height)?;
             }
@@ -77,10 +73,6 @@ pub unsafe fn draw_frame(
                 continue;
             };
             if let Some(texture) = theme.bubbles[texture as usize].as_ref() {
-                if !textured_state {
-                    video.configure_textured_2d();
-                    textured_state = true;
-                }
                 unsafe {
                     video.draw_texture(texture, bounds.x, bounds.y, bounds.width, bounds.height)?;
                 }
@@ -88,10 +80,6 @@ pub unsafe fn draw_frame(
         }
     }
     if let Some(logo) = theme.logo.as_ref() {
-        if !textured_state {
-            video.configure_textured_2d();
-            textured_state = true;
-        }
         if let Some(bounds) = map_rect(
             crate::render::Rect {
                 x: 0.0,
@@ -153,9 +141,7 @@ pub unsafe fn draw_frame(
                 ) else {
                     continue;
                 };
-                unsafe {
-                    draw_texture_or_fill(video, &mut textured_state, texture, bounds, fallback)?
-                };
+                unsafe { draw_texture_or_fill(video, texture, bounds, fallback)? };
             }
             FrameCommand::Bubble { .. } => {}
             FrameCommand::PageArrow {
@@ -179,9 +165,7 @@ pub unsafe fn draw_frame(
                 ) else {
                     continue;
                 };
-                unsafe {
-                    draw_texture_or_fill(video, &mut textured_state, texture, bounds, fallback)?
-                };
+                unsafe { draw_texture_or_fill(video, texture, bounds, fallback)? };
             }
             FrameCommand::AppCard {
                 grid,
@@ -204,15 +188,9 @@ pub unsafe fn draw_frame(
                 ) else {
                     continue;
                 };
-                unsafe {
-                    draw_texture_or_fill(video, &mut textured_state, texture, bounds, fallback)?
-                };
+                unsafe { draw_texture_or_fill(video, texture, bounds, fallback)? };
             }
             FrameCommand::Fill(index) => {
-                if textured_state {
-                    video.configure_2d();
-                    textured_state = false;
-                }
                 if index == 0 {
                     continue;
                 }
@@ -249,10 +227,6 @@ pub unsafe fn draw_frame(
                 ) else {
                     continue;
                 };
-                if !textured_state {
-                    video.configure_textured_2d();
-                    textured_state = true;
-                }
                 unsafe {
                     video.draw_texture(
                         &icon.texture,
@@ -389,7 +363,6 @@ pub unsafe fn draw_frame(
                     info.width,
                     info.height,
                 ) {
-                    video.configure_textured_2d();
                     unsafe {
                         video.draw_texture(
                             texture,
@@ -414,7 +387,6 @@ unsafe fn draw_fallback_text(
     run: &crate::render::TextRun,
     info: &crate::platform::video::FramebufferInfo,
 ) -> Result<(), VideoError> {
-    video.configure_2d();
     let mut x = run.x;
     for character in run.value.chars() {
         for (row, bits) in crate::render::glyph_rows(character).into_iter().enumerate() {
@@ -472,22 +444,13 @@ unsafe fn draw_solid_fill(
 
 unsafe fn draw_texture_or_fill(
     video: &VideoSystem,
-    textured_state: &mut bool,
     texture: Option<&crate::png::GxRgba8Texture>,
     bounds: crate::render::Rect,
     fallback: crate::render::FillRect,
 ) -> Result<(), VideoError> {
     if let Some(texture) = texture {
-        if !*textured_state {
-            video.configure_textured_2d();
-            *textured_state = true;
-        }
         unsafe { video.draw_texture(texture, bounds.x, bounds.y, bounds.width, bounds.height) }
     } else {
-        if *textured_state {
-            video.configure_2d();
-            *textured_state = false;
-        }
         unsafe { draw_solid_fill(video, bounds, fallback) }
     }
 }

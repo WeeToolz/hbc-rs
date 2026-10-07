@@ -3,6 +3,7 @@
 //! This adapter sets the VI mode and framebuffer through `ogc-video`, then
 //! owns the GX FIFO and the HBC 2D rendering state.
 
+use super::draw_state::{DrawFormat, DrawState};
 use crate::png::GxRgba8Texture;
 
 #[cfg(feature = "startup-diagnostics")]
@@ -23,6 +24,7 @@ pub struct FramebufferInfo {
 /// Owns the VI framebuffer and the GX FIFO for the lifetime of the display.
 pub struct VideoSystem {
     _fifo: ogc_gx::GxFifo,
+    draw_state: DrawState,
     config: ogc_gx::FrameConfig,
     framebuffer: *mut core::ffi::c_void,
     info: FramebufferInfo,
@@ -116,12 +118,26 @@ impl VideoSystem {
     /// Call this after GX initialization and again after any code changes GX
     /// vertex, channel, TEV, or blend state.
     pub fn configure_2d(&self) {
-        unsafe { ogc_gx::configure_solid_2d(&self.projection()) };
+        self.draw_state.configure(DrawFormat::Solid, || {
+            self.configure_format(DrawFormat::Solid)
+        });
     }
 
     /// Configure textured RGBA8 drawing with the same framebuffer projection.
     pub fn configure_textured_2d(&self) {
-        unsafe { ogc_gx::configure_textured_2d(&self.projection()) };
+        self.draw_state.configure(DrawFormat::Textured, || {
+            self.configure_format(DrawFormat::Textured)
+        });
+    }
+
+    fn configure_format(&self, format: DrawFormat) {
+        let projection = self.projection();
+        unsafe {
+            match format {
+                DrawFormat::Solid => ogc_gx::configure_solid_2d(&projection),
+                DrawFormat::Textured => ogc_gx::configure_textured_2d(&projection),
+            }
+        }
     }
 
     fn projection(&self) -> ogc_gx::Mtx44 {
@@ -138,8 +154,8 @@ impl VideoSystem {
     /// Draw one filled rectangle in framebuffer pixel coordinates.
     ///
     /// # Safety
-    /// The solid 2D GX state must be configured and no other code may change
-    /// its vertex state until this call returns.
+    /// No other code may change GX state during this call. After an external GX
+    /// state change, call `configure_2d` or `configure_textured_2d` to refresh it.
     pub unsafe fn draw_solid_rect(
         &self,
         x: f32,
@@ -148,15 +164,22 @@ impl VideoSystem {
         height: f32,
         color: ogc_gx::GxColor,
     ) -> Result<(), VideoError> {
-        unsafe { ogc_gx::draw_solid_rect(x, y, width, height, 0.0, color) }
-            .map_err(VideoError::GxRect)
+        self.draw_state.submit(
+            DrawFormat::Solid,
+            || self.configure_format(DrawFormat::Solid),
+            || {
+                unsafe { ogc_gx::draw_solid_rect(x, y, width, height, 0.0, color) }
+                    .map_err(VideoError::GxRect)
+            },
+        )
     }
 
     /// Draw an aligned GX RGBA8 texture in framebuffer pixel coordinates.
     ///
     /// # Safety
-    /// Textured 2D GX state must be configured. The texture must remain alive until GX has
-    /// completed its queued reads.
+    /// The texture must remain alive until GX has completed its queued reads.
+    /// No other code may change GX state during this call. After an external GX
+    /// state change, call `configure_2d` or `configure_textured_2d` to refresh it.
     pub unsafe fn draw_texture(
         &self,
         texture: &GxRgba8Texture,
@@ -165,22 +188,28 @@ impl VideoSystem {
         width: f32,
         height: f32,
     ) -> Result<(), VideoError> {
-        let mut object = ogc_gx::GxTexObj::default();
-        unsafe {
-            ogc_gx::init_tex_obj(
-                &mut object,
-                texture.as_ptr() as *mut core::ffi::c_void,
-                texture.width,
-                texture.height,
-                ogc_gx::GX_TF_RGBA8,
-                0,
-                0,
-                0,
-            );
-            ogc_gx::init_tex_obj_filter_mode(&mut object, ogc_gx::GX_NEAR, ogc_gx::GX_NEAR);
-            ogc_gx::draw_textured_rect(&mut object, x, y, width, height, 0.0)
-        }
-        .map_err(VideoError::GxTexture)
+        self.draw_state.submit(
+            DrawFormat::Textured,
+            || self.configure_format(DrawFormat::Textured),
+            || {
+                let mut object = ogc_gx::GxTexObj::default();
+                unsafe {
+                    ogc_gx::init_tex_obj(
+                        &mut object,
+                        texture.as_ptr() as *mut core::ffi::c_void,
+                        texture.width,
+                        texture.height,
+                        ogc_gx::GX_TF_RGBA8,
+                        0,
+                        0,
+                        0,
+                    );
+                    ogc_gx::init_tex_obj_filter_mode(&mut object, ogc_gx::GX_NEAR, ogc_gx::GX_NEAR);
+                    ogc_gx::draw_textured_rect(&mut object, x, y, width, height, 0.0)
+                }
+                .map_err(VideoError::GxTexture)
+            },
+        )
     }
 
     /// Copy EFB to XFB, wait for GX to finish, and schedule the framebuffer for VI scanout.
@@ -449,6 +478,7 @@ pub fn initialize(widescreen: bool) -> Result<VideoSystem, VideoError> {
 
     Ok(VideoSystem {
         _fifo: fifo,
+        draw_state: DrawState::default(),
         config,
         framebuffer,
         info: FramebufferInfo {

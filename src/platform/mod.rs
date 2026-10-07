@@ -4,6 +4,8 @@
 pub mod allocator;
 #[cfg(all(feature = "startup-diagnostics", any(target_arch = "powerpc", test)))]
 pub mod diagnostics;
+#[cfg(any(target_arch = "powerpc", test))]
+mod draw_state;
 pub mod input;
 pub mod lifecycle;
 pub mod nand;
