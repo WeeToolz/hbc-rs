@@ -1,6 +1,7 @@
 //! NAND-backed HBC settings storage through ES and ISFS Rust APIs.
 
 use alloc::ffi::CString;
+use core::ffi::CStr;
 use core::sync::atomic::{AtomicBool, Ordering};
 
 use crate::metadata::UserSettings;
@@ -20,6 +21,8 @@ static BANNER_SAVE_NEEDED: AtomicBool = AtomicBool::new(true);
 
 const BANNER_PATH: &str = "banner.bin";
 const SAVE_BANNER: &[u8] = include_bytes!("../../assets/save_banner.bin");
+const PLAYTIME_PATH: &CStr = c"/title/00000001/00000002/data/play_rec.dat";
+const PLAYTIME_RECORD_SIZE: u32 = 4;
 
 const IPC_EQUEUEFULL: i32 = -8;
 const IPC_QUEUE_RETRY_LIMIT: usize = 32;
@@ -50,6 +53,8 @@ struct AlignedDataDir([u8; TITLE_DATA_DIR_BUFFER_LEN]);
 struct AlignedFstats(isfs::Fstats);
 #[repr(align(32))]
 struct AlignedXml([u8; MAX_SETTINGS_XML_SIZE]);
+#[repr(align(32))]
+struct AlignedPlaytimeRecord([u8; 32]);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SettingsIoError {
@@ -67,6 +72,7 @@ pub enum SettingsIoError {
     InvalidFileSize,
     Codec,
     TitlePathBusy,
+    PlaytimeVerificationMismatch,
 }
 
 impl SettingsIoError {
@@ -246,4 +252,82 @@ pub fn save(settings: &UserSettings) -> Result<(), SettingsIoError> {
     }
     save_banner_if_needed()?;
     super::nand::save_wii(&path, xml.as_bytes())
+}
+
+/// Reset HBC's four-byte System Menu playtime record, as the C application does.
+///
+/// The file must exist and have the exact expected size. The reset reads the
+/// record again after closing the write handle so success means ISFS committed
+/// the zero value.
+pub fn reset_playtime_record() -> Result<(), SettingsIoError> {
+    let rc = isfs::initialize();
+    if rc < 0 {
+        return Err(SettingsIoError::Isfs(rc));
+    }
+    match crate::playtime::reset_record_with(read_playtime_record, write_playtime_record) {
+        Ok(()) => Ok(()),
+        Err(crate::playtime::ResetError::Operation(error)) => Err(error),
+        Err(crate::playtime::ResetError::VerificationMismatch) => {
+            Err(SettingsIoError::PlaytimeVerificationMismatch)
+        }
+    }
+}
+
+fn read_playtime_record() -> Result<[u8; 4], SettingsIoError> {
+    let file = isfs::open(PLAYTIME_PATH, isfs::ISFS_OPEN_READ).map_err(SettingsIoError::Isfs)?;
+    let result = (|| {
+        let mut stats = AlignedFstats(isfs::Fstats::default());
+        let rc = isfs::get_file_stats(&file, &mut stats.0);
+        if rc < 0 {
+            return Err(SettingsIoError::Isfs(rc));
+        }
+        if stats.0.file_length != PLAYTIME_RECORD_SIZE {
+            return Err(SettingsIoError::InvalidFileSize);
+        }
+        let mut record = AlignedPlaytimeRecord([0; 32]);
+        match file.read(&mut record.0[..PLAYTIME_RECORD_SIZE as usize]) {
+            Ok(count) if count == PLAYTIME_RECORD_SIZE as usize => {
+                Ok([record.0[0], record.0[1], record.0[2], record.0[3]])
+            }
+            Ok(_) => Err(SettingsIoError::Isfs(isfs::ISFS_EINVAL)),
+            Err(error) => Err(SettingsIoError::Isfs(error)),
+        }
+    })();
+    close_playtime_file(file, result)
+}
+
+fn write_playtime_record(record: [u8; 4]) -> Result<(), SettingsIoError> {
+    let file = isfs::open(PLAYTIME_PATH, isfs::ISFS_OPEN_RW).map_err(SettingsIoError::Isfs)?;
+    let result = (|| {
+        let mut stats = AlignedFstats(isfs::Fstats::default());
+        let rc = isfs::get_file_stats(&file, &mut stats.0);
+        if rc < 0 {
+            return Err(SettingsIoError::Isfs(rc));
+        }
+        if stats.0.file_length != PLAYTIME_RECORD_SIZE {
+            return Err(SettingsIoError::InvalidFileSize);
+        }
+        let mut aligned = AlignedPlaytimeRecord([0; 32]);
+        aligned.0[..4].copy_from_slice(&record);
+        file.write_all(&aligned.0[..4])
+            .map_err(SettingsIoError::Isfs)
+    })();
+    close_playtime_file(file, result)
+}
+
+fn close_playtime_file<T>(
+    file: isfs::IsfsFile,
+    operation: Result<T, SettingsIoError>,
+) -> Result<T, SettingsIoError> {
+    let close_rc = file.close();
+    if close_rc < 0 {
+        return match operation {
+            Err(SettingsIoError::Isfs(operation)) => Err(SettingsIoError::IsfsCleanup {
+                operation: Some(operation),
+                cleanup: close_rc,
+            }),
+            Err(_) | Ok(_) => Err(SettingsIoError::Isfs(close_rc)),
+        };
+    }
+    operation
 }

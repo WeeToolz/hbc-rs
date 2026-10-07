@@ -124,7 +124,14 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     // the shutdown/handoff stop below, but do not substitute a synchronous
     // operation for C's non-blocking startup request.
 
+    let playtime_reset_error = hbc_rs::platform::settings::reset_playtime_record().err();
     let mut startup = hbc_rs::platform::startup::WiiStartup::initialize(view_width, 480);
+    if let Some(error) = playtime_reset_error {
+        startup.runtime_mut().show_notice_with_kind(
+            &format!("Could not reset the HBC playtime record ({error:?})."),
+            hbc_rs::app::NoticeKind::Warning,
+        );
+    }
     let now = ogc_system::time();
     let now_minutes = now / 60;
     let minute_cycle = ((now_minutes % 1440 + 1200) % 1440) as u16;
@@ -447,7 +454,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             scene.pointer_cursor(f32::from(pointer.x), f32::from(pointer.y), pointer_held);
         }
         if storage_scan_pending {
-            scene.storage_loading_status(startup.storage_scan_stage_label());
+            scene.storage_loading();
         }
         #[cfg(feature = "startup-diagnostics")]
         if !display_ready {

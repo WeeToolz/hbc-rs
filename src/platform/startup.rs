@@ -1019,7 +1019,7 @@ impl WiiStartup {
     }
 
     /// Decode visible HBC-sized icons once and retain their aligned GX data.
-    /// Bad, missing, and oversized optional icons stay on the placeholder path.
+    /// Bad, missing, and oversized optional icons remain omitted from the frame.
     pub fn refresh_visible_icons(&mut self) {
         if self.storage_scan_pending()
             || self.received_zip_install_pending()

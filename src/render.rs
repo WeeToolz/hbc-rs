@@ -481,18 +481,8 @@ impl Frame {
     }
 
     pub fn storage_loading(&mut self) {
-        self.storage_loading_with_language(crate::localization::Language::English);
-    }
-
-    pub fn storage_loading_with_language(&mut self, language: crate::localization::Language) {
-        self.storage_loading_status(language.text("Scanning storage..."));
-    }
-
-    pub fn storage_loading_status(&mut self, status: &str) {
-        let x = (f32::from(self.logical_width()) - 272.0) / 2.0;
-        self.fill(rect(x, 220.0, 272.0, 64.0), PANEL);
-        self.theme_art(rect(x + 8.0, 220.0, 64.0, 64.0), ThemeArt::Throbber, false);
-        self.text(x + 80.0, 250.0, status, 1.0, Color::rgb(213, 224, 233), 30);
+        let x = (f32::from(self.logical_width()) - 64.0) / 2.0;
+        self.theme_art(rect(x, 208.0, 64.0, 64.0), ThemeArt::Throbber, false);
     }
 
     fn widen_canvas(&mut self) {
@@ -535,12 +525,7 @@ impl Frame {
                     fallback.bounds.x += offset;
                 }
                 FrameCommand::Bubble { bounds, .. } => bounds.x += offset,
-                FrameCommand::Icon {
-                    bounds, fallback, ..
-                } => {
-                    bounds.x += offset;
-                    fallback.bounds.x += offset;
-                }
+                FrameCommand::Icon { bounds, .. } => bounds.x += offset,
                 FrameCommand::StatusIndicator { bounds, .. } => bounds.x += offset,
             }
         }
@@ -587,7 +572,6 @@ pub enum FrameCommand {
     Icon {
         catalog_index: usize,
         bounds: Rect,
-        fallback: FillRect,
     },
     StatusIndicator {
         indicator: StatusIndicator,
@@ -746,7 +730,7 @@ impl Frame {
         }
     }
 
-    fn icon(&mut self, catalog_index: usize, bounds: Rect, fallback_color: Color) {
+    fn icon(&mut self, catalog_index: usize, bounds: Rect) {
         if ![bounds.x, bounds.y, bounds.width, bounds.height]
             .iter()
             .all(|value| value.is_finite())
@@ -758,10 +742,6 @@ impl Frame {
         self.commands.push(FrameCommand::Icon {
             catalog_index,
             bounds,
-            fallback: FillRect {
-                bounds,
-                color: fallback_color,
-            },
         });
     }
 
@@ -917,7 +897,6 @@ pub(crate) fn glyph_rows(character: char) -> [u8; 7] {
 }
 
 const BACKGROUND: Color = Color::rgb(15, 24, 35);
-const HEADER: Color = Color::rgb(25, 39, 55);
 const PANEL: Color = Color::rgb(29, 44, 61);
 const ROW: Color = Color::rgb(37, 54, 72);
 const ACCENT: Color = Color::rgb(63, 155, 211);
@@ -986,8 +965,6 @@ pub fn browser_frame_with_language(
     frame.focused_button_style = theme_text_style(theme, "button", text_color);
     frame.unfocused_button_style = theme_text_style(theme, "button_desel", text_color);
     frame.fill(rect(0, 0, 640, 480), BACKGROUND);
-    frame.fill(rect(0, 0, 640, 64), HEADER);
-    frame.fill(rect(28, 23, 5, 28), ACCENT);
 
     let layout = controller.browser_layout();
     let page = controller.visible_page(catalog);
@@ -1057,12 +1034,8 @@ pub fn browser_frame_with_language(
                         .iter()
                         .position(|entry| entry.directory == app.directory)
                     {
-                        frame.icon(catalog_index, icon_bounds, MUTED);
-                    } else {
-                        frame.fill(icon_bounds, MUTED);
+                        frame.icon(catalog_index, icon_bounds);
                     }
-                } else {
-                    frame.fill(icon_bounds, MUTED);
                 }
                 let name = app
                     .metadata
@@ -1171,24 +1144,6 @@ pub fn browser_frame_with_language(
         Screen::Notice => {}
     }
 
-    // Footer and page progress are common to the browser view and use only
-    // controller-derived page data.
-    frame.fill(rect(28, 436, 584, 20), HEADER);
-    let capacity = navigation.capacity;
-    let pages = navigation.visible_count.saturating_add(capacity - 1) / capacity;
-    if pages > 0 {
-        let page_index = page_start / capacity;
-        let segment_w = 520.0 / pages as f32;
-        frame.fill(
-            rect(
-                60.0 + page_index as f32 * segment_w,
-                443.0,
-                segment_w.min(520.0),
-                6.0,
-            ),
-            ACCENT,
-        );
-    }
     if matches!(
         controller.screen,
         Screen::AppDetails
@@ -1521,7 +1476,7 @@ pub fn browser_frame_with_language(
                         .iter()
                         .position(|entry| entry.directory == app.directory)
                     {
-                        frame.icon(catalog_index, rect(92, 92, 128, 48), MUTED);
+                        frame.icon(catalog_index, rect(92, 92, 128, 48));
                     }
                 }
                 if let Some(version) = app
@@ -2008,7 +1963,7 @@ mod tests {
                 art: ThemeArt::Throbber,
                 bounds,
                 ..
-            } if *bounds == rect(192, 220, 64, 64)
+            } if *bounds == rect(288, 208, 64, 64)
         )));
     }
 
@@ -2153,11 +2108,9 @@ mod tests {
         controller.handle(crate::app::Input::Down, &catalog);
         let frame = browser_frame(&controller, &catalog);
         assert_eq!(frame.fills[0].bounds, rect(0, 0, 640, 480));
-        assert_eq!(frame.fills[1].bounds, rect(0, 0, 640, 64));
-        assert!(frame
-            .fills
-            .iter()
-            .any(|fill| fill.color == ACCENT && fill.bounds.y > 90.0));
+        assert!(!frame.fills.iter().any(|fill| {
+            fill.bounds == rect(0, 0, 640, 64) || fill.bounds == rect(28, 436, 584, 20)
+        }));
         assert!(frame.commands.iter().any(|command| matches!(
             command,
             FrameCommand::AppCard {
@@ -2166,6 +2119,21 @@ mod tests {
                 ..
             } if *bounds == rect(104, 128, 432, 64)
         )));
+    }
+
+    #[test]
+    fn browser_frame_does_not_add_a_block_for_an_app_without_an_icon() {
+        let catalog = vec![app("no-icon")];
+        let frame = browser_frame(&AppController::new(), &catalog);
+
+        assert!(!frame
+            .commands
+            .iter()
+            .any(|command| matches!(command, FrameCommand::Icon { .. })));
+        assert!(!frame
+            .fills
+            .iter()
+            .any(|fill| fill.bounds == rect(112.0, 72.0, 128.0, 48.0)));
     }
 
     #[test]
@@ -2280,7 +2248,7 @@ mod tests {
     }
 
     #[test]
-    fn browser_frame_places_icon_data_before_app_text_with_placeholder_bounds() {
+    fn browser_frame_places_icon_data_before_app_text() {
         let mut entry = app("icon-app");
         entry.has_icon = true;
         let catalog = vec![entry];
@@ -2303,12 +2271,12 @@ mod tests {
             .iter()
             .position(|command| matches!(command, FrameCommand::AppCard { .. }))
             .unwrap();
-        let fallback_bounds = frame
+        let icon_bounds = frame
             .commands
             .iter()
             .find_map(|command| {
-                if let FrameCommand::Icon { fallback, .. } = command {
-                    Some(fallback.bounds)
+                if let FrameCommand::Icon { bounds, .. } = command {
+                    Some(*bounds)
                 } else {
                     None
                 }
@@ -2319,8 +2287,8 @@ mod tests {
             .iter()
             .any(|run| run.x >= 260.0 && run.y >= 72.0);
 
-        assert_eq!(fallback_bounds.width, 128.0);
-        assert_eq!(fallback_bounds.height, 48.0);
+        assert_eq!(icon_bounds.width, 128.0);
+        assert_eq!(icon_bounds.height, 48.0);
         assert!(card_command < icon_command);
         assert!(has_app_text);
     }
@@ -2485,7 +2453,7 @@ mod tests {
         let progress: Vec<_> = frame
             .fills
             .iter()
-            .filter(|fill| fill.bounds.y == 255.0 && fill.bounds.x >= 155.0 && fill.color != HEADER)
+            .filter(|fill| fill.bounds.y == 255.0 && fill.bounds.x >= 155.0)
             .collect();
         assert!(!progress.is_empty());
         assert!(progress.iter().all(|fill| fill.color == ACCENT));
@@ -2513,7 +2481,7 @@ mod tests {
         let progress: Vec<_> = frame
             .fills
             .iter()
-            .filter(|fill| fill.bounds.y == 255.0 && fill.bounds.x >= 155.0 && fill.color != HEADER)
+            .filter(|fill| fill.bounds.y == 255.0 && fill.bounds.x >= 155.0)
             .collect();
         assert_eq!(
             progress.first().unwrap().color,
@@ -2558,7 +2526,7 @@ mod tests {
         let progress: Vec<_> = frame
             .fills
             .iter()
-            .filter(|fill| fill.bounds.y == 255.0 && fill.bounds.x >= 155.0 && fill.color != HEADER)
+            .filter(|fill| fill.bounds.y == 255.0 && fill.bounds.x >= 155.0)
             .collect();
         assert!(progress.iter().all(|fill| fill.color == ACCENT));
         assert!((progress.iter().map(|fill| fill.bounds.width).sum::<f32>() - 115.5).abs() < 0.01);

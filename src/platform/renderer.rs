@@ -233,11 +233,13 @@ pub unsafe fn draw_frame(
             FrameCommand::Icon {
                 catalog_index,
                 bounds,
-                fallback,
             } => {
                 let icon = icons
                     .iter()
                     .find(|icon| icon.catalog_index == catalog_index);
+                let Some(icon) = icon else {
+                    continue;
+                };
                 let Some(bounds) = map_rect(
                     bounds,
                     frame.logical_width(),
@@ -247,15 +249,19 @@ pub unsafe fn draw_frame(
                 ) else {
                     continue;
                 };
+                if !textured_state {
+                    video.configure_textured_2d();
+                    textured_state = true;
+                }
                 unsafe {
-                    draw_texture_or_fill(
-                        video,
-                        &mut textured_state,
-                        icon.map(|icon| &icon.texture),
-                        bounds,
-                        fallback,
-                    )?
-                };
+                    video.draw_texture(
+                        &icon.texture,
+                        bounds.x,
+                        bounds.y,
+                        bounds.width,
+                        bounds.height,
+                    )?;
+                }
             }
             FrameCommand::StatusIndicator { indicator, bounds } => {
                 let texture = match indicator {
