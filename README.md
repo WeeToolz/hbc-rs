@@ -127,6 +127,15 @@ as Rust implementation work rather than solving them with C wrappers.
 See [the current port status](docs/port-status.md) for implemented boundaries,
 open runtime work, and local verification limits.
 
+## Parity tracking
+
+Track each in-scope behavior from its C source symbol to the Rust implementation
+in `config/parity-ledger.csv`. The ledger keeps implementation coverage, source
+review, and verification separate. Run `python3 tools/parity.py status` to read
+the report, `python3 tools/parity.py refresh` after ledger changes, and
+`python3 tools/parity.py check` to validate all source references and the
+generated report. `C-sources/hbc/` must be available beside `RustPorts/`.
+
 Before building from a fresh HBC checkout, copy the local `libogc-rs` workspace to
 `hbc-rs/libogc-rs/`. The dependency paths in `Cargo.toml` point to that location.
 

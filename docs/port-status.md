@@ -5,6 +5,10 @@ The user has confirmed that the C source runs on a Wii. The Rust port still
 needs its own real-hardware verification; a target check proves compilation,
 not device behavior.
 
+The machine-checked source map is [the parity ledger](generated/parity-status.md),
+backed by `config/parity-ledger.csv`. Run `python3 tools/parity.py check` to
+validate its C and Rust source references and generated status report.
+
 The parity target is the running channel application, including the C HBC
 support for SD Gecko adapters in GameCube ports A and B. This is FAT storage
 on an SD Gecko, not support for proprietary GameCube Memory Cards. The C update
@@ -62,6 +66,7 @@ separate targets.
 
 ## Remaining runtime work
 
+- C resets the four-byte `play_rec.dat` record before settings load. Rust does not do this yet. The parity ledger tracks this as open work because it writes persistent NAND data; review its contract and safe failure behavior before adding the write.
 - The display scene uses solid-color panels and a native 5x7 font for basic
   app labels, descriptions, menus, About content, and confirmation dialogs.
   Startup reports missing SD or USB storage; launch, delete, settings-save,
@@ -93,7 +98,8 @@ separate targets.
   limits, a 64-entry
   limit, safe paths, supported ZIP entry types and compression, duplicate-name
   checks, a 64 MiB per-file limit, and a 128 MiB total extracted-size limit.
-  Safe unrelated files are ignored. Theme metadata comes from root `theme.xml`,
+  Non-empty files must be root-level HBC assets, TTF fonts, or TXT files.
+  Theme metadata comes from root `theme.xml`,
   and texture loading reads named root assets. Applying a theme saves its
   validated ZIP to NAND. It updates the background, app cards, page arrows,
   throbber, and progress images for the current session. The 320x64 logo always
