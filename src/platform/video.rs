@@ -88,7 +88,23 @@ impl VideoSystem {
     }
 
     #[cfg(feature = "startup-diagnostics")]
-    pub fn paint_scanout_probe(&self) {
+    pub fn efb_has_test_square(&self) -> Result<bool, VideoError> {
+        if !unsafe { ogc_gx::finish_frame_and_wait() } {
+            return Err(VideoError::GxDrawTimeout);
+        }
+        Ok(super::diagnostics::test_square_is_white_rgb(
+            self.info.width,
+            self.efb_height,
+            |x, y| {
+                let mut color = ogc_gx::GxColor::default();
+                unsafe { ogc_gx::peek_argb(x, y, &mut color) };
+                (color.r, color.g, color.b)
+            },
+        ))
+    }
+
+    #[cfg(feature = "startup-diagnostics")]
+    pub fn paint_scanout_probe(&self, label: &str) {
         let framebuffer = ogc_core::mem_k0_to_k1(self.framebuffer as usize) as *mut u32;
         let words = unsafe {
             core::slice::from_raw_parts_mut(framebuffer, self.info.byte_len as usize / 4)
@@ -97,6 +113,7 @@ impl VideoSystem {
             words,
             usize::from(self.info.width),
             usize::from(self.info.height),
+            label,
         );
         unsafe { core::arch::asm!("sync", options(nostack, preserves_flags)) };
     }

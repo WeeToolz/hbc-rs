@@ -31,16 +31,14 @@ finish.
 
 The diagnostic framebuffer stays visible while GX writes to a separate
 framebuffer. Its first GX frame uses HBC's production renderer and adds a white
-square over the scene. `GX COPY QUEUED` means the GX commands were submitted;
-it does not confirm that the GPU completed them. After a short hold, the
-program checks Y luma bytes in the YUYV output. If the buffer has no visible
-luma, the diagnostic paints a gray field with a centered white square and red
-outline through the CPU, selects that GX framebuffer, and holds the result.
-This checks whether VI can scan out the same buffer. Otherwise, the diagnostic
-checks the square before it selects the GX framebuffer.
-If the fixed white-square sample check fails, it writes a gray field with a
-centered white square and red outline through the CPU to the GX XFB, then holds
-that image. This checks VI scanout separately from GX drawing and copying.
+square over the scene. Before the display copy, it waits for GX and reads the
+square from the EFB with `GX_PeekARGB`. After the copy, it checks Y luma bytes
+and the same square in the YUYV XFB. `GX COPY QUEUED` means the GX commands were
+submitted; it does not confirm that the GPU completed them. If a check fails,
+the diagnostic paints a gray field with a white square and red outline through
+the CPU into the GX XFB, selects that buffer, and writes the failure stage above
+the square. This checks VI scanout separately from EFB drawing and EFB-to-XFB
+copying.
 
 The diagnostic accepts the report arguments added by Wiiload-RS and sends a
 report to the host after it runs the requested probes. It then resets to HBC

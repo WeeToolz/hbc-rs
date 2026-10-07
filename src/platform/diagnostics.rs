@@ -46,7 +46,7 @@ fn framebuffer_layout(width: usize, height: usize) -> Option<(usize, usize)> {
     Some((words_per_row, words_per_row.checked_mul(height)?))
 }
 
-pub(super) fn paint_scanout_probe(words: &mut [u32], width: usize, height: usize) {
+pub(super) fn paint_scanout_probe(words: &mut [u32], width: usize, height: usize, label: &str) {
     let Some((words_per_row, length)) = framebuffer_layout(width, height) else {
         return;
     };
@@ -73,6 +73,39 @@ pub(super) fn paint_scanout_probe(words: &mut [u32], width: usize, height: usize
     for y in top..bottom {
         for word_x in left / 2..right / 2 {
             words[y * words_per_row + word_x] = WHITE;
+        }
+    }
+    paint_scanout_label(words, words_per_row, width, height, label);
+}
+
+fn paint_scanout_label(
+    words: &mut [u32],
+    words_per_row: usize,
+    width: usize,
+    height: usize,
+    label: &str,
+) {
+    for (index, character) in label
+        .chars()
+        .take(width.saturating_sub(48) / 24)
+        .enumerate()
+    {
+        for (row, bits) in crate::render::glyph_rows(character).into_iter().enumerate() {
+            for column in 0..5 {
+                if bits & (1 << (4 - column)) == 0 {
+                    continue;
+                }
+                let x = 24 + index * 24 + column * 4;
+                let y = 56 + row * 4;
+                if y + 4 > height {
+                    continue;
+                }
+                for py in y..y + 4 {
+                    for word_x in x / 2..((x + 4).min(width)) / 2 {
+                        words[py * words_per_row + word_x] = WHITE;
+                    }
+                }
+            }
         }
     }
 }
@@ -222,6 +255,23 @@ pub(super) fn test_square_is_white(
     let step = TEST_SQUARE_SIZE / 4;
     (1..4).all(|row| {
         (1..4).all(|column| has_bright_luma(read_luma(left + column * step, top + row * step)))
+    })
+}
+
+pub(super) fn test_square_is_white_rgb(
+    width: u16,
+    height: u16,
+    mut read_rgb: impl FnMut(u16, u16) -> (u8, u8, u8),
+) -> bool {
+    let Some((left, top)) = test_square_origin(width, height) else {
+        return false;
+    };
+    let step = TEST_SQUARE_SIZE / 4;
+    (1..4).all(|row| {
+        (1..4).all(|column| {
+            let (r, g, b) = read_rgb(left + column * step, top + row * step);
+            r > 200 && g > 200 && b > 200
+        })
     })
 }
 
@@ -798,12 +848,26 @@ mod tests {
     #[test]
     fn scanout_probe_paints_gray_frame_and_white_square() {
         let mut words = [0xdead_beef; 80 * 128 + 4];
-        paint_scanout_probe(&mut words, 145, 128);
+        paint_scanout_probe(&mut words, 145, 128, "GX COPY FAIL");
         assert_eq!(words[0], BACKGROUND);
         assert_eq!(words[40 * 80 + 24], RED);
         assert_eq!(words[48 * 80 + 28], WHITE);
         assert_eq!(words[16 * 80 + 28], BACKGROUND);
+        assert!(words[56 * 80..68 * 80].contains(&WHITE));
         assert_eq!(&words[80 * 128..], &[0xdead_beef; 4]);
+    }
+
+    #[test]
+    fn efb_test_square_requires_white_color_in_its_center() {
+        assert!(test_square_is_white_rgb(640, 480, |_, _| (255, 255, 255)));
+        assert!(!test_square_is_white_rgb(640, 480, |x, y| {
+            if x == 320 && y == 240 {
+                (255, 255, 255)
+            } else {
+                (0, 0, 0)
+            }
+        }));
+        assert!(!test_square_is_white_rgb(640, 480, |_, _| (255, 255, 0)));
     }
 
     #[test]

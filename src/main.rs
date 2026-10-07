@@ -539,6 +539,32 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             }
         }
         #[cfg(feature = "startup-diagnostics")]
+        let first_efb_square = if !display_ready {
+            match video.efb_has_test_square() {
+                Ok(found) => {
+                    hbc_rs::platform::diagnostics::mark(if found {
+                        "GX EFB SQUARE PRESENT"
+                    } else {
+                        "GX EFB SQUARE MISSING"
+                    });
+                    found
+                }
+                Err(_) => {
+                    if hbc_rs::platform::diagnostics::fail("GX EFB READBACK TIMEOUT") {
+                        if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART)
+                        {
+                            hbc_rs::platform::diagnostics::fail(message);
+                        }
+                    }
+                    loop {
+                        hbc_rs::platform::diagnostics::hold();
+                    }
+                }
+            }
+        } else {
+            false
+        };
+        #[cfg(feature = "startup-diagnostics")]
         if !display_ready {
             hbc_rs::platform::diagnostics::mark("GX COPY START");
         }
@@ -583,8 +609,13 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 hbc_rs::platform::diagnostics::mark("GX COPY QUEUED");
                 hbc_rs::platform::diagnostics::hold();
                 if !video.framebuffer_has_visible_luma() {
-                    hbc_rs::platform::diagnostics::mark("GX XFB CPU SCANOUT TEST");
-                    video.paint_scanout_probe();
+                    let label = if first_efb_square {
+                        "GX XFB COPY BLACK"
+                    } else {
+                        "GX EFB DRAW BLACK"
+                    };
+                    hbc_rs::platform::diagnostics::mark(label);
+                    video.paint_scanout_probe(label);
                     video.show();
                     video.wait_vsync();
                     loop {
@@ -600,7 +631,12 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                     }
                     // Replace the failed GX image with a CPU-written control pattern.
                     // This separates VI scanout from GX drawing and copy behavior.
-                    video.paint_scanout_probe();
+                    let label = if first_efb_square {
+                        "GX XFB SQUARE FAIL"
+                    } else {
+                        "GX EFB SQUARE FAIL"
+                    };
+                    video.paint_scanout_probe(label);
                     video.show();
                     video.wait_vsync();
                     loop {
