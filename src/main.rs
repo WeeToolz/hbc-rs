@@ -586,8 +586,13 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 if !video.framebuffer_has_visible_luma() {
                     let label = if video.efb_has_test_square() {
                         "GX XFB BLACK"
+                    } else if video.poke_test_square_to_efb()
+                        && unsafe { video.present() }.is_ok()
+                        && video.framebuffer_has_test_square()
+                    {
+                        "GX VERTEX DRAW MISSING"
                     } else {
-                        "GX EFB SQUARE MISSING"
+                        "GX POKE OR XFB COPY FAILED"
                     };
                     if hbc_rs::platform::diagnostics::fail(label) {
                         if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART)
