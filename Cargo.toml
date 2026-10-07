@@ -18,6 +18,7 @@ ogc-alloc = { path = "../libogc-rs/crates/core/ogc-alloc" }
 ogc-core = { path = "../libogc-rs/crates/core/ogc-core" }
 ogc-cache = { path = "../libogc-rs/crates/core/ogc-cache" }
 ogc-conf = { path = "../libogc-rs/crates/core/ogc-conf" }
+ogc-di = { path = "../libogc-rs/crates/services/ogc-di" }
 ogc-fat = { path = "../libogc-rs/crates/services/ogc-fat" }
 ogc-filesystem = { path = "../libogc-rs/crates/services/ogc-filesystem" }
 ogc-es-sys = { path = "../libogc-rs/crates/core/ogc-es-sys" }

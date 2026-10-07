@@ -87,6 +87,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         }
         return -1;
     }
+    install_return_stub();
     #[cfg(feature = "startup-diagnostics")]
     hbc_rs::platform::diagnostics::mark_fp_state("FP AFTER HEAP ON", "FP AFTER HEAP OFF");
 
@@ -117,6 +118,11 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
 
     #[cfg(feature = "startup-diagnostics")]
     hbc_rs::platform::diagnostics::begin_reporting();
+    // C HBC submits its startup disc motor stop asynchronously. ogc-di's
+    // stop_motor() is synchronous, so calling it here can block first-frame
+    // startup when IOS or an emulator does not complete the DI request. Keep
+    // the shutdown/handoff stop below, but do not substitute a synchronous
+    // operation for C's non-blocking startup request.
 
     let mut startup = hbc_rs::platform::startup::WiiStartup::initialize(view_width, 480);
     let now = ogc_system::time();
@@ -355,9 +361,20 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         if !display_ready {
             hbc_rs::platform::diagnostics::mark("FIRST INPUT SCAN");
         }
-        let mut frame = hbc_rs::platform::input::scan();
+        let mut frame = match hbc_rs::platform::input::scan() {
+            Ok(frame) => frame,
+            Err(_) => {
+                startup.runtime_mut().show_notice_with_kind(
+                    "Wii Remote input failed. GameCube controller input remains available.",
+                    hbc_rs::app::NoticeKind::Warning,
+                );
+                hbc_rs::platform::input::InputFrame::default()
+            }
+        };
         let storage_scan_pending = startup.storage_scan_pending();
-        if storage_scan_pending || startup.device_probe_pending() {
+        if (storage_scan_pending || startup.device_probe_pending())
+            && startup.runtime().controller().screen != hbc_rs::app::Screen::Notice
+        {
             frame.pressed.clear();
             frame.held.clear();
             frame.released.clear();
@@ -570,6 +587,14 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             hbc_rs::platform::diagnostics::complete();
         }
         video.wait_vsync();
+        // Give the lower-priority storage worker a bounded slice after each
+        // visible frame. Sleeping the main thread for 1 ms lets the worker run,
+        // then the timer wake makes priority-64 main preempt priority-62 storage.
+        // A plain yield is unsafe here: an equal-priority worker can retain the
+        // CPU inside a long FAT/IOS operation and freeze animation and input.
+        if startup.storage_scan_pending() {
+            ogc_lwp::sys::sleep_ticks((ogc_lwp::sys::TICKS_PER_SECOND / 1_000).max(1));
+        }
         #[cfg(feature = "startup-diagnostics")]
         if hbc_rs::platform::diagnostics::sample_frame() {
             if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
@@ -677,11 +702,20 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             if action == hbc_rs::app::Action::ApplyOptions {
                 let (persist, mut notice) = match startup.apply_options() {
                     Ok(true) => (true, None),
-                    Ok(false) => (true, Some("The selected storage device is not available.")),
-                    Err(hbc_rs::platform::startup::StartupError::CatalogScan) => {
-                        (true, Some("Could not read the apps folder on this device."))
-                    }
-                    Err(_) => (false, Some("Could not change the storage device.")),
+                    Ok(false) => (
+                        true,
+                        Some(String::from(
+                            "The selected storage device is not available.",
+                        )),
+                    ),
+                    Err(hbc_rs::platform::startup::StartupError::CatalogScan(error)) => (
+                        true,
+                        Some(alloc::format!("Could not scan apps: {error:?}.")),
+                    ),
+                    Err(_) => (
+                        false,
+                        Some(String::from("Could not change the storage device.")),
+                    ),
                 };
                 if persist
                     && startup
@@ -689,12 +723,12 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                         .save_settings_if_dirty(hbc_rs::platform::settings::save)
                         .is_err()
                 {
-                    notice = Some("Could not save the new settings to NAND.");
+                    notice = Some(String::from("Could not save the new settings to NAND."));
                 }
                 if let Some(notice) = notice {
                     startup
                         .runtime_mut()
-                        .show_notice_with_kind(notice, hbc_rs::app::NoticeKind::Error);
+                        .show_notice_with_kind(&notice, hbc_rs::app::NoticeKind::Error);
                 }
                 continue;
             }
@@ -772,6 +806,13 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                         );
                         continue;
                     }
+                    if stop_disc_services().is_err() {
+                        startup.runtime_mut().show_notice_with_kind(
+                            "Could not stop disc services. BootMii launch stopped.",
+                            hbc_rs::app::NoticeKind::Error,
+                        );
+                        continue;
+                    }
                     if hbc_rs::platform::wiiload::stop().is_err() {
                         startup.runtime_mut().show_notice_with_kind(
                             "Could not stop the network receiver. BootMii launch stopped.",
@@ -779,9 +820,9 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                         );
                         continue;
                     }
-                    if wpad_sys::shutdown() < 0 {
+                    if stop_wpad_services().is_err() {
                         startup.runtime_mut().show_notice_with_kind(
-                            "Could not stop Wii Remote services. BootMii launch stopped.",
+                            "Could not finish Wii Remote shutdown. BootMii launch stopped.",
                             hbc_rs::app::NoticeKind::Error,
                         );
                         continue;
@@ -803,6 +844,61 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             }
         }
     }
+}
+
+#[cfg(target_arch = "powerpc")]
+fn install_return_stub() {
+    const RETURN_STUB_ADDRESS: *mut u8 = 0x8000_1800 as *mut u8;
+    const RETURN_STUB: &[u8] = include_bytes!("../assets/return_stub.bin");
+    if RETURN_STUB.len() > 0x1800 {
+        return;
+    }
+    unsafe {
+        core::ptr::copy_nonoverlapping(
+            RETURN_STUB.as_ptr(),
+            RETURN_STUB_ADDRESS,
+            RETURN_STUB.len(),
+        );
+        ogc_cache::dc_flush_range(RETURN_STUB_ADDRESS.cast(), RETURN_STUB.len() as u32);
+        ogc_cache::ic_invalidate_range(RETURN_STUB_ADDRESS.cast(), RETURN_STUB.len() as u32);
+    }
+}
+
+#[cfg(target_arch = "powerpc")]
+fn stop_disc_services() -> Result<(), ()> {
+    if ogc_di::init() < 0 {
+        return Err(());
+    }
+    let stop_result = ogc_di::stop_motor();
+    let close_result = ogc_di::close();
+    if stop_result < 0 || close_result < 0 {
+        return Err(());
+    }
+    Ok(())
+}
+
+#[cfg(target_arch = "powerpc")]
+fn stop_wpad_services() -> Result<(), ()> {
+    let result = wpad_sys::shutdown();
+    if result < 0 {
+        return Err(());
+    }
+    // shutdown() only submits the Bluetooth close chain. Keep polling the
+    // backend until IOS reports the close completion, including the retry path
+    // used after a full IPC queue prevents the first close submission.
+    const SHUTDOWN_POLL_FRAMES: usize = 300;
+    const SHUTDOWN_POLL_TICKS: u64 = ogc_lwp::sys::TICKS_PER_SECOND / 60;
+    for _ in 0..SHUTDOWN_POLL_FRAMES {
+        let scan_result = wpad_sys::scan_pads();
+        if scan_result < 0 {
+            return Err(());
+        }
+        if wpad_sys::bluetooth_shutdown_complete() {
+            return Ok(());
+        }
+        ogc_lwp::sys::sleep_ticks(SHUTDOWN_POLL_TICKS.max(1));
+    }
+    Err(())
 }
 
 #[cfg(target_arch = "powerpc")]
@@ -831,10 +927,12 @@ fn transfer_executable(
     if startup.unmount_storage().is_err() {
         return Err("Could not stop storage. Application launch stopped.");
     }
+    stop_disc_services()
+        .map_err(|_| "Could not stop disc services. Application launch stopped.")?;
     hbc_rs::platform::wiiload::stop()
         .map_err(|_| "Could not stop the network receiver. Application launch stopped.")?;
-    if wpad_sys::shutdown() < 0 {
-        return Err("Could not stop Wii Remote services. Application launch stopped.");
+    if stop_wpad_services().is_err() {
+        return Err("Could not finish Wii Remote shutdown. Application launch stopped.");
     }
     hbc_rs::platform::video::shutdown();
     unsafe {
@@ -859,11 +957,14 @@ fn exit_to_system(
     if startup.unmount_storage().is_err() {
         return Err("Could not stop storage. System exit stopped.");
     }
+    if stop_disc_services().is_err() {
+        return Err("Could not stop disc services. System exit stopped.");
+    }
     if hbc_rs::platform::wiiload::stop().is_err() {
         return Err("Could not stop the network receiver. System exit stopped.");
     }
-    if wpad_sys::shutdown() < 0 {
-        return Err("Could not stop Wii Remote services. System exit stopped.");
+    if stop_wpad_services().is_err() {
+        return Err("Could not finish Wii Remote shutdown. System exit stopped.");
     }
     hbc_rs::platform::video::shutdown();
     reset_system(reset)

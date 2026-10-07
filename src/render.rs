@@ -474,14 +474,7 @@ impl Frame {
         let x = (f32::from(self.logical_width()) - 272.0) / 2.0;
         self.fill(rect(x, 220.0, 272.0, 64.0), PANEL);
         self.theme_art(rect(x + 8.0, 220.0, 64.0, 64.0), ThemeArt::Throbber, false);
-        self.text(
-            x + 80.0,
-            250.0,
-            status,
-            1.0,
-            Color::rgb(213, 224, 233),
-            30,
-        );
+        self.text(x + 80.0, 250.0, status, 1.0, Color::rgb(213, 224, 233), 30);
     }
 
     fn widen_canvas(&mut self) {

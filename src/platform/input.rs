@@ -5,9 +5,16 @@
 
 use alloc::vec::Vec;
 #[cfg(target_arch = "powerpc")]
-use core::sync::atomic::{AtomicI32, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, Ordering};
 
 use crate::app::Input;
+
+#[cfg(target_arch = "powerpc")]
+static WPAD_STARTED: AtomicBool = AtomicBool::new(false);
+#[cfg(target_arch = "powerpc")]
+static WPAD_VIEW_WIDTH: AtomicU32 = AtomicU32::new(0);
+#[cfg(target_arch = "powerpc")]
+static WPAD_VIEW_HEIGHT: AtomicU32 = AtomicU32::new(0);
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct InputFrame {
@@ -245,28 +252,51 @@ fn inputs(mask: Buttons) -> Vec<Input> {
 }
 
 #[cfg(target_arch = "powerpc")]
-pub fn initialize(view_width: u16, view_height: u16) {
-    #[cfg(feature = "startup-diagnostics")]
-    super::diagnostics::mark("PAD INIT");
-    ogc_input::init();
-    #[cfg(feature = "startup-diagnostics")]
-    super::diagnostics::mark("WPAD INIT");
-    wpad_sys::init();
+fn configure_wpad(view_width: u32, view_height: u32) -> Result<(), i32> {
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("WPAD SETTINGS");
     wpad_sys::set_idle_timeout(120);
-    let ir_width = u32::from(view_width).saturating_add(128);
-    let ir_height = u32::from(view_height).saturating_add(128);
+    let ir_width = view_width.saturating_add(128);
+    let ir_height = view_height.saturating_add(128);
     for channel in 0..4 {
-        wpad_sys::set_data_format(channel, wpad_sys::WPAD_FMT_BTNS_ACC_IR);
+        let rc = wpad_sys::set_data_format(channel, wpad_sys::WPAD_FMT_BTNS_ACC_IR);
+        if rc < wpad_sys::WPAD_ERR_NONE as i32 {
+            return Err(rc);
+        }
         wpad_sys::set_v_res(channel, ir_width, ir_height);
     }
+    WPAD_STARTED.store(true, Ordering::Release);
+    Ok(())
+}
+
+#[cfg(target_arch = "powerpc")]
+pub fn initialize(view_width: u16, view_height: u16) -> Result<(), i32> {
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("PAD INIT");
+    ogc_input::init();
     POINTER_OWNER.store(-1, Ordering::Release);
+    WPAD_VIEW_WIDTH.store(u32::from(view_width), Ordering::Release);
+    WPAD_VIEW_HEIGHT.store(u32::from(view_height), Ordering::Release);
+    WPAD_STARTED.store(false, Ordering::Release);
+
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("WPAD INIT");
+    let wpad_result = wpad_sys::init();
+    if wpad_result == wpad_sys::WPAD_ERR_NONE as i32 {
+        return configure_wpad(u32::from(view_width), u32::from(view_height));
+    }
+    if wpad_result == wpad_sys::WPAD_ERR_NOT_READY as i32 {
+        // The adapter-open submission was not accepted yet. Do not issue WPAD
+        // configuration calls against an unstarted backend. scan() retries init
+        // from the normal frame loop while GameCube input remains available.
+        return Ok(());
+    }
+    Err(wpad_result)
 }
 
 /// Scan GameCube port zero and Wii Remote channels using HBC pointer ownership.
 #[cfg(target_arch = "powerpc")]
-pub fn scan() -> InputFrame {
+pub fn scan() -> Result<InputFrame, i32> {
     use ogc_input as pad;
     use wpad_sys as wpad;
 
@@ -277,7 +307,21 @@ pub fn scan() -> InputFrame {
     let mut held = Buttons::default();
     let mut up = Buttons::default();
     diagnostic_scan_mark("WPAD SCAN START");
-    wpad::scan_pads();
+    if !WPAD_STARTED.load(Ordering::Acquire) {
+        let start = wpad::init();
+        if start == wpad::WPAD_ERR_NONE as i32 {
+            configure_wpad(
+                WPAD_VIEW_WIDTH.load(Ordering::Acquire),
+                WPAD_VIEW_HEIGHT.load(Ordering::Acquire),
+            )?;
+        } else if start != wpad::WPAD_ERR_NOT_READY as i32 {
+            return Err(start);
+        }
+    }
+    let scan_result = wpad::scan_pads();
+    if scan_result < 0 {
+        return Err(scan_result);
+    }
     diagnostic_scan_mark("WPAD SCAN DONE");
     // HBC reads only PAD channel zero. Other controller buttons are accepted
     // only when no Wii Remote owns the IR pointer; then they are combined.
@@ -351,7 +395,7 @@ pub fn scan() -> InputFrame {
         map_wpad_channel(channel_id, wpad::buttons_up(channel_id), &mut up);
     }
     let pointer_held = pointer_confirm_held(owner.is_some(), held);
-    InputFrame {
+    Ok(InputFrame {
         pressed: inputs(down),
         held: inputs(held),
         released: inputs(up),
@@ -359,7 +403,7 @@ pub fn scan() -> InputFrame {
         pointer_pressed,
         pointer_held,
         stick_scroll_pixels: stick_scroll.clamp(i32::from(i16::MIN), i32::from(i16::MAX)) as i16,
-    }
+    })
 }
 
 #[cfg(target_arch = "powerpc")]

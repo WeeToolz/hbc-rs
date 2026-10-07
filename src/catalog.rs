@@ -57,6 +57,7 @@ pub trait CatalogStorage {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ScanError<E> {
     AppDirectory(E),
+    Storage { path: String, source: E },
     TooManyAppDirectoryEntries,
 }
 
@@ -90,14 +91,20 @@ pub fn scan_apps<S: CatalogStorage>(
                 core::cmp::min(max_executable_size, max_theme_size),
             ),
         ];
-        let selected = candidates.iter().find_map(|(name, kind, limit)| {
+        let mut selected = None;
+        for (name, kind, limit) in &candidates {
             let path = join_path(&folder_path, name);
-            storage
+            if let Some(size) = storage
                 .file_size(&path)
-                .ok()
-                .flatten()
-                .map(|size| (*kind, size, *limit))
-        });
+                .map_err(|source| ScanError::Storage {
+                    path: path.clone(),
+                    source,
+                })?
+            {
+                selected = Some((*kind, size, *limit));
+                break;
+            }
+        }
         let Some((kind, size, limit)) = selected else {
             continue;
         };
@@ -108,8 +115,10 @@ pub fn scan_apps<S: CatalogStorage>(
         let meta_path = join_path(&folder_path, "meta.xml");
         let metadata = storage
             .read_file(&meta_path, 1024 * 1024)
-            .ok()
-            .flatten()
+            .map_err(|source| ScanError::Storage {
+                path: meta_path,
+                source,
+            })?
             .and_then(|bytes| {
                 core::str::from_utf8(&bytes)
                     .ok()
@@ -118,8 +127,10 @@ pub fn scan_apps<S: CatalogStorage>(
         let icon_path = join_path(&folder_path, "icon.png");
         let has_icon = storage
             .read_file(&icon_path, crate::png::HBC_APP_ICON_MAX_PNG_BYTES)
-            .ok()
-            .flatten()
+            .map_err(|source| ScanError::Storage {
+                path: icon_path,
+                source,
+            })?
             .is_some_and(|bytes| crate::png::decode_hbc_app_icon(&bytes).is_ok());
 
         apps.push(AppEntry {
@@ -439,6 +450,75 @@ mod tests {
         assert_eq!(
             scan_apps(&mut fs, root, 100, 50),
             Err(ScanError::TooManyAppDirectoryEntries)
+        );
+    }
+
+    #[test]
+    fn scan_caps_catalog_entries_at_the_c_hbc_limit() {
+        let root = "sd:/apps";
+        let mut fs = MemoryStorage::default();
+        fs.directories.insert(
+            root.into(),
+            (0..=MAX_APP_ENTRIES)
+                .map(|index| DirectoryEntry {
+                    name: format!("app-{index}"),
+                    is_directory: true,
+                })
+                .collect(),
+        );
+        for index in 0..=MAX_APP_ENTRIES {
+            fs.sizes.insert(format!("{root}/app-{index}/boot.dol"), 10);
+        }
+
+        let apps = scan_apps(&mut fs, root, 100, 50).unwrap();
+        assert_eq!(apps.len(), MAX_APP_ENTRIES);
+        assert_eq!(apps[0].directory, "app-0");
+    }
+
+    #[test]
+    fn scan_returns_candidate_storage_failures() {
+        let root = "sd:/apps";
+        let mut fs = MemoryStorage::default();
+        fs.directories.insert(
+            root.into(),
+            vec![DirectoryEntry {
+                name: "demo".into(),
+                is_directory: true,
+            }],
+        );
+        let path = format!("{root}/demo/boot.elf");
+        fs.failures.insert(path.clone(), "io failure");
+
+        assert_eq!(
+            scan_apps(&mut fs, root, 100, 50),
+            Err(ScanError::Storage {
+                path,
+                source: "io failure",
+            })
+        );
+    }
+
+    #[test]
+    fn scan_returns_optional_file_read_failures() {
+        let root = "sd:/apps";
+        let mut fs = MemoryStorage::default();
+        fs.directories.insert(
+            root.into(),
+            vec![DirectoryEntry {
+                name: "demo".into(),
+                is_directory: true,
+            }],
+        );
+        fs.sizes.insert(format!("{root}/demo/boot.dol"), 10);
+        let path = format!("{root}/demo/meta.xml");
+        fs.failures.insert(path.clone(), "io failure");
+
+        assert_eq!(
+            scan_apps(&mut fs, root, 100, 50),
+            Err(ScanError::Storage {
+                path,
+                source: "io failure",
+            })
         );
     }
 }

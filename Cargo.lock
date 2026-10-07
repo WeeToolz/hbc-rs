@@ -83,6 +83,7 @@ dependencies = [
  "ogc-cache",
  "ogc-conf",
  "ogc-core",
+ "ogc-di",
  "ogc-es-sys",
  "ogc-fat",
  "ogc-filesystem",
@@ -173,6 +174,17 @@ dependencies = [
 name = "ogc-core"
 version = "0.1.0"
 dependencies = [
+ "ogc-sys",
+]
+
+[[package]]
+name = "ogc-di"
+version = "0.1.0"
+dependencies = [
+ "ogc-cache",
+ "ogc-filesystem",
+ "ogc-ipc",
+ "ogc-lwp-sys",
  "ogc-sys",
 ]
 

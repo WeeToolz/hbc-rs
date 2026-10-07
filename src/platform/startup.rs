@@ -27,6 +27,10 @@ const EXECUTABLE_SIZE_LIMIT: u64 = (0x8133_0000 - 1 - 1024) - 0x8000_3400;
 const THEME_SIZE_LIMIT: u64 = 20 * 1024 * 1024;
 const BOOTMII_TITLE_ID: u64 = 0x0000_0001_0000_00fe;
 const STORAGE_SCAN_STACK_SIZE: usize = 16 * 1024;
+// Keep storage work below the application main thread. The Rust LWP scheduler
+// preempts a running lower-priority thread when a higher-priority sleeper wakes.
+// The main loop gives this worker a bounded 1 ms slice each frame while a scan
+// is pending, instead of yielding indefinitely to an equal-priority worker.
 const STORAGE_SCAN_PRIORITY: u8 = 62;
 const STORAGE_SCAN_IDLE: u8 = 0;
 const STORAGE_SCAN_RUNNING: u8 = 1;
@@ -53,7 +57,7 @@ struct StorageScanResult {
     volume: Option<Volume>,
     storage: Option<FatStorage>,
     catalog: Vec<AppEntry>,
-    scan_failed: bool,
+    scan_error: Option<crate::catalog::ScanError<StorageError>>,
     shutdown_failed: bool,
 }
 
@@ -508,7 +512,7 @@ unsafe extern "C" fn storage_scan_entry(_argument: *mut c_void) -> *mut c_void {
                 volume: None,
                 storage: None,
                 catalog: Vec::new(),
-                scan_failed: false,
+                scan_error: None,
                 shutdown_failed: true,
             }))
         };
@@ -516,13 +520,13 @@ unsafe extern "C" fn storage_scan_entry(_argument: *mut c_void) -> *mut c_void {
         return null_mut();
     }
     let preference = STORAGE_SCAN_PREFERENCE.load(Ordering::Acquire);
-    let (volume, storage, catalog, scan_failed) = mount_preferred_volume(preference);
+    let (volume, storage, catalog, scan_error) = mount_preferred_volume(preference);
     STORAGE_SCAN_STAGE.store(STORAGE_STAGE_FINISH, Ordering::Release);
     let result = StorageScanResult {
         volume,
         storage,
         catalog,
-        scan_failed,
+        scan_error,
         shutdown_failed,
     };
     unsafe {
@@ -681,13 +685,11 @@ impl WiiStartup {
     /// preferred SD or USB volume once. Missing settings and volumes use the
     /// same empty/default state as HBC.
     pub fn initialize(view_width: u16, view_height: u16) -> Self {
-        // C HBC resolves its title data directory before controls_init()/
-        // WPAD_Init(). Keep ES/NAND discovery ahead of WPAD as well: WPAD can
-        // queue IOS work, and a synchronous ES request made behind a full IPC
-        // queue returns IPC_EQUEUEFULL (-8). The title-directory result is
-        // cached for the process lifetime, so allowing that transient queue
-        // state to become the cached NAND result would disable persistence for
-        // the rest of the run.
+        // C HBC resolves its title data directory and reads the installed theme
+        // before controls_init()/WPAD_Init(). Keep all synchronous ES/ISFS
+        // startup reads ahead of WPAD as well. WPAD can queue IOS work, and a
+        // later synchronous ES or ISFS request made behind a full IPC queue can
+        // return IPC_EQUEUEFULL (-8).
         #[cfg(feature = "startup-diagnostics")]
         super::diagnostics::mark("NAND SETTINGS LOAD");
         let (loaded_settings, settings_load_error) = match settings::load() {
@@ -695,8 +697,19 @@ impl WiiStartup {
             Err(settings::SettingsIoError::Missing) => (UserSettings::default(), None),
             Err(error) => (UserSettings::default(), Some(error)),
         };
-        // Match C startup ordering: title/NAND discovery precedes WPAD setup.
-        input::initialize(view_width, view_height);
+        let widescreen = view_width > crate::render::LOGICAL_WIDTH;
+        #[cfg(feature = "startup-diagnostics")]
+        super::diagnostics::mark("NAND THEME LOAD");
+        let theme_archive = match super::theme::load() {
+            Ok(theme) => Ok(theme),
+            Err(error) => Err(error),
+        };
+        #[cfg(feature = "startup-diagnostics")]
+        super::diagnostics::mark("BOOTMII TITLE CHECK");
+        let bootmii_available = bootmii_ios_available();
+        // Match C startup ordering for NAND theme reads: title/NAND discovery
+        // and the initial theme file read precede WPAD setup.
+        let input_error = input::initialize(view_width, view_height).err();
 
         let preference = loaded_settings.device;
         let mut runtime = AppRuntime::new(Vec::new());
@@ -707,13 +720,16 @@ impl WiiStartup {
                 crate::app::NoticeKind::Warning,
             );
         }
-        let widescreen = view_width > crate::render::LOGICAL_WIDTH;
+        if input_error.is_some() {
+            runtime.show_notice_with_kind(
+                "Could not start Wii Remote services. GameCube controller input remains available.",
+                crate::app::NoticeKind::Warning,
+            );
+        }
         runtime.set_widescreen(widescreen);
         #[cfg(feature = "startup-diagnostics")]
-        super::diagnostics::mark("NAND THEME LOAD");
-        #[cfg(feature = "startup-diagnostics")]
         super::diagnostics::mark("THEME FILE LOAD");
-        let (loaded_theme, theme_textures) = match super::theme::load() {
+        let (loaded_theme, theme_textures) = match theme_archive {
             Ok(Some(archive)) => {
                 #[cfg(feature = "startup-diagnostics")]
                 super::diagnostics::mark("THEME ZIP PARSE");
@@ -727,19 +743,32 @@ impl WiiStartup {
                         );
                         (Some(package.metadata), textures)
                     }
-                    Err(_) => (None, load_default_theme_textures(widescreen)),
+                    Err(error) => {
+                        runtime.show_notice_with_kind(
+                            &format!("Could not read the installed theme archive ({error:?}). Using the default theme."),
+                            crate::app::NoticeKind::Warning,
+                        );
+                        (None, load_default_theme_textures(widescreen))
+                    }
                 }
             }
-            _ => (None, load_default_theme_textures(widescreen)),
+            Ok(None) => (None, load_default_theme_textures(widescreen)),
+            Err(error) => {
+                runtime.show_notice_with_kind(
+                    &format!(
+                        "Could not load the installed theme ({error:?}). Using the default theme."
+                    ),
+                    crate::app::NoticeKind::Warning,
+                );
+                (None, load_default_theme_textures(widescreen))
+            }
         };
         #[cfg(feature = "startup-diagnostics")]
         super::diagnostics::mark("THEME TEXTURES READY");
         if let Some(theme) = loaded_theme {
             runtime.apply_theme(theme);
         }
-        #[cfg(feature = "startup-diagnostics")]
-        super::diagnostics::mark("BOOTMII TITLE CHECK");
-        runtime.set_bootmii_available(bootmii_ios_available());
+        runtime.set_bootmii_available(bootmii_available);
 
         let mut startup = Self {
             runtime,
@@ -756,6 +785,9 @@ impl WiiStartup {
             zip_install_thread: None,
             device_probe_thread: None,
         };
+        // Start the first mount/catalog pass on a lower-priority storage worker.
+        // It is not scheduled here. The browser loop gives it a bounded slice
+        // only after a frame has reached VI.
         #[cfg(feature = "startup-diagnostics")]
         super::diagnostics::mark("STORAGE WORKER START");
         if startup.start_storage_scan(preference, false, None).is_err() {
@@ -851,6 +883,9 @@ impl WiiStartup {
         match created {
             Ok(thread) => {
                 self.scan_thread = Some(thread);
+                // Do not schedule the storage worker before the first GX frame.
+                // The main loop gives this lower-priority worker a bounded time
+                // slice after each presented frame while scanning is pending.
                 Ok(())
             }
             Err(error) => {
@@ -897,9 +932,10 @@ impl WiiStartup {
             self.storage = None;
             self.volume = None;
             self.runtime.replace_catalog(Vec::new());
-        } else if result.scan_failed {
-            self.runtime
-                .show_notice("Could not read the apps folder on this device.");
+        } else if let Some(error) = result.scan_error {
+            self.runtime.show_notice(&alloc::format!(
+                "Could not scan apps on this device ({error:?})."
+            ));
         } else if requested_volume.is_some() && self.volume != requested_volume {
             self.runtime
                 .show_notice("The selected storage device is not available.");
@@ -1205,7 +1241,7 @@ impl WiiStartup {
             self.storage = None;
             self.volume = None;
         }
-        let (volume, storage, catalog, scan_failed) = mount_preferred_volume(preferred);
+        let (volume, storage, catalog, scan_error) = mount_preferred_volume(preferred);
         self.volume = volume;
         self.storage = storage;
         self.runtime
@@ -1219,8 +1255,8 @@ impl WiiStartup {
                 self.runtime.set_preferred_device(active.settings_index());
             }
         }
-        if scan_failed {
-            return Err(StartupError::CatalogScan);
+        if let Some(error) = scan_error {
+            return Err(StartupError::CatalogScan(error));
         }
         Ok(selected)
     }
@@ -1280,7 +1316,7 @@ pub struct PreparedTheme {
 pub enum StartupError {
     NoSelection,
     NoStorage,
-    CatalogScan,
+    CatalogScan(crate::catalog::ScanError<StorageError>),
     MissingExecutable,
     NotExecutable,
     TooLarge,
@@ -1294,7 +1330,12 @@ pub enum StartupError {
 
 fn mount_preferred_volume(
     preference: i32,
-) -> (Option<Volume>, Option<FatStorage>, Vec<AppEntry>, bool) {
+) -> (
+    Option<Volume>,
+    Option<FatStorage>,
+    Vec<AppEntry>,
+    Option<crate::catalog::ScanError<StorageError>>,
+) {
     for volume in device_scan_order(preference) {
         let mount_stage = match volume {
             Volume::Sd => STORAGE_STAGE_MOUNT_SD,
@@ -1308,25 +1349,25 @@ fn mount_preferred_volume(
         };
         STORAGE_SCAN_STAGE.store(STORAGE_STAGE_RECOVER, Ordering::Release);
         if recover_app_install_artifacts(&mut storage).is_err() {
-            return (Some(volume), Some(storage), Vec::new(), true);
+            return (Some(volume), Some(storage), Vec::new(), None);
         }
         STORAGE_SCAN_STAGE.store(STORAGE_STAGE_SCAN_APPS, Ordering::Release);
         // A missing apps directory is a valid empty catalog. Keep the mounted
         // volume so later install, refresh, and delete actions can use it.
-        let (catalog, scan_failed) = match scan_apps(
+        let (catalog, scan_error) = match scan_apps(
             &mut storage,
             "apps",
             EXECUTABLE_SIZE_LIMIT,
             THEME_SIZE_LIMIT,
         ) {
-            Ok(catalog) => (catalog, false),
+            Ok(catalog) => (catalog, None),
             Err(crate::catalog::ScanError::AppDirectory(StorageError::Fat(
                 ogc_fat::FatError::NotFound,
-            ))) => (Vec::new(), false),
-            Err(_) => (Vec::new(), true),
+            ))) => (Vec::new(), None),
+            Err(error) => (Vec::new(), Some(error)),
         };
-        return (Some(volume), Some(storage), catalog, scan_failed);
+        return (Some(volume), Some(storage), catalog, scan_error);
     }
 
-    (None, None, Vec::new(), false)
+    (None, None, Vec::new(), None)
 }
