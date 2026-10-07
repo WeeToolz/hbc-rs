@@ -393,43 +393,22 @@ fn load_background(
     package: Option<(&crate::theme::ThemePackage, &[u8])>,
     widescreen: bool,
 ) -> (Option<crate::png::GxRgba8Texture>, u32) {
-    if widescreen {
-        if let Some(texture) = package_image(
-            package,
-            "background_wide.png",
+    let (filename, width, fallback) = if widescreen {
+        (
+            crate::theme::background_asset(true),
             WIDE_BACKGROUND_WIDTH,
-            BACKGROUND_HEIGHT,
-        ) {
-            return (Some(texture), WIDE_BACKGROUND_WIDTH);
-        }
-        if let Some(texture) = package_image(
-            package,
-            "background.png",
+            DEFAULT_WIDE_BACKGROUND,
+        )
+    } else {
+        (
+            crate::theme::background_asset(false),
             BACKGROUND_WIDTH,
-            BACKGROUND_HEIGHT,
-        ) {
-            return (Some(texture), BACKGROUND_WIDTH);
-        }
-        return (
-            decode_fixed_size_image(
-                DEFAULT_WIDE_BACKGROUND,
-                WIDE_BACKGROUND_WIDTH,
-                BACKGROUND_HEIGHT,
-            ),
-            WIDE_BACKGROUND_WIDTH,
-        );
-    }
-
-    (
-        theme_image_texture(
-            package,
-            "background.png",
-            BACKGROUND_WIDTH,
-            BACKGROUND_HEIGHT,
             DEFAULT_BACKGROUND,
-        ),
-        BACKGROUND_WIDTH,
-    )
+        )
+    };
+    let texture = package_image(package, filename, width, BACKGROUND_HEIGHT)
+        .or_else(|| decode_fixed_size_image(fallback, width, BACKGROUND_HEIGHT));
+    (texture, width)
 }
 
 /// Read the installed theme archive from this channel's NAND data directory.
@@ -459,41 +438,48 @@ pub fn load() -> Result<Option<Vec<u8>>, SettingsIoError> {
     super::diagnostics::mark("THEME FILE OPEN");
     let file = match isfs::open(&path, isfs::ISFS_OPEN_READ) {
         Ok(file) => file,
-        Err(error) if super::nand::is_missing_isfs_error(error) => return Ok(None),
+        Err(error) if super::nand::is_missing_isfs_error(error, ogc_filesystem::ISFS_ENOENT) => {
+            return Ok(None)
+        }
         Err(error) => return Err(SettingsIoError::Isfs(error)),
     };
-    #[cfg(feature = "startup-diagnostics")]
-    super::diagnostics::mark("THEME FILE STATS");
-    let mut stats = AlignedStats(isfs::Fstats::default());
-    let rc = isfs::get_file_stats(&file, &mut stats.0);
-    if rc < 0 {
-        let _ = file.close();
-        return Err(SettingsIoError::Isfs(rc));
-    }
-    let size = stats.0.file_length as usize;
-    if size == 0 || size > MAX_THEME_ARCHIVE_BYTES {
-        let _ = file.close();
-        return Err(SettingsIoError::InvalidFileSize);
-    }
+    let read_result = (|| {
+        #[cfg(feature = "startup-diagnostics")]
+        super::diagnostics::mark("THEME FILE STATS");
+        let mut stats = AlignedStats(isfs::Fstats::default());
+        let rc = isfs::get_file_stats(&file, &mut stats.0);
+        if rc < 0 {
+            return Err(SettingsIoError::Isfs(rc));
+        }
+        let size = stats.0.file_length as usize;
+        if size == 0 || size > MAX_THEME_ARCHIVE_BYTES {
+            return Err(SettingsIoError::InvalidFileSize);
+        }
 
-    #[cfg(feature = "startup-diagnostics")]
-    super::diagnostics::mark("THEME FILE READ");
-    let mut archive = Vec::new();
-    if archive.try_reserve_exact(size).is_err() {
-        let _ = file.close();
-        return Err(SettingsIoError::InvalidFileSize);
-    }
-    archive.resize(size, 0);
-    if let Err(rc) = super::nand::read_exact_wii(&file, &mut archive) {
-        let _ = file.close();
-        return Err(SettingsIoError::Isfs(rc));
-    }
+        #[cfg(feature = "startup-diagnostics")]
+        super::diagnostics::mark("THEME FILE READ");
+        let mut archive = Vec::new();
+        if archive.try_reserve_exact(size).is_err() {
+            return Err(SettingsIoError::InvalidFileSize);
+        }
+        archive.resize(size, 0);
+        super::nand::read_exact_wii(&file, &mut archive).map_err(SettingsIoError::Isfs)?;
+        Ok(archive)
+    })();
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("THEME FILE CLOSE");
-    let rc = file.close();
-    if rc < 0 {
-        return Err(SettingsIoError::Isfs(rc));
+    let close_rc = file.close();
+    if close_rc < 0 {
+        return match read_result {
+            Err(SettingsIoError::Isfs(operation)) => Err(SettingsIoError::IsfsCleanup {
+                operation: Some(operation),
+                cleanup: close_rc,
+            }),
+            Err(_) => Err(SettingsIoError::Isfs(close_rc)),
+            Ok(_) => Err(SettingsIoError::Isfs(close_rc)),
+        };
     }
+    let archive = read_result?;
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("THEME ZIP READY");
     Ok(Some(archive))

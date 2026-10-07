@@ -1,6 +1,7 @@
 //! NAND-backed HBC settings storage through ES and ISFS Rust APIs.
 
 use alloc::ffi::CString;
+use core::sync::atomic::{AtomicBool, Ordering};
 
 use crate::metadata::UserSettings;
 use crate::settings::{
@@ -15,6 +16,31 @@ use crate::title_path::{
 };
 
 static TITLE_DIR_CACHE: CachedTitleDataDirectory = CachedTitleDataDirectory::new();
+static BANNER_SAVE_NEEDED: AtomicBool = AtomicBool::new(true);
+
+const BANNER_PATH: &str = "banner.bin";
+const SAVE_BANNER: &[u8] = include_bytes!("../../assets/save_banner.bin");
+
+const IPC_EQUEUEFULL: i32 = -8;
+const IPC_QUEUE_RETRY_LIMIT: usize = 32;
+
+fn retry_ipc_queue_full(mut request: impl FnMut() -> i32) -> i32 {
+    let mut last = IPC_EQUEUEFULL;
+    for _ in 0..IPC_QUEUE_RETRY_LIMIT {
+        let rc = request();
+        if rc != IPC_EQUEUEFULL {
+            return rc;
+        }
+        last = rc;
+        // Drain completed IPC replies. poll() also gives the deferred IPC
+        // completion worker a scheduling point when it consumes a reply. Do
+        // not sleep here: this path runs before video startup, and blocking the
+        // main LWP here can prevent the first frame on Dolphin/Wii runtimes.
+        let _ = ogc_ipc::poll();
+        ogc_lwp::sys::yield_thread();
+    }
+    last
+}
 
 #[repr(align(32))]
 struct AlignedTitleId(u64);
@@ -61,7 +87,7 @@ impl SettingsIoError {
 fn resolve_title_data_directory() -> Result<TitleDataDirectory, TitlePathError> {
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("ES INIT REQUEST");
-    let rc = es::init();
+    let rc = retry_ipc_queue_full(es::init);
     if rc < 0 {
         #[cfg(feature = "startup-diagnostics")]
         super::diagnostics::mark("ES INIT FAILED");
@@ -72,7 +98,7 @@ fn resolve_title_data_directory() -> Result<TitleDataDirectory, TitlePathError> 
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("ES TITLE ID REQUEST");
     let mut title_id = AlignedTitleId(0);
-    let rc = unsafe { es::get_title_id(&mut title_id.0) };
+    let rc = retry_ipc_queue_full(|| unsafe { es::get_title_id(&mut title_id.0) });
     if rc < 0 {
         #[cfg(feature = "startup-diagnostics")]
         super::diagnostics::mark("ES TITLE ID FAILED");
@@ -81,7 +107,8 @@ fn resolve_title_data_directory() -> Result<TitleDataDirectory, TitlePathError> 
     let mut data_dir = AlignedDataDir([0; TITLE_DATA_DIR_BUFFER_LEN]);
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("ES DATA DIR REQUEST");
-    let rc = unsafe { es::get_data_dir(title_id.0, data_dir.0.as_mut_ptr()) };
+    let rc =
+        retry_ipc_queue_full(|| unsafe { es::get_data_dir(title_id.0, data_dir.0.as_mut_ptr()) });
     if rc < 0 {
         #[cfg(feature = "startup-diagnostics")]
         super::diagnostics::mark("ES DATA DIR FAILED");
@@ -128,6 +155,38 @@ fn settings_path() -> Result<CString, SettingsIoError> {
     title_data_file_path(SETTINGS_PATH)
 }
 
+fn banner_path() -> Result<CString, SettingsIoError> {
+    title_data_file_path(BANNER_PATH)
+}
+
+fn validate_save_banner() -> Result<(), SettingsIoError> {
+    let path = banner_path()?;
+    let rc = isfs::initialize();
+    if rc < 0 {
+        return Err(SettingsIoError::Isfs(rc));
+    }
+    match super::nand::read_file_wii(&path, SAVE_BANNER.len())? {
+        Some(bytes) if bytes == SAVE_BANNER => {
+            BANNER_SAVE_NEEDED.store(false, Ordering::Release);
+            Ok(())
+        }
+        Some(_) | None => {
+            BANNER_SAVE_NEEDED.store(true, Ordering::Release);
+            Ok(())
+        }
+    }
+}
+
+fn save_banner_if_needed() -> Result<(), SettingsIoError> {
+    if !BANNER_SAVE_NEEDED.load(Ordering::Acquire) {
+        return Ok(());
+    }
+    let path = banner_path()?;
+    super::nand::save_wii(&path, SAVE_BANNER)?;
+    BANNER_SAVE_NEEDED.store(false, Ordering::Release);
+    Ok(())
+}
+
 /// Load the settings file from the running channel's ES data directory.
 pub fn load() -> Result<UserSettings, SettingsIoError> {
     let path = settings_path()?;
@@ -135,14 +194,15 @@ pub fn load() -> Result<UserSettings, SettingsIoError> {
     if rc < 0 {
         return Err(SettingsIoError::Isfs(rc));
     }
+    validate_save_banner()?;
     super::nand::recover_wii(&path, MAX_SETTINGS_XML_SIZE, |bytes| {
         decode_settings_xml(bytes).is_ok()
     })?;
     let file = match isfs::open(&path, isfs::ISFS_OPEN_READ) {
         Ok(file) => file,
-        Err(error) if super::nand::is_missing_isfs_error(error) => {
+        Err(error) if super::nand::is_missing_isfs_error(error, ogc_filesystem::ISFS_ENOENT) => {
             return Err(SettingsIoError::Missing);
-        },
+        }
         Err(error) => return Err(SettingsIoError::Isfs(error)),
     };
     let mut stats = AlignedFstats(isfs::Fstats::default());
@@ -158,8 +218,7 @@ pub fn load() -> Result<UserSettings, SettingsIoError> {
         }
 
         let mut xml = AlignedXml([0; MAX_SETTINGS_XML_SIZE]);
-        super::nand::read_exact_wii(&file, &mut xml.0[..size])
-            .map_err(SettingsIoError::Isfs)?;
+        super::nand::read_exact_wii(&file, &mut xml.0[..size]).map_err(SettingsIoError::Isfs)?;
         Ok((xml, size))
     })();
     let close_rc = file.close();
@@ -185,5 +244,6 @@ pub fn save(settings: &UserSettings) -> Result<(), SettingsIoError> {
     if rc < 0 {
         return Err(SettingsIoError::Isfs(rc));
     }
+    save_banner_if_needed()?;
     super::nand::save_wii(&path, xml.as_bytes())
 }

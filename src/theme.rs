@@ -9,10 +9,62 @@ use crate::{
 };
 
 pub const MAX_THEME_ARCHIVE_BYTES: usize = 20 * 1024 * 1024;
+
+#[cfg(any(target_arch = "powerpc", test))]
+pub(crate) fn background_asset(widescreen: bool) -> &'static str {
+    if widescreen {
+        "background_wide.png"
+    } else {
+        "background.png"
+    }
+}
 pub const MAX_THEME_ENTRIES: usize = 64;
 pub const MAX_THEME_XML_BYTES: usize = 1024 * 1024;
 const MAX_THEME_FILE_BYTES: u64 = 64 * 1024 * 1024;
 const MAX_THEME_TOTAL_BYTES: u64 = 128 * 1024 * 1024;
+const THEME_IMAGE_NAMES: &[&str] = &[
+    "background.png",
+    "background_wide.png",
+    "logo.png",
+    "bubble1.png",
+    "bubble2.png",
+    "bubble3.png",
+    "apps_previous.png",
+    "apps_previous_hover.png",
+    "apps_next.png",
+    "apps_next_hover.png",
+    "icon_usbgecko.png",
+    "icon_usbgecko_active.png",
+    "icon_network.png",
+    "icon_network_active.png",
+    "throbber.png",
+    "about.png",
+    "dialog_background.png",
+    "dlg_info.png",
+    "dlg_confirm.png",
+    "dlg_warning.png",
+    "dlg_error.png",
+    "button.png",
+    "button_focus.png",
+    "button_small.png",
+    "button_small_focus.png",
+    "button_tiny.png",
+    "button_tiny_focus.png",
+    "apps_list.png",
+    "apps_list_hover.png",
+    "apps_grid.png",
+    "apps_grid_hover.png",
+    "progress.png",
+    "content_arrow_up.png",
+    "content_arrow_down.png",
+];
+
+fn valid_theme_filename(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    lower.ends_with(".ttf")
+        || lower.ends_with(".txt")
+        || THEME_IMAGE_NAMES.iter().any(|allowed| lower == *allowed)
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ThemePackageError {
@@ -76,8 +128,13 @@ impl ThemePackage {
             if entry.is_directory || entry.uncompressed_size == 0 {
                 continue;
             }
-            if !entry.name.contains('/') && entry.name.eq_ignore_ascii_case("theme.xml") {
+            if entry.name.contains('/') {
+                return Err(ThemePackageError::InvalidEntry);
+            }
+            if entry.name.eq_ignore_ascii_case("theme.xml") {
                 theme_xml_name = Some(entry.name.clone());
+            } else if !valid_theme_filename(&entry.name) {
+                return Err(ThemePackageError::InvalidEntry);
             }
         }
         let theme_xml_name = theme_xml_name.ok_or(ThemePackageError::MissingThemeXml)?;
@@ -125,6 +182,12 @@ impl ThemePackage {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn widescreen_theme_background_does_not_fall_back_to_4_by_3_asset() {
+        assert_eq!(background_asset(true), "background_wide.png");
+        assert_eq!(background_asset(false), "background.png");
+    }
     use alloc::format;
 
     fn zip(files: &[(&str, &[u8])]) -> Vec<u8> {
@@ -195,22 +258,26 @@ mod tests {
     }
 
     #[test]
-    fn requires_theme_xml_and_ignores_safe_unrelated_files() {
+    fn requires_root_theme_xml_and_rejects_unsupported_files() {
         assert_eq!(
             ThemePackage::parse(&zip(&[("button.png", b"image")])),
             Err(ThemePackageError::MissingThemeXml)
         );
         assert_eq!(
             ThemePackage::parse(&zip(&[("folder/theme.xml", THEME_XML)])),
-            Err(ThemePackageError::MissingThemeXml)
+            Err(ThemePackageError::InvalidEntry)
         );
         let package = ThemePackage::parse(&zip(&[
             ("theme.xml", THEME_XML),
-            ("other.bin", b"x"),
-            ("folder/unrelated.dat", b"y"),
+            ("README.txt", b"theme info"),
+            ("button.png", b"image"),
         ]))
         .unwrap();
         assert_eq!(package.theme_xml_name(), "theme.xml");
+        assert_eq!(
+            ThemePackage::parse(&zip(&[("theme.xml", THEME_XML), ("other.bin", b"x")])),
+            Err(ThemePackageError::InvalidEntry)
+        );
         assert!(matches!(
             ThemePackage::parse(&zip(&[("theme.xml", THEME_XML), ("../evil.txt", b"x")])),
             Err(ThemePackageError::InvalidArchive(_))
@@ -257,15 +324,18 @@ mod tests {
     }
 
     #[test]
-    fn accepts_hbc_assets_and_rejects_unsafe_unrelated_paths() {
+    fn accepts_hbc_assets_and_rejects_unrelated_files_and_unsafe_paths() {
         let package = ThemePackage::parse(&zip(&[
             ("theme.xml", THEME_XML),
             ("throbber.png", b"image"),
             ("progress.png", b"image"),
-            ("other.bin", b"x"),
         ]))
         .unwrap();
         assert_eq!(package.theme_xml_name(), "theme.xml");
+        assert_eq!(
+            ThemePackage::parse(&zip(&[("theme.xml", THEME_XML), ("other.bin", b"x")])),
+            Err(ThemePackageError::InvalidEntry)
+        );
         assert!(matches!(
             ThemePackage::parse(&zip(&[("theme.xml", THEME_XML), ("../outside.bin", b"x")])),
             Err(ThemePackageError::InvalidArchive(_))

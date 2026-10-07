@@ -12,6 +12,7 @@ const INITIALIZING: u8 = 1;
 const READY: u8 = 2;
 const FAILED: u8 = 3;
 const INVALID_DIRECTORY_ERROR: i32 = i32::MIN;
+const IPC_EQUEUEFULL: i32 = -8;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum TitlePathError {
@@ -106,6 +107,10 @@ impl TitleDataDirectoryCache {
                             unsafe { *self.directory.get() = directory.bytes };
                             self.state.store(READY, Ordering::Release);
                         }
+                        Err(TitlePathError::Es(error)) if error == IPC_EQUEUEFULL => {
+                            self.state.store(UNINITIALIZED, Ordering::Release);
+                            return Err(TitlePathError::Es(error));
+                        }
                         Err(TitlePathError::Es(error)) => {
                             self.error.store(error, Ordering::Relaxed);
                             self.state.store(FAILED, Ordering::Release);
@@ -178,6 +183,27 @@ mod tests {
             second.file_path("theme.zip").unwrap().as_bytes(),
             b"/title/00010001/48424345/data/theme.zip"
         );
+    }
+
+    #[test]
+    fn queue_full_es_error_is_not_cached() {
+        let cache = CachedTitleDataDirectory::new();
+        let calls = Cell::new(0);
+        assert_eq!(
+            cache.get_or_init(|| {
+                calls.set(calls.get() + 1);
+                Err(TitlePathError::Es(super::IPC_EQUEUEFULL))
+            }),
+            Err(TitlePathError::Es(super::IPC_EQUEUEFULL))
+        );
+        let recovered = cache
+            .get_or_init(|| {
+                calls.set(calls.get() + 1);
+                Ok(title_data_directory())
+            })
+            .unwrap();
+        assert_eq!(calls.get(), 2);
+        assert_eq!(cache.get_or_init(|| unreachable!()), Ok(recovered));
     }
 
     #[test]

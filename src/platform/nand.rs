@@ -27,8 +27,8 @@ pub(crate) enum ReplaceError {
 }
 
 #[cfg(any(target_arch = "powerpc", test))]
-pub(crate) fn is_missing_isfs_error(error: i32) -> bool {
-    error == ogc_filesystem::ISFS_ENOENT
+pub(crate) fn is_missing_isfs_error(error: i32, missing_error: i32) -> bool {
+    error == missing_error
 }
 
 #[cfg(any(target_arch = "powerpc", test))]
@@ -226,9 +226,7 @@ fn sibling_path(path: &str, suffix: &str) -> String {
 
 #[cfg(target_arch = "powerpc")]
 mod wii {
-    use super::{
-        is_missing_isfs_error, recover_file_for_load, replace_file, ReplaceBackend,
-    };
+    use super::{is_missing_isfs_error, recover_file_for_load, replace_file, ReplaceBackend};
     use crate::platform::settings::SettingsIoError;
     use alloc::ffi::CString;
     use alloc::vec::Vec;
@@ -279,7 +277,9 @@ mod wii {
                         Ok(true)
                     }
                 }
-                Err(error) if is_missing_isfs_error(error) => Ok(false),
+                Err(error) if is_missing_isfs_error(error, ogc_filesystem::ISFS_ENOENT) => {
+                    Ok(false)
+                }
                 Err(error) => Err(error),
             }
         }
@@ -288,7 +288,9 @@ mod wii {
             let path = CString::new(path).map_err(|_| isfs::ISFS_EINVAL)?;
             let file = match isfs::open(&path, isfs::ISFS_OPEN_READ) {
                 Ok(file) => file,
-                Err(error) if is_missing_isfs_error(error) => return Ok(None),
+                Err(error) if is_missing_isfs_error(error, ogc_filesystem::ISFS_ENOENT) => {
+                    return Ok(None)
+                }
                 Err(error) => return Err(error),
             };
             let mut stats = AlignedFstats(isfs::Fstats::default());
@@ -355,6 +357,17 @@ mod wii {
         }
     }
 
+    pub(crate) fn read_file(
+        path: &CString,
+        max_size: usize,
+    ) -> Result<Option<Vec<u8>>, SettingsIoError> {
+        let path = path.to_str().map_err(|_| SettingsIoError::InvalidPath)?;
+        let mut backend = IsfsBackend;
+        backend
+            .read_bounded(path, max_size)
+            .map_err(SettingsIoError::Isfs)
+    }
+
     pub(crate) fn save(path: &CString, bytes: &[u8]) -> Result<(), SettingsIoError> {
         let path = path.to_str().map_err(|_| SettingsIoError::InvalidPath)?;
         replace_file(&mut IsfsBackend, path, bytes).map_err(SettingsIoError::from_replace)
@@ -372,12 +385,14 @@ mod wii {
 }
 
 #[cfg(target_arch = "powerpc")]
+pub(crate) use wii::read_file as read_file_wii;
+#[cfg(target_arch = "powerpc")]
 pub(crate) use wii::save as save_wii;
 
 #[cfg(target_arch = "powerpc")]
-pub(crate) use wii::recover as recover_wii;
-#[cfg(target_arch = "powerpc")]
 pub(crate) use wii::read_exact_aligned as read_exact_wii;
+#[cfg(target_arch = "powerpc")]
+pub(crate) use wii::recover as recover_wii;
 
 #[cfg(test)]
 mod tests {
@@ -386,8 +401,8 @@ mod tests {
 
     #[test]
     fn isfs_missing_uses_filesystem_error_namespace() {
-        assert!(is_missing_isfs_error(-106));
-        assert!(!is_missing_isfs_error(ogc_ipc::IPC_ENOENT));
+        assert!(is_missing_isfs_error(-106, -106));
+        assert!(!is_missing_isfs_error(-6, -106));
     }
 
     #[derive(Default)]
