@@ -171,7 +171,10 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         }
 
         startup.poll_storage_scan();
-        if startup.poll_device_availability().is_err() {
+        if let Err(error) = startup.poll_device_availability() {
+            ogc_system::report(format_args!(
+                "HBC: storage availability probe failed: {error:?}\n"
+            ));
             startup.runtime_mut().show_notice_with_kind(
                 "Could not refresh storage devices.",
                 hbc_rs::app::NoticeKind::Error,
@@ -347,14 +350,18 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         if frames_since_storage_scan == 30 {
             frames_since_storage_scan = 0;
             if startup.runtime().controller().screen == hbc_rs::app::Screen::Options {
-                if startup.refresh_device_availability().is_err() {
+                if let Err(error) = startup.refresh_device_availability() {
+                    ogc_system::report(format_args!(
+                        "HBC: could not start storage availability probe: {error:?}\n"
+                    ));
                     startup.runtime_mut().show_notice_with_kind(
                         "Could not refresh storage devices.",
                         hbc_rs::app::NoticeKind::Error,
                     );
                 }
             }
-            if startup.refresh_storage().is_err() {
+            if let Err(error) = startup.refresh_storage() {
+                ogc_system::report(format_args!("HBC: storage refresh failed: {error:?}\n"));
                 startup.runtime_mut().show_notice_with_kind(
                     "Could not refresh storage devices.",
                     hbc_rs::app::NoticeKind::Error,

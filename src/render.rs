@@ -704,14 +704,17 @@ impl Frame {
             self.unfocused_button_style.clone()
         };
         self.set_text_style(style);
-        let text_width = label.chars().count() as f32 * 6.0 * self.text_scale;
+        let char_advance = self
+            .text_size
+            .map_or(6.0 * self.text_scale, |size| size as f32 * 0.55);
+        let text_width = label.chars().count() as f32 * char_advance;
         self.text(
             x + ((width - text_width).max(0.0) / 2.0),
             y + 20.0,
             label,
             1.0,
             color,
-            (width / (6.0 * self.text_scale)).max(1.0) as usize,
+            (width / char_advance).max(1.0) as usize,
         );
         bounds
     }
@@ -1163,17 +1166,22 @@ pub fn browser_frame_with_language(
             frame.text(299.0, 60.0, tr("Options"), 1.0, text_color, 24);
             frame.set_text_style(theme_text_style(theme, "label", text_color));
             frame.text(92.0, 104.0, tr("Device:"), 1.0, text_color, 32);
+            let device_color = |index| {
+                if controller.device_available(index) == Some(false) {
+                    MUTED
+                } else if controller.pending_device() == index as i32 {
+                    ACCENT
+                } else {
+                    text_color
+                }
+            };
             let bounds = frame.button(
                 112.0,
                 108.0,
                 ButtonSize::Small,
                 controller.options_focus() == 0,
                 tr("Internal SD Slot"),
-                if controller.pending_device() == 0 {
-                    ACCENT
-                } else {
-                    text_color
-                },
+                device_color(0),
             );
             frame.hit_target(PointerTarget::Option(0), bounds);
             let bounds = frame.button(
@@ -1182,52 +1190,31 @@ pub fn browser_frame_with_language(
                 ButtonSize::Small,
                 controller.options_focus() == 1,
                 tr("USB device"),
-                if controller.pending_device() == 1 {
-                    ACCENT
-                } else {
-                    text_color
-                },
+                device_color(1),
             );
             frame.hit_target(PointerTarget::Option(1), bounds);
-            let status = |index| match controller.device_available(index) {
-                Some(true) => tr("Available"),
-                Some(false) => tr("Unavailable"),
-                None => tr("Checking"),
-            };
-            frame.text(133.0, 145.0, status(0), 0.8, MUTED, 18);
-            frame.text(349.0, 145.0, status(1), 0.8, MUTED, 18);
             let bounds = frame.button(
                 112.0,
-                172.0,
+                164.0,
                 ButtonSize::Small,
                 controller.options_focus() == 2,
                 tr("SDGecko Slot A"),
-                if controller.pending_device() == 2 {
-                    ACCENT
-                } else {
-                    text_color
-                },
+                device_color(2),
             );
             frame.hit_target(PointerTarget::Option(2), bounds);
             let bounds = frame.button(
                 328.0,
-                172.0,
+                164.0,
                 ButtonSize::Small,
                 controller.options_focus() == 3,
                 tr("SDGecko Slot B"),
-                if controller.pending_device() == 3 {
-                    ACCENT
-                } else {
-                    text_color
-                },
+                device_color(3),
             );
             frame.hit_target(PointerTarget::Option(3), bounds);
-            frame.text(133.0, 205.0, status(2), 0.8, MUTED, 18);
-            frame.text(349.0, 205.0, status(3), 0.8, MUTED, 18);
             frame.set_text_style(theme_text_style(theme, "label", text_color));
             frame.text(
                 92.0,
-                226.0,
+                210.0,
                 tr("Sort applications by:"),
                 1.0,
                 text_color,
@@ -1262,7 +1249,7 @@ pub fn browser_frame_with_language(
             let bounds = frame.button(
                 224.0,
                 286.0,
-                ButtonSize::Tiny,
+                ButtonSize::Small,
                 controller.options_focus() == 8,
                 tr("Network setup"),
                 text_color,
@@ -2547,6 +2534,42 @@ mod tests {
     }
 
     #[test]
+    fn options_device_labels_do_not_overlap_with_availability_text() {
+        let mut controller = AppController::new();
+        controller.screen = Screen::Options;
+        controller.set_device_availability([false; 4]);
+        let theme = ThemeMetadata {
+            default_font: crate::metadata::ThemeFont {
+                file: Some(String::from("droid.ttf")),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let frame = browser_frame_with_theme(&controller, &[], Some(&theme));
+        let labels: Vec<_> = frame
+            .text_runs
+            .iter()
+            .map(|run| run.value.as_str())
+            .collect();
+        for label in [
+            "Internal SD Slot",
+            "USB device",
+            "SDGecko Slot A",
+            "SDGecko Slot B",
+            "Network setup",
+        ] {
+            assert!(
+                labels.contains(&label),
+                "missing option label {label:?}; rendered {labels:?}"
+            );
+        }
+        assert!(!labels
+            .iter()
+            .any(|label| { matches!(*label, "Available" | "Unavailable" | "Checking") }));
+    }
+
+    #[test]
     fn app_details_exposes_the_description_as_a_drag_target() {
         let catalog = vec![app("one")];
         let mut controller = AppController::new();
@@ -2619,8 +2642,8 @@ mod tests {
         for expected in [
             rect(112, 108, 200, 48),
             rect(328, 108, 200, 48),
-            rect(112, 172, 200, 48),
-            rect(328, 172, 200, 48),
+            rect(112, 164, 200, 48),
+            rect(328, 164, 200, 48),
         ] {
             assert!(frame.commands.iter().any(|command| matches!(
                 command,

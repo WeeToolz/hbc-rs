@@ -22,6 +22,20 @@ impl StoragePresence {
     }
 }
 
+/// Treat absent interfaces and removed media as unavailable devices. Preserve
+/// other probe failures so Options can report real storage errors.
+#[cfg(any(test, target_arch = "powerpc"))]
+pub(crate) fn classify_device_presence<E: PartialEq>(
+    result: Result<bool, E>,
+    device_unavailable: E,
+    media_removed: E,
+) -> Result<bool, E> {
+    match result {
+        Err(error) if error == device_unavailable || error == media_removed => Ok(false),
+        result => result,
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Volume {
     Sd,
@@ -76,7 +90,7 @@ pub fn device_scan_order(preference: i32) -> [Volume; 4] {
 
 #[cfg(test)]
 mod device_selection_tests {
-    use super::{device_scan_order, StoragePresence, Volume};
+    use super::{classify_device_presence, device_scan_order, StoragePresence, Volume};
 
     #[test]
     fn no_storage_notice_is_not_reopened_by_repeated_scans() {
@@ -86,6 +100,25 @@ mod device_selection_tests {
         assert!(!presence.report_missing(false));
         assert!(!presence.report_missing(true));
         assert!(presence.report_missing(false));
+    }
+
+    #[test]
+    fn absent_or_removed_device_is_unavailable_without_hiding_other_errors() {
+        #[derive(Debug, Eq, PartialEq)]
+        enum ProbeError {
+            DeviceUnavailable,
+            MediaRemoved,
+            Io,
+        }
+
+        use ProbeError::{DeviceUnavailable, Io, MediaRemoved};
+        let classify = |result| classify_device_presence(result, DeviceUnavailable, MediaRemoved);
+
+        assert_eq!(classify(Ok(true)), Ok(true));
+        assert_eq!(classify(Ok(false)), Ok(false));
+        assert_eq!(classify(Err(DeviceUnavailable)), Ok(false));
+        assert_eq!(classify(Err(MediaRemoved)), Ok(false));
+        assert_eq!(classify(Err(Io)), Err(Io));
     }
 
     #[test]

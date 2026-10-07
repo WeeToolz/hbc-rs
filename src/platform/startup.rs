@@ -17,7 +17,7 @@ use crate::{
     metadata::{ThemeMetadata, UserSettings},
     platform::{
         input, settings,
-        storage::{device_scan_order, FatStorage, StorageError, Volume},
+        storage::{classify_device_presence, device_scan_order, FatStorage, StorageError, Volume},
     },
     runtime::AppRuntime,
 };
@@ -481,7 +481,11 @@ fn probe_one_device(volume: Volume) -> Result<bool, ogc_fat::FatError> {
         Volume::CardA => ogc_fat::MountSource::CardA,
         Volume::CardB => ogc_fat::MountSource::CardB,
     };
-    ogc_fat::device_is_inserted(source)
+    classify_device_presence(
+        ogc_fat::device_is_inserted(source),
+        ogc_fat::FatError::DeviceUnavailable,
+        ogc_fat::FatError::MediaRemoved,
+    )
 }
 
 unsafe extern "C" fn device_probe_entry(_argument: *mut c_void) -> *mut c_void {

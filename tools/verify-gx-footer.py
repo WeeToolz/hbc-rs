@@ -16,7 +16,7 @@ import zlib
 
 root = Path(__file__).resolve().parents[1]
 from dolphin_capture_config import configure_capture_profile
-parser = argparse.ArgumentParser(description='Capture the production HBC notice, footer, and menu paths in Dolphin.')
+parser = argparse.ArgumentParser(description='Capture production HBC notice, footer, menu, and Options paths in Dolphin.')
 parser.add_argument('--label', default='fixed')
 parser.add_argument('--dol', type=Path, default=root / 'target/hbc-rs.dol')
 parser.add_argument('--elf', type=Path, default=root / 'target/powerpc-nintendo-none/release/hbc-rs')
@@ -37,7 +37,7 @@ with socket.socket() as port_check:
 configure_capture_profile(profile)
 config = profile / 'Config'
 (config / 'Dolphin.ini').write_text('[Core]\nCPUThread = False\nSIDevice0 = 6\nSIDevice1 = 0\nSIDevice2 = 0\nSIDevice3 = 0\nWiiSDCard = False\n[Interface]\nConfirmStop = False\nUsePanicHandlers = False\n[Input]\nBackgroundInput = True\n')
-(config / 'GCPadNew.ini').write_text('[GCPad1]\nDevice = Pipe/0/footer\nButtons/A = `Button A`\nButtons/B = `Button B`\nButtons/Start = `Button START`\n')
+(config / 'GCPadNew.ini').write_text('[GCPad1]\nDevice = Pipe/0/footer\nButtons/A = `Button A`\nButtons/B = `Button B`\nButtons/X = `Button X`\nButtons/Start = `Button START`\n')
 (config / 'Logger.ini').write_text('[Options]\nWriteToFile = True\nWriteToConsole = True\nVerbosity = 3\n[Logs]\nVIDEO = True\nCOMMANDPROCESSOR = True\nOSREPORT = True\nCONTROLLERINTERFACE = True\n')
 pipes = profile / 'Pipes'
 pipes.mkdir(exist_ok=True)
@@ -158,6 +158,18 @@ try:
         button('B', False)
         run(5)
         capture('browser-return')
+        button('X', True)
+        run(1)
+        button('X', False)
+        run(2)
+        capture('options')
+        run(3)
+        capture('options-idle')
+        button('B', True)
+        run(1)
+        button('B', False)
+        run(3)
+        capture('browser-after-options')
         remaining = args.idle_seconds
         while remaining:
             interval = min(20, remaining)
