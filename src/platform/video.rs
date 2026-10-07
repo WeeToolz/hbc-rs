@@ -437,40 +437,10 @@ pub fn initialize(widescreen: bool) -> Result<VideoSystem, VideoError> {
     unsafe {
         ogc_video::set_next_framebuffer(framebuffer);
     }
-    #[cfg(feature = "startup-diagnostics")]
-    {
-        let framebuffer_k1 = ogc_core::mem_k0_to_k1(framebuffer as usize) as *const u8;
-        let mut xfb_has_visible_luma = false;
-        let mut xfb_has_nonzero_luma = false;
-        let mut xfb_has_any_data = false;
-        for offset in 0..byte_len as usize {
-            let value = unsafe { core::ptr::read_volatile(framebuffer_k1.add(offset)) };
-            xfb_has_any_data |= value != 0;
-            if offset % 2 == 0 {
-                xfb_has_nonzero_luma |= value != 0;
-                xfb_has_visible_luma |= super::diagnostics::has_visible_luma(value);
-            }
-        }
-        let clear_is_visible = xfb_has_visible_luma;
-        if !clear_is_visible {
-            let reason = if xfb_has_nonzero_luma {
-                "GX XFB LOW LUMA DATA"
-            } else if xfb_has_any_data {
-                "GX XFB CHROMA ONLY"
-            } else {
-                "GX XFB ALL ZERO"
-            };
-            if super::diagnostics::fail(reason) {
-                unsafe { ogc_system::reset_system(ogc_system::SYS_RESTART as i32, 0, 0) };
-                loop {
-                    core::hint::spin_loop();
-                }
-            }
-            loop {
-                super::diagnostics::hold();
-            }
-        }
-    }
+    // The initial EFB/XFB clear is not the displayed scene. Continue to the
+    // first rendered-frame probe, which checks GX output after drawing a known
+    // white square. A low-luma clear alone does not prove that scene rendering
+    // failed.
     ogc_video::flush();
     for _ in 0..4 {
         ogc_video::wait_vsync();
