@@ -1,0 +1,15 @@
+initial T0f40:80004000;01:8004d4bc;
+stop T0540:800ff418;01:80452558;
+capture notice 0x80556e00
+stop T0540:800ff4e8;01:80452558;
+stop T0540:800ff418;01:80452558;
+capture browser 0x80556e00
+stop T0540:800ff418;01:80452558;
+stop T0540:800ff418;01:80452558;
+capture menu 0x80556e00
+stop T0540:800ff4e8;01:80452558;
+stop T0540:80102004;01:80452548;
+capture browser-return 0x80556e00
+capture browser-idle 0x80556e00
+Unknown Opcode occurrences: 0
+Capture complete. Review the PNG files for the requested screen transitions.

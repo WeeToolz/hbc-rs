@@ -1,0 +1,7 @@
+initial T0f40:80004000;01:8004d4bc;
+stop T0540:80102e48;01:804527f8;
+capture notice 0x80557100
+stop T0540:800ff368;01:80452858;
+stop 
+capture browser 0x80557100
+Unknown Opcode occurrences: 2360

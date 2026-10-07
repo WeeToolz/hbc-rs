@@ -1,0 +1,11 @@
+{
+  "dol": "/Volumes/SSD/projects/Wii/wiidev/RustWii/RustPorts/hbc-rs/target/hbc-rs.dol",
+  "fifo_error_count": 0,
+  "dolphin_exit": 0,
+  "completed": true,
+  "dol_sha256": "73e3a3a62cf6d8d375c6d63188e3e5eae96fe433e52f54e0c824c5efa8213a33",
+  "elapsed_seconds": 26.83,
+  "idle_seconds": 0,
+  "expected_fifo_errors": false,
+  "visual_review_required": true
+}

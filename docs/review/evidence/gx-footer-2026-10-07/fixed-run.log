@@ -1,0 +1,18 @@
+initial T0f40:80004000;01:8004d4bc;
+stop T0540:8010232c;01:80452518;
+capture notice 0x80556e00
+stop T0540:800ff4e8;01:80452558;
+stop T0540:801030d4;01:804524f8;
+capture browser 0x80556e00
+stop T0540:800ff4e8;01:80452558;
+stop T0540:800ff4e8;01:80452558;
+capture menu 0x80556e00
+stop T0540:80102fc8;01:804524f8;
+stop T0540:800ff418;01:80452558;
+capture browser-return 0x80556e00
+stop T0540:800ff4e8;01:80452558;
+stop T0540:8010301c;01:804524f8;
+stop T0540:8010232c;01:80452518;
+capture browser-idle 0x80556e00
+Unknown Opcode occurrences: 0
+PASS: completed the requested production rendering scenario
