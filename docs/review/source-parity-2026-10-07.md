@@ -29,3 +29,9 @@ The three ledger rows marked `out_of_scope` are intentionally excluded from this
 ## Review status
 
 All 34 in-scope ledger rows have `review=source_reviewed` and record implemented source coverage. Wii verification remains pending for the areas listed in the ledger. The three out-of-scope rows remain excluded. No hardware-pending item is represented as hardware-verified.
+
+## 2026-10-07 Dolphin startup and rendering follow-up
+
+The production HBC DOL now renders glyphs with partial GX tiles. Texture creation failures are returned, textured quads map image rows to the matching screen rows, and all owned GX texture buffers are cache-flushed by their shared constructor. The storage worker now completes its FAT mutex operations because LWP synchronization objects use one-based handles, separate from complemented-pointer thread handles. Host regression tests cover partial tile padding, texture orientation, and synchronization handle bounds.
+
+An isolated Dolphin run of the release DOL completed storage discovery across SD, USB, and both GameCube memory-card slots. With no emulated SD or USB volume configured, the DOL displayed the expected no-storage notice. A direct read from Dolphin's XFB showed legible dialog text and normally oriented artwork. Wii hardware checks remain pending.
