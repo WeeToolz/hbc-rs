@@ -15,6 +15,112 @@ const IDAT: [u8; 4] = *b"IDAT";
 const IEND: [u8; 4] = *b"IEND";
 const TRNS: [u8; 4] = *b"tRNS";
 
+/// Encode a bounded top-to-bottom RGBA image as a PNG using filter type zero.
+pub fn encode_rgba_png(width: u32, height: u32, pixels: &[u8]) -> Result<Vec<u8>, PngError> {
+    const MAX_SCREENSHOT_DIMENSION: u32 = 1024;
+    if width == 0
+        || height == 0
+        || width > MAX_SCREENSHOT_DIMENSION
+        || height > MAX_SCREENSHOT_DIMENSION
+    {
+        return Err(PngError::InvalidDimensions);
+    }
+    let row_bytes = usize::try_from(width)
+        .ok()
+        .and_then(|width| width.checked_mul(4))
+        .ok_or(PngError::InvalidDimensions)?;
+    let expected_len = row_bytes
+        .checked_mul(usize::try_from(height).map_err(|_| PngError::InvalidDimensions)?)
+        .ok_or(PngError::InvalidDimensions)?;
+    if pixels.len() != expected_len {
+        return Err(PngError::InvalidDimensions);
+    }
+
+    let filtered_len = row_bytes
+        .checked_add(1)
+        .and_then(|scanline| scanline.checked_mul(height as usize))
+        .ok_or(PngError::InvalidDimensions)?;
+    let mut filtered = Vec::new();
+    filtered
+        .try_reserve_exact(filtered_len)
+        .map_err(|_| PngError::AllocationFailed)?;
+    for row in pixels.chunks_exact(row_bytes) {
+        filtered.push(0);
+        filtered.extend_from_slice(row);
+    }
+    let deflate_blocks = filtered.len().div_ceil(65_535);
+    let zlib_len = filtered_len
+        .checked_add(
+            deflate_blocks
+                .checked_mul(5)
+                .ok_or(PngError::InputTooLarge)?,
+        )
+        .and_then(|length| length.checked_add(6))
+        .ok_or(PngError::InputTooLarge)?;
+    let idat_len = u32::try_from(zlib_len).map_err(|_| PngError::InputTooLarge)?;
+    let mut output = Vec::new();
+    output
+        .try_reserve_exact(zlib_len.checked_add(57).ok_or(PngError::InputTooLarge)?)
+        .map_err(|_| PngError::AllocationFailed)?;
+    output.extend_from_slice(PNG_SIGNATURE);
+    let mut header = [0; 13];
+    header[..4].copy_from_slice(&width.to_be_bytes());
+    header[4..8].copy_from_slice(&height.to_be_bytes());
+    header[8..13].copy_from_slice(&[8, 6, 0, 0, 0]);
+    append_png_chunk(&mut output, &IHDR, &header)?;
+    output.extend_from_slice(&idat_len.to_be_bytes());
+    output.extend_from_slice(&IDAT);
+    let mut crc = crc32fast::Hasher::new();
+    crc.update(&IDAT);
+    let zlib_header = [0x78, 0x01];
+    output.extend_from_slice(&zlib_header);
+    crc.update(&zlib_header);
+    let mut adler_a = 1u32;
+    let mut adler_b = 0u32;
+    let block_count = filtered.len().div_ceil(65_535);
+    for (index, block) in filtered.chunks(65_535).enumerate() {
+        let is_final = index + 1 == block_count;
+        let length = block.len() as u16;
+        let block_header = [
+            u8::from(is_final),
+            length as u8,
+            (length >> 8) as u8,
+            (!length) as u8,
+            ((!length) >> 8) as u8,
+        ];
+        output.extend_from_slice(&block_header);
+        output.extend_from_slice(block);
+        crc.update(&block_header);
+        crc.update(block);
+        for byte in block {
+            adler_a = (adler_a + u32::from(*byte)) % 65_521;
+            adler_b = (adler_b + adler_a) % 65_521;
+        }
+    }
+    let adler = ((adler_b << 16) | adler_a).to_be_bytes();
+    output.extend_from_slice(&adler);
+    crc.update(&adler);
+    output.extend_from_slice(&crc.finalize().to_be_bytes());
+    append_png_chunk(&mut output, &IEND, &[])?;
+    Ok(output)
+}
+
+fn append_png_chunk(output: &mut Vec<u8>, kind: &[u8; 4], data: &[u8]) -> Result<(), PngError> {
+    let length = u32::try_from(data.len()).map_err(|_| PngError::InputTooLarge)?;
+    let addition = data.len().checked_add(12).ok_or(PngError::InputTooLarge)?;
+    output
+        .try_reserve(addition)
+        .map_err(|_| PngError::AllocationFailed)?;
+    output.extend_from_slice(&length.to_be_bytes());
+    output.extend_from_slice(kind);
+    output.extend_from_slice(data);
+    let mut crc = crc32fast::Hasher::new();
+    crc.update(kind);
+    crc.update(data);
+    output.extend_from_slice(&crc.finalize().to_be_bytes());
+    Ok(())
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct PngLimits {
     pub max_width: u32,
@@ -756,6 +862,41 @@ mod tests {
         hasher.update(kind);
         hasher.update(payload);
         out.extend_from_slice(&hasher.finalize().to_be_bytes());
+    }
+
+    #[test]
+    fn rgba_encoder_writes_a_png_that_decodes_to_the_exact_pixels() {
+        let pixels = [0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0];
+        let encoded = encode_rgba_png(2, 1, &pixels).unwrap();
+        assert_eq!(&encoded[..8], PNG_SIGNATURE);
+        assert_eq!(read_u32(&encoded, 16).unwrap(), 2);
+        assert_eq!(read_u32(&encoded, 20).unwrap(), 1);
+        assert_eq!(read_u32(&encoded, 29).unwrap(), 0xf422_7f8a);
+        assert_eq!(
+            &encoded[41..61],
+            &[
+                0x78, 0x01, 0x01, 0x09, 0x00, 0xf6, 0xff, 0x00, 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc,
+                0xde, 0xf0, 0x0d, 0xa9, 0x04, 0x39,
+            ]
+        );
+        assert_eq!(read_u32(&encoded, 61).unwrap(), 0x5c51_6bba);
+        let decoded = decode_png(&encoded, PngLimits::default()).unwrap();
+        assert_eq!(decoded.width, 2);
+        assert_eq!(decoded.height, 1);
+        assert_eq!(decoded.pixels, pixels);
+    }
+
+    #[test]
+    fn rgba_encoder_rejects_invalid_dimensions_and_pixel_lengths() {
+        assert_eq!(encode_rgba_png(0, 1, &[]), Err(PngError::InvalidDimensions));
+        assert_eq!(
+            encode_rgba_png(1025, 1, &[0; 4100]),
+            Err(PngError::InvalidDimensions)
+        );
+        assert_eq!(
+            encode_rgba_png(1, 1, &[0; 3]),
+            Err(PngError::InvalidDimensions)
+        );
     }
 
     fn png(width: u32, height: u32, depth: u8, color: u8, interlace: u8, raw: &[u8]) -> Vec<u8> {

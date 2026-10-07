@@ -26,11 +26,40 @@ pub struct VideoSystem {
     config: ogc_gx::FrameConfig,
     framebuffer: *mut core::ffi::c_void,
     info: FramebufferInfo,
+    efb_height: u16,
 }
 
 impl VideoSystem {
     pub fn info(&self) -> FramebufferInfo {
         self.info
+    }
+
+    /// Read the completed EFB into a top-to-bottom RGBA8 image.
+    pub fn capture_efb_rgba(&self) -> Result<crate::png::RgbaImage, VideoError> {
+        let width = self.info.width;
+        let height = self.efb_height;
+        let byte_len = usize::from(width)
+            .checked_mul(usize::from(height))
+            .and_then(|pixels| pixels.checked_mul(4))
+            .filter(|_| width != 0 && height != 0 && width <= 1024 && height <= 1024)
+            .ok_or(VideoError::InvalidCaptureDimensions)?;
+        let mut pixels = alloc::vec::Vec::new();
+        pixels
+            .try_reserve_exact(byte_len)
+            .map_err(|_| VideoError::CaptureAllocation)?;
+        ogc_gx::draw_done();
+        for y in 0..height {
+            for x in 0..width {
+                let mut color = ogc_gx::GxColor::default();
+                unsafe { ogc_gx::peek_argb(x, y, &mut color) };
+                pixels.extend_from_slice(&[color.r, color.g, color.b, color.a]);
+            }
+        }
+        Ok(crate::png::RgbaImage {
+            width: u32::from(width),
+            height: u32::from(height),
+            pixels,
+        })
     }
 
     #[cfg(feature = "startup-diagnostics")]
@@ -238,6 +267,8 @@ pub enum VideoError {
     GxFifo(ogc_gx::GxFifoError),
     GxDrawTimeout,
     ViRetraceTimeout,
+    InvalidCaptureDimensions,
+    CaptureAllocation,
     GxRect(ogc_gx::GxRectError),
     GxTexture(ogc_gx::GxTextureError),
 }
@@ -422,6 +453,7 @@ pub fn initialize(widescreen: bool) -> Result<VideoSystem, VideoError> {
             height: mode.xfb_height,
             byte_len,
         },
+        efb_height: mode.efb_height,
     })
 }
 

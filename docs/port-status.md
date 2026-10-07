@@ -63,6 +63,12 @@ separate targets.
   SD Gecko slots on a worker while Options is open, then displays the completed
   availability snapshot without blocking the main loop. The worker
   leaves existing mounts registered and unmounts only a volume it mounted itself.
+- Screenshot capture matches the enabled C controller chord: hold Nunchuk Z or
+  Classic ZR and press Nunchuk C or Classic ZL. Rust reads the rendered EFB,
+  writes an RGBA PNG as the next unused `hbc-000.png` to `hbc-999.png` on the
+  selected mounted volume, and reports capture, encode, write, or cleanup errors.
+  Host tests and the Wii target build pass; capture and file output still need
+  verification in Dolphin and on Wii hardware.
 
 ## Remaining runtime work
 
@@ -226,7 +232,9 @@ target has no `test` crate.
 
 ## Open parity and verification work
 
-- The source review is complete for the tracked HBC paths. HBC scene artwork is
+- The source review is complete for the tracked HBC paths. Screenshot capture
+  is implemented; controller, EFB and PNG file output remain pending runtime
+  verification. HBC scene artwork is
   implemented; visual comparison on Dolphin and Wii remains pending. App
   scanning now streams directory entries and stops
   after C’s 1024 valid-app limit, so many unrelated files do not cause a false

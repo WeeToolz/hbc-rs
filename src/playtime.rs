@@ -1,6 +1,7 @@
 //! Checked reset logic for HBC's four-byte System Menu playtime record.
 
 #[derive(Debug, Eq, PartialEq)]
+#[cfg(any(test, target_arch = "powerpc"))]
 pub(crate) enum ResetError<E> {
     Operation(E),
     VerificationMismatch,
@@ -10,6 +11,7 @@ pub(crate) enum ResetError<E> {
 ///
 /// The caller owns the path and storage checks. This shared path confirms that
 /// the record exists before it writes, then reads the committed bytes back.
+#[cfg(any(test, target_arch = "powerpc"))]
 pub(crate) fn reset_record_with<E>(
     mut read: impl FnMut() -> Result<[u8; 4], E>,
     mut write: impl FnMut([u8; 4]) -> Result<(), E>,

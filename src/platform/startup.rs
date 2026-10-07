@@ -831,6 +831,15 @@ impl WiiStartup {
         self.storage.is_some()
     }
 
+    /// Save a PNG screenshot to the currently selected mounted volume.
+    pub fn save_screenshot_png(&self, bytes: &[u8]) -> Result<String, StartupError> {
+        self.storage
+            .as_ref()
+            .ok_or(StartupError::NoStorage)?
+            .save_screenshot_png(bytes)
+            .map_err(StartupError::Storage)
+    }
+
     pub fn storage_scan_pending(&self) -> bool {
         self.scan_thread.is_some()
     }

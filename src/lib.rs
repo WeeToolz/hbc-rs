@@ -20,6 +20,7 @@ mod playtime;
 pub mod png;
 pub mod render;
 pub mod runtime;
+mod screenshot;
 pub mod settings;
 pub mod text_layout;
 pub mod theme;

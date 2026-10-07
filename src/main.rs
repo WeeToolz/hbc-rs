@@ -400,6 +400,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 .pressed
                 .retain(|input| *input != hbc_rs::app::Input::Confirm);
         }
+        let screenshot_requested = frame.screenshot_requested;
         let mut actions = startup.runtime_mut().update(&frame);
         let language = hbc_rs::localization::Language::from_console(
             ogc_conf::get_language(),
@@ -537,6 +538,26 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         #[cfg(feature = "startup-diagnostics")]
         if !display_ready {
             hbc_rs::platform::diagnostics::mark("GX COPY START");
+        }
+        if display_ready && screenshot_requested {
+            let saved = video
+                .capture_efb_rgba()
+                .map_err(|error| format!("frame capture: {error:?}"))
+                .and_then(|image| {
+                    hbc_rs::png::encode_rgba_png(image.width, image.height, &image.pixels)
+                        .map_err(|error| format!("PNG encode: {error:?}"))
+                })
+                .and_then(|bytes| {
+                    startup
+                        .save_screenshot_png(&bytes)
+                        .map_err(|error| format!("file save: {error:?}"))
+                });
+            if let Err(error) = saved {
+                startup.runtime_mut().show_notice_with_kind(
+                    &format!("Screenshot failed ({error})."),
+                    hbc_rs::app::NoticeKind::Error,
+                );
+            }
         }
         if let Err(_error) = unsafe { video.present() } {
             #[cfg(feature = "startup-diagnostics")]

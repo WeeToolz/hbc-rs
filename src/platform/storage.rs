@@ -95,6 +95,11 @@ pub enum StorageError {
     InvalidPath,
     Allocation,
     WriteZero,
+    ScreenshotLimit,
+    ScreenshotCleanup {
+        operation: ogc_fat::FatError,
+        cleanup: ogc_fat::FatError,
+    },
     DeleteDepth,
     DeleteEntryLimit,
     DirectoryNotOpen,
@@ -181,6 +186,48 @@ impl FatStorage {
             Err(ogc_fat::FatError::NotFound) => Ok(None),
             Err(error) => Err(StorageError::Fat(error)),
         }
+    }
+
+    /// Save a screenshot to the active volume without replacing an existing capture.
+    pub fn save_screenshot_png(&self, bytes: &[u8]) -> Result<String, StorageError> {
+        match crate::screenshot::save_png_with(
+            bytes,
+            |path| self.path_exists(path),
+            |path, bytes| self.write_screenshot_file(path, bytes),
+        ) {
+            Ok(path) => Ok(path),
+            Err(crate::screenshot::SaveError::Storage(error)) => Err(error),
+            Err(crate::screenshot::SaveError::IndexExhausted) => Err(StorageError::ScreenshotLimit),
+            Err(crate::screenshot::SaveError::AllocationFailed) => Err(StorageError::Allocation),
+        }
+    }
+
+    fn write_screenshot_file(&self, path: &str, bytes: &[u8]) -> Result<bool, StorageError> {
+        let full = self.full_path(path)?;
+        let mut file = match ogc_fat::FatFile::create_new(&full) {
+            Ok(file) => file,
+            Err(ogc_fat::FatError::AlreadyExists) => return Ok(false),
+            Err(error) => return Err(StorageError::Fat(error)),
+        };
+        let operation = (|| {
+            let mut offset = 0;
+            while offset < bytes.len() {
+                let written = file.write(&bytes[offset..])?;
+                if written == 0 {
+                    return Err(ogc_fat::FatError::Io);
+                }
+                offset += written;
+            }
+            file.flush()
+        })();
+        drop(file);
+        if let Err(operation) = operation {
+            if let Err(cleanup) = ogc_fat::remove_file(&full) {
+                return Err(StorageError::ScreenshotCleanup { operation, cleanup });
+            }
+            return Err(StorageError::Fat(operation));
+        }
+        Ok(true)
     }
 
     pub fn rename_path(&self, old_path: &str, new_path: &str) -> Result<(), StorageError> {

@@ -26,6 +26,8 @@ pub struct InputFrame {
     pub pointer_held: bool,
     /// Signed HBC-style vertical stick scroll in logical pixels for this frame.
     pub stick_scroll_pixels: i16,
+    /// Capture the rendered frame when the HBC network/screenshot chord is pressed.
+    pub screenshot_requested: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -71,6 +73,10 @@ impl Buttons {
     const PREVIOUS: u16 = 1 << 9;
     const NEXT: u16 = 1 << 10;
     const OPTIONS: u16 = 1 << 11;
+    #[cfg(any(test, target_arch = "powerpc"))]
+    const NETWORK_INIT: u16 = 1 << 12;
+    #[cfg(any(test, target_arch = "powerpc"))]
+    const SCREENSHOT: u16 = 1 << 13;
 }
 
 /// Map button masks to HBC logical actions. This is separate from scanning so
@@ -102,8 +108,7 @@ pub enum Extension {
 #[cfg(target_arch = "powerpc")]
 static POINTER_OWNER: AtomicI32 = AtomicI32::new(-1);
 
-/// Convert supported extension buttons to the matching Remote buttons.
-/// Nunchuk buttons do not map to HBC actions in the original controls layer.
+/// Convert supported Classic Controller buttons to the matching Remote buttons.
 pub fn map_extension_buttons(mask: u32, extension: Extension) -> u32 {
     let mut result = mask;
     match extension {
@@ -249,6 +254,26 @@ fn inputs(mask: Buttons) -> Vec<Input> {
     .into_iter()
     .filter(|input| mask.0 & bit_for(*input) != 0)
     .collect()
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+fn screenshot_chord(pressed: Buttons, held: Buttons) -> bool {
+    pressed.0 & Buttons::SCREENSHOT != 0 && held.0 & Buttons::NETWORK_INIT != 0
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+fn map_screenshot_extension_buttons(mask: u32, extension: Extension, out: &mut Buttons) {
+    let (network_init, screenshot) = match extension {
+        Extension::Nunchuk => (0x0001 << 16, 0x0002 << 16),
+        Extension::Classic => (0x0004 << 16, 0x0080 << 16),
+        Extension::GuitarHero3 => return,
+    };
+    if mask & network_init != 0 {
+        out.0 |= Buttons::NETWORK_INIT;
+    }
+    if mask & screenshot != 0 {
+        out.0 |= Buttons::SCREENSHOT;
+    }
 }
 
 #[cfg(target_arch = "powerpc")]
@@ -403,6 +428,7 @@ pub fn scan() -> Result<InputFrame, i32> {
         pointer_pressed,
         pointer_held,
         stick_scroll_pixels: stick_scroll.clamp(i32::from(i16::MIN), i32::from(i16::MAX)) as i16,
+        screenshot_requested: screenshot_chord(down, held),
     })
 }
 
@@ -464,15 +490,22 @@ fn map_wpad_channel(channel: i32, buttons: u32, out: &mut Buttons) {
         return;
     }
     let expansion = unsafe { (*data).exp.type_ };
-    let transformed = match expansion {
-        value if value == wpad_sys::WPAD_EXP_CLASSIC as i32 => {
-            map_extension_buttons(buttons, Extension::Classic)
-        }
-        value if value == wpad_sys::WPAD_EXP_GUITARHERO3 as i32 => {
-            map_extension_buttons(buttons, Extension::GuitarHero3)
-        }
-        _ => buttons,
+    let extension = match expansion {
+        value if value == wpad_sys::WPAD_EXP_NUNCHUK as i32 => Some(Extension::Nunchuk),
+        value if value == wpad_sys::WPAD_EXP_CLASSIC as i32 => Some(Extension::Classic),
+        value if value == wpad_sys::WPAD_EXP_GUITARHERO3 as i32 => Some(Extension::GuitarHero3),
+        _ => None,
     };
+    if let Some(extension) = extension {
+        map_screenshot_extension_buttons(buttons, extension, out);
+    }
+    let transformed = extension
+        .filter(|extension| {
+            *extension == Extension::Classic || *extension == Extension::GuitarHero3
+        })
+        .map_or(buttons, |extension| {
+            map_extension_buttons(buttons, extension)
+        });
     // HBC promotes extension buttons into the base Remote mask before use.
     map_wiimote(transformed, out);
 }
@@ -500,6 +533,45 @@ mod tests {
         let classic = map_buttons(0, classic_mask);
         assert!(classic.contains(Input::Confirm));
         assert!(classic.contains(Input::Right));
+    }
+
+    #[test]
+    fn maps_hbc_screenshot_chord_buttons_for_nunchuk_and_classic() {
+        for (mask, extension) in [
+            (0x0001 << 16, Extension::Nunchuk),
+            (0x0004 << 16, Extension::Classic),
+        ] {
+            let mut buttons = Buttons::default();
+            map_screenshot_extension_buttons(mask, extension, &mut buttons);
+            assert_ne!(buttons.0 & Buttons::NETWORK_INIT, 0);
+        }
+        for (mask, extension) in [
+            (0x0002 << 16, Extension::Nunchuk),
+            (0x0080 << 16, Extension::Classic),
+        ] {
+            let mut buttons = Buttons::default();
+            map_screenshot_extension_buttons(mask, extension, &mut buttons);
+            assert_ne!(buttons.0 & Buttons::SCREENSHOT, 0);
+        }
+        let mut buttons = Buttons::default();
+        map_screenshot_extension_buttons(0x8000 << 16, Extension::Classic, &mut buttons);
+        assert_eq!(buttons, Buttons::default());
+    }
+
+    #[test]
+    fn screenshot_requires_a_new_screenshot_press_while_network_init_is_held() {
+        assert!(screenshot_chord(
+            Buttons(Buttons::SCREENSHOT),
+            Buttons(Buttons::NETWORK_INIT)
+        ));
+        assert!(!screenshot_chord(
+            Buttons(Buttons::SCREENSHOT),
+            Buttons::default()
+        ));
+        assert!(!screenshot_chord(
+            Buttons::default(),
+            Buttons(Buttons::NETWORK_INIT)
+        ));
     }
 
     #[test]
