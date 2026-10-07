@@ -2,9 +2,8 @@
 //!
 //! The legacy renderer combined layout, widget state, texture drawing, and
 //! GX state changes in one queue. This module keeps layout as data. The Wii
-//! adapter submits solid rectangles, HBC app-card textures, and app icons
-//! through `ogc-gx`. Text uses a small native bitmap font. Other theme textures
-//! and texture gradients remain.
+//! adapter submits solid rectangles, HBC textures, app icons, and rasterized
+//! TrueType text through `ogc-gx`.
 
 use alloc::{format, string::String, vec::Vec};
 
@@ -115,6 +114,7 @@ pub enum DialogIcon {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ThemeArt {
+    Cursor { dragging: bool, shade: bool },
     Dialog,
     Progress,
     Throbber,
@@ -143,6 +143,7 @@ pub struct Frame {
     text_scale: f32,
     text_color: Option<Color>,
     text_file: Option<String>,
+    text_fallback_file: Option<String>,
     text_size: Option<u32>,
     focused_button_style: TextStyle,
     unfocused_button_style: TextStyle,
@@ -390,6 +391,7 @@ struct TextStyle {
     scale: f32,
     color: Option<Color>,
     file: Option<String>,
+    fallback_file: Option<String>,
     size: Option<u32>,
 }
 
@@ -399,6 +401,7 @@ impl Default for TextStyle {
             scale: 1.0,
             color: None,
             file: None,
+            fallback_file: None,
             size: None,
         }
     }
@@ -412,6 +415,7 @@ pub struct TextRun {
     pub scale: f32,
     pub color: Color,
     pub file: Option<String>,
+    pub fallback_file: Option<String>,
     pub size: u16,
 }
 
@@ -426,6 +430,7 @@ impl Frame {
         self.text_scale = style.scale;
         self.text_color = style.color;
         self.text_file = style.file;
+        self.text_fallback_file = style.fallback_file;
         self.text_size = style.size;
     }
     pub fn logical_width(&self) -> u16 {
@@ -455,11 +460,24 @@ impl Frame {
     }
 
     /// Add a compact native cursor above the frame's existing artwork.
-    pub fn pointer_cursor(&mut self, x: f32, y: f32) {
-        self.fill(rect(x - 1.0, y - 9.0, 2.0, 18.0), Color::rgb(255, 255, 255));
-        self.fill(rect(x - 9.0, y - 1.0, 18.0, 2.0), Color::rgb(255, 255, 255));
-        self.fill(rect(x - 5.0, y - 1.0, 10.0, 2.0), ACCENT);
-        self.fill(rect(x - 1.0, y - 5.0, 2.0, 10.0), ACCENT);
+    pub fn pointer_cursor(&mut self, x: f32, y: f32, dragging: bool) {
+        let bounds = rect(x - 48.0, y - 48.0, 96.0, 96.0);
+        self.theme_art(
+            rect(bounds.x + 2.0, bounds.y + 4.0, bounds.width, bounds.height),
+            ThemeArt::Cursor {
+                dragging,
+                shade: true,
+            },
+            false,
+        );
+        self.theme_art(
+            bounds,
+            ThemeArt::Cursor {
+                dragging,
+                shade: false,
+            },
+            false,
+        );
     }
 
     pub fn storage_loading(&mut self) {
@@ -665,7 +683,13 @@ impl Frame {
         {
             return;
         }
-        let color = if focused { ACCENT } else { PANEL };
+        let color = if matches!(art, ThemeArt::Cursor { .. }) {
+            Color::default()
+        } else if focused {
+            ACCENT
+        } else {
+            PANEL
+        };
         self.commands.push(FrameCommand::ThemeArt {
             art,
             focused,
@@ -761,6 +785,7 @@ impl Frame {
                 scale: glyph_scale,
                 color,
                 file: Some(file),
+                fallback_file: self.text_fallback_file.clone(),
                 size: self.text_size.unwrap_or(16).clamp(1, 128) as u16,
             });
             return;
@@ -1221,7 +1246,7 @@ pub fn browser_frame_with_language(
                 172.0,
                 ButtonSize::Small,
                 controller.options_focus() == 2,
-                tr("SD Gecko A"),
+                tr("SDGecko Slot A"),
                 if controller.pending_device() == 2 {
                     ACCENT
                 } else {
@@ -1234,7 +1259,7 @@ pub fn browser_frame_with_language(
                 172.0,
                 ButtonSize::Small,
                 controller.options_focus() == 3,
-                tr("SD Gecko B"),
+                tr("SDGecko Slot B"),
                 if controller.pending_device() == 3 {
                     ACCENT
                 } else {
@@ -1293,7 +1318,7 @@ pub fn browser_frame_with_language(
                 340.0,
                 ButtonSize::Small,
                 controller.options_focus() == 6,
-                tr("OK"),
+                tr("Ok"),
                 text_color,
             );
             frame.hit_target(PointerTarget::Option(6), bounds);
@@ -1519,10 +1544,7 @@ pub fn browser_frame_with_language(
                     .metadata
                     .as_ref()
                     .and_then(|meta| meta.long_description.as_deref())
-                    .map_or_else(
-                        || tr("No description available."),
-                        |description| description,
-                    );
+                    .map_or_else(|| tr("no description available"), |description| description);
                 frame.set_text_style(theme_text_style(theme, "memo", text_color));
                 frame.text_wrapped_scrolled(
                     92.0,
@@ -1796,6 +1818,12 @@ fn color_from_rgba(Rgba(red, green, blue, alpha): Rgba) -> Color {
 /// Resolve one HBC font target. Target values override only fields they define;
 /// missing values inherit from `default_font`, then from the renderer defaults.
 fn theme_text_style(theme: Option<&ThemeMetadata>, target: &str, fallback: Color) -> TextStyle {
+    let (default_file, default_size) = match target {
+        "memo" => (crate::font::DEFAULT_REGULAR_FONT_KEY, 16),
+        "button_desel" => (crate::font::DEFAULT_REGULAR_FONT_KEY, 20),
+        "dlgtitle" | "appname" | "button" => (crate::font::DEFAULT_BOLD_FONT_KEY, 20),
+        _ => (crate::font::DEFAULT_BOLD_FONT_KEY, 16),
+    };
     let default = theme.map(|theme| &theme.default_font);
     let specific = theme.and_then(|theme| {
         theme.fonts.iter().find_map(|(targets, font)| {
@@ -1807,21 +1835,25 @@ fn theme_text_style(theme: Option<&ThemeMetadata>, target: &str, fallback: Color
     });
     let size = specific
         .and_then(|font| font.size)
-        .or_else(|| default.and_then(|font| font.size));
-    // The built-in glyph is seven pixels high. Keep metadata sizes readable
-    // in the fixed HBC layout while allowing modest scaling in either direction.
+        .or_else(|| default.and_then(|font| font.size))
+        .or(Some(default_size));
+    // Keep theme sizes inside the fixed HBC layout and the font rasterizer's
+    // supported range.
     let scale = size.map_or(1.0, |size| (size as f32 / 7.0).clamp(0.5, 2.5));
     let color = specific
         .and_then(|font| font.color)
         .or_else(|| default.and_then(|font| font.color))
         .map(color_from_rgba)
         .unwrap_or(fallback);
+    let file = specific
+        .and_then(|font| font.file.clone())
+        .or_else(|| default.and_then(|font| font.file.clone()))
+        .or_else(|| Some(alloc::string::String::from(default_file)));
     TextStyle {
         scale,
         color: Some(color),
-        file: specific
-            .and_then(|font| font.file.clone())
-            .or_else(|| default.and_then(|font| font.file.clone())),
+        fallback_file: Some(alloc::string::String::from(default_file)),
+        file,
         size,
     }
 }
@@ -1981,6 +2013,39 @@ mod tests {
     }
 
     #[test]
+    fn pointer_cursor_uses_hbc_standard_and_drag_art_with_c_offsets() {
+        let mut frame = Frame::default();
+        frame.pointer_cursor(100.0, 120.0, true);
+        let cursors: Vec<_> = frame
+            .commands
+            .iter()
+            .filter_map(|command| match command {
+                FrameCommand::ThemeArt { art, bounds, .. } => Some((*art, *bounds)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            cursors,
+            [
+                (
+                    ThemeArt::Cursor {
+                        dragging: true,
+                        shade: true,
+                    },
+                    rect(54.0, 76.0, 96.0, 96.0),
+                ),
+                (
+                    ThemeArt::Cursor {
+                        dragging: true,
+                        shade: false,
+                    },
+                    rect(52.0, 72.0, 96.0, 96.0),
+                ),
+            ]
+        );
+    }
+
+    #[test]
     fn target_font_fields_override_default_fields_independently() {
         let theme = ThemeMetadata {
             default_font: crate::metadata::ThemeFont {
@@ -2021,6 +2086,10 @@ mod tests {
         assert!(frame.fills.is_empty());
         assert_eq!(frame.text_runs.len(), 1);
         assert_eq!(frame.text_runs[0].file.as_deref(), Some("droid.ttf"));
+        assert_eq!(
+            frame.text_runs[0].fallback_file.as_deref(),
+            Some(crate::font::DEFAULT_BOLD_FONT_KEY)
+        );
         assert_eq!(frame.text_runs[0].size, 18);
         assert_eq!(frame.text_runs[0].value, "A");
         assert!(glyph_rows('A').iter().any(|row| *row != 0));
@@ -2245,20 +2314,15 @@ mod tests {
                 }
             })
             .unwrap();
-        let app_text_command = frame
-            .commands
+        let has_app_text = frame
+            .text_runs
             .iter()
-            .position(|command| {
-                matches!(command, FrameCommand::Fill(index)
-                    if frame.fills[*index].bounds.x >= 260.0
-                        && frame.fills[*index].bounds.y >= 72.0)
-            })
-            .unwrap();
+            .any(|run| run.x >= 260.0 && run.y >= 72.0);
 
         assert_eq!(fallback_bounds.width, 128.0);
         assert_eq!(fallback_bounds.height, 48.0);
         assert!(card_command < icon_command);
-        assert!(icon_command < app_text_command);
+        assert!(has_app_text);
     }
 
     #[test]
@@ -2345,7 +2409,14 @@ mod tests {
             LOGICAL_WIDTH,
             crate::localization::Language::English,
         );
-        assert!(frame.fills.len() > without_description.fills.len());
+        assert!(frame
+            .text_runs
+            .iter()
+            .any(|run| run.value.contains("Water")));
+        assert!(!without_description
+            .text_runs
+            .iter()
+            .any(|run| run.value.contains("Water")));
     }
 
     #[test]
@@ -2606,9 +2677,32 @@ mod tests {
         };
         let frame = browser_frame_with_theme(&controller, &[], Some(&theme));
         assert!(frame
-            .fills
+            .text_runs
             .iter()
-            .any(|fill| { fill.color == Color::rgb(240, 180, 40) && fill.bounds.width <= 5.0 }));
+            .any(|run| run.color == Color::rgb(240, 180, 40)));
+    }
+
+    #[test]
+    fn default_font_styles_match_hbc_regular_and_bold_faces() {
+        let label = theme_text_style(None, "label", Color::rgb(255, 255, 255));
+        let memo = theme_text_style(None, "memo", Color::rgb(255, 255, 255));
+        let deselected = theme_text_style(None, "button_desel", Color::rgb(255, 255, 255));
+
+        assert_eq!(
+            label.file.as_deref(),
+            Some(crate::font::DEFAULT_BOLD_FONT_KEY)
+        );
+        assert_eq!(label.size, Some(16));
+        assert_eq!(
+            memo.file.as_deref(),
+            Some(crate::font::DEFAULT_REGULAR_FONT_KEY)
+        );
+        assert_eq!(memo.size, Some(16));
+        assert_eq!(
+            deselected.file.as_deref(),
+            Some(crate::font::DEFAULT_REGULAR_FONT_KEY)
+        );
+        assert_eq!(deselected.size, Some(20));
     }
 
     #[test]

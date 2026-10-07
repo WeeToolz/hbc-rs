@@ -3,6 +3,9 @@
 use alloc::{string::String, vec::Vec};
 use fontdue::{Font, FontSettings, Metrics};
 
+pub const DEFAULT_REGULAR_FONT_KEY: &str = "@builtin:droid.ttf";
+pub const DEFAULT_BOLD_FONT_KEY: &str = "@builtin:droidbold.ttf";
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct GlyphBitmap {
     pub character: char,

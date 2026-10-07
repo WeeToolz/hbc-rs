@@ -16,7 +16,7 @@ use crate::{
 
 /// Submit the theme background and logo, solid fills, and app icons through GX.
 ///
-/// Text remains native bitmap-font rectangles. App icons use the RGBA8 texture path.
+/// Text uses cached TrueType glyph textures. App icons use the RGBA8 texture path.
 ///
 /// # Safety
 /// The caller must keep GX initialized and keep all supplied textures alive until GX has
@@ -118,6 +118,9 @@ pub unsafe fn draw_frame(
                 fallback,
             } => {
                 let texture = match art {
+                    ThemeArt::Cursor { dragging, shade } => {
+                        theme.cursor[usize::from(dragging) * 2 + usize::from(shade)].as_ref()
+                    }
                     ThemeArt::Dialog => theme.dialog.as_ref(),
                     ThemeArt::Progress => theme.progress.as_ref(),
                     ThemeArt::Throbber => theme.throbber.as_ref(),
@@ -288,15 +291,24 @@ pub unsafe fn draw_frame(
         let Some(file) = run.file.as_deref() else {
             continue;
         };
-        let Some(face) = theme
+        let requested_face = theme
             .fonts
             .iter()
             .find(|face| face.borrow().file.eq_ignore_ascii_case(file))
-        else {
+            .or_else(|| {
+                run.fallback_file.as_deref().and_then(|fallback| {
+                    theme
+                        .fonts
+                        .iter()
+                        .find(|face| face.borrow().file.eq_ignore_ascii_case(fallback))
+                })
+            });
+        let Some(requested_face) = requested_face else {
             unsafe { draw_fallback_text(video, frame, run, &info)? };
             continue;
         };
-        let mut face = face.borrow_mut();
+        let file = requested_face.borrow().file.clone();
+        let mut face = requested_face.borrow_mut();
         let Some((ascent, _, _)) = face.horizontal_line_metrics(run.size) else {
             unsafe { draw_fallback_text(video, frame, run, &info)? };
             continue;
@@ -320,7 +332,7 @@ pub unsafe fn draw_frame(
             if glyph.width != 0 && glyph.height != 0 {
                 let mut textures = theme.font_textures.borrow_mut();
                 let cached = textures.iter().position(|item| {
-                    item.file.eq_ignore_ascii_case(file)
+                    item.file.eq_ignore_ascii_case(&file)
                         && item.character == character
                         && item.size == run.size
                         && item.color == run.color
@@ -346,7 +358,7 @@ pub unsafe fn draw_frame(
                         .ok()
                         .map(|texture| {
                             textures.push(super::theme::CachedFontTexture {
-                                file: file.into(),
+                                file: file.clone(),
                                 character,
                                 size: run.size,
                                 color: run.color,

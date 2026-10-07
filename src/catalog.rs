@@ -5,7 +5,6 @@ use alloc::{format, string::String, vec::Vec};
 use core::cmp::Ordering;
 
 pub const MAX_APP_ENTRIES: usize = 1024;
-pub const MAX_APP_DIRECTORY_ENTRIES: usize = 4096;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AppKind {
@@ -49,7 +48,9 @@ pub struct DirectoryEntry {
 pub trait CatalogStorage {
     type Error;
 
-    fn read_dir(&mut self, path: &str) -> Result<Vec<DirectoryEntry>, Self::Error>;
+    fn open_dir(&mut self, path: &str) -> Result<(), Self::Error>;
+    fn next_dir_entry(&mut self) -> Result<Option<DirectoryEntry>, Self::Error>;
+    fn close_dir(&mut self);
     fn file_size(&mut self, path: &str) -> Result<Option<u64>, Self::Error>;
     fn read_file(&mut self, path: &str, max_bytes: usize) -> Result<Option<Vec<u8>>, Self::Error>;
 }
@@ -58,7 +59,6 @@ pub trait CatalogStorage {
 pub enum ScanError<E> {
     AppDirectory(E),
     Storage { path: String, source: E },
-    TooManyAppDirectoryEntries,
 }
 
 /// Read app folders below `apps_root` and create catalog entries.
@@ -70,81 +70,83 @@ pub fn scan_apps<S: CatalogStorage>(
     max_executable_size: u64,
     max_theme_size: u64,
 ) -> Result<Vec<AppEntry>, ScanError<S::Error>> {
-    let folders = storage
-        .read_dir(apps_root)
+    storage
+        .open_dir(apps_root)
         .map_err(ScanError::AppDirectory)?;
-    if folders.len() > MAX_APP_DIRECTORY_ENTRIES {
-        return Err(ScanError::TooManyAppDirectoryEntries);
-    }
-    let mut apps = Vec::new();
-    for folder in folders {
-        if !folder.is_directory || !valid_folder_name(&folder.name) {
-            continue;
-        }
-        let folder_path = join_path(apps_root, &folder.name);
-        let candidates = [
-            ("boot.elf", AppKind::Elf, max_executable_size),
-            ("boot.dol", AppKind::Dol, max_executable_size),
-            (
-                "theme.zip",
-                AppKind::Theme,
-                core::cmp::min(max_executable_size, max_theme_size),
-            ),
-        ];
-        let mut selected = None;
-        for (name, kind, limit) in &candidates {
-            let path = join_path(&folder_path, name);
-            if let Some(size) = storage
-                .file_size(&path)
+    let result = (|| {
+        let mut apps = Vec::new();
+        while let Some(folder) = storage.next_dir_entry().map_err(ScanError::AppDirectory)? {
+            if !folder.is_directory || !valid_folder_name(&folder.name) {
+                continue;
+            }
+            let folder_path = join_path(apps_root, &folder.name);
+            let candidates = [
+                ("boot.elf", AppKind::Elf, max_executable_size),
+                ("boot.dol", AppKind::Dol, max_executable_size),
+                (
+                    "theme.zip",
+                    AppKind::Theme,
+                    core::cmp::min(max_executable_size, max_theme_size),
+                ),
+            ];
+            let mut selected = None;
+            for (name, kind, limit) in &candidates {
+                let path = join_path(&folder_path, name);
+                if let Some(size) =
+                    storage
+                        .file_size(&path)
+                        .map_err(|source| ScanError::Storage {
+                            path: path.clone(),
+                            source,
+                        })?
+                {
+                    selected = Some((*kind, size, *limit));
+                    break;
+                }
+            }
+            let Some((kind, size, limit)) = selected else {
+                continue;
+            };
+            if size == 0 || size > limit {
+                continue;
+            }
+
+            let meta_path = join_path(&folder_path, "meta.xml");
+            let metadata = storage
+                .read_file(&meta_path, 1024 * 1024)
                 .map_err(|source| ScanError::Storage {
-                    path: path.clone(),
+                    path: meta_path,
                     source,
                 })?
-            {
-                selected = Some((*kind, size, *limit));
+                .and_then(|bytes| {
+                    core::str::from_utf8(&bytes)
+                        .ok()
+                        .and_then(|xml| crate::metadata::parse_app_xml(xml).ok())
+                });
+            let icon_path = join_path(&folder_path, "icon.png");
+            let has_icon = storage
+                .read_file(&icon_path, crate::png::HBC_APP_ICON_MAX_PNG_BYTES)
+                .map_err(|source| ScanError::Storage {
+                    path: icon_path,
+                    source,
+                })?
+                .is_some_and(|bytes| crate::png::decode_hbc_app_icon(&bytes).is_ok());
+
+            apps.push(AppEntry {
+                directory: folder.name,
+                kind,
+                size,
+                has_icon,
+                metadata,
+            });
+            if apps.len() == MAX_APP_ENTRIES {
                 break;
             }
         }
-        let Some((kind, size, limit)) = selected else {
-            continue;
-        };
-        if size == 0 || size > limit {
-            continue;
-        }
-
-        let meta_path = join_path(&folder_path, "meta.xml");
-        let metadata = storage
-            .read_file(&meta_path, 1024 * 1024)
-            .map_err(|source| ScanError::Storage {
-                path: meta_path,
-                source,
-            })?
-            .and_then(|bytes| {
-                core::str::from_utf8(&bytes)
-                    .ok()
-                    .and_then(|xml| crate::metadata::parse_app_xml(xml).ok())
-            });
-        let icon_path = join_path(&folder_path, "icon.png");
-        let has_icon = storage
-            .read_file(&icon_path, crate::png::HBC_APP_ICON_MAX_PNG_BYTES)
-            .map_err(|source| ScanError::Storage {
-                path: icon_path,
-                source,
-            })?
-            .is_some_and(|bytes| crate::png::decode_hbc_app_icon(&bytes).is_ok());
-
-        apps.push(AppEntry {
-            directory: folder.name,
-            kind,
-            size,
-            has_icon,
-            metadata,
-        });
-        if apps.len() == MAX_APP_ENTRIES {
-            break;
-        }
-    }
-    Ok(apps)
+        Ok(apps)
+    })();
+    storage.close_dir();
+    result
 }
 
 fn valid_folder_name(name: &str) -> bool {
@@ -256,6 +258,8 @@ mod tests {
     #[derive(Default)]
     struct MemoryStorage {
         directories: BTreeMap<String, Vec<DirectoryEntry>>,
+        active_dir: Option<Vec<DirectoryEntry>>,
+        active_index: usize,
         sizes: BTreeMap<String, u64>,
         files: BTreeMap<String, Vec<u8>>,
         failures: BTreeMap<String, &'static str>,
@@ -264,14 +268,35 @@ mod tests {
     impl CatalogStorage for MemoryStorage {
         type Error = &'static str;
 
-        fn read_dir(&mut self, path: &str) -> Result<Vec<DirectoryEntry>, Self::Error> {
+        fn open_dir(&mut self, path: &str) -> Result<(), Self::Error> {
             if let Some(error) = self.failures.get(path) {
                 return Err(error);
             }
-            self.directories
+            let entries = self
+                .directories
                 .get(path)
                 .cloned()
-                .ok_or("missing directory")
+                .ok_or("missing directory")?;
+            self.active_dir = Some(entries);
+            self.active_index = 0;
+            Ok(())
+        }
+
+        fn next_dir_entry(&mut self) -> Result<Option<DirectoryEntry>, Self::Error> {
+            if let Some(error) = self.failures.get("<next-dir-entry>") {
+                return Err(error);
+            }
+            let Some(entries) = self.active_dir.as_ref() else {
+                return Err("directory is not open");
+            };
+            let entry = entries.get(self.active_index).cloned();
+            self.active_index += usize::from(entry.is_some());
+            Ok(entry)
+        }
+
+        fn close_dir(&mut self) {
+            self.active_dir = None;
+            self.active_index = 0;
         }
 
         fn file_size(&mut self, path: &str) -> Result<Option<u64>, Self::Error> {
@@ -435,22 +460,26 @@ mod tests {
     }
 
     #[test]
-    fn scan_rejects_an_unbounded_backend_directory_result() {
+    fn scan_streams_non_app_entries_before_finding_valid_apps() {
         let root = "sd:/apps";
         let mut fs = MemoryStorage::default();
-        fs.directories.insert(
-            root.into(),
-            (0..=MAX_APP_DIRECTORY_ENTRIES)
-                .map(|index| DirectoryEntry {
-                    name: format!("app-{index}"),
-                    is_directory: true,
-                })
-                .collect(),
-        );
-        assert_eq!(
-            scan_apps(&mut fs, root, 100, 50),
-            Err(ScanError::TooManyAppDirectoryEntries)
-        );
+        let mut entries: Vec<_> = (0..5000)
+            .map(|index| DirectoryEntry {
+                name: format!("file-{index}"),
+                is_directory: false,
+            })
+            .collect();
+        entries.push(DirectoryEntry {
+            name: String::from("valid-app"),
+            is_directory: true,
+        });
+        fs.directories.insert(root.into(), entries);
+        fs.sizes.insert(format!("{root}/valid-app/boot.dol"), 10);
+
+        let apps = scan_apps(&mut fs, root, 100, 50).unwrap();
+        assert_eq!(apps.len(), 1);
+        assert_eq!(apps[0].directory, "valid-app");
+        assert!(fs.active_dir.is_none(), "scan closes the directory reader");
     }
 
     #[test]
@@ -496,6 +525,7 @@ mod tests {
                 source: "io failure",
             })
         );
+        assert!(fs.active_dir.is_none(), "scan closes the reader on errors");
     }
 
     #[test]

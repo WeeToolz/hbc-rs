@@ -134,7 +134,9 @@ in `config/parity-ledger.csv`. The ledger keeps implementation coverage, source
 review, and verification separate. Run `python3 tools/parity.py status` to read
 the report, `python3 tools/parity.py refresh` after ledger changes, and
 `python3 tools/parity.py check` to validate all source references and the
-generated report. `C-sources/hbc/` must be available beside `RustPorts/`.
+generated report. Run `python3 tools/generate-localization.py` after C PO changes
+and `python3 tools/generate-localization.py --check` to verify the embedded six
+language catalogs. `C-sources/hbc/` must be available beside `RustPorts/`.
 
 Before building from a fresh HBC checkout, copy the local `libogc-rs` workspace to
 `hbc-rs/libogc-rs/`. The dependency paths in `Cargo.toml` point to that location.

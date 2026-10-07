@@ -39,12 +39,12 @@ separate targets.
   cache maintenance and a one-way branch.
 - The animated bubble background, pointer bubble popping, network and USB Gecko
   connection indicators, memo scroll arrows, and theme description in About are
-  implemented. Rust has translated strings for six languages. A complete
-  string-by-string comparison with the C PO catalogs has not been done.
-- VI/framebuffer setup and a minimal GX FIFO/display-copy path in the local
-  `libogc-rs` copy. The Wii entry point now starts a frame loop that scans
-  input, updates the controller state, draws the initial browser layout with a
-  native 5x7 bitmap font, and waits for VI retrace. The logical viewport now
+  implemented. Rust imports all six C PO catalogs through
+  `tools/generate-localization.py`; the generator checks every message key.
+- VI/framebuffer setup and GX FIFO/display-copy rendering in the local
+  `libogc-rs` copy. The Wii entry point starts a frame loop that scans input,
+  updates controller state, draws the browser with HBC’s bundled Droid fonts,
+  and waits for VI retrace. The logical viewport now
   follows the Wii 4:3 or 16:9 setting (640x480 or 852x480), with the matching
   bundled or theme background and four grid columns in widescreen mode. The
   video setup also applies HBC's vWii pillarbox register settings.
@@ -67,8 +67,8 @@ separate targets.
 ## Remaining runtime work
 
 - C resets the four-byte `play_rec.dat` record before settings load. Rust does not do this yet. The parity ledger tracks this as open work because it writes persistent NAND data; review its contract and safe failure behavior before adding the write.
-- The display scene uses solid-color panels and a native 5x7 font for basic
-  app labels, descriptions, menus, About content, and confirmation dialogs.
+- The display scene uses some solid-color panels. HBC’s Droid TrueType faces
+  render labels, descriptions, menus, About content, and confirmation dialogs.
   Startup reports missing SD or USB storage; launch, delete, settings-save,
   and storage-stop failures use a dismissible notice. Missing, invalid,
   oversized, or out-of-memory app icons use placeholders.
@@ -91,9 +91,8 @@ separate targets.
   sticks, or pointer dragging, matching the C message-dialog memo. App details,
   About, notices, and Wiiload confirmation use Rust memo handling, including memo
   scroll arrows. Per-file Wiiload app extraction progress is drawn from bytes
-  written. Theme metadata controls and some less common modal and memo states
-  still need a widget-by-widget comparison against C. Some scene areas still use
-  solid fills and the native bitmap font.
+  written. Some theme controls and scene panels still differ from C. The 5x7 glyph renderer
+  is a fallback when a TrueType face is unavailable.
 - A pure Rust theme ZIP parser enforces HBC's `LD_MAX_SIZE` and 20 MiB archive
   limits, a 64-entry
   limit, safe paths, supported ZIP entry types and compression, duplicate-name
@@ -103,11 +102,10 @@ separate targets.
   and texture loading reads named root assets. Applying a theme saves its
   validated ZIP to NAND. It updates the background, app cards, page arrows,
   throbber, and progress images for the current session. The 320x64 logo always
-  uses the bundled image, as in HBC. The native Rust bitmap glyph renderer
-  applies default and target-specific font colors and sizes to HBC's
-  `label`, `dlgtitle`, `memo`, `appname`, `appdesc`, `button`, and `button_desel`
-  text roles. Custom theme TTF files are rasterized and cached through
-  `fontdue`. The ZIP install meter uses the four parsed progress-gradient stops,
+  uses the bundled image, as in HBC. The Rust text renderer uses HBC's bundled Droid regular and bold fonts by
+  default. Theme TTF files and target-specific font choices are rasterized and
+  cached through `fontdue` for the `label`, `dlgtitle`, `memo`, `appname`,
+  `appdesc`, `button`, and `button_desel` roles. The ZIP install meter uses the four parsed progress-gradient stops,
   with a blue default when a theme has no gradient.
   Startup loads and validates that archive again. Theme PNG resources use the bounded pure
   Rust decoder for grayscale, RGB, indexed, gray-alpha, and RGBA images, including
@@ -129,9 +127,9 @@ separate targets.
   returning to the System Menu if the IOS launch returns. This path is not
   hardware-tested. App deletion asks for an explicit yes response and uses the
   safe folder remover. A canceled delete returns to app details.
-- The GX FIFO path has no interrupt-based flow control or overflow recovery.
-  It uses a bounded draw-completion wait. Its register setup and display output
-  are unverified on hardware. A native GX RGBA8 texture path now configures textured 2D state,
+- The local GX FIFO uses interrupt-based draw completion and overflow handling,
+  with a bounded completion wait. Register setup and display output remain
+  unverified on hardware. A native GX RGBA8 texture path configures textured 2D state,
   loads texture-map registers, invalidates texture cache, and draws textured
   quads. Icon allocations remain alive for the current catalog and are released
   after catalog refresh or app deletion. This output is also unverified on
@@ -224,11 +222,10 @@ target has no `test` crate.
 
 ## Open parity and verification work
 
-- Compare every in-scope C runtime behavior with the Rust implementation,
-  including uncommon modal and memo states. Some scene areas still use solid
-  fills. Button art loads from theme packages and applies to menu and dialog
-  buttons, but full visual parity has not been confirmed. The C update feature
-  is excluded by scope.
+- The source review is complete. One implementation gap remains: some scene panels still use solid fills
+  instead of C artwork. App scanning now streams directory entries and stops
+  after C’s 1024 valid-app limit, so many unrelated files do not cause a false
+  scan failure. The C update feature is excluded by scope.
 - Verify SD Gecko A/B insertion, mounting, scanning, selection, app loading, hot
   removal, and reinsertion on Wii hardware with actual adapters. Rust probes
   physical presence and routes both choices through `ogc-fat`'s SDGecko backend;
@@ -254,8 +251,7 @@ target has no `test` crate.
   changing the Wii network profile on hardware. Confirm that Wiiload returns
   without a console restart after a profile change.
 
-## Other out-of-scope targets
+## Other scope notes
 
-The C translation catalogs and their build pipeline remain separate assets.
-Rust has an in-crate translation map, but full PO-catalog parity has not been
-audited. Revisit the reload stub after the application runtime works.
+The C translation catalogs remain the source for the generated Rust catalog.
+The reload stub remains a separate target.

@@ -97,12 +97,17 @@ pub enum StorageError {
     WriteZero,
     DeleteDepth,
     DeleteEntryLimit,
+    DirectoryNotOpen,
     DirectoryEntryLimit,
 }
 
 #[cfg(target_arch = "powerpc")]
+const MAX_RECOVERY_DIRECTORY_ENTRIES: usize = 4096;
+
+#[cfg(target_arch = "powerpc")]
 pub struct FatStorage {
     prefix: &'static str,
+    catalog_directory: Option<ogc_fat::FatDirectory>,
 }
 
 #[cfg(target_arch = "powerpc")]
@@ -116,7 +121,10 @@ impl FatStorage {
             Volume::CardB => ("cardb:", ogc_fat::mount_card_b()),
         };
         result.map_err(StorageError::Fat)?;
-        Ok(Self { prefix })
+        Ok(Self {
+            prefix,
+            catalog_directory: None,
+        })
     }
 
     pub fn prefix(&self) -> &'static str {
@@ -131,6 +139,29 @@ impl FatStorage {
             Err(ogc_fat::FatError::NotFound) => Ok(false),
             Err(error) => Err(StorageError::Fat(error)),
         }
+    }
+
+    /// Read the bounded app root while recovery checks hidden install entries.
+    pub fn read_dir(&mut self, path: &str) -> Result<Vec<DirectoryEntry>, StorageError> {
+        let path = self.full_path(path)?;
+        let mut directory = ogc_fat::FatDirectory::open(&path).map_err(StorageError::Fat)?;
+        let mut entries = Vec::new();
+        loop {
+            let Some(entry) = directory.next_entry().map_err(StorageError::Fat)? else {
+                break;
+            };
+            if entries.len() == MAX_RECOVERY_DIRECTORY_ENTRIES {
+                return Err(StorageError::DirectoryEntryLimit);
+            }
+            entries
+                .try_reserve(1)
+                .map_err(|_| StorageError::Allocation)?;
+            entries.push(DirectoryEntry {
+                name: String::from_utf8_lossy(&entry.name).into_owned(),
+                is_directory: entry.is_directory,
+            });
+        }
+        Ok(entries)
     }
 
     pub fn path_exists(&self, path: &str) -> Result<bool, StorageError> {
@@ -282,7 +313,7 @@ impl FatStorage {
 
     pub fn remove_directory_tree(&self, path: &str) -> Result<(), StorageError> {
         crate::archive::validate_archive_path(path).map_err(|_| StorageError::InvalidPath)?;
-        let mut remaining_entries = crate::catalog::MAX_APP_DIRECTORY_ENTRIES * 4;
+        let mut remaining_entries = MAX_RECOVERY_DIRECTORY_ENTRIES * 4;
         let mut deletion_plan = Vec::new();
         self.collect_tree(path, 0, &mut remaining_entries, &mut deletion_plan)?;
         for (child, is_directory) in deletion_plan {
@@ -368,27 +399,31 @@ fn join_safe_path(parent: &str, child: &str) -> Result<String, StorageError> {
 impl CatalogStorage for FatStorage {
     type Error = StorageError;
 
-    fn read_dir(&mut self, path: &str) -> Result<Vec<DirectoryEntry>, Self::Error> {
+    fn open_dir(&mut self, path: &str) -> Result<(), Self::Error> {
         let path = self.full_path(path)?;
-        let mut directory = ogc_fat::FatDirectory::open(&path).map_err(StorageError::Fat)?;
-        let mut entries = Vec::new();
-        loop {
-            let Some(entry) = directory.next_entry().map_err(StorageError::Fat)? else {
-                break;
-            };
-            if entries.len() == crate::catalog::MAX_APP_DIRECTORY_ENTRIES {
-                return Err(StorageError::DirectoryEntryLimit);
-            }
-            let name = String::from_utf8_lossy(&entry.name).into_owned();
-            entries
-                .try_reserve(1)
-                .map_err(|_| StorageError::Allocation)?;
-            entries.push(DirectoryEntry {
-                name,
-                is_directory: entry.is_directory,
-            });
-        }
-        Ok(entries)
+        let directory = ogc_fat::FatDirectory::open(&path).map_err(StorageError::Fat)?;
+        self.catalog_directory = Some(directory);
+        Ok(())
+    }
+
+    fn next_dir_entry(&mut self) -> Result<Option<DirectoryEntry>, Self::Error> {
+        let directory = self
+            .catalog_directory
+            .as_mut()
+            .ok_or(StorageError::DirectoryNotOpen)?;
+        directory
+            .next_entry()
+            .map(|entry| {
+                entry.map(|entry| DirectoryEntry {
+                    name: String::from_utf8_lossy(&entry.name).into_owned(),
+                    is_directory: entry.is_directory,
+                })
+            })
+            .map_err(StorageError::Fat)
+    }
+
+    fn close_dir(&mut self) {
+        self.catalog_directory = None;
     }
 
     fn file_size(&mut self, path: &str) -> Result<Option<u64>, Self::Error> {

@@ -75,6 +75,12 @@ const DEFAULT_NETWORK_ICON: &[u8] = include_bytes!("../../assets/icon_network.pn
 const DEFAULT_NETWORK_ICON_ACTIVE: &[u8] = include_bytes!("../../assets/icon_network_active.png");
 const DEFAULT_GECKO_ICON: &[u8] = include_bytes!("../../assets/icon_usbgecko.png");
 const DEFAULT_GECKO_ICON_ACTIVE: &[u8] = include_bytes!("../../assets/icon_usbgecko_active.png");
+const DEFAULT_CURSOR: &[u8] = include_bytes!("../../assets/cursor_pic.png");
+const DEFAULT_CURSOR_SHADE: &[u8] = include_bytes!("../../assets/cursor_shade.png");
+const DEFAULT_CURSOR_DRAG: &[u8] = include_bytes!("../../assets/cursor_drag.png");
+const DEFAULT_CURSOR_DRAG_SHADE: &[u8] = include_bytes!("../../assets/cursor_drag_shade.png");
+const DEFAULT_REGULAR_FONT: &[u8] = include_bytes!("../../assets/droid.ttf");
+const DEFAULT_BOLD_FONT: &[u8] = include_bytes!("../../assets/droidbold.ttf");
 
 pub struct ThemeTextures {
     pub fonts: Vec<RefCell<crate::font::ThemeFontFace>>,
@@ -111,6 +117,7 @@ pub struct ThemeTextures {
     pub network_icon_active: Option<crate::png::GxRgba8Texture>,
     pub gecko_icon: Option<crate::png::GxRgba8Texture>,
     pub gecko_icon_active: Option<crate::png::GxRgba8Texture>,
+    pub cursor: [Option<crate::png::GxRgba8Texture>; 4],
 }
 
 impl ThemeTextures {
@@ -343,6 +350,12 @@ impl ThemeTextures {
                 32,
                 DEFAULT_GECKO_ICON_ACTIVE,
             ),
+            cursor: [
+                decode_fixed_size_image(DEFAULT_CURSOR, 96, 96),
+                decode_fixed_size_image(DEFAULT_CURSOR_SHADE, 96, 96),
+                decode_fixed_size_image(DEFAULT_CURSOR_DRAG, 96, 96),
+                decode_fixed_size_image(DEFAULT_CURSOR_DRAG_SHADE, 96, 96),
+            ],
         }
     }
 }
@@ -358,8 +371,17 @@ pub struct CachedFontTexture {
 fn load_theme_fonts(
     package: Option<(&crate::theme::ThemePackage, &[u8])>,
 ) -> Vec<RefCell<crate::font::ThemeFontFace>> {
-    let Some((package, bytes)) = package else {
-        return Vec::new();
+    let mut faces = Vec::new();
+    for (name, bytes) in [
+        (crate::font::DEFAULT_REGULAR_FONT_KEY, DEFAULT_REGULAR_FONT),
+        (crate::font::DEFAULT_BOLD_FONT_KEY, DEFAULT_BOLD_FONT),
+    ] {
+        if let Ok(face) = crate::font::ThemeFontFace::parse(name.into(), bytes.to_vec()) {
+            faces.push(RefCell::new(face));
+        }
+    }
+    let Some((package, archive)) = package else {
+        return faces;
     };
     let mut paths = Vec::new();
     if let Some(file) = package.metadata.default_font.file.as_ref() {
@@ -375,9 +397,16 @@ fn load_theme_fonts(
             }
         }
     }
-    let mut faces = Vec::new();
     for path in paths {
-        let Ok(data) = package.extract_file(bytes, &path, THEME_FONT_MAX_BYTES) else {
+        if faces
+            .iter()
+            .any(|face: &RefCell<crate::font::ThemeFontFace>| {
+                face.borrow().file.eq_ignore_ascii_case(&path)
+            })
+        {
+            continue;
+        }
+        let Ok(data) = package.extract_file(archive, &path, THEME_FONT_MAX_BYTES) else {
             continue;
         };
         if let Ok(face) = crate::font::ThemeFontFace::parse(path, data) {
@@ -517,6 +546,26 @@ fn theme_image_texture(
                 .and_then(|bytes| decode_fixed_size_image(&bytes, width, height))
         })
         .or_else(|| decode_fixed_size_image(fallback, width, height))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::load_theme_fonts;
+
+    #[test]
+    fn default_hbc_regular_and_bold_fonts_are_available_without_a_theme() {
+        let fonts = load_theme_fonts(None);
+        let names: alloc::vec::Vec<_> = fonts
+            .iter()
+            .map(|face| face.borrow().file.clone())
+            .collect();
+        assert!(names
+            .iter()
+            .any(|name| name == crate::font::DEFAULT_REGULAR_FONT_KEY));
+        assert!(names
+            .iter()
+            .any(|name| name == crate::font::DEFAULT_BOLD_FONT_KEY));
+    }
 }
 
 fn package_image(

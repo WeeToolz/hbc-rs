@@ -2,6 +2,9 @@
 use crate::metadata::ThemeMetadata;
 use alloc::{format, string::String};
 
+#[path = "localization_catalog.rs"]
+mod localization_catalog;
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum Language {
     #[default]
@@ -32,116 +35,19 @@ impl Language {
     }
 
     pub fn text<'a>(self, source: &'a str) -> &'a str {
+        localization_catalog::lookup(self, source).unwrap_or_else(|| self.extension_text(source))
+    }
+
+    fn extension_text<'a>(self, source: &'a str) -> &'a str {
         use Language::*;
         match (self, source) {
-            (Spanish, "Back") => "Atrás",
-            (French, "Back") => "Retour",
-            (German, "Back") => "Zurück",
-            (Dutch, "Back") => "Terug",
-            (Italian, "Back") => "Indietro",
-            (Japanese, "Back") => "戻る",
-            (Spanish, "About") => "Acerca de",
-            (French, "About") => "À propos de",
-            (German, "About") => "Info",
-            (Dutch, "About") => "Info",
-            (Italian, "About") => "Informazioni",
-            (Japanese, "About") => "このアプリケーションについて",
-            (Spanish, "Confirmation") => "Confirmación",
-            (French, "Confirmation") => "Confirmation",
-            (German, "Confirmation") => "Bestätigung",
-            (Dutch, "Confirmation") => "Bevestiging",
-            (Italian, "Confirmation") => "Conferma",
-            (Japanese, "Confirmation") => "確認",
-            (Spanish, "Launch BootMii") => "Lanzar BootMii",
-            (French, "Launch BootMii") => "Lancer BootMii",
-            (German, "Launch BootMii") => "BootMii starten",
-            (Dutch, "Launch BootMii") => "BootMii starten",
-            (Italian, "Launch BootMii") => "Lanciare BootMii",
-            (Japanese, "Launch BootMii") => "BootMiiを起動",
-            (Spanish, "Exit to System Menu") => "Salir al menú del sistema",
-            (French, "Exit to System Menu") => "Retour au menu système",
-            (German, "Exit to System Menu") => "Beenden, zum Systemmenü",
-            (Dutch, "Exit to System Menu") => "Terug naar System Menu",
-            (Italian, "Exit to System Menu") => "Ritorna al Menu di Sistema",
-            (Japanese, "Exit to System Menu") => "システムメニューへ戻る",
-            (Spanish, "Shutdown") => "Apagar",
-            (French, "Shutdown") => "Arrêt",
-            (German, "Shutdown") => "Herunterfahren",
-            (Dutch, "Shutdown") => "Afsluiten",
-            (Italian, "Shutdown") => "Spegni",
-            (Japanese, "Shutdown") => "シャットダウン",
-            (Spanish, "Options") => "Opciones",
-            (French, "Options") => "Options",
-            (German, "Options") => "Einstellungen",
-            (Dutch, "Options") => "Opties",
-            (Italian, "Options") => "Opzioni",
-            (Japanese, "Options") => "オプション",
-            (Spanish, "Delete") => "Eliminar",
-            (French, "Delete") => "Supprimer",
-            (German, "Delete") => "Löschen",
-            (Dutch, "Delete") => "Verwijder",
-            (Italian, "Delete") => "Elimina",
-            (Japanese, "Delete") => "削除",
-            (Spanish, "Load") => "Cargar",
-            (French, "Load") => "Charger",
-            (German, "Load") => "Laden",
-            (Dutch, "Load") => "Start",
-            (Italian, "Load") => "Carica",
-            (Japanese, "Load") => "起動",
-            (Spanish, "Name") => "Nombre",
-            (French, "Name") => "Nom",
-            (German, "Name") => "Name",
-            (Dutch, "Name") => "Naam",
-            (Italian, "Name") => "Nome",
-            (Japanese, "Name") => "名前",
-            (Spanish, "Date") => "Fecha",
-            (French, "Date") => "Date",
-            (German, "Date") => "Datum",
-            (Dutch, "Date") => "Datum",
-            (Italian, "Date") => "Data",
-            (Japanese, "Date") => "日付",
-            (Spanish, "Yes") => "Sí",
-            (French, "Yes") => "Oui",
-            (German, "Yes") => "Ja",
-            (Dutch, "Yes") => "Ja",
-            (Italian, "Yes") => "Sì",
-            (Japanese, "Yes") => "はい",
-            (Spanish, "No") => "No",
-            (French, "No") => "Non",
-            (German, "No") => "Nein",
-            (Dutch, "No") => "Nee",
-            (Italian, "No") => "No",
-            (Japanese, "No") => "いいえ",
+
             (Spanish, "Apply") => "Aplicar",
             (French, "Apply") => "Appliquer",
             (German, "Apply") => "Übernehmen",
             (Dutch, "Apply") => "Toepassen",
             (Italian, "Apply") => "Applica",
             (Japanese, "Apply") => "適用",
-            (Spanish, "Device:") => "Dispositivo:",
-            (French, "Device:") => "Dispositif:",
-            (German, "Device:") => "Quelle:",
-            (Dutch, "Device:") => "Apparaat:",
-            (Italian, "Device:") => "Periferica:",
-            (Japanese, "Device:") => "デバイス:",
-            (Spanish, "Sort applications by:") => "Ordenar aplicaciones por:",
-            (French, "Sort applications by:") => "Trier les applications par:",
-            (German, "Sort applications by:") => "Anwendungen sortieren nach:",
-            (Dutch, "Sort applications by:") => "Sorteer applicaties op:",
-            (Italian, "Sort applications by:") => "Ordina applicazioni per:",
-            (Japanese, "Sort applications by:") => "アプリケーションの並べ替え順序",
-            (Spanish, "Internal SD Slot") => "Ranura SD Interna",
-            (French, "Internal SD Slot") => "Lecteur de carte SD",
-            (German, "Internal SD Slot") => "Interner SD Slot",
-            (Dutch, "Internal SD Slot") => "Intern SD Slot",
-            (Italian, "Internal SD Slot") => "Slot SD Interno",
-            (Japanese, "Internal SD Slot") => "内部SDスロット",
-            (Spanish, "USB device") => "Dispositivo USB",
-            (French, "USB device") => "Dispositif USB",
-            (German, "USB device") => "USB-Laufwerk",
-            (Dutch, "USB device") => "USB apparaat",
-            (Italian, "USB device") => "Pendrive USB",
-            (Japanese, "USB device") => "USBデバイス",
             (Spanish, "Delete this application?") => {
                 "¿Estás seguro de que quieres eliminar esta aplicación?"
             }
@@ -160,30 +66,6 @@ impl Language {
             (Dutch, "No description available.") => "Geen omschrijving beschikbaar",
             (Italian, "No description available.") => "nessuna descrizione disponibile",
             (Japanese, "No description available.") => "詳細情報はありません",
-            (Spanish, "Information") => "Información",
-            (French, "Information") => "Information",
-            (German, "Information") => "Information",
-            (Dutch, "Information") => "Informatie",
-            (Italian, "Information") => "Informazioni",
-            (Japanese, "Information") => "報告",
-            (Spanish, "Warning") => "Advertencia",
-            (French, "Warning") => "Avertissement",
-            (German, "Warning") => "Warnung",
-            (Dutch, "Warning") => "Waarschuwing",
-            (Italian, "Warning") => "Avviso",
-            (Japanese, "Warning") => "警告",
-            (Spanish, "Error") => "Error",
-            (French, "Error") => "Erreur",
-            (German, "Error") => "Fehler",
-            (Dutch, "Error") => "Fout",
-            (Italian, "Error") => "Errore",
-            (Japanese, "Error") => "エラー",
-            (Spanish, "Theme:") => "Tema:",
-            (French, "Theme:") => "Thème :",
-            (German, "Theme:") => "Thema:",
-            (Dutch, "Theme:") => "Thema:",
-            (Italian, "Theme:") => "Tema:",
-            (Japanese, "Theme:") => "テーマ:",
             (Spanish, "Notice") => "Aviso",
             (French, "Notice") => "Avis",
             (German, "Notice") => "Hinweis",
@@ -630,24 +512,6 @@ impl Language {
             (Dutch, "of free space are required.") => "vrije ruimte is vereist.",
             (Italian, "of free space are required.") => "di spazio libero sono necessari.",
             (Japanese, "of free space are required.") => "の空き容量が必要です。",
-            (Spanish, "WARNING: Files in '%s' will be overwritten") => {
-                "AVISO: Se sobrescribirán los archivos de '%s'."
-            }
-            (French, "WARNING: Files in '%s' will be overwritten") => {
-                "ATTENTION : les fichiers de '%s' seront remplacés."
-            }
-            (German, "WARNING: Files in '%s' will be overwritten") => {
-                "WARNUNG: Dateien in '%s' werden überschrieben."
-            }
-            (Dutch, "WARNING: Files in '%s' will be overwritten") => {
-                "WAARSCHUWING: Bestanden in '%s' worden overschreven."
-            }
-            (Italian, "WARNING: Files in '%s' will be overwritten") => {
-                "ATTENZIONE: i file in '%s' verranno sovrascritti."
-            }
-            (Japanese, "WARNING: Files in '%s' will be overwritten") => {
-                "警告: '%s' 内のファイルは上書きされます。"
-            }
             _ => source,
         }
     }
@@ -718,7 +582,12 @@ mod tests {
     fn translates_catalog_labels_and_preserves_unknown_strings() {
         assert_eq!(Language::Spanish.text("Back"), "Atrás");
         assert_eq!(Language::Spanish.text("Warning"), "Advertencia");
-        assert_eq!(Language::French.text("Theme:"), "Thème :");
+        assert_eq!(Language::French.text("Theme:"), "Thème:");
+        assert_eq!(Language::Spanish.text("Cancel"), "Cancelar");
+        assert_eq!(
+            Language::French.text("Do you really want to delete this application?"),
+            "Voulez-vous vraiment supprimer cette application?"
+        );
         assert_eq!(Language::Dutch.text("Options"), "Opties");
         assert_eq!(Language::French.text("Device:"), "Dispositif:");
         assert_eq!(

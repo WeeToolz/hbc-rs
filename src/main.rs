@@ -444,7 +444,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             pointer.map(|point| (f32::from(point.x), f32::from(point.y))),
         ));
         if let Some(pointer) = pointer {
-            scene.pointer_cursor(f32::from(pointer.x), f32::from(pointer.y));
+            scene.pointer_cursor(f32::from(pointer.x), f32::from(pointer.y), pointer_held);
         }
         if storage_scan_pending {
             scene.storage_loading_status(startup.storage_scan_stage_label());
