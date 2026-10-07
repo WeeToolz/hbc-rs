@@ -477,7 +477,9 @@ impl AppController {
     }
 
     pub fn show_notice_with_kind(&mut self, message: String, kind: NoticeKind) {
-        self.notice_return_screen = self.screen;
+        if self.screen != Screen::Notice {
+            self.notice_return_screen = self.screen;
+        }
         self.notice_scroll = 0;
         self.notice_scroll_pixel_remainder = 0;
         self.notice = Some(message);
@@ -2143,6 +2145,31 @@ mod tests {
         assert_eq!(controller.handle(Input::Confirm, &catalog), Action::None);
         assert_eq!(controller.screen, Screen::AppDetails);
         assert_eq!(controller.notice(), None);
+    }
+
+    #[test]
+    fn replacing_a_notice_keeps_the_original_return_screen() {
+        let catalog = [app("one", "One", true)];
+        for open_details in [false, true] {
+            for dismiss in [Input::Confirm, Input::Back, Input::Home] {
+                let mut controller = AppController::new();
+                if open_details {
+                    controller.handle(Input::Confirm, &catalog);
+                }
+                let original_screen = controller.screen;
+                controller.show_notice("Playtime reset failed".into());
+                controller.show_notice("No SD or USB storage device is available.".into());
+                controller.show_notice("No SD or USB storage device is available.".into());
+                assert_eq!(controller.screen, Screen::Notice);
+                assert_eq!(
+                    controller.notice(),
+                    Some("No SD or USB storage device is available.")
+                );
+                assert_eq!(controller.handle(dismiss, &catalog), Action::None);
+                assert_eq!(controller.screen, original_screen);
+                assert_eq!(controller.notice(), None);
+            }
+        }
     }
 
     #[test]

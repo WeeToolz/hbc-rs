@@ -6,6 +6,20 @@ use alloc::{ffi::CString, string::String, vec::Vec};
 #[cfg(target_arch = "powerpc")]
 use crate::catalog::{CatalogStorage, DirectoryEntry};
 
+/// Track completed scans so unchanged missing storage does not reopen a notice.
+#[derive(Default)]
+pub(crate) struct StoragePresence {
+    last_scan: Option<bool>,
+}
+
+impl StoragePresence {
+    pub(crate) fn report_missing(&mut self, has_storage: bool) -> bool {
+        let report = !has_storage && self.last_scan != Some(false);
+        self.last_scan = Some(has_storage);
+        report
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Volume {
     Sd,
@@ -60,7 +74,19 @@ pub fn device_scan_order(preference: i32) -> [Volume; 4] {
 
 #[cfg(test)]
 mod device_selection_tests {
-    use super::{device_scan_order, Volume};
+    use super::{device_scan_order, StoragePresence, Volume};
+
+    #[test]
+    fn missing_storage_is_reported_once_until_a_device_returns() {
+        let mut presence = StoragePresence::default();
+        assert!(presence.report_missing(false));
+        assert!(!presence.report_missing(false));
+        assert!(!presence.report_missing(false));
+        assert!(!presence.report_missing(true));
+        assert!(!presence.report_missing(true));
+        assert!(presence.report_missing(false));
+        assert!(!presence.report_missing(false));
+    }
 
     #[test]
     fn settings_indices_cover_all_four_storage_devices() {

@@ -549,6 +549,7 @@ pub struct WiiStartup {
     scan_thread: Option<ogc_lwp::ThreadHandle>,
     scan_previous_volume: Option<Volume>,
     scan_requested_volume: Option<Volume>,
+    storage_presence: super::storage::StoragePresence,
     zip_install_thread: Option<ogc_lwp::ThreadHandle>,
     device_probe_thread: Option<ogc_lwp::ThreadHandle>,
 }
@@ -782,6 +783,7 @@ impl WiiStartup {
             scan_thread: None,
             scan_previous_volume: None,
             scan_requested_volume: None,
+            storage_presence: super::storage::StoragePresence::default(),
             zip_install_thread: None,
             device_probe_thread: None,
         };
@@ -930,6 +932,7 @@ impl WiiStartup {
         self.icon_textures.clear();
         self.attempted_icon_indices.clear();
 
+        let report_missing_storage = self.storage_presence.report_missing(self.volume.is_some());
         if result.shutdown_failed {
             self.runtime.show_notice(
                 "Could not stop the previous storage mount. No new device was mounted.",
@@ -951,7 +954,7 @@ impl WiiStartup {
         } else if previous_volume.is_some() && self.volume.is_none() {
             self.runtime
                 .show_notice("Storage was removed. Connect an SD or USB device.");
-        } else if self.volume.is_none() {
+        } else if report_missing_storage {
             self.runtime
                 .show_notice("No SD or USB storage device is available.");
         }
