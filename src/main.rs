@@ -479,16 +479,15 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             return -3;
         }
         #[cfg(feature = "startup-diagnostics")]
-        if display_ready
-            && unsafe {
-                hbc_rs::platform::renderer::draw_frame(
-                    &video,
-                    &scene,
-                    startup.icon_textures(),
-                    startup.theme_textures(),
-                )
-            }
-            .is_err()
+        if unsafe {
+            hbc_rs::platform::renderer::draw_frame(
+                &video,
+                &scene,
+                startup.icon_textures(),
+                startup.theme_textures(),
+            )
+        }
+        .is_err()
         {
             if hbc_rs::platform::diagnostics::fail("GX RENDER ERROR") {
                 if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
@@ -584,18 +583,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 hbc_rs::platform::diagnostics::mark("GX COPY QUEUED");
                 hbc_rs::platform::diagnostics::hold();
                 if !video.framebuffer_has_visible_luma() {
-                    let label = if video.efb_has_test_square() {
-                        "GX XFB BLACK"
-                    } else {
-                        match video.poke_test_square_to_efb() {
-                            false => "GX POKE BOUNDS",
-                            true if !video.efb_has_test_square() => "GX POKE READ FAIL",
-                            true if unsafe { video.present() }.is_err() => "GX COPY TIMEOUT",
-                            true if !video.framebuffer_has_test_square() => "GX XFB SQUARE MISSING",
-                            true => "GX VERTEX DRAW MISSING",
-                        }
-                    };
-                    if hbc_rs::platform::diagnostics::fail(label) {
+                    if hbc_rs::platform::diagnostics::fail("GX FIRST FRAME BLACK") {
                         if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART)
                         {
                             hbc_rs::platform::diagnostics::fail(message);

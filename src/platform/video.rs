@@ -88,43 +88,6 @@ impl VideoSystem {
     }
 
     #[cfg(feature = "startup-diagnostics")]
-    pub fn efb_has_test_square(&self) -> bool {
-        ogc_gx::draw_done();
-        super::diagnostics::test_square_is_white(self.info.width, self.info.height, |x, y| {
-            let mut color = ogc_gx::GxColor::default();
-            unsafe { ogc_gx::peek_argb(x, y, &mut color) };
-            color.r.min(color.g).min(color.b)
-        })
-    }
-
-    #[cfg(feature = "startup-diagnostics")]
-    pub fn poke_test_square_to_efb(&self) -> bool {
-        let Some((left, top)) =
-            super::diagnostics::test_square_origin(self.info.width, self.info.height)
-        else {
-            return false;
-        };
-        let bottom = top + super::diagnostics::TEST_SQUARE_SIZE;
-        if bottom > self.efb_height {
-            return false;
-        }
-        ogc_gx::draw_done();
-        let white = ogc_gx::GxColor {
-            r: 255,
-            g: 255,
-            b: 255,
-            a: 255,
-        };
-        let right = left + super::diagnostics::TEST_SQUARE_SIZE;
-        for y in top..bottom {
-            for x in left..right {
-                ogc_gx::poke_argb(x, y, white);
-            }
-        }
-        true
-    }
-
-    #[cfg(feature = "startup-diagnostics")]
     pub fn paint_scanout_probe(&self) {
         let framebuffer = ogc_core::mem_k0_to_k1(self.framebuffer as usize) as *mut u32;
         let words = unsafe {
