@@ -88,6 +88,16 @@ impl VideoSystem {
     }
 
     #[cfg(feature = "startup-diagnostics")]
+    pub fn efb_has_test_square(&self) -> bool {
+        ogc_gx::draw_done();
+        super::diagnostics::test_square_is_white(self.info.width, self.info.height, |x, y| {
+            let mut color = ogc_gx::GxColor::default();
+            unsafe { ogc_gx::peek_argb(x, y, &mut color) };
+            color.r.min(color.g).min(color.b)
+        })
+    }
+
+    #[cfg(feature = "startup-diagnostics")]
     pub fn paint_scanout_probe(&self) {
         let framebuffer = ogc_core::mem_k0_to_k1(self.framebuffer as usize) as *mut u32;
         let words = unsafe {
