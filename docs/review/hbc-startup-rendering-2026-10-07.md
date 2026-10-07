@@ -67,3 +67,18 @@ evidence. The profile difference may affect XFB readback, but it does not yet
 explain the EFB test failure. Compare the EFB sample values and the XFB buffer
 under both profiles, then rerun the rebuilt DOL on Wii. Keep HBC-GX-01 partial
 until the black-screen cause is resolved and the Wii result is verified.
+
+## TEV order correction
+
+The solid-color TEV helper returned three BP words. Its third word targeted
+register `0x28` and cleared the TEV order that `configure_2d_state` had just
+set to select raster color. C `GX_SetTevOp(GX_PASSCLR)` writes the color and
+alpha environment registers; it does not change TEV order. Rust now emits only
+those two environment words for solid and textured setup. Regression checks
+keep the expected order word and both environment values.
+
+The strict diagnostic DOL was rebuilt and run in the normal Dolphin profile
+again. It still reports `GX EFB DRAW BLACK`; this correction has not resolved
+the observed rendering failure. The Wii photo appears to report
+`GX EFB SQUARE FAIL`, which also leaves the EFB draw path open. HBC-GX-01 stays
+partial, and the corrected DOL still needs another Wii run.
