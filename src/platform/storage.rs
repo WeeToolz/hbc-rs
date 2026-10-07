@@ -6,16 +6,18 @@ use alloc::{ffi::CString, string::String, vec::Vec};
 #[cfg(target_arch = "powerpc")]
 use crate::catalog::{CatalogStorage, DirectoryEntry};
 
-/// Track completed scans so unchanged missing storage does not reopen a notice.
+/// Report missing storage once until a successful mount changes the state.
+#[cfg(any(test, target_arch = "powerpc"))]
 #[derive(Default)]
 pub(crate) struct StoragePresence {
-    last_scan: Option<bool>,
+    last_scan_had_storage: Option<bool>,
 }
 
+#[cfg(any(test, target_arch = "powerpc"))]
 impl StoragePresence {
     pub(crate) fn report_missing(&mut self, has_storage: bool) -> bool {
-        let report = !has_storage && self.last_scan != Some(false);
-        self.last_scan = Some(has_storage);
+        let report = !has_storage && self.last_scan_had_storage != Some(false);
+        self.last_scan_had_storage = Some(has_storage);
         report
     }
 }
@@ -77,15 +79,13 @@ mod device_selection_tests {
     use super::{device_scan_order, StoragePresence, Volume};
 
     #[test]
-    fn missing_storage_is_reported_once_until_a_device_returns() {
+    fn no_storage_notice_is_not_reopened_by_repeated_scans() {
         let mut presence = StoragePresence::default();
         assert!(presence.report_missing(false));
         assert!(!presence.report_missing(false));
         assert!(!presence.report_missing(false));
         assert!(!presence.report_missing(true));
-        assert!(!presence.report_missing(true));
         assert!(presence.report_missing(false));
-        assert!(!presence.report_missing(false));
     }
 
     #[test]

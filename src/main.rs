@@ -127,10 +127,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     let playtime_reset_error = hbc_rs::platform::settings::reset_playtime_record().err();
     let mut startup = hbc_rs::platform::startup::WiiStartup::initialize(view_width, 480);
     if let Some(error) = playtime_reset_error {
-        startup.runtime_mut().show_notice_with_kind(
-            &format!("Could not reset the HBC playtime record ({error:?})."),
-            hbc_rs::app::NoticeKind::Warning,
-        );
+        ogc_system::report(format_args!("HBC: playtime reset failed: {error:?}\n"));
     }
     let now = ogc_system::time();
     let now_minutes = now / 60;

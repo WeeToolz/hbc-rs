@@ -58,7 +58,18 @@ struct StorageScanResult {
     storage: Option<FatStorage>,
     catalog: Vec<AppEntry>,
     scan_error: Option<crate::catalog::ScanError<StorageError>>,
-    shutdown_failed: bool,
+    mount_errors: [(Volume, Option<StorageError>); 4],
+    recovery_error: Option<ZipInstallError>,
+    shutdown_error: Option<ogc_fat::FatError>,
+}
+
+struct MountScanResult {
+    volume: Option<Volume>,
+    storage: Option<FatStorage>,
+    catalog: Vec<AppEntry>,
+    scan_error: Option<crate::catalog::ScanError<StorageError>>,
+    mount_errors: [(Volume, Option<StorageError>); 4],
+    recovery_error: Option<ZipInstallError>,
 }
 
 #[derive(Clone, Copy)]
@@ -504,30 +515,37 @@ unsafe extern "C" fn device_probe_entry(_argument: *mut c_void) -> *mut c_void {
 
 unsafe extern "C" fn storage_scan_entry(_argument: *mut c_void) -> *mut c_void {
     STORAGE_SCAN_STAGE.store(STORAGE_STAGE_SHUTDOWN, Ordering::Release);
-    let shutdown_failed =
-        STORAGE_SCAN_SHUTDOWN_OLD.load(Ordering::Acquire) && ogc_fat::shutdown_all().is_err();
-    if shutdown_failed {
+    let shutdown_error = STORAGE_SCAN_SHUTDOWN_OLD
+        .load(Ordering::Acquire)
+        .then(ogc_fat::shutdown_all)
+        .transpose()
+        .err();
+    if shutdown_error.is_some() {
         unsafe {
             addr_of_mut!(STORAGE_SCAN_RESULT).write(MaybeUninit::new(StorageScanResult {
                 volume: None,
                 storage: None,
                 catalog: Vec::new(),
                 scan_error: None,
-                shutdown_failed: true,
+                mount_errors: device_scan_order(0).map(|volume| (volume, None)),
+                recovery_error: None,
+                shutdown_error,
             }))
         };
         STORAGE_SCAN_STATE.store(STORAGE_SCAN_READY, Ordering::Release);
         return null_mut();
     }
     let preference = STORAGE_SCAN_PREFERENCE.load(Ordering::Acquire);
-    let (volume, storage, catalog, scan_error) = mount_preferred_volume(preference);
+    let scan = mount_preferred_volume(preference);
     STORAGE_SCAN_STAGE.store(STORAGE_STAGE_FINISH, Ordering::Release);
     let result = StorageScanResult {
-        volume,
-        storage,
-        catalog,
-        scan_error,
-        shutdown_failed,
+        volume: scan.volume,
+        storage: scan.storage,
+        catalog: scan.catalog,
+        scan_error: scan.scan_error,
+        mount_errors: scan.mount_errors,
+        recovery_error: scan.recovery_error,
+        shutdown_error,
     };
     unsafe {
         addr_of_mut!(STORAGE_SCAN_RESULT).write(MaybeUninit::new(result));
@@ -932,11 +950,17 @@ impl WiiStartup {
         self.icon_textures.clear();
         self.attempted_icon_indices.clear();
 
-        let report_missing_storage = self.storage_presence.report_missing(self.volume.is_some());
-        if result.shutdown_failed {
-            self.runtime.show_notice(
-                "Could not stop the previous storage mount. No new device was mounted.",
-            );
+        for (volume, error) in result.mount_errors {
+            if let Some(error) = error
+                .filter(|error| *error != StorageError::Fat(ogc_fat::FatError::DeviceUnavailable))
+            {
+                ogc_system::report(format_args!("HBC: {volume:?} mount failed: {error:?}\n"));
+            }
+        }
+        if let Some(error) = result.shutdown_error {
+            self.runtime.show_notice(&alloc::format!(
+                "Could not stop the previous storage mount ({error:?}). No new device was mounted."
+            ));
         } else if join_failed {
             self.runtime.show_notice(
                 "The storage scan worker stopped unexpectedly. Its result was discarded.",
@@ -948,15 +972,35 @@ impl WiiStartup {
             self.runtime.show_notice(&alloc::format!(
                 "Could not scan apps on this device ({error:?})."
             ));
+        } else if let Some(error) = result.recovery_error {
+            self.runtime.show_notice(&alloc::format!(
+                "Could not recover app storage state ({error:?})."
+            ));
+        } else if self.volume.is_none() {
+            if let Some((volume, error)) = result.mount_errors.iter().find_map(|(volume, error)| {
+                error
+                    .filter(|error| {
+                        *error != StorageError::Fat(ogc_fat::FatError::DeviceUnavailable)
+                    })
+                    .map(|error| (volume, error))
+            }) {
+                self.runtime.show_notice(&alloc::format!(
+                    "Could not mount {volume:?} storage ({error:?})."
+                ));
+            } else if previous_volume.is_some() {
+                self.storage_presence.report_missing(false);
+                self.runtime
+                    .show_notice("Storage was removed. Connect an SD or USB device.");
+            } else if self.storage_presence.report_missing(false) {
+                self.runtime
+                    .show_notice("No SD or USB storage device is available.");
+            }
         } else if requested_volume.is_some() && self.volume != requested_volume {
             self.runtime
                 .show_notice("The selected storage device is not available.");
-        } else if previous_volume.is_some() && self.volume.is_none() {
-            self.runtime
-                .show_notice("Storage was removed. Connect an SD or USB device.");
-        } else if report_missing_storage {
-            self.runtime
-                .show_notice("No SD or USB storage device is available.");
+        }
+        if self.volume.is_some() {
+            self.storage_presence.report_missing(true);
         }
         true
     }
@@ -1248,22 +1292,45 @@ impl WiiStartup {
             self.storage = None;
             self.volume = None;
         }
-        let (volume, storage, catalog, scan_error) = mount_preferred_volume(preferred);
-        self.volume = volume;
-        self.storage = storage;
+        let scan = mount_preferred_volume(preferred);
+        for (volume, error) in scan.mount_errors {
+            if let Some(error) = error
+                .filter(|error| *error != StorageError::Fat(ogc_fat::FatError::DeviceUnavailable))
+            {
+                ogc_system::report(format_args!("HBC: {volume:?} mount failed: {error:?}\n"));
+            }
+        }
+        self.volume = scan.volume;
+        self.storage = scan.storage;
         self.runtime
-            .set_active_device(volume.map(Volume::settings_index));
-        self.runtime.replace_catalog(catalog);
+            .set_active_device(scan.volume.map(Volume::settings_index));
+        self.runtime.replace_catalog(scan.catalog);
         self.icon_textures.clear();
         self.attempted_icon_indices.clear();
-        let selected = volume == Some(wanted);
+        let selected = scan.volume == Some(wanted);
         if !selected {
-            if let Some(active) = volume {
+            if let Some(active) = scan.volume {
                 self.runtime.set_preferred_device(active.settings_index());
             }
         }
-        if let Some(error) = scan_error {
+        if let Some(error) = scan.scan_error {
             return Err(StartupError::CatalogScan(error));
+        }
+        if let Some(error) = scan.recovery_error {
+            return Err(StartupError::Recovery(error));
+        }
+        if scan.volume.is_none() {
+            if let Some((volume, error)) =
+                scan.mount_errors.into_iter().find_map(|(volume, error)| {
+                    error
+                        .filter(|error| {
+                            *error != StorageError::Fat(ogc_fat::FatError::DeviceUnavailable)
+                        })
+                        .map(|error| (volume, error))
+                })
+            {
+                return Err(StartupError::StorageMount { volume, error });
+            }
         }
         Ok(selected)
     }
@@ -1333,17 +1400,14 @@ pub enum StartupError {
     Loader(ParseError),
     Theme(crate::theme::ThemePackageError),
     ThemeStorage(super::settings::SettingsIoError),
+    StorageMount { volume: Volume, error: StorageError },
+    Recovery(ZipInstallError),
 }
 
-fn mount_preferred_volume(
-    preference: i32,
-) -> (
-    Option<Volume>,
-    Option<FatStorage>,
-    Vec<AppEntry>,
-    Option<crate::catalog::ScanError<StorageError>>,
-) {
-    for volume in device_scan_order(preference) {
+fn mount_preferred_volume(preference: i32) -> MountScanResult {
+    let order = device_scan_order(preference);
+    let mut mount_errors = order.map(|volume| (volume, None));
+    for (index, volume) in order.into_iter().enumerate() {
         let mount_stage = match volume {
             Volume::Sd => STORAGE_STAGE_MOUNT_SD,
             Volume::Usb => STORAGE_STAGE_MOUNT_USB,
@@ -1351,12 +1415,24 @@ fn mount_preferred_volume(
             Volume::CardB => STORAGE_STAGE_MOUNT_CARDB,
         };
         STORAGE_SCAN_STAGE.store(mount_stage, Ordering::Release);
-        let Ok(mut storage) = FatStorage::mount(volume) else {
-            continue;
+        let mut storage = match FatStorage::mount(volume) {
+            Ok(storage) => storage,
+            Err(error) => {
+                mount_errors[index].1 = Some(error);
+                continue;
+            }
         };
         STORAGE_SCAN_STAGE.store(STORAGE_STAGE_RECOVER, Ordering::Release);
-        if recover_app_install_artifacts(&mut storage).is_err() {
-            return (Some(volume), Some(storage), Vec::new(), None);
+        let recovery_error = recover_app_install_artifacts(&mut storage).err();
+        if recovery_error.is_some() {
+            return MountScanResult {
+                volume: Some(volume),
+                storage: Some(storage),
+                catalog: Vec::new(),
+                scan_error: None,
+                mount_errors,
+                recovery_error,
+            };
         }
         STORAGE_SCAN_STAGE.store(STORAGE_STAGE_SCAN_APPS, Ordering::Release);
         // A missing apps directory is a valid empty catalog. Keep the mounted
@@ -1373,8 +1449,22 @@ fn mount_preferred_volume(
             ))) => (Vec::new(), None),
             Err(error) => (Vec::new(), Some(error)),
         };
-        return (Some(volume), Some(storage), catalog, scan_error);
+        return MountScanResult {
+            volume: Some(volume),
+            storage: Some(storage),
+            catalog,
+            scan_error,
+            mount_errors,
+            recovery_error: None,
+        };
     }
 
-    (None, None, Vec::new(), None)
+    MountScanResult {
+        volume: None,
+        storage: None,
+        catalog: Vec::new(),
+        scan_error: None,
+        mount_errors,
+        recovery_error: None,
+    }
 }
