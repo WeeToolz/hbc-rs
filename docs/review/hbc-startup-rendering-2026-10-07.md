@@ -54,15 +54,16 @@ now keeps the same TEX0 descriptor, VAT format, identity texgen, and per-vertex
 coordinates for solid and textured quads. The solid TEV operation still uses
 the raster color and does not sample a texture.
 
-The strict PowerPC diagnostic DOL was rebuilt with this change. Host tests
-passed, and a fresh automated Dolphin GDB capture of the rebuilt DOL completed.
-The captured 640 × 480 XFB shows the production no-storage notice and HBC scene,
-with the white test square drawn at the expected center and no red CPU fallback
-outline. This confirms EFB drawing and EFB-to-XFB copy in Dolphin for this DOL.
-The capture metadata is in `target/hbc-startup-capture.json`; the XFB and PNG are
-`target/hbc-gx-framebuffer.xfb` and `target/hbc-gx-framebuffer.png`.
+The strict PowerPC diagnostic DOL was rebuilt with this change. A normal-profile
+Dolphin run of that DOL on 2026-10-07 reaches `GX EFB DRAW BLACK` and displays
+the CPU-written fallback square with its red border. This reproduces the reported
+failure; it does not confirm the GX fix.
 
-Real-Wii verification is still pending. The user saw the CPU fallback pattern
-on Wii before this vertex-stream correction. That result does not verify the
-rebuilt DOL. Run this exact DOL on Wii and confirm that the production HBC scene
-appears without the diagnostic fallback before marking hardware parity verified.
+An earlier automated capture appeared to show the HBC no-storage scene and white
+test square. That capture used a separate Dolphin profile with
+`XFBToTextureEnable=False` and `DeferEFBCopies=False`, and the helper stopped
+after eight seconds without checking the startup result. It is not valid pass
+evidence. The profile difference may affect XFB readback, but it does not yet
+explain the EFB test failure. Compare the EFB sample values and the XFB buffer
+under both profiles, then rerun the rebuilt DOL on Wii. Keep HBC-GX-01 partial
+until the black-screen cause is resolved and the Wii result is verified.
