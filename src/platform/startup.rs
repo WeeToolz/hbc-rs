@@ -1075,11 +1075,6 @@ impl WiiStartup {
             if self.icon_textures.try_reserve(1).is_err() {
                 continue;
             }
-            if let Ok(byte_len) = u32::try_from(texture.len()) {
-                unsafe { ogc_cache::dc_flush_range(texture.as_ptr().cast(), byte_len) };
-            } else {
-                continue;
-            }
             self.icon_textures.push(IconTexture {
                 catalog_index,
                 texture,

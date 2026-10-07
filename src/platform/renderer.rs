@@ -328,13 +328,9 @@ pub unsafe fn draw_frame(
                     .unwrap_or(0.0)
                     * run.scale;
             }
-            let glyph = match face.rasterize(character, run.size) {
-                Ok(glyph) => glyph.clone(),
-                Err(_) => {
-                    previous_character = Some(character);
-                    continue;
-                }
-            };
+            let glyph = face
+                .rasterize(character, run.size)
+                .map_err(VideoError::Font)?;
             if glyph.width != 0 && glyph.height != 0 {
                 let mut textures = theme.font_textures.borrow_mut();
                 let cached = textures.iter().position(|item| {
@@ -344,9 +340,12 @@ pub unsafe fn draw_frame(
                         && item.color == run.color
                 });
                 let cached = if let Some(index) = cached {
-                    Some(index)
+                    index
                 } else {
-                    let mut pixels = Vec::with_capacity(glyph.coverage.len() * 4);
+                    let mut pixels = Vec::new();
+                    pixels
+                        .try_reserve_exact(glyph.coverage.len() * 4)
+                        .map_err(|_| VideoError::RenderAllocation)?;
                     for coverage in &glyph.coverage {
                         pixels.extend_from_slice(&[
                             run.color.red,
@@ -360,46 +359,45 @@ pub unsafe fn draw_frame(
                         height: u32::from(glyph.height),
                         pixels,
                     };
-                    crate::png::GxRgba8Texture::from_image(&image)
-                        .ok()
-                        .map(|texture| {
-                            textures.push(super::theme::CachedFontTexture {
-                                file: file.clone(),
-                                character,
-                                size: run.size,
-                                color: run.color,
-                                texture,
-                            });
-                            textures.len() - 1
-                        })
+                    let texture = crate::png::GxRgba8Texture::from_image(&image)
+                        .map_err(VideoError::Texture)?;
+                    textures
+                        .try_reserve(1)
+                        .map_err(|_| VideoError::RenderAllocation)?;
+                    textures.push(super::theme::CachedFontTexture {
+                        file: file.clone(),
+                        character,
+                        size: run.size,
+                        color: run.color,
+                        texture,
+                    });
+                    textures.len() - 1
                 };
-                if let Some(index) = cached {
-                    let texture = &textures[index].texture;
-                    let baseline = run.y + ascent * run.scale;
-                    let x = cursor_x + glyph.xmin as f32 * run.scale;
-                    let y = baseline - (glyph.ymin + i32::from(glyph.height)) as f32 * run.scale;
-                    if let Some(bounds) = map_rect(
-                        crate::render::Rect {
-                            x,
-                            y,
-                            width: f32::from(glyph.width) * run.scale,
-                            height: f32::from(glyph.height) * run.scale,
-                        },
-                        frame.logical_width(),
-                        LOGICAL_HEIGHT,
-                        info.width,
-                        info.height,
-                    ) {
-                        video.configure_textured_2d();
-                        unsafe {
-                            video.draw_texture(
-                                texture,
-                                bounds.x,
-                                bounds.y,
-                                bounds.width,
-                                bounds.height,
-                            )?;
-                        }
+                let texture = &textures[cached].texture;
+                let baseline = run.y + ascent * run.scale;
+                let x = cursor_x + glyph.xmin as f32 * run.scale;
+                let y = baseline - (glyph.ymin + i32::from(glyph.height)) as f32 * run.scale;
+                if let Some(bounds) = map_rect(
+                    crate::render::Rect {
+                        x,
+                        y,
+                        width: f32::from(glyph.width) * run.scale,
+                        height: f32::from(glyph.height) * run.scale,
+                    },
+                    frame.logical_width(),
+                    LOGICAL_HEIGHT,
+                    info.width,
+                    info.height,
+                ) {
+                    video.configure_textured_2d();
+                    unsafe {
+                        video.draw_texture(
+                            texture,
+                            bounds.x,
+                            bounds.y,
+                            bounds.width,
+                            bounds.height,
+                        )?;
                     }
                 }
             }

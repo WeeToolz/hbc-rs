@@ -271,6 +271,9 @@ pub enum VideoError {
     CaptureAllocation,
     GxRect(ogc_gx::GxRectError),
     GxTexture(ogc_gx::GxTextureError),
+    Font(crate::font::FontError),
+    Texture(crate::png::PngError),
+    RenderAllocation,
 }
 
 /// Initialize VI and select a cleared framebuffer.

@@ -624,14 +624,5 @@ fn decode_fixed_size_image(
     };
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("PNG GX TILE DONE");
-    if let Ok(byte_len) = u32::try_from(texture.len()) {
-        #[cfg(feature = "startup-diagnostics")]
-        super::diagnostics::mark("PNG CACHE FLUSH START");
-        unsafe { ogc_cache::dc_flush_range(texture.as_ptr().cast(), byte_len) };
-        #[cfg(feature = "startup-diagnostics")]
-        super::diagnostics::mark("PNG CACHE FLUSH DONE");
-        Some(texture)
-    } else {
-        None
-    }
+    Some(texture)
 }

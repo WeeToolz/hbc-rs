@@ -179,11 +179,20 @@ impl GxRgba8Texture {
             block.copy_from_slice(bytes);
             blocks.push(GxTextureBlock(block));
         }
-        Ok(Self {
+        let texture = Self {
             width,
             height,
             blocks,
-        })
+        };
+        #[cfg(target_arch = "powerpc")]
+        {
+            let byte_len =
+                u32::try_from(texture.len()).map_err(|_| PngError::InvalidTextureDimensions)?;
+            // SAFETY: the texture owns this aligned, initialized allocation. It stays
+            // immutable and alive while GX reads it.
+            unsafe { ogc_cache::dc_flush_range(texture.as_ptr().cast(), byte_len) };
+        }
+        Ok(texture)
     }
 
     pub fn as_bytes(&self) -> &[u8] {
@@ -313,31 +322,34 @@ pub fn to_gx_rgba8(image: &RgbaImage) -> Result<Vec<u8>, PngError> {
         .checked_mul(height)
         .and_then(|pixels| pixels.checked_mul(4))
         .ok_or(PngError::InvalidTextureDimensions)?;
-    if image.width == 0
-        || image.height == 0
-        || image.width % 4 != 0
-        || image.height % 4 != 0
-        || image.pixels.len() != expected_len
-    {
+    if image.width == 0 || image.height == 0 || image.pixels.len() != expected_len {
         return Err(PngError::InvalidTextureDimensions);
     }
+    let tiled_len = width
+        .checked_add(3)
+        .and_then(|width| (width & !3).checked_mul(height.checked_add(3)? & !3))
+        .and_then(|pixels| pixels.checked_mul(4))
+        .ok_or(PngError::InvalidTextureDimensions)?;
     let mut output = Vec::new();
     output
-        .try_reserve_exact(image.pixels.len())
+        .try_reserve_exact(tiled_len)
         .map_err(|_| PngError::AllocationFailed)?;
     for tile_y in (0..height).step_by(4) {
         for tile_x in (0..width).step_by(4) {
             // GX stores each 4x4 tile as an A/R plane followed by a G/B plane.
-            for row in 0..4 {
-                for column in 0..4 {
-                    let offset = ((tile_y + row) * width + tile_x + column) * 4;
-                    output.extend_from_slice(&[image.pixels[offset + 3], image.pixels[offset]]);
-                }
-            }
-            for row in 0..4 {
-                for column in 0..4 {
-                    let offset = ((tile_y + row) * width + tile_x + column) * 4;
-                    output.extend_from_slice(&[image.pixels[offset + 1], image.pixels[offset + 2]]);
+            for [first, second] in [[3, 0], [1, 2]] {
+                for row in 0..4 {
+                    for column in 0..4 {
+                        let x = tile_x + column;
+                        let y = tile_y + row;
+                        let pair = if x < width && y < height {
+                            let offset = (y * width + x) * 4;
+                            [image.pixels[offset + first], image.pixels[offset + second]]
+                        } else {
+                            [0, 0]
+                        };
+                        output.extend_from_slice(&pair);
+                    }
                 }
             }
         }
@@ -1058,7 +1070,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_dimensions_before_decode_and_non_tiled_texture_sizes() {
+    fn rejects_invalid_dimensions_and_pixel_lengths() {
         assert_eq!(
             decode_png(&png(2, 1, 8, 6, 0, &[0, 0, 0, 0, 255]), rgba_limits(1, 1)),
             Err(PngError::InvalidDimensions)
@@ -1066,9 +1078,51 @@ mod tests {
         let image = RgbaImage {
             width: 1,
             height: 1,
-            pixels: vec![0; 4],
+            pixels: vec![0; 3],
         };
         assert_eq!(to_gx_rgba8(&image), Err(PngError::InvalidTextureDimensions));
+    }
+
+    #[test]
+    fn partial_gx_tiles_preserve_pixels_and_use_transparent_padding() {
+        let image = RgbaImage {
+            width: 3,
+            height: 2,
+            pixels: vec![
+                1, 11, 21, 31, 2, 12, 22, 32, 3, 13, 23, 33, 4, 14, 24, 34, 5, 15, 25, 35, 6, 16,
+                26, 36,
+            ],
+        };
+        let texture = GxRgba8Texture::from_image(&image).unwrap();
+        assert_eq!((texture.width, texture.height), (3, 2));
+        assert_eq!(texture.as_ptr() as usize & 31, 0);
+        assert_eq!(
+            texture.as_bytes(),
+            &[
+                31, 1, 32, 2, 33, 3, 0, 0, 34, 4, 35, 5, 36, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 11, 21, 12, 22, 13, 23, 0, 0, 14, 24, 15, 25, 16, 26, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ]
+        );
+    }
+
+    #[test]
+    fn partial_tiles_on_both_axes_keep_separate_tile_rows() {
+        let mut image = RgbaImage {
+            width: 5,
+            height: 5,
+            pixels: vec![0; 100],
+        };
+        image.pixels[96..100].copy_from_slice(&[1, 2, 3, 4]);
+        let tiled = to_gx_rgba8(&image).unwrap();
+        assert_eq!(tiled.len(), 256);
+        assert!(tiled[..192].iter().all(|byte| *byte == 0));
+        assert_eq!(&tiled[192..196], &[4, 1, 0, 0]);
+        assert_eq!(&tiled[224..228], &[2, 3, 0, 0]);
+        assert!(tiled[196..224]
+            .iter()
+            .chain(&tiled[228..])
+            .all(|byte| *byte == 0));
     }
 
     #[test]
