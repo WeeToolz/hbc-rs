@@ -47,7 +47,7 @@ Source review: **34 reviewed**, **0 pending**, **0 need follow-up**. Real Wii ve
 | HBC-EXT-01 | network profile editor | `scope:Rust-only extension` | `src/platform/network_config.rs#pub fn save` | out_of_scope | excluded | not_applicable | Keep outside C parity scope unless the scope changes. |
 | HBC-EXT-02 | wireless network scan | `scope:Rust-only extension` | `src/platform/network_scan.rs#pub fn scan` | out_of_scope | excluded | not_applicable | Keep outside C parity scope unless the scope changes. |
 | HBC-EXCLUDE-01 | C update and installer | `scope:excluded C feature` | `README.md#updates` | out_of_scope | excluded | not_applicable | Keep update and installer behavior out of the running-app parity target. |
-| HBC-DATA-02 | playtime record reset | `source/playtime.c#playtime_destroy` | `src/main.rs#fn main` | implemented | source_reviewed | hardware_pending | Verify the bounded four-byte System Menu record reset and read-back on Wii hardware. |
+| HBC-DATA-02 | playtime record reset | `source/playtime.c#playtime_destroy` | `src/main.rs#fn main` | implemented | source_reviewed | hardware_pending | Verify the four-byte prefix reset and read-back on Wii hardware; confirm remaining file bytes stay unchanged. |
 
 ## State definitions
 

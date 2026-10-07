@@ -1,4 +1,9 @@
-//! Checked reset logic for HBC's four-byte System Menu playtime record.
+//! Checked reset of the first four bytes in the System Menu playtime file.
+
+#[cfg(any(test, target_arch = "powerpc"))]
+pub(crate) fn record_has_reset_prefix(file_length: u32) -> bool {
+    file_length >= 4
+}
 
 #[derive(Debug, Eq, PartialEq)]
 #[cfg(any(test, target_arch = "powerpc"))]
@@ -27,8 +32,36 @@ pub(crate) fn reset_record_with<E>(
 
 #[cfg(test)]
 mod tests {
-    use super::{reset_record_with, ResetError};
-    use core::cell::Cell;
+    use super::{record_has_reset_prefix, reset_record_with, ResetError};
+    use core::cell::{Cell, RefCell};
+
+    #[test]
+    fn reset_accepts_larger_records_and_preserves_their_remaining_bytes() {
+        assert!(!record_has_reset_prefix(0));
+        assert!(!record_has_reset_prefix(3));
+        assert!(record_has_reset_prefix(4));
+        assert!(record_has_reset_prefix(128));
+
+        let persisted = RefCell::new([0x5a; 128]);
+        reset_record_with::<()>(
+            || {
+                let bytes = persisted.borrow();
+                assert!(record_has_reset_prefix(bytes.len() as u32));
+                Ok(bytes[..4].try_into().unwrap())
+            },
+            |prefix| {
+                let mut bytes = persisted.borrow_mut();
+                assert!(record_has_reset_prefix(bytes.len() as u32));
+                bytes[..4].copy_from_slice(&prefix);
+                Ok(())
+            },
+        )
+        .unwrap();
+
+        let reloaded = persisted.borrow();
+        assert_eq!(&reloaded[..4], &[0, 0, 0, 0]);
+        assert_eq!(&reloaded[4..], &[0x5a; 124]);
+    }
 
     #[test]
     fn reset_writes_and_reloads_the_expected_zero_record() {

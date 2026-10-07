@@ -72,10 +72,10 @@ separate targets.
 
 ## Remaining runtime work
 
-- HBC resets the four-byte System Menu `play_rec.dat` record before settings
-  load. Rust now checks the file length, writes through an aligned ISFS buffer,
+- HBC resets the first four bytes of the System Menu `play_rec.dat` file
+  before settings load. Rust now checks the file length, writes through an aligned ISFS buffer,
   closes the handle, and reads the value back. A reset failure appears as a
-  warning. An unexpected file size stops the write.
+  warning. A file shorter than four bytes stops the write.
 - The display scene uses HBC’s full-screen background without Rust-only
   header/footer bands. HBC’s Droid TrueType faces
   render labels, descriptions, menus, About content, and confirmation dialogs.

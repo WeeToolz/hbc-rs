@@ -254,9 +254,9 @@ pub fn save(settings: &UserSettings) -> Result<(), SettingsIoError> {
     super::nand::save_wii(&path, xml.as_bytes())
 }
 
-/// Reset HBC's four-byte System Menu playtime record, as the C application does.
+/// Reset the first four bytes of the System Menu playtime file, as C does.
 ///
-/// The file must exist and have the exact expected size. The reset reads the
+/// The file must exist and contain at least four bytes. The reset reads the
 /// record again after closing the write handle so success means ISFS committed
 /// the zero value.
 pub fn reset_playtime_record() -> Result<(), SettingsIoError> {
@@ -281,7 +281,7 @@ fn read_playtime_record() -> Result<[u8; 4], SettingsIoError> {
         if rc < 0 {
             return Err(SettingsIoError::Isfs(rc));
         }
-        if stats.0.file_length != PLAYTIME_RECORD_SIZE {
+        if !crate::playtime::record_has_reset_prefix(stats.0.file_length) {
             return Err(SettingsIoError::InvalidFileSize);
         }
         let mut record = AlignedPlaytimeRecord([0; 32]);
@@ -304,7 +304,7 @@ fn write_playtime_record(record: [u8; 4]) -> Result<(), SettingsIoError> {
         if rc < 0 {
             return Err(SettingsIoError::Isfs(rc));
         }
-        if stats.0.file_length != PLAYTIME_RECORD_SIZE {
+        if !crate::playtime::record_has_reset_prefix(stats.0.file_length) {
             return Err(SettingsIoError::InvalidFileSize);
         }
         let mut aligned = AlignedPlaytimeRecord([0; 32]);
