@@ -100,10 +100,14 @@ impl VideoSystem {
     #[cfg(feature = "startup-diagnostics")]
     pub fn poke_test_square_to_efb(&self) -> bool {
         let Some((left, top)) =
-            super::diagnostics::test_square_origin(self.info.width, self.efb_height)
+            super::diagnostics::test_square_origin(self.info.width, self.info.height)
         else {
             return false;
         };
+        let bottom = top + super::diagnostics::TEST_SQUARE_SIZE;
+        if bottom > self.efb_height {
+            return false;
+        }
         ogc_gx::draw_done();
         let white = ogc_gx::GxColor {
             r: 255,
@@ -112,7 +116,6 @@ impl VideoSystem {
             a: 255,
         };
         let right = left + super::diagnostics::TEST_SQUARE_SIZE;
-        let bottom = top + super::diagnostics::TEST_SQUARE_SIZE;
         for y in top..bottom {
             for x in left..right {
                 ogc_gx::poke_argb(x, y, white);
