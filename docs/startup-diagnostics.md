@@ -34,8 +34,10 @@ framebuffer. Its first GX frame uses HBC's production renderer and adds a white
 square over the scene. `GX COPY QUEUED` means the GX commands were submitted;
 it does not confirm that the GPU completed them. After a short hold, the
 program checks Y luma bytes in the YUYV output. If the buffer has no visible
-luma, the diagnostic stays on a red `GX FIRST FRAME BLACK` label. Otherwise,
-it checks the square before it selects the GX framebuffer.
+luma, the diagnostic paints a gray field with a centered white square and red
+outline through the CPU, selects that GX framebuffer, and holds the result.
+This checks whether VI can scan out the same buffer. Otherwise, the diagnostic
+checks the square before it selects the GX framebuffer.
 If the fixed white-square sample check fails, it writes a gray field with a
 centered white square and red outline through the CPU to the GX XFB, then holds
 that image. This checks VI scanout separately from GX drawing and copying.

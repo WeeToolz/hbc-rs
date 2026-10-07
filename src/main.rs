@@ -583,12 +583,10 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 hbc_rs::platform::diagnostics::mark("GX COPY QUEUED");
                 hbc_rs::platform::diagnostics::hold();
                 if !video.framebuffer_has_visible_luma() {
-                    if hbc_rs::platform::diagnostics::fail("GX FIRST FRAME BLACK") {
-                        if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART)
-                        {
-                            hbc_rs::platform::diagnostics::fail(message);
-                        }
-                    }
+                    hbc_rs::platform::diagnostics::mark("GX XFB CPU SCANOUT TEST");
+                    video.paint_scanout_probe();
+                    video.show();
+                    video.wait_vsync();
                     loop {
                         hbc_rs::platform::diagnostics::hold();
                     }
