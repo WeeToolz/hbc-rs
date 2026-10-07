@@ -54,6 +54,15 @@ now keeps the same TEX0 descriptor, VAT format, identity texgen, and per-vertex
 coordinates for solid and textured quads. The solid TEV operation still uses
 the raster color and does not sample a texture.
 
-The strict PowerPC diagnostic DOL was rebuilt with this change. Host tests and
-the source parity ledger pass. The new DOL still needs a Dolphin and Wii run;
-the source match and successful build do not prove that GX now draws correctly.
+The strict PowerPC diagnostic DOL was rebuilt with this change. Host tests
+passed, and a fresh automated Dolphin GDB capture of the rebuilt DOL completed.
+The captured 640 × 480 XFB shows the production no-storage notice and HBC scene,
+with the white test square drawn at the expected center and no red CPU fallback
+outline. This confirms EFB drawing and EFB-to-XFB copy in Dolphin for this DOL.
+The capture metadata is in `target/hbc-startup-capture.json`; the XFB and PNG are
+`target/hbc-gx-framebuffer.xfb` and `target/hbc-gx-framebuffer.png`.
+
+Real-Wii verification is still pending. The user saw the CPU fallback pattern
+on Wii before this vertex-stream correction. That result does not verify the
+rebuilt DOL. Run this exact DOL on Wii and confirm that the production HBC scene
+appears without the diagnostic fallback before marking hardware parity verified.
