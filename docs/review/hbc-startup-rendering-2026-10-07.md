@@ -43,3 +43,17 @@ Verification for this diagnostic change:
 - Strict PowerPC `startup-diagnostics` release build and DOL conversion passed.
 - The real Wii result for the new EFB/XFB labels is pending. The current
   evidence confirms the CPU scanout pattern only.
+
+## C/Rust vertex-stream correction
+
+The next Dolphin capture showed `GX EFB DRAW BLACK`. A source comparison found
+that HBC C enables direct POS, CLR0, and TEX0 attributes for every quad, and
+`plot_vert_c` writes a zero TEX0 pair for each solid vertex. The Rust solid
+vertex path omitted TEX0 and disabled its texture generator. The Rust GX helper
+now keeps the same TEX0 descriptor, VAT format, identity texgen, and per-vertex
+coordinates for solid and textured quads. The solid TEV operation still uses
+the raster color and does not sample a texture.
+
+The strict PowerPC diagnostic DOL was rebuilt with this change. Host tests and
+the source parity ledger pass. The new DOL still needs a Dolphin and Wii run;
+the source match and successful build do not prove that GX now draws correctly.
