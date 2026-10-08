@@ -65,3 +65,11 @@ Compared C `controls.c`, `controls.h`, `main.c`, `dialogs.c`, `m_main.c`, and `v
 - Error notices now close after 300 update frames without input or on any controller button press. Other notices keep their existing dismissal behavior. The loading throbber remains tied to active storage work; it does not claim that a still-running scan has finished.
 
 `cargo fmt`, `cargo test --lib`, and host `cargo check --all-targets` pass (242 tests). One host dead-code warning in `src/platform/nand.rs` was fixed by compiling its attributes type only where the replacement backend is available. The Wii custom-target build passes. Hardware rendering and controller behavior remain unverified in this pass. Network setup and scanning remain Rust extensions without a C HBC counterpart.
+
+## 2026-10-08 default theme fallback parity
+
+C `theme_init(NULL, 0)` attempts to read `theme.zip` from the channel data directory. When it cannot load an installed archive, it selects the built-in default theme without opening a warning dialog. Rust now follows that visible behavior for theme read and parse failures. It keeps the real failure in the system log and uses its validated built-in theme assets. A malformed installed archive still falls back as a whole, which is safer than C's partial theme mutation. The `-101` ISFS detail from the recent Dolphin warning remains available in the log for diagnosis.
+
+C also continues with default settings when its settings load fails. Rust now logs that failure and starts with defaults without a modal warning. It keeps settings persistence disabled after a failed read, so it cannot overwrite settings that it did not read successfully; this is a deliberate safety difference.
+
+The initial theme and settings warnings are no longer runtime UI states, so the five-second warning timeout does not apply to them. Source comparison is complete; verify the updated default-theme startup screen and settings persistence on Wii hardware.

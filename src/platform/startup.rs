@@ -739,10 +739,9 @@ impl WiiStartup {
         let mut runtime = AppRuntime::new(Vec::new());
         runtime.set_settings_persistence_enabled(settings_load_error.is_none());
         if let Some(error) = settings_load_error {
-            runtime.show_notice_with_kind(
-                &format!("Could not load saved settings ({error:?}). HBC will not overwrite them."),
-                crate::app::NoticeKind::Warning,
-            );
+            ogc_system::report(format_args!(
+                "HBC: could not load saved settings ({error:?}); using defaults and keeping settings writes disabled\n"
+            ));
         }
         if input_error.is_some() {
             runtime.show_notice_with_kind(
@@ -768,22 +767,18 @@ impl WiiStartup {
                         (Some(package.metadata), textures)
                     }
                     Err(error) => {
-                        runtime.show_notice_with_kind(
-                            &format!("Could not read the installed theme archive ({error:?}). Using the default theme."),
-                            crate::app::NoticeKind::Warning,
-                        );
+                        ogc_system::report(format_args!(
+                            "HBC: could not read installed theme archive ({error:?}); using default theme\n"
+                        ));
                         (None, load_default_theme_textures(widescreen))
                     }
                 }
             }
             Ok(None) => (None, load_default_theme_textures(widescreen)),
             Err(error) => {
-                runtime.show_notice_with_kind(
-                    &format!(
-                        "Could not load the installed theme ({error:?}). Using the default theme."
-                    ),
-                    crate::app::NoticeKind::Warning,
-                );
+                ogc_system::report(format_args!(
+                    "HBC: could not load installed theme ({error:?}); using default theme\n"
+                ));
                 (None, load_default_theme_textures(widescreen))
             }
         };
