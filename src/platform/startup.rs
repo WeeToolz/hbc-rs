@@ -97,7 +97,6 @@ static STORAGE_SCAN_STAGE: AtomicU8 = AtomicU8::new(STORAGE_STAGE_START);
 static mut STORAGE_SCAN_RESULT: MaybeUninit<StorageScanResult> = MaybeUninit::uninit();
 static mut STORAGE_SCAN_STACK: StorageScanStack = StorageScanStack([0; STORAGE_SCAN_STACK_SIZE]);
 static DEVICE_PROBE_STATE: AtomicU8 = AtomicU8::new(DEVICE_PROBE_IDLE);
-static DEVICE_PROBE_ACTIVE: AtomicU8 = AtomicU8::new(2);
 static mut DEVICE_PROBE_RESULT: MaybeUninit<DeviceProbeResult> = MaybeUninit::uninit();
 static mut DEVICE_PROBE_STACK: StorageScanStack = StorageScanStack([0; STORAGE_SCAN_STACK_SIZE]);
 
@@ -490,22 +489,14 @@ fn probe_one_device(volume: Volume) -> Result<bool, ogc_fat::FatError> {
 
 unsafe extern "C" fn device_probe_entry(_argument: *mut c_void) -> *mut c_void {
     DEVICE_PROBE_STATE.store(DEVICE_PROBE_RUNNING, Ordering::Release);
-    let active = match DEVICE_PROBE_ACTIVE.load(Ordering::Acquire) {
-        index @ 0..=3 => Volume::from_settings_index(i32::from(index))
-            .filter(|volume| ogc_fat::is_mounted(volume.mount_name()))
-            .map(|_| index as usize),
-        _ => None,
-    };
     let probes = [
         probe_one_device(Volume::Sd),
         probe_one_device(Volume::Usb),
         probe_one_device(Volume::CardA),
         probe_one_device(Volume::CardB),
     ];
-    let availability = crate::app::device_availability_snapshot(
-        active,
-        probes.map(|result| matches!(result, Ok(true))),
-    );
+    let availability =
+        crate::app::device_availability_snapshot(probes.map(|result| matches!(result, Ok(true))));
     let error = probes.into_iter().find_map(Result::err);
     unsafe {
         addr_of_mut!(DEVICE_PROBE_RESULT).write(MaybeUninit::new(DeviceProbeResult {
@@ -1029,10 +1020,6 @@ impl WiiStartup {
         if DEVICE_PROBE_STATE.load(Ordering::Acquire) != DEVICE_PROBE_IDLE {
             return Ok(false);
         }
-        DEVICE_PROBE_ACTIVE.store(
-            self.volume.map_or(2, Volume::settings_index) as u8,
-            Ordering::Release,
-        );
         DEVICE_PROBE_STATE.store(DEVICE_PROBE_RUNNING, Ordering::Release);
         let mut raw_thread = ogc_lwp::sys::LWP_THREAD_NULL;
         let created = unsafe {

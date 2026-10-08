@@ -1115,7 +1115,7 @@ pub fn browser_frame_with_language(
                     continue;
                 }
                 let (text_x, name_y, description_y, text_width) =
-                    (x + 156.0, y + 8.0, y + 54.0, cell_w - 168.0);
+                    (x + 156.0, y + 8.0, y + 36.0, cell_w - 168.0);
                 frame.set_text_style(theme_text_style(theme, "appname", text_color));
                 let max_chars = (text_width.max(6.0) / (6.0 * frame.text_scale)) as usize;
                 frame.text(text_x, name_y, name, 1.0, text_color, max_chars);
@@ -1248,7 +1248,7 @@ pub fn browser_frame_with_language(
             frame.set_text_style(theme_text_style(theme, "dlgtitle", text_color));
             frame.text(299.0, 60.0, tr("Options"), 1.0, text_color, 24);
             frame.set_text_style(theme_text_style(theme, "label", text_color));
-            frame.text(92.0, 104.0, tr("Device:"), 1.0, text_color, 32);
+            frame.text(92.0, 80.0, tr("Device:"), 1.0, text_color, 32);
             let device_color = |index| {
                 if controller.device_available(index) == Some(false) {
                     MUTED
@@ -1305,7 +1305,7 @@ pub fn browser_frame_with_language(
             frame.set_text_style(theme_text_style(theme, "label", text_color));
             frame.text(
                 92.0,
-                256.0,
+                224.0,
                 tr("Sort applications by:"),
                 1.0,
                 text_color,
@@ -1313,7 +1313,7 @@ pub fn browser_frame_with_language(
             );
             let bounds = frame.button(
                 112.0,
-                260.0,
+                248.0,
                 ButtonSize::Small,
                 controller.options_focus() == 4,
                 tr("Name"),
@@ -1326,7 +1326,7 @@ pub fn browser_frame_with_language(
             frame.hit_target(PointerTarget::Option(4), bounds);
             let bounds = frame.button(
                 328.0,
-                260.0,
+                248.0,
                 ButtonSize::Small,
                 controller.options_focus() == 5,
                 tr("Date"),
@@ -2262,6 +2262,37 @@ mod tests {
     }
 
     #[test]
+    fn browser_description_stays_inside_its_app_row() {
+        let mut entry = app("one");
+        entry.metadata = Some(crate::metadata::AppMetadata {
+            name: Some(String::from("One")),
+            short_description: Some(String::from("A short description")),
+            ..Default::default()
+        });
+        let theme = ThemeMetadata {
+            default_font: crate::metadata::ThemeFont {
+                file: Some(String::from("droid.ttf")),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let frame = browser_frame_with_theme(&AppController::new(), &[entry], Some(&theme));
+        let name = frame
+            .text_runs
+            .iter()
+            .find(|run| run.value == "One")
+            .unwrap();
+        let description = frame
+            .text_runs
+            .iter()
+            .find(|run| run.value == "A short description")
+            .unwrap();
+        assert_eq!(name.y, 72.0);
+        assert_eq!(description.y, 100.0);
+        assert!(description.y < 64.0 + 64.0);
+    }
+
+    #[test]
     fn widescreen_frame_uses_the_852_viewport_and_wide_edge_arrow() {
         let catalog: Vec<_> = (0..21).map(|index| app(&format!("app{index}"))).collect();
         let mut controller = AppController::new();
@@ -2925,8 +2956,8 @@ mod tests {
             rect(328, 108, 200, 48),
             rect(112, 172, 200, 48),
             rect(328, 172, 200, 48),
-            rect(112, 260, 200, 48),
-            rect(328, 260, 200, 48),
+            rect(112, 248, 200, 48),
+            rect(328, 248, 200, 48),
             rect(92, 340, 200, 48),
             rect(348, 340, 200, 48),
         ] {

@@ -184,17 +184,10 @@ impl PageNavigation {
     }
 }
 
-/// Build the four-device status snapshot. An already mounted active device is
-/// available even if an alternate-device probe failed.
-pub fn device_availability_snapshot(
-    active_mounted: Option<usize>,
-    detected: [bool; 4],
-) -> [bool; 4] {
-    let mut snapshot = detected;
-    if let Some(active) = active_mounted.filter(|index| *index < snapshot.len()) {
-        snapshot[active] = true;
-    }
-    snapshot
+/// Build the four-device status snapshot from live media-presence probes.
+/// A mounted filesystem does not prove that its media is still present.
+pub fn device_availability_snapshot(detected: [bool; 4]) -> [bool; 4] {
+    detected
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -2615,6 +2608,18 @@ mod tests {
         controller.handle_pointer(Some(PointerTarget::Option(1)), true, &[]);
         assert_eq!(controller.options_focus(), 8);
         assert_eq!(controller.pending_device(), pending);
+    }
+
+    #[test]
+    fn removed_active_usb_is_not_selectable_from_stale_mount_state() {
+        let mut controller = AppController::new();
+        controller.set_active_device(Some(1));
+        controller
+            .set_device_availability(device_availability_snapshot([true, false, false, false]));
+        controller.handle(Input::OpenOptions, &[]);
+        assert!(!controller.option_enabled(1));
+        controller.handle(Input::Up, &[]);
+        assert_ne!(controller.options_focus(), 1);
     }
 
     #[test]
