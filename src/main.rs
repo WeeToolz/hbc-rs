@@ -512,7 +512,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         {
             if hbc_rs::platform::diagnostics::fail("GX RENDER ERROR") {
                 if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
-                    hbc_rs::platform::diagnostics::fail(message);
+                    hbc_rs::platform::diagnostics::fail(&message);
                 }
             }
             return -3;
@@ -525,7 +525,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             else {
                 if hbc_rs::platform::diagnostics::fail("GX TEST RECT BOUNDS") {
                     if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
-                        hbc_rs::platform::diagnostics::fail(message);
+                        hbc_rs::platform::diagnostics::fail(&message);
                     }
                 }
                 loop {
@@ -551,7 +551,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             {
                 if hbc_rs::platform::diagnostics::fail("GX TEST RECT ERROR") {
                     if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
-                        hbc_rs::platform::diagnostics::fail(message);
+                        hbc_rs::platform::diagnostics::fail(&message);
                     }
                 }
                 loop {
@@ -574,7 +574,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                     if hbc_rs::platform::diagnostics::fail("GX EFB READBACK TIMEOUT") {
                         if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART)
                         {
-                            hbc_rs::platform::diagnostics::fail(message);
+                            hbc_rs::platform::diagnostics::fail(&message);
                         }
                     }
                     loop {
@@ -618,7 +618,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 };
                 if hbc_rs::platform::diagnostics::fail(message) {
                     if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
-                        hbc_rs::platform::diagnostics::fail(message);
+                        hbc_rs::platform::diagnostics::fail(&message);
                     }
                 }
             }
@@ -647,7 +647,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                     if hbc_rs::platform::diagnostics::fail("GX TEST SQUARE MISSING") {
                         if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART)
                         {
-                            hbc_rs::platform::diagnostics::fail(message);
+                            hbc_rs::platform::diagnostics::fail(&message);
                         }
                     }
                     // Replace the failed GX image with a CPU-written control pattern.
@@ -684,7 +684,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         #[cfg(feature = "startup-diagnostics")]
         if hbc_rs::platform::diagnostics::sample_frame() {
             if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
-                hbc_rs::platform::diagnostics::fail(message);
+                hbc_rs::platform::diagnostics::fail(&message);
             }
         }
 
