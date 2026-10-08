@@ -46,3 +46,17 @@ The next Wii report showed `DeviceChange`, result `-1`, candidates `0`. The user
 The normal PowerPC release DOL was rebuilt and copied to `/Volumes/CARROT/apps/hbc-rs/boot.dol` on 2026-10-07 at 23:18 EDT. The local and CARROT files match byte for byte. SHA-256: `c07d2c8ca889ff131e474c86a22ee20934a6eb8bb0ace97f2ea633d09d6b8392`. The Wii must still confirm whether the USB watcher change fixes enumeration.
 
 Controller checks passed: the runtime path selects Network setup after Options, Down, Confirm, and the input mapping check covers Down for both Wii Remote and GameCube controllers. These checks do not replace a Wii controller test.
+
+
+## 2026-10-08 loading freeze follow-up
+
+The user reports that the loading circle stops and HOME does not open the menu with DOL `a962d958c1acee48635b5e1fb3eb31ab5ce48460f27dcf6fc51d9842901fee51`. Source inspection found that the IPC heap lock can be held by a lower-priority storage worker when the priority-126 deferred completion worker preempts it. A yielding spin waiter cannot release the lower-priority owner. C heap allocation/free mask interrupts. The SDK now uses the same short critical-section protection for heap operations, with shared ordering regressions. See `../libogc-rs/docs/review/libipc-core.md` for the source evidence and checks. This identifies a real defect; the exact Wii stall location and recovery with the new DOL remain hardware-pending.
+
+The rebuilt DOL was copied to `/Volumes/CARROT/apps/hbc-rs/boot.dol` and compared byte for byte with the local output. Both SHA-256 hashes are `1a11ad1ace6fae2c0e130b0037f811088da43a6d502fe112086b4aacc94ad1e9`. The completeness audit remains blocked by the existing stale evidence entry for `aesnd-sys::get_dsp_process_time` at line 914; no completeness pass is claimed.
+
+
+## 2026-10-08 selected DOL launch follow-up
+
+The user reports that a DOL launch freezes while the HBC image remains visible. The selected application and exact execution stage were not identified. `transfer_executable` stages the image, saves changed settings, unmounts storage, stops disc/network/controller services, then enters the IOS/trampoline handoff. The shared NAND filename fix also corrects the invalid staging names used by the settings-save step. SDK source inspection found the same priority-preemption defect in the short IPC request queue lock as in the previously fixed heap lock; request queue sections now use the shared interrupt-masked lock. Host lock ordering tests pass; final DOL launch on Wii remains pending. See libogc-rs `docs/review/libipc-core.md` for the bounded change and limits.
+
+Final combined DOL: release build passed without warnings; copied to `/Volumes/CARROT/apps/hbc-rs/boot.dol`, flushed, and verified byte for byte. Local and CARROT SHA-256: `f7047b3d75b52ef1e661891a2d3e94f4d2338c36960b3e461c0808b6e4dccca3`. The source audit passed with existing keyboard debt; the SDK completeness audit remains blocked by stale AESND evidence at line 914. Network save, wider keyboard output, and selected-app launch require Wii verification.

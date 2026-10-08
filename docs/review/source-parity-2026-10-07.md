@@ -40,14 +40,28 @@ The user supplied a C `channelapp-channel.dol` screenshot that shows an empty br
 - **HBC-WIILOAD-01 / HBC-WIILOAD-02 / HBC-ZIP-01 / HBC-INSTALL-01 / HBC-INSTALL-02:** C receive, header, archive classification, extraction, and replacement paths were compared. Rust validates inputs and reports operation and cleanup failures. Socket/USB transport, FAT rename and recovery behavior remain subject to Wii verification.
 - **HBC-LOAD-01 / HBC-LOAD-02 / HBC-LAUNCH-01:** C DOL/ELF relocation and launch handoff were compared with Rust validation, staging, and transfer. Rust checks ranges and reports recoverable failures. The launch code is implemented with the documented fail-safe return when AHB patching or IOS reload fails. Verify the handoff on Wii hardware.
 
-The three ledger rows marked `out_of_scope` are intentionally excluded from this C parity review: the Rust-only network profile editor and scan, and the C update/installer feature.
+The Rust-only network profile editor and scan, and the incomplete optional update/installer path do not have complete C HBC behavior to match. Their ledger rows remain partial and list open work; they are not reported as complete parity.
 
 ## Review status
 
-All 34 in-scope ledger rows have `review=source_reviewed` and record implemented source coverage. Wii verification remains pending for the areas listed in the ledger. The three out-of-scope rows remain excluded. No hardware-pending item is represented as hardware-verified.
+The ledger has 38 behavior areas: 28 are source reviewed and 10 need follow-up. Partial behavior stays marked partial. Wii verification remains pending for the areas listed in the ledger. No hardware-pending item is represented as hardware-verified.
 
 ## 2026-10-07 Dolphin startup and rendering follow-up
 
 The production HBC DOL now renders glyphs with partial GX tiles. Texture creation failures are returned, textured quads map image rows to the matching screen rows, and all owned GX texture buffers are cache-flushed by their shared constructor. The storage worker now completes its FAT mutex operations because LWP synchronization objects use one-based handles, separate from complemented-pointer thread handles. Host regression tests cover partial tile padding, texture orientation, and synchronization handle bounds.
 
 An isolated Dolphin run of the release DOL completed storage discovery across SD, USB, and both GameCube memory-card slots. With no emulated SD or USB volume configured, the DOL displayed the Rust no-storage notice. The C runtime comparison above shows that this initial notice differs from C. A direct read from Dolphin's XFB showed legible dialog text and normally oriented artwork. Wii hardware checks remain pending.
+
+## 2026-10-08 menu, options, and About parity follow-up
+
+Compared C `controls.c`, `controls.h`, `main.c`, `dialogs.c`, `m_main.c`, and `view.c` with Rust input mapping, `AppController`, and frame layout.
+
+- C opens Options with GameCube X or Wii Remote 1 (`PADS_1`); GameCube Y or Wii Remote 2 (`PADS_2`) changes browser mode. Rust mapped these actions the same way. Added Classic Controller mapping regressions to protect the X/Y distinction.
+- C's main menu uses Back, About, optional Launch BootMii, Exit to System Menu, and Shutdown. Rust uses the same order and omits BootMii when unavailable. Main-menu focus now responds only to Up/Down. C's version and IOS labels are present in the right-aligned top column; network status uses the live Wiiload address when available.
+- C Options starts focused on Back and uses enabled-widget movement. Rust starts on Back, keeps C-style enabled horizontal movement, and uses the visible row geometry for vertical movement. The added Network setup item sits between sort and bottom controls and can be selected by moving up from Back or down from the sort controls. Device availability gates the original device controls.
+- The original Options device labels, device rows, sort label and buttons, and bottom buttons now use the C dialog coordinates. The added Network setup control uses the existing gap between sort and bottom buttons.
+- Rust About now uses C's credit wording and order, inserts translated credit and active-theme description at the same points, and removes the extra return hint. C starts automatic scrolling after 120 frames and advances one line every three frames. Rust already used that delay and speed; this pass added a regression proving manual Up/Down scrolling still works while automatic scrolling runs.
+- The Rust-only network settings use a directional graph that follows their row and column layout. The scan list uses Up/Down, and the keyboard keeps spatial row/column navigation. Password entry now has a controller-selectable Show/Hide control; it is masked by default.
+- Error notices now close after 300 update frames without input or on any controller button press. Other notices keep their existing dismissal behavior. The loading throbber remains tied to active storage work; it does not claim that a still-running scan has finished.
+
+`cargo fmt`, `cargo test --lib`, and host `cargo check --all-targets` pass (242 tests). One host dead-code warning in `src/platform/nand.rs` was fixed by compiling its attributes type only where the replacement backend is available. The Wii custom-target build passes. Hardware rendering and controller behavior remain unverified in this pass. Network setup and scanning remain Rust extensions without a C HBC counterpart.
