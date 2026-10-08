@@ -176,3 +176,12 @@ implemented:
 The repository README says the published source differs from the official build
 and excludes the installer. Preserve that provenance context when comparing
 behavior. The source README also says the original was tested only in Dolphin.
+
+## Wii SD packages
+
+After converting the normal Wii ELF to `target/hbc-rs.dol`, run
+`python3 tools/package-wii.py`. For a startup-diagnostics build converted to
+`target/hbc-rs-startup.dol`, run `python3 tools/package-wii.py --diagnostics`.
+The ZIPs contain `apps/hbc-rs` and `apps/hbc-rs-diagnostic`, respectively.
+Both metadata files use the same no-IOS-reload and AHB-access tags as the
+working local C reference package. These are applications, not channel installers.

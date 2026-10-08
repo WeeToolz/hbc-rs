@@ -15,13 +15,14 @@ class CaptureProfileTests(unittest.TestCase):
             config.read(root / "Config" / "GFX.ini")
             self.assertFalse(config.getboolean("Hacks", "XFBToTextureEnable"))
             self.assertFalse(config.getboolean("Hacks", "DeferEFBCopies"))
+            self.assertTrue(config.getboolean("Hacks", "EFBAccessEnable"))
 
     def test_existing_profile_preserves_other_options_and_is_repeatable(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "Config").mkdir()
             path = root / "Config" / "GFX.ini"
-            path.write_text("[Hacks]\nXFBToTextureEnable=True\nDeferEFBCopies=True\nEFBToTextureEnable=True\n[Settings]\nBackend=Metal\n")
+            path.write_text("[Hacks]\nXFBToTextureEnable=True\nDeferEFBCopies=True\nEFBAccessEnable=False\nEFBToTextureEnable=True\n[Settings]\nBackend=Metal\n")
             configure_capture_profile(root)
             first = path.read_text()
             configure_capture_profile(root)
@@ -30,6 +31,7 @@ class CaptureProfileTests(unittest.TestCase):
             config.read(path)
             self.assertFalse(config.getboolean("Hacks", "XFBToTextureEnable"))
             self.assertFalse(config.getboolean("Hacks", "DeferEFBCopies"))
+            self.assertTrue(config.getboolean("Hacks", "EFBAccessEnable"))
             self.assertTrue(config.getboolean("Hacks", "EFBToTextureEnable"))
             self.assertEqual(config["Settings"]["Backend"], "Metal")
 

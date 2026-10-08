@@ -22,6 +22,7 @@ parser.add_argument('--dol', type=Path, default=root / 'target/hbc-rs.dol')
 parser.add_argument('--elf', type=Path, default=root / 'target/powerpc-nintendo-none/release/hbc-rs')
 parser.add_argument('--dolphin', type=Path, default=Path('/Applications/Dolphin.app/Contents/MacOS/Dolphin'))
 parser.add_argument('--idle-seconds', type=int, default=60)
+parser.add_argument('--check-network-button', action='store_true', help='Select Network setup and capture the settings load result without saving.')
 parser.add_argument('--expect-fifo-errors', action='store_true', help='Use only to confirm a failing baseline; errors remain logged.')
 args = parser.parse_args()
 if not args.label or any(c not in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_' for c in args.label):
@@ -37,7 +38,7 @@ with socket.socket() as port_check:
 configure_capture_profile(profile)
 config = profile / 'Config'
 (config / 'Dolphin.ini').write_text('[Core]\nCPUThread = False\nSIDevice0 = 6\nSIDevice1 = 0\nSIDevice2 = 0\nSIDevice3 = 0\nWiiSDCard = False\n[Interface]\nConfirmStop = False\nUsePanicHandlers = False\n[Input]\nBackgroundInput = True\n')
-(config / 'GCPadNew.ini').write_text('[GCPad1]\nDevice = Pipe/0/footer\nButtons/A = `Button A`\nButtons/B = `Button B`\nButtons/X = `Button X`\nButtons/Start = `Button START`\n')
+(config / 'GCPadNew.ini').write_text('[GCPad1]\nDevice = Pipe/0/footer\nButtons/A = `Button A`\nButtons/B = `Button B`\nButtons/X = `Button X`\nButtons/Start = `Button START`\nD-Pad/Down = `Button DOWN`\n')
 (config / 'Logger.ini').write_text('[Options]\nWriteToFile = True\nWriteToConsole = True\nVerbosity = 3\n[Logs]\nVIDEO = True\nCOMMANDPROCESSOR = True\nOSREPORT = True\nCONTROLLERINTERFACE = True\n')
 pipes = profile / 'Pipes'
 pipes.mkdir(exist_ok=True)
@@ -165,6 +166,21 @@ try:
         capture('options')
         run(3)
         capture('options-idle')
+        if args.check_network_button:
+            button('DOWN', True)
+            run(1)
+            button('DOWN', False)
+            run(1)
+            capture('network-focus')
+            button('A', True)
+            run(1)
+            button('A', False)
+            run(2)
+            capture('network-load-result')
+            button('B', True)
+            run(1)
+            button('B', False)
+            run(1)
         button('B', True)
         run(1)
         button('B', False)
@@ -198,6 +214,7 @@ finally:
         'dol_sha256': dol_hash,
         'elapsed_seconds': round(time.monotonic() - started, 2),
         'idle_seconds': args.idle_seconds,
+        'network_button_checked': args.check_network_button,
         'expected_fifo_errors': args.expect_fifo_errors,
         'visual_review_required': True,
     }
