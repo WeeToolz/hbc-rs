@@ -8,6 +8,7 @@ use crate::platform::{nand, settings::SettingsIoError};
 use ogc_filesystem as isfs;
 
 const NAND_PATH: &CStr = c"/shared2/sys/net/02/config.dat";
+const ISFS_EACCES: i32 = -102;
 
 #[repr(align(32))]
 struct AlignedConfig([u8; CONFIG_LEN]);
@@ -25,6 +26,45 @@ pub enum NetworkConfigError {
     StaleSnapshot,
     Recovery(SettingsIoError),
     InvalidWifi(crate::network_config::WifiValidationError),
+}
+
+/// Explain the common ISFS invalid-argument result without presenting it as a bad password.
+pub fn save_error_message(error: NetworkConfigError) -> alloc::string::String {
+    use crate::platform::settings::SettingsIoError;
+    let isfs_access_denied = match error {
+        NetworkConfigError::Isfs(code) => code == ISFS_EACCES,
+        NetworkConfigError::ReadAndClose { read, close } => {
+            read == ISFS_EACCES || close == ISFS_EACCES
+        }
+        NetworkConfigError::Recovery(SettingsIoError::Isfs(code))
+        | NetworkConfigError::Recovery(SettingsIoError::CommittedCleanup(code)) => {
+            code == ISFS_EACCES
+        }
+        NetworkConfigError::Recovery(SettingsIoError::IsfsCleanup { operation, cleanup }) => {
+            operation == Some(ISFS_EACCES) || cleanup == ISFS_EACCES
+        }
+        _ => false,
+    };
+    let isfs_invalid_argument = match error {
+        NetworkConfigError::Isfs(code) => code == isfs::ISFS_EINVAL,
+        NetworkConfigError::Recovery(SettingsIoError::Isfs(code)) => code == isfs::ISFS_EINVAL,
+        NetworkConfigError::Recovery(SettingsIoError::IsfsCleanup { operation, cleanup }) => {
+            operation == Some(isfs::ISFS_EINVAL) || cleanup == isfs::ISFS_EINVAL
+        }
+        NetworkConfigError::Recovery(SettingsIoError::CommittedCleanup(code)) => {
+            code == isfs::ISFS_EINVAL
+        }
+        _ => false,
+    };
+    if isfs_access_denied {
+        alloc::format!(
+            "IOS denied access to a Wii network settings file (ISFS -102). Details: {error:?}."
+        )
+    } else if isfs_invalid_argument {
+        alloc::format!("The Wii file system rejected a request (ISFS -101). Details: {error:?}. The password passed local validation.")
+    } else {
+        alloc::format!("Could not save Wii network settings: {error:?}.")
+    }
 }
 
 /// Load the current Wii network profiles without changing the saved bytes.
@@ -169,5 +209,28 @@ fn close_after_error<T>(file: isfs::IsfsFile, error: i32) -> Result<T, NetworkCo
         Err(NetworkConfigError::Isfs(close_result))
     } else {
         Err(NetworkConfigError::Isfs(error))
+    }
+}
+
+#[cfg(test)]
+mod save_message_tests {
+    use super::*;
+
+    #[test]
+    fn isfs_101_is_reported_as_a_file_operation_error() {
+        let error = NetworkConfigError::Isfs(isfs::ISFS_EINVAL);
+        let message = save_error_message(error);
+        assert!(message.contains("ISFS -101"));
+        assert!(message.contains("password passed local validation"));
+    }
+
+    #[test]
+    fn isfs_102_names_the_access_denial_and_keeps_the_operation() {
+        let error =
+            NetworkConfigError::Recovery(crate::platform::settings::SettingsIoError::Isfs(-102));
+        let message = save_error_message(error);
+        assert!(message.contains("denied access"));
+        assert!(message.contains("ISFS -102"));
+        assert!(message.contains("Recovery(Isfs(-102))"));
     }
 }

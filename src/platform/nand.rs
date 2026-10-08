@@ -22,6 +22,7 @@ pub(crate) trait ReplaceBackend {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg(any(target_arch = "powerpc", test))]
 pub(crate) struct FileAttributes {
     pub owner_id: u32,
     pub group_id: u16,
@@ -43,6 +44,7 @@ pub(crate) enum ReplaceError {
     BackupNeedsValidation,
     TemporaryMismatch,
     StaleSnapshot,
+    InvalidPath,
 }
 
 #[cfg(any(target_arch = "powerpc", test))]
@@ -77,8 +79,8 @@ pub(crate) fn replace_file_with_attributes(
     attributes: Option<FileAttributes>,
     expected: Option<&[u8]>,
 ) -> Result<(), ReplaceError> {
-    let temporary = sibling_path(path, ".tmp");
-    let backup = sibling_path(path, ".bak");
+    let temporary = sibling_path(path, ".tmp")?;
+    let backup = sibling_path(path, ".bak")?;
 
     recover_interrupted_replace(backend, &temporary, &backup)?;
     if let Err(error) = backend.write_new_with_attributes(&temporary, bytes, attributes) {
@@ -193,8 +195,8 @@ pub(crate) fn recover_file_for_load(
     max_size: usize,
     mut validate: impl FnMut(&[u8]) -> bool,
 ) -> Result<(), ReplaceError> {
-    let backup = sibling_path(path, ".bak");
-    let temporary = sibling_path(path, ".tmp");
+    let backup = sibling_path(path, ".bak")?;
+    let temporary = sibling_path(path, ".tmp")?;
     let path_exists = backend.exists(path)?;
     let backup_exists = backend.exists(&backup)?;
     if backup_exists {
@@ -265,8 +267,34 @@ fn check(result: i32) -> Result<(), ReplaceError> {
 }
 
 #[cfg(any(target_arch = "powerpc", test))]
-fn sibling_path(path: &str, suffix: &str) -> String {
-    format!("{path}{suffix}")
+fn sibling_path(path: &str, suffix: &str) -> Result<String, ReplaceError> {
+    const MAX_NAND_FILENAME: usize = 12;
+    let (directory, filename) = path
+        .rsplit_once('/')
+        .map_or(("", path), |(directory, filename)| {
+            (&path[..directory.len() + 1], filename)
+        });
+    if filename.is_empty()
+        || filename.len() > MAX_NAND_FILENAME
+        || path.len() >= 64
+        || path.as_bytes().contains(&0)
+        || !matches!(suffix, ".tmp" | ".bak")
+    {
+        return Err(ReplaceError::InvalidPath);
+    }
+    // The caller owns the sibling names for these channel/system files. Replace
+    // the extension instead of appending to the full name: config.dat.tmp and
+    // settings.xml.tmp exceed the NAND FST's 12-byte filename field.
+    let stem = filename.rsplit_once('.').map_or(filename, |(stem, _)| stem);
+    let sibling = format!("{directory}{stem}{suffix}");
+    if stem.is_empty()
+        || stem.len() + suffix.len() > MAX_NAND_FILENAME
+        || sibling == path
+        || sibling.len() >= 64
+    {
+        return Err(ReplaceError::InvalidPath);
+    }
+    Ok(sibling)
 }
 
 #[cfg(target_arch = "powerpc")]
@@ -509,6 +537,53 @@ mod tests {
         assert!(!is_missing_isfs_error(-6, -106));
     }
 
+    #[test]
+    fn staging_names_fit_nand_limits_and_keep_the_parent_directory() {
+        assert_eq!(
+            sibling_path("/shared2/sys/net/02/config.dat", ".tmp"),
+            Ok(String::from("/shared2/sys/net/02/config.tmp"))
+        );
+        assert_eq!(
+            sibling_path("/shared2/sys/net/02/config.dat", ".bak"),
+            Ok(String::from("/shared2/sys/net/02/config.bak"))
+        );
+        assert_eq!(
+            sibling_path("settings.xml", ".tmp"),
+            Ok(String::from("settings.tmp"))
+        );
+        assert_eq!(
+            sibling_path("theme.zip", ".bak"),
+            Ok(String::from("theme.bak"))
+        );
+        assert_eq!(
+            sibling_path("config.tmp", ".tmp"),
+            Err(ReplaceError::InvalidPath)
+        );
+        assert_eq!(
+            sibling_path("123456789.ab", ".tmp"),
+            Err(ReplaceError::InvalidPath)
+        );
+    }
+
+    #[test]
+    fn network_save_commits_real_bytes_with_nand_filename_limits() {
+        let path = "/shared2/sys/net/02/config.dat";
+        let original = vec![1; crate::network_config::CONFIG_LEN];
+        let replacement = vec![2; crate::network_config::CONFIG_LEN];
+        let mut backend = MemoryBackend::default();
+        backend.files.insert(String::from(path), original.clone());
+        assert_eq!(
+            replace_file_with_attributes(&mut backend, path, &replacement, None, Some(&original)),
+            Ok(())
+        );
+        assert_eq!(
+            backend.read_bounded(path, replacement.len()),
+            Ok(Some(replacement))
+        );
+        assert!(!backend.files.contains_key("/shared2/sys/net/02/config.tmp"));
+        assert!(!backend.files.contains_key("/shared2/sys/net/02/config.bak"));
+    }
+
     #[derive(Default)]
     struct MemoryBackend {
         files: BTreeMap<String, Vec<u8>>,
@@ -542,6 +617,10 @@ mod tests {
         }
 
         fn write_new(&mut self, path: &str, bytes: &[u8]) -> Result<(), i32> {
+            // Explicit filesystem constraint at the production engine boundary.
+            if path.rsplit('/').next().is_none_or(|name| name.len() > 12) {
+                return Err(-101);
+            }
             match self.fail_write {
                 Some(WriteFailure::Create | WriteFailure::Open) => return Err(-7),
                 Some(WriteFailure::Write) => {
@@ -564,6 +643,12 @@ mod tests {
         }
 
         fn rename(&mut self, old_path: &str, new_path: &str) -> i32 {
+            if [old_path, new_path]
+                .iter()
+                .any(|path| path.rsplit('/').next().is_none_or(|name| name.len() > 12))
+            {
+                return -101;
+            }
             self.rename_calls += 1;
             if self.fail_rename_call == Some(self.rename_calls)
                 || (self.fail_rollback && self.rename_calls == 3)
@@ -596,8 +681,8 @@ mod tests {
         backend.files.insert(String::from("settings.xml"), vec![1]);
         assert_eq!(replace_file(&mut backend, "settings.xml", &[2, 3]), Ok(()));
         assert_eq!(backend.files.get("settings.xml"), Some(&vec![2, 3]));
-        assert!(!backend.files.contains_key("settings.xml.bak"));
-        assert!(!backend.files.contains_key("settings.xml.tmp"));
+        assert!(!backend.files.contains_key("settings.bak"));
+        assert!(!backend.files.contains_key("settings.tmp"));
     }
 
     #[test]
@@ -617,22 +702,22 @@ mod tests {
             Err(ReplaceError::StaleSnapshot)
         );
         assert_eq!(backend.files.get("config.dat"), Some(&vec![1, 2, 3]));
-        assert!(!backend.files.contains_key("config.dat.tmp"));
+        assert!(!backend.files.contains_key("config.tmp"));
     }
 
     #[test]
     fn backup_cleanup_failure_reports_committed_primary_without_removing_it() {
         let mut backend = MemoryBackend::default();
         backend.files.insert(String::from("settings.xml"), vec![1]);
-        backend.fail_delete_path = Some(String::from("settings.xml.bak"));
+        backend.fail_delete_path = Some(String::from("settings.bak"));
 
         assert_eq!(
             replace_file(&mut backend, "settings.xml", &[2, 3]),
             Err(ReplaceError::CommittedCleanup(-10))
         );
         assert_eq!(backend.files.get("settings.xml"), Some(&vec![2, 3]));
-        assert_eq!(backend.files.get("settings.xml.bak"), Some(&vec![1]));
-        assert!(!backend.files.contains_key("settings.xml.tmp"));
+        assert_eq!(backend.files.get("settings.bak"), Some(&vec![1]));
+        assert!(!backend.files.contains_key("settings.tmp"));
     }
 
     #[test]
@@ -640,7 +725,7 @@ mod tests {
         let mut backend = MemoryBackend::default();
         backend.files.insert(String::from("settings.xml"), vec![1]);
         backend.fail_write = Some(WriteFailure::Write);
-        backend.fail_delete_path = Some(String::from("settings.xml.tmp"));
+        backend.fail_delete_path = Some(String::from("settings.tmp"));
 
         assert_eq!(
             replace_file(&mut backend, "settings.xml", &[2, 3]),
@@ -650,7 +735,7 @@ mod tests {
             })
         );
         assert_eq!(backend.files.get("settings.xml"), Some(&vec![1]));
-        assert_eq!(backend.files.get("settings.xml.tmp"), Some(&vec![2]));
+        assert_eq!(backend.files.get("settings.tmp"), Some(&vec![2]));
     }
 
     #[test]
@@ -669,7 +754,7 @@ mod tests {
                 Err(ReplaceError::Backend(-7))
             );
             assert_eq!(backend.files.get("settings.xml"), Some(&vec![1]));
-            assert!(!backend.files.contains_key("settings.xml.tmp"));
+            assert!(!backend.files.contains_key("settings.tmp"));
         }
     }
 
@@ -685,7 +770,7 @@ mod tests {
             Err(ReplaceError::TemporaryMismatch)
         );
         assert_eq!(backend.files.get("settings.xml"), Some(&vec![1]));
-        assert!(!backend.files.contains_key("settings.xml.bak"));
+        assert!(!backend.files.contains_key("settings.bak"));
     }
 
     #[test]
@@ -698,106 +783,90 @@ mod tests {
             Err(ReplaceError::Backend(-8))
         );
         assert_eq!(backend.files.get("settings.xml"), Some(&vec![1]));
-        assert!(!backend.files.contains_key("settings.xml.bak"));
-        assert!(!backend.files.contains_key("settings.xml.tmp"));
+        assert!(!backend.files.contains_key("settings.bak"));
+        assert!(!backend.files.contains_key("settings.tmp"));
     }
 
     #[test]
     fn interrupted_backup_move_is_restored_before_the_next_save() {
         let mut backend = MemoryBackend::default();
-        backend
-            .files
-            .insert(String::from("settings.xml.bak"), vec![1]);
-        backend
-            .files
-            .insert(String::from("settings.xml.tmp"), vec![2]);
+        backend.files.insert(String::from("settings.bak"), vec![1]);
+        backend.files.insert(String::from("settings.tmp"), vec![2]);
         assert_eq!(
             recover_file_for_load(&mut backend, "settings.xml", 10, |bytes| bytes == [1]),
             Ok(())
         );
         assert_eq!(replace_file(&mut backend, "settings.xml", &[3]), Ok(()));
         assert_eq!(backend.files.get("settings.xml"), Some(&vec![3]));
-        assert!(!backend.files.contains_key("settings.xml.bak"));
-        assert!(!backend.files.contains_key("settings.xml.tmp"));
+        assert!(!backend.files.contains_key("settings.bak"));
+        assert!(!backend.files.contains_key("settings.tmp"));
     }
 
     #[test]
     fn load_recovery_restores_backup_when_primary_is_missing() {
         let mut backend = MemoryBackend::default();
-        backend
-            .files
-            .insert(String::from("settings.xml.bak"), vec![1]);
-        backend
-            .files
-            .insert(String::from("settings.xml.tmp"), vec![2]);
+        backend.files.insert(String::from("settings.bak"), vec![1]);
+        backend.files.insert(String::from("settings.tmp"), vec![2]);
         assert_eq!(
             recover_file_for_load(&mut backend, "settings.xml", 10, |bytes| bytes == [1]),
             Ok(())
         );
         assert_eq!(backend.files.get("settings.xml"), Some(&vec![1]));
-        assert!(!backend.files.contains_key("settings.xml.tmp"));
+        assert!(!backend.files.contains_key("settings.tmp"));
     }
 
     #[test]
     fn load_recovery_keeps_the_backup_when_primary_fails_validation() {
         let mut backend = MemoryBackend::default();
         backend.files.insert(String::from("settings.xml"), vec![2]);
-        backend
-            .files
-            .insert(String::from("settings.xml.bak"), vec![1]);
+        backend.files.insert(String::from("settings.bak"), vec![1]);
 
         assert_eq!(
             recover_file_for_load(&mut backend, "settings.xml", 10, |bytes| bytes == [1]),
             Ok(())
         );
         assert_eq!(backend.files.get("settings.xml"), Some(&vec![1]));
-        assert!(!backend.files.contains_key("settings.xml.bak"));
+        assert!(!backend.files.contains_key("settings.bak"));
     }
 
     #[test]
     fn load_recovery_deletes_backup_only_after_primary_validation() {
         let mut backend = MemoryBackend::default();
         backend.files.insert(String::from("settings.xml"), vec![1]);
-        backend
-            .files
-            .insert(String::from("settings.xml.bak"), vec![2]);
+        backend.files.insert(String::from("settings.bak"), vec![2]);
 
         assert_eq!(
             recover_file_for_load(&mut backend, "settings.xml", 10, |bytes| bytes == [1]),
             Ok(())
         );
         assert_eq!(backend.files.get("settings.xml"), Some(&vec![1]));
-        assert!(!backend.files.contains_key("settings.xml.bak"));
+        assert!(!backend.files.contains_key("settings.bak"));
     }
 
     #[test]
     fn invalid_primary_and_backup_are_both_preserved() {
         let mut backend = MemoryBackend::default();
         backend.files.insert(String::from("settings.xml"), vec![2]);
-        backend
-            .files
-            .insert(String::from("settings.xml.bak"), vec![3]);
+        backend.files.insert(String::from("settings.bak"), vec![3]);
 
         assert_eq!(
             recover_file_for_load(&mut backend, "settings.xml", 10, |bytes| bytes == [1]),
             Ok(())
         );
         assert_eq!(backend.files.get("settings.xml"), Some(&vec![2]));
-        assert_eq!(backend.files.get("settings.xml.bak"), Some(&vec![3]));
+        assert_eq!(backend.files.get("settings.bak"), Some(&vec![3]));
     }
 
     #[test]
     fn invalid_backup_without_primary_blocks_load_recovery() {
         let mut backend = MemoryBackend::default();
-        backend
-            .files
-            .insert(String::from("settings.xml.bak"), vec![3]);
+        backend.files.insert(String::from("settings.bak"), vec![3]);
 
         assert_eq!(
             recover_file_for_load(&mut backend, "settings.xml", 10, |bytes| bytes == [1]),
             Err(ReplaceError::BackupNeedsValidation)
         );
-        assert_eq!(backend.files.get("settings.xml.bak"), Some(&vec![3]));
+        assert_eq!(backend.files.get("settings.bak"), Some(&vec![3]));
         assert!(!backend.files.contains_key("settings.xml"));
     }
 
@@ -805,17 +874,15 @@ mod tests {
     fn save_refuses_to_replace_unvalidated_recovery_files() {
         let mut backend = MemoryBackend::default();
         backend.files.insert(String::from("settings.xml"), vec![1]);
-        backend
-            .files
-            .insert(String::from("settings.xml.bak"), vec![2]);
+        backend.files.insert(String::from("settings.bak"), vec![2]);
 
         assert_eq!(
             replace_file(&mut backend, "settings.xml", &[3]),
             Err(ReplaceError::BackupNeedsValidation)
         );
         assert_eq!(backend.files.get("settings.xml"), Some(&vec![1]));
-        assert_eq!(backend.files.get("settings.xml.bak"), Some(&vec![2]));
-        assert!(!backend.files.contains_key("settings.xml.tmp"));
+        assert_eq!(backend.files.get("settings.bak"), Some(&vec![2]));
+        assert!(!backend.files.contains_key("settings.tmp"));
     }
 
     #[test]
@@ -829,14 +896,14 @@ mod tests {
             Err(ReplaceError::Backend(-8))
         );
         assert!(!backend.files.contains_key("settings.xml"));
-        assert_eq!(backend.files.get("settings.xml.bak"), Some(&vec![1]));
+        assert_eq!(backend.files.get("settings.bak"), Some(&vec![1]));
 
         assert_eq!(
             recover_file_for_load(&mut backend, "settings.xml", 10, |bytes| bytes == [1]),
             Ok(())
         );
         assert_eq!(backend.files.get("settings.xml"), Some(&vec![1]));
-        assert!(!backend.files.contains_key("settings.xml.bak"));
-        assert!(!backend.files.contains_key("settings.xml.tmp"));
+        assert!(!backend.files.contains_key("settings.bak"));
+        assert!(!backend.files.contains_key("settings.tmp"));
     }
 }

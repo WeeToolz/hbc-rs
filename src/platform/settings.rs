@@ -88,6 +88,7 @@ impl SettingsIoError {
             super::nand::ReplaceError::BackupNeedsValidation => Self::RecoveryConflict,
             super::nand::ReplaceError::TemporaryMismatch => Self::TemporaryMismatch,
             super::nand::ReplaceError::StaleSnapshot => Self::StaleSnapshot,
+            super::nand::ReplaceError::InvalidPath => Self::InvalidPath,
         }
     }
 }
