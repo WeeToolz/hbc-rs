@@ -150,6 +150,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     let mut deferred_exit: Option<hbc_rs::platform::lifecycle::ExitRequest> = None;
     let mut wiiload_cleanup_notice_shown = false;
     let mut network_check_frames: Option<u16> = None;
+    let mut network_indicator_frame = 0u16;
 
     loop {
         if let Some(request) = hbc_rs::platform::lifecycle::take_request() {
@@ -453,7 +454,16 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         }
         if startup.runtime().controller().screen == hbc_rs::app::Screen::Browser {
             let indicators = hbc_rs::platform::wiiload::indicator_state();
-            scene.status_indicators(indicators.network_active, indicators.gecko_active);
+            let network_active = hbc_rs::wiiload::network_indicator_visible(
+                receiver_status,
+                network_indicator_frame,
+            );
+            if receiver_status == hbc_rs::wiiload::ReceiverStatus::Starting {
+                network_indicator_frame = (network_indicator_frame + 1) % 40;
+            } else {
+                network_indicator_frame = 0;
+            }
+            scene.status_indicators(network_active, indicators.gecko_active);
         }
         bubble_clock_frames += 1;
         if bubble_clock_frames >= 600 {

@@ -86,6 +86,16 @@ pub fn indicator_state(status: ReceiverStatus, gecko_ready: bool) -> IndicatorSt
     }
 }
 
+/// Match C HBC's network status light: it is disabled for the first 20
+/// initialization frames, enabled for the next 20, and repeats until ready.
+pub fn network_indicator_visible(status: ReceiverStatus, frame: u16) -> bool {
+    if status == ReceiverStatus::Starting {
+        (frame % 40) >= 20
+    } else {
+        indicator_state(status, false).network_active
+    }
+}
+
 /// HBC accepts Wiiload clients from the same IPv4 `/16` as the console.
 pub fn same_local_subnet_16(peer_ip: u32, local_ip: u32) -> bool {
     (peer_ip & 0xffff_0000) == (local_ip & 0xffff_0000)
@@ -275,6 +285,20 @@ mod tests {
         }
         assert!(!indicator_state(ReceiverStatus::Stopped, false).gecko_active);
         assert!(indicator_state(ReceiverStatus::Listening, true).gecko_active);
+    }
+
+    #[test]
+    fn network_indicator_blinks_every_twenty_frames_while_starting() {
+        assert!(!network_indicator_visible(ReceiverStatus::Starting, 0));
+        assert!(!network_indicator_visible(ReceiverStatus::Starting, 19));
+        assert!(network_indicator_visible(ReceiverStatus::Starting, 20));
+        assert!(network_indicator_visible(ReceiverStatus::Starting, 39));
+        assert!(!network_indicator_visible(ReceiverStatus::Starting, 40));
+        assert!(network_indicator_visible(ReceiverStatus::Listening, 0));
+        assert!(!network_indicator_visible(
+            ReceiverStatus::NetworkUnavailable,
+            20
+        ));
     }
     use miniz_oxide::deflate::compress_to_vec_zlib;
 
