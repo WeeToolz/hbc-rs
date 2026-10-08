@@ -572,6 +572,7 @@ pub struct WiiStartup {
     scan_previous_volume: Option<Volume>,
     scan_requested_volume: Option<Volume>,
     storage_presence: super::storage::StoragePresence,
+    storage_failure_notice: super::storage::StorageFailureNotice<(Volume, StorageError)>,
     zip_install_thread: Option<ogc_lwp::ThreadHandle>,
     device_probe_thread: Option<ogc_lwp::ThreadHandle>,
 }
@@ -806,6 +807,7 @@ impl WiiStartup {
             scan_previous_volume: None,
             scan_requested_volume: None,
             storage_presence: super::storage::StoragePresence::default(),
+            storage_failure_notice: super::storage::StorageFailureNotice::default(),
             zip_install_thread: None,
             device_probe_thread: None,
         };
@@ -988,22 +990,34 @@ impl WiiStartup {
                     })
                     .map(|error| (volume, error))
             }) {
-                self.runtime.show_notice(&alloc::format!(
-                    "Could not mount {volume:?} storage ({error:?})."
-                ));
-            } else if previous_volume.is_some() {
-                self.storage_presence.report_missing(false);
-                self.runtime
-                    .show_notice("Storage was removed. Connect an SD or USB device.");
-            } else if self.storage_presence.report_missing(false) {
-                self.runtime
-                    .show_notice("No SD or USB storage device is available.");
+                if self.storage_failure_notice.report(Some((*volume, error))) {
+                    let notice =
+                        match error {
+                            StorageError::UsbMount { probe, .. } => alloc::format!(
+                            "Could not detect USB storage. Error {} at {:?}. Devices found: {}.",
+                            probe.result, probe.stage, probe.candidates,
+                        ),
+                            _ => alloc::format!("Could not mount {volume:?} storage ({error:?})."),
+                        };
+                    self.runtime.show_notice(&notice);
+                }
+            } else {
+                self.storage_failure_notice.report(None);
+                if previous_volume.is_some() {
+                    self.storage_presence.report_missing(false);
+                    self.runtime
+                        .show_notice("Storage was removed. Connect an SD or USB device.");
+                } else if self.storage_presence.report_missing(false) {
+                    self.runtime
+                        .show_notice("No SD or USB storage device is available.");
+                }
             }
         } else if requested_volume.is_some() && self.volume != requested_volume {
             self.runtime
                 .show_notice("The selected storage device is not available.");
         }
         if self.volume.is_some() {
+            self.storage_failure_notice.report(None);
             self.storage_presence.report_missing(true);
         }
         true

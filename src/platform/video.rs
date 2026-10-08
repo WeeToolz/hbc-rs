@@ -147,6 +147,15 @@ impl VideoSystem {
         });
     }
 
+    /// Start an HBC frame with the same cache invalidation and default 2D state as C HBC.
+    pub fn begin_frame(&self) {
+        ogc_gx::inv_vtx_cache();
+        unsafe { ogc_gx::invalidate_tex_all() };
+        self.draw_state.configure(DrawFormat::Textured, || {
+            self.configure_format(DrawFormat::Textured)
+        });
+    }
+
     fn configure_format(&self, format: DrawFormat) {
         let projection = self.projection();
         unsafe {
@@ -158,14 +167,7 @@ impl VideoSystem {
     }
 
     fn projection(&self) -> ogc_gx::Mtx44 {
-        let width = f32::from(self.info.width);
-        let height = f32::from(self.info.height);
-        [
-            [2.0 / width, 0.0, 0.0, -1.0],
-            [0.0, -2.0 / height, 0.0, 1.0],
-            [0.0, 0.0, -1.0, 0.0],
-            [0.0, 0.0, 0.0, 1.0],
-        ]
+        super::projection::projection(self.info.width, self.info.height)
     }
 
     /// Draw one filled rectangle in framebuffer pixel coordinates.
@@ -185,8 +187,10 @@ impl VideoSystem {
             DrawFormat::Solid,
             || self.configure_format(DrawFormat::Solid),
             || {
-                unsafe { ogc_gx::draw_solid_rect(x, y, width, height, 0.0, color) }
-                    .map_err(VideoError::GxRect)
+                unsafe {
+                    ogc_gx::draw_solid_rect(x, y, width, height, super::projection::SCENE_Z, color)
+                }
+                .map_err(VideoError::GxRect)
             },
         )
     }
@@ -222,7 +226,14 @@ impl VideoSystem {
                         0,
                     );
                     ogc_gx::init_tex_obj_filter_mode(&mut object, ogc_gx::GX_NEAR, ogc_gx::GX_NEAR);
-                    ogc_gx::draw_textured_rect(&mut object, x, y, width, height, 0.0)
+                    ogc_gx::draw_textured_rect(
+                        &mut object,
+                        x,
+                        y,
+                        width,
+                        height,
+                        super::projection::SCENE_Z,
+                    )
                 }
                 .map_err(VideoError::GxTexture)
             },
@@ -252,6 +263,10 @@ impl VideoSystem {
             }
             return Err(VideoError::GxDrawTimeout);
         }
+        unsafe {
+            ogc_gx::set_z_mode(ogc_gx::GX_ENABLE, ogc_gx::GX_LEQUAL, ogc_gx::GX_TRUE);
+            ogc_gx::set_color_update(ogc_gx::GX_TRUE);
+        }
         #[cfg(feature = "startup-diagnostics")]
         if trace {
             super::diagnostics::mark("GX DRAW WAIT DONE");
@@ -278,7 +293,8 @@ impl VideoSystem {
             super::diagnostics::mark("VI RETRACE WAIT DONE");
             super::diagnostics::mark("GX COPY WAIT START");
         }
-        if !unsafe { ogc_gx::present_frame_and_wait(self.config) } {
+        unsafe { ogc_gx::copy_display(self.config, true) };
+        if !unsafe { ogc_gx::finish_frame_and_wait() } {
             #[cfg(feature = "startup-diagnostics")]
             if trace {
                 super::diagnostics::mark("GX COPY WAIT FAILED");

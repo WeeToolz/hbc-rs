@@ -14,6 +14,43 @@ use crate::{
     },
 };
 
+fn requested_font<'a>(
+    theme: &'a ThemeTextures,
+    run: &crate::render::TextRun,
+) -> Option<&'a core::cell::RefCell<crate::font::ThemeFontFace>> {
+    let file = run.file.as_deref()?;
+    theme
+        .fonts
+        .iter()
+        .find(|face| face.borrow().file.eq_ignore_ascii_case(file))
+        .or_else(|| {
+            run.fallback_file.as_deref().and_then(|fallback| {
+                theme
+                    .fonts
+                    .iter()
+                    .find(|face| face.borrow().file.eq_ignore_ascii_case(fallback))
+            })
+        })
+}
+
+pub fn layout_memos(
+    frame: &mut Frame,
+    theme: &ThemeTextures,
+) -> Result<Option<(usize, u16)>, VideoError> {
+    frame
+        .resolve_memos(|run, spec| {
+            if let Some(face) = requested_font(theme, run) {
+                face.borrow()
+                    .layout_memo(&run.value, spec, run.size, run.scale)
+            } else {
+                crate::text_layout::layout_memo(&run.value, spec, 9.0 * run.scale, |line| {
+                    line.chars().count() as f32 * 6.0 * run.scale
+                })
+            }
+        })
+        .map_err(VideoError::Font)
+}
+
 /// Submit the theme background and logo, solid fills, and app icons through GX.
 ///
 /// Text uses cached TrueType glyph textures. App icons use the RGBA8 texture path.
@@ -27,6 +64,7 @@ pub unsafe fn draw_frame(
     icons: &[IconTexture],
     theme: &ThemeTextures,
 ) -> Result<(), VideoError> {
+    video.begin_frame();
     let info = video.info();
     if let Some(background_fill) = frame.fills.first() {
         if let Some(bounds) = map_rect(
@@ -268,21 +306,7 @@ pub unsafe fn draw_frame(
         }
     }
     for run in &frame.text_runs {
-        let Some(file) = run.file.as_deref() else {
-            continue;
-        };
-        let requested_face = theme
-            .fonts
-            .iter()
-            .find(|face| face.borrow().file.eq_ignore_ascii_case(file))
-            .or_else(|| {
-                run.fallback_file.as_deref().and_then(|fallback| {
-                    theme
-                        .fonts
-                        .iter()
-                        .find(|face| face.borrow().file.eq_ignore_ascii_case(fallback))
-                })
-            });
+        let requested_face = requested_font(theme, run);
         let Some(requested_face) = requested_face else {
             unsafe { draw_fallback_text(video, frame, run, &info)? };
             continue;

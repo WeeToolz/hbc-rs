@@ -38,6 +38,37 @@ impl ExitSignal {
 
 static EXIT_SIGNAL: ExitSignal = ExitSignal::new();
 
+pub fn defer_exit(pending: &mut Option<ExitRequest>, request: ExitRequest) {
+    if *pending != Some(ExitRequest::PowerOff) {
+        *pending = Some(request);
+    }
+}
+
+pub fn take_ready_exit(
+    pending: &mut Option<ExitRequest>,
+    storage_busy: bool,
+) -> Option<ExitRequest> {
+    if storage_busy {
+        None
+    } else {
+        pending.take()
+    }
+}
+
+/// C HBC records controller cleanup errors and still performs the requested
+/// system reset. Call only after persistent writes, storage and network cleanup
+/// have completed. This policy does not apply to an application handoff.
+pub fn reset_after_controller_cleanup<E, R>(
+    cleanup: Result<(), E>,
+    report: impl FnOnce(E),
+    reset: impl FnOnce() -> R,
+) -> R {
+    if let Err(error) = cleanup {
+        report(error);
+    }
+    reset()
+}
+
 #[cfg(target_arch = "powerpc")]
 pub fn register_callbacks() {
     ogc_system::set_reset_callback(Some(reset_callback));
@@ -64,6 +95,35 @@ unsafe extern "C" fn power_callback() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn exit_waits_for_storage_completion_and_preserves_power_priority() {
+        let mut pending = None;
+        defer_exit(&mut pending, ExitRequest::PowerOff);
+        defer_exit(&mut pending, ExitRequest::ReturnToMenu);
+        assert_eq!(take_ready_exit(&mut pending, true), None);
+        assert_eq!(pending, Some(ExitRequest::PowerOff));
+        assert_eq!(
+            take_ready_exit(&mut pending, false),
+            Some(ExitRequest::PowerOff)
+        );
+        assert_eq!(pending, None);
+    }
+
+    #[test]
+    fn failed_controller_close_is_recorded_before_the_real_reset_boundary() {
+        let events = core::cell::RefCell::new(alloc::vec::Vec::new());
+        let outcome = reset_after_controller_cleanup(
+            Err(-116),
+            |error| events.borrow_mut().push(error),
+            || {
+                events.borrow_mut().push(1);
+                "reset completed"
+            },
+        );
+        assert_eq!(*events.borrow(), [-116, 1]);
+        assert_eq!(outcome, "reset completed");
+    }
 
     #[test]
     fn exit_callbacks_only_queue_work_for_the_main_loop() {

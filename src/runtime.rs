@@ -48,6 +48,10 @@ impl AppRuntime {
         &self.controller
     }
 
+    pub fn set_measured_memo(&mut self, max_scroll: usize, line_height: u16) {
+        self.controller.set_measured_memo(max_scroll, line_height);
+    }
+
     pub fn request_wiiload_zip_confirmation(&mut self) {
         self.controller.request_wiiload_zip_confirmation();
     }
@@ -86,9 +90,16 @@ impl AppRuntime {
 
     pub fn network_config_for_save(
         &self,
-    ) -> Result<crate::network_config::NetworkConfig, crate::network_config::WifiValidationError>
-    {
+    ) -> Result<crate::network_config::NetworkConfig, crate::app::NetworkConfigEditError> {
         self.controller.network_config_for_save()
+    }
+
+    pub fn network_config_snapshot(&self) -> Option<&crate::network_config::NetworkConfig> {
+        self.controller.network_config_snapshot()
+    }
+
+    pub fn clear_network_config(&mut self) {
+        self.controller.clear_network_config();
     }
 
     pub fn catalog(&self) -> &[AppEntry] {
@@ -188,7 +199,8 @@ impl AppRuntime {
     }
 
     /// Apply one input frame and return actions for storage or platform code.
-    /// Held directional and page inputs repeat. A newly pressed input is not
+    /// Directional selection uses new presses, as in C HBC. Held page inputs repeat.
+    /// A newly pressed input is not
     /// applied twice when the platform reports it as both pressed and held.
     pub fn update(&mut self, frame: &InputFrame) -> Vec<Action> {
         self.controller.reconcile_catalog(&self.catalog);
@@ -254,15 +266,7 @@ fn push_action(actions: &mut Vec<Action>, action: Action) {
 }
 
 fn is_repeatable(input: Input) -> bool {
-    matches!(
-        input,
-        Input::Up
-            | Input::Down
-            | Input::Left
-            | Input::Right
-            | Input::PreviousPage
-            | Input::NextPage
-    )
+    matches!(input, Input::PreviousPage | Input::NextPage)
 }
 
 #[cfg(test)]
@@ -282,7 +286,7 @@ mod tests {
     }
 
     #[test]
-    fn applies_press_once_and_repeats_held_navigation() {
+    fn directional_selection_requires_a_new_press() {
         let mut runtime = AppRuntime::new(vec![app("a"), app("b"), app("c")]);
         let first = InputFrame {
             pressed: vec![Input::Down],
@@ -300,7 +304,33 @@ mod tests {
             ..InputFrame::default()
         };
         runtime.update(&held);
+        assert_eq!(runtime.controller().selected_app.as_deref(), Some("b"));
+        for _ in 0..120 {
+            runtime.update(&held);
+        }
+        assert_eq!(runtime.controller().selected_app.as_deref(), Some("b"));
+        runtime.update(&InputFrame::default());
+        runtime.update(&first);
         assert_eq!(runtime.controller().selected_app.as_deref(), Some("c"));
+    }
+
+    #[test]
+    fn options_can_open_network_settings_without_any_mounted_apps() {
+        let mut runtime = AppRuntime::new(Vec::new());
+        runtime.update(&InputFrame {
+            pressed: vec![Input::OpenOptions],
+            ..Default::default()
+        });
+        assert_eq!(runtime.controller().screen, crate::app::Screen::Options);
+        runtime.update(&InputFrame {
+            pressed: vec![Input::Up],
+            ..Default::default()
+        });
+        let actions = runtime.update(&InputFrame {
+            pressed: vec![Input::Confirm],
+            ..Default::default()
+        });
+        assert_eq!(actions, [Action::LoadNetworkConfig]);
     }
 
     #[test]
@@ -335,8 +365,10 @@ mod tests {
             pressed: vec![
                 Input::OpenOptions,
                 Input::Up,
+                Input::Up,
                 Input::Left,
                 Input::Confirm,
+                Input::Down,
                 Input::Down,
                 Input::Confirm,
             ],
@@ -375,24 +407,20 @@ mod tests {
             sort_order: 0,
             ..UserSettings::default()
         });
-        runtime.update(&InputFrame {
-            pressed: vec![Input::OpenOptions],
-            ..InputFrame::default()
-        });
-        runtime.update(&InputFrame {
-            pressed: vec![Input::Up, Input::Right, Input::Confirm],
-            ..InputFrame::default()
-        });
-        runtime.update(&InputFrame {
-            pressed: vec![Input::Up, Input::Up, Input::Confirm],
-            ..InputFrame::default()
-        });
+        runtime.set_device_availability([true, true, false, false]);
         let actions = runtime.update(&InputFrame {
             pressed: vec![
-                Input::Left,
-                Input::Down,
-                Input::Down,
-                Input::Down,
+                Input::OpenOptions,
+                Input::Up,    // Back -> Network setup
+                Input::Up,    // Network setup -> Name
+                Input::Right, // Date
+                Input::Confirm,
+                Input::Up, // Skip unavailable SD Gecko row -> USB
+                Input::Confirm,
+                Input::Left, // SD
+                Input::Down, // Name
+                Input::Down, // Network setup
+                Input::Down, // OK
                 Input::Confirm,
             ],
             ..InputFrame::default()

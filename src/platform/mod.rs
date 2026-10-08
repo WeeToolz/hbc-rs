@@ -13,6 +13,8 @@ pub mod nand;
 pub mod network_config;
 #[cfg(target_arch = "powerpc")]
 pub mod network_scan;
+#[cfg(any(target_arch = "powerpc", test))]
+mod projection;
 #[cfg(target_arch = "powerpc")]
 pub mod renderer;
 #[cfg(target_arch = "powerpc")]

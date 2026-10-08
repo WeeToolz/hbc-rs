@@ -22,6 +22,28 @@ impl StoragePresence {
     }
 }
 
+/// Keep retries active, but show the same failure only once until recovery.
+#[cfg(any(test, target_arch = "powerpc"))]
+pub(crate) struct StorageFailureNotice<E> {
+    last_error: Option<E>,
+}
+
+#[cfg(any(test, target_arch = "powerpc"))]
+impl<E> Default for StorageFailureNotice<E> {
+    fn default() -> Self {
+        Self { last_error: None }
+    }
+}
+
+#[cfg(any(test, target_arch = "powerpc"))]
+impl<E: Copy + PartialEq> StorageFailureNotice<E> {
+    pub(crate) fn report(&mut self, error: Option<E>) -> bool {
+        let show = error.is_some() && error != self.last_error;
+        self.last_error = error;
+        show
+    }
+}
+
 /// Treat absent interfaces and removed media as unavailable devices. Preserve
 /// other probe failures so Options can report real storage errors.
 #[cfg(any(test, target_arch = "powerpc"))]
@@ -90,7 +112,19 @@ pub fn device_scan_order(preference: i32) -> [Volume; 4] {
 
 #[cfg(test)]
 mod device_selection_tests {
-    use super::{classify_device_presence, device_scan_order, StoragePresence, Volume};
+    use super::{
+        classify_device_presence, device_scan_order, StorageFailureNotice, StoragePresence, Volume,
+    };
+
+    #[test]
+    fn repeated_storage_failure_is_reported_once_and_recovery_rearms_it() {
+        let mut notice = StorageFailureNotice::default();
+        assert!(notice.report(Some((Volume::Usb, -4))));
+        assert!(!notice.report(Some((Volume::Usb, -4))));
+        assert!(notice.report(Some((Volume::Usb, -22))));
+        assert!(!notice.report(None));
+        assert!(notice.report(Some((Volume::Usb, -4))));
+    }
 
     #[test]
     fn no_storage_notice_is_not_reopened_by_repeated_scans() {
@@ -149,6 +183,10 @@ mod device_selection_tests {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum StorageError {
     Fat(ogc_fat::FatError),
+    UsbMount {
+        error: ogc_fat::FatError,
+        probe: ogc_usbstorage_sys::UsbProbeStatus,
+    },
     Archive(crate::archive::ZipError),
     Management(crate::management::ManagementError),
     InvalidPath,
@@ -184,7 +222,16 @@ impl FatStorage {
             Volume::CardA => ("carda:", ogc_fat::mount_card_a()),
             Volume::CardB => ("cardb:", ogc_fat::mount_card_b()),
         };
-        result.map_err(StorageError::Fat)?;
+        result.map_err(|error| {
+            if volume == Volume::Usb {
+                StorageError::UsbMount {
+                    error,
+                    probe: ogc_usbstorage_sys::probe_status(),
+                }
+            } else {
+                StorageError::Fat(error)
+            }
+        })?;
         Ok(Self {
             prefix,
             catalog_directory: None,

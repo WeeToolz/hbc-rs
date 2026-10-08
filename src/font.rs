@@ -83,6 +83,51 @@ impl ThemeFontFace {
         self.font
             .horizontal_kern(left, right, f32::from(pixel_size))
     }
+
+    pub fn measure_width(&self, value: &str, pixel_size: u16) -> f32 {
+        let mut cursor = 0.0;
+        let mut right: f32 = 0.0;
+        let mut previous = None;
+        for character in value.chars() {
+            if let Some(left) = previous {
+                cursor += self
+                    .horizontal_kern(left, character, pixel_size)
+                    .unwrap_or(0.0);
+            }
+            let glyph = self.font.metrics(character, f32::from(pixel_size));
+            right = right.max(cursor + glyph.xmin as f32 + glyph.width as f32);
+            cursor += glyph.advance_width;
+            previous = Some(character);
+        }
+        right.max(cursor)
+    }
+
+    pub fn layout_memo(
+        &self,
+        value: &str,
+        spec: crate::text_layout::MemoSpec,
+        pixel_size: u16,
+        scale: f32,
+    ) -> Result<crate::text_layout::MemoLayout, FontError> {
+        if pixel_size == 0
+            || pixel_size > 128
+            || !scale.is_finite()
+            || scale <= 0.0
+            || !spec.width.is_finite()
+            || spec.width <= 0.0
+            || !spec.height.is_finite()
+            || spec.height <= 0.0
+        {
+            return Err(FontError::InvalidSize);
+        }
+        let (ascent, descent, gap) = self
+            .horizontal_line_metrics(pixel_size)
+            .ok_or(FontError::InvalidFont)?;
+        let line_height = libm::ceilf((ascent - descent + gap) * scale).max(1.0);
+        crate::text_layout::layout_memo(value, spec, line_height, |line| {
+            self.measure_width(line, pixel_size) * scale
+        })
+    }
 }
 
 fn make_bitmap(
@@ -112,6 +157,40 @@ fn make_bitmap(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn credits_layout_fits_the_dialog_and_reaches_the_final_line() {
+        let face = ThemeFontFace::parse("droid.ttf".into(), DROID_REGULAR.to_vec()).unwrap();
+        assert!(face.measure_width("WWW", 16) > face.measure_width("iii", 16) * 2.0);
+        let value = alloc::format!("{}\nTheme: Water", crate::app::ABOUT_CREDITS);
+        for size in [16, 24] {
+            let mut scroll = 0;
+            loop {
+                let memo = face
+                    .layout_memo(
+                        &value,
+                        crate::text_layout::MemoSpec {
+                            width: 456.0,
+                            height: 180.0,
+                            scroll,
+                        },
+                        size,
+                        1.0,
+                    )
+                    .unwrap();
+                assert!(memo.max_scroll > 0);
+                assert!(memo.lines.len() as f32 * memo.line_height <= 180.0);
+                for line in &memo.lines {
+                    assert!(face.measure_width(line, size) <= 456.0);
+                }
+                if scroll == memo.max_scroll {
+                    assert_eq!(memo.lines.last().map(String::as_str), Some("Theme: Water"));
+                    break;
+                }
+                scroll = memo.max_scroll;
+            }
+        }
+    }
 
     const DROID_REGULAR: &[u8] =
         include_bytes!("../../../C-sources/hbc/channel/channelapp/data/droid.ttf");

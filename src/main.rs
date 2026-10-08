@@ -153,21 +153,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
 
     loop {
         if let Some(request) = hbc_rs::platform::lifecycle::take_request() {
-            if startup.received_zip_install_pending() {
-                deferred_exit = Some(request);
-            } else {
-                let reset = match request {
-                    hbc_rs::platform::lifecycle::ExitRequest::ReturnToMenu => {
-                        ogc_system::SYS_RETURNTOMENU
-                    }
-                    hbc_rs::platform::lifecycle::ExitRequest::PowerOff => ogc_system::SYS_POWEROFF,
-                };
-                if let Err(message) = exit_to_system(&mut startup, reset) {
-                    startup
-                        .runtime_mut()
-                        .show_notice_with_kind(message, hbc_rs::app::NoticeKind::Error);
-                }
-            }
+            hbc_rs::platform::lifecycle::defer_exit(&mut deferred_exit, request);
         }
 
         startup.poll_storage_scan();
@@ -260,22 +246,26 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         if let Some(progress) = startup.received_zip_install_progress() {
             startup.runtime_mut().set_wiiload_install_progress(progress);
         }
-        if !startup.received_zip_install_pending() {
-            if let Some(request) = deferred_exit.take() {
-                let reset = match request {
-                    hbc_rs::platform::lifecycle::ExitRequest::ReturnToMenu => {
-                        ogc_system::SYS_RETURNTOMENU
-                    }
-                    hbc_rs::platform::lifecycle::ExitRequest::PowerOff => ogc_system::SYS_POWEROFF,
-                };
-                if let Err(message) = exit_to_system(&mut startup, reset) {
-                    startup
-                        .runtime_mut()
-                        .show_notice_with_kind(message, hbc_rs::app::NoticeKind::Error);
+        if let Some(request) = hbc_rs::platform::lifecycle::take_ready_exit(
+            &mut deferred_exit,
+            startup.received_zip_install_pending()
+                || startup.storage_scan_pending()
+                || startup.device_probe_pending(),
+        ) {
+            let reset = match request {
+                hbc_rs::platform::lifecycle::ExitRequest::ReturnToMenu => {
+                    ogc_system::SYS_RETURNTOMENU
                 }
+                hbc_rs::platform::lifecycle::ExitRequest::PowerOff => ogc_system::SYS_POWEROFF,
+            };
+            if let Err(message) = exit_to_system(&mut startup, reset) {
+                startup
+                    .runtime_mut()
+                    .show_notice_with_kind(message, hbc_rs::app::NoticeKind::Error);
             }
         }
-        if !startup.storage_scan_pending() {
+
+        if deferred_exit.is_none() && !startup.storage_scan_pending() {
             if pending_zip.is_none() && !startup.received_zip_install_pending() {
                 if let Some(payload) = hbc_rs::platform::wiiload::take_payload() {
                     if payload.data.starts_with(b"PK\x03\x04") {
@@ -346,8 +336,8 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 }
             }
         }
-        frames_since_storage_scan += 1;
-        if frames_since_storage_scan == 30 {
+        frames_since_storage_scan = frames_since_storage_scan.saturating_add(1);
+        if frames_since_storage_scan >= 30 && deferred_exit.is_none() {
             frames_since_storage_scan = 0;
             if startup.runtime().controller().screen == hbc_rs::app::Screen::Options {
                 if let Err(error) = startup.refresh_device_availability() {
@@ -383,17 +373,8 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             }
         };
         let storage_scan_pending = startup.storage_scan_pending();
-        if (storage_scan_pending || startup.device_probe_pending())
-            && startup.runtime().controller().screen != hbc_rs::app::Screen::Notice
-        {
-            frame.pressed.clear();
-            frame.held.clear();
-            frame.released.clear();
-            frame.pointer = None;
-            frame.pointer_pressed = false;
-            frame.pointer_held = false;
-            frame.stick_scroll_pixels = 0;
-        }
+        // Device probes own storage in their worker. Menu input stays active;
+        // operations that need storage validate worker ownership at the backend.
         let pointer = frame.pointer;
         let pointer_pressed = frame.pointer_pressed;
         let pointer_held = frame.pointer_held;
@@ -440,6 +421,20 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             startup.logical_width(),
             language,
         );
+        match hbc_rs::platform::renderer::layout_memos(&mut scene, startup.theme_textures()) {
+            Ok(Some((max_scroll, line_height))) => {
+                startup
+                    .runtime_mut()
+                    .set_measured_memo(max_scroll, line_height);
+            }
+            Ok(None) => {}
+            Err(error) => {
+                ogc_system::report(format_args!("HBC: memo layout failed: {error:?}\n"));
+                #[cfg(feature = "startup-diagnostics")]
+                hbc_rs::platform::diagnostics::fail("TEXT LAYOUT ERROR");
+                return -3;
+            }
+        }
         if startup.runtime().controller().screen == hbc_rs::app::Screen::Browser {
             let indicators = hbc_rs::platform::wiiload::indicator_state();
             scene.status_indicators(indicators.network_active, indicators.gecko_active);
@@ -657,7 +652,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         // then the timer wake makes priority-64 main preempt priority-62 storage.
         // A plain yield is unsafe here: an equal-priority worker can retain the
         // CPU inside a long FAT/IOS operation and freeze animation and input.
-        if startup.storage_scan_pending() {
+        if startup.storage_scan_pending() || startup.device_probe_pending() {
             ogc_lwp::sys::sleep_ticks((ogc_lwp::sys::TICKS_PER_SECOND / 1_000).max(1));
         }
         #[cfg(feature = "startup-diagnostics")]
@@ -668,6 +663,31 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         }
 
         for action in actions {
+            let exit = match action {
+                hbc_rs::app::Action::Exit => {
+                    Some(hbc_rs::platform::lifecycle::ExitRequest::ReturnToMenu)
+                }
+                hbc_rs::app::Action::Shutdown => {
+                    Some(hbc_rs::platform::lifecycle::ExitRequest::PowerOff)
+                }
+                _ => None,
+            };
+            if let Some(request) = exit {
+                hbc_rs::platform::lifecycle::defer_exit(&mut deferred_exit, request);
+                if startup.storage_scan_pending()
+                    || startup.device_probe_pending()
+                    || startup.received_zip_install_pending()
+                {
+                    startup.runtime_mut().show_notice_with_kind(
+                        "Waiting for storage operations to finish before exiting.",
+                        hbc_rs::app::NoticeKind::Information,
+                    );
+                }
+                continue;
+            }
+            if deferred_exit.is_some() {
+                continue;
+            }
             if action == hbc_rs::app::Action::AcceptWiiloadZip {
                 if let Some(bytes) = pending_zip.take() {
                     if startup.start_received_zip(bytes).is_err() {
@@ -694,42 +714,58 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 continue;
             }
             if action == hbc_rs::app::Action::SaveNetworkConfig {
-                let result = startup
-                    .runtime()
-                    .network_config_for_save()
-                    .map_err(|error| format!("WiFi settings are invalid: {error:?}."))
-                    .and_then(|config| {
-                        hbc_rs::platform::network_config::save(&config).map_err(|error| {
-                            format!("Could not save Wii network settings: {error:?}.")
-                        })
-                    });
-                match result {
-                    Err(message) => startup
-                        .runtime_mut()
-                        .show_notice_with_kind(&message, hbc_rs::app::NoticeKind::Error),
-                    Ok(()) => match hbc_rs::platform::wiiload::stop() {
+                let expected = startup.runtime().network_config_snapshot().cloned();
+                let prepared = startup.runtime().network_config_for_save();
+                match (expected, prepared) {
+                    (Some(expected), Ok(config)) => match hbc_rs::platform::wiiload::stop() {
                         Err(error) => startup.runtime_mut().show_notice_with_kind(
-                            &format!(
-                                "Settings saved, but Wiiload could not stop cleanly: {error:?}."
-                            ),
-                            hbc_rs::app::NoticeKind::Warning,
+                            &format!("Could not stop Wiiload; network settings were not saved: {error:?}."),
+                            hbc_rs::app::NoticeKind::Error,
                         ),
-                        Ok(()) => match hbc_rs::platform::wiiload::start() {
-                            Ok(()) => {
-                                network_check_frames = Some(0);
-                                startup.runtime_mut().show_notice_with_kind(
-                                    "Settings saved. Connecting to the network...",
-                                    hbc_rs::app::NoticeKind::Information,
-                                );
-                            }
-                            Err(error) => startup.runtime_mut().show_notice_with_kind(
-                                &format!(
-                                    "Settings saved, but Wiiload could not restart: {error:?}."
+                        Ok(()) => {
+                            let save = hbc_rs::platform::network_config::save(&config, &expected);
+                            let restart = hbc_rs::platform::wiiload::start();
+                            match (save, restart) {
+                                (Ok(()), Ok(())) => match hbc_rs::platform::network_config::load() {
+                                    Ok(saved) => {
+                                        startup.runtime_mut().set_network_config(saved);
+                                        network_check_frames = Some(0);
+                                        startup.runtime_mut().show_notice_with_kind(
+                                            "Settings saved. Connecting to the network...",
+                                            hbc_rs::app::NoticeKind::Information,
+                                        );
+                                    }
+                                    Err(error) => {
+                                        startup.runtime_mut().clear_network_config();
+                                        startup.runtime_mut().show_notice_with_kind(
+                                            &format!("Settings were saved, but the committed file could not be reloaded: {error:?}."),
+                                            hbc_rs::app::NoticeKind::Error,
+                                        );
+                                    }
+                                },
+                                (Err(save_error), Ok(())) => startup.runtime_mut().show_notice_with_kind(
+                                    &format!("Could not save Wii network settings: {save_error:?}."),
+                                    hbc_rs::app::NoticeKind::Error,
                                 ),
-                                hbc_rs::app::NoticeKind::Warning,
-                            ),
-                        },
+                                (Ok(()), Err(restart_error)) => startup.runtime_mut().show_notice_with_kind(
+                                    &format!("Settings were saved, but Wiiload could not restart: {restart_error:?}."),
+                                    hbc_rs::app::NoticeKind::Error,
+                                ),
+                                (Err(save_error), Err(restart_error)) => startup.runtime_mut().show_notice_with_kind(
+                                    &format!("Could not save Wii network settings: {save_error:?}. Wiiload restart also failed: {restart_error:?}."),
+                                    hbc_rs::app::NoticeKind::Error,
+                                ),
+                            }
+                        }
                     },
+                    (_, Err(error)) => startup.runtime_mut().show_notice_with_kind(
+                        &format!("WiFi settings are invalid: {error:?}."),
+                        hbc_rs::app::NoticeKind::Error,
+                    ),
+                    (None, Ok(_)) => startup.runtime_mut().show_notice_with_kind(
+                        "Could not save Wii network settings: no loaded configuration snapshot.",
+                        hbc_rs::app::NoticeKind::Error,
+                    ),
                 }
                 continue;
             }
@@ -871,7 +907,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                         );
                         continue;
                     }
-                    if stop_disc_services().is_err() {
+                    if shutdown_disc_services().is_err() {
                         startup.runtime_mut().show_notice_with_kind(
                             "Could not stop disc services. BootMii launch stopped.",
                             hbc_rs::app::NoticeKind::Error,
@@ -930,23 +966,43 @@ fn install_return_stub() {
 }
 
 #[cfg(target_arch = "powerpc")]
-fn stop_disc_services() -> Result<(), ()> {
-    if ogc_di::init() < 0 {
-        return Err(());
-    }
-    let stop_result = ogc_di::stop_motor();
+fn shutdown_disc_services() -> Result<(), i32> {
+    // C WiiDVD_ShutDown closes an existing request. It does not open /dev/di
+    // or issue another motor command while handing control to the next app.
     let close_result = ogc_di::close();
-    if stop_result < 0 || close_result < 0 {
-        return Err(());
+    if close_result < 0 {
+        ogc_system::report(format_args!("HBC: DI close failed: {close_result}\n"));
+        return Err(close_result);
     }
     Ok(())
 }
 
 #[cfg(target_arch = "powerpc")]
-fn stop_wpad_services() -> Result<(), ()> {
+#[derive(Debug)]
+enum WpadShutdownError {
+    Start(i32),
+    Poll(i32),
+    Timeout,
+}
+
+#[cfg(target_arch = "powerpc")]
+impl core::fmt::Display for WpadShutdownError {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Start(code) => write!(formatter, "shutdown submission failed ({code})"),
+            Self::Poll(code) => write!(formatter, "shutdown poll failed ({code})"),
+            Self::Timeout => {
+                formatter.write_str("Bluetooth close did not complete within 5 seconds")
+            }
+        }
+    }
+}
+
+#[cfg(target_arch = "powerpc")]
+fn stop_wpad_services() -> Result<(), WpadShutdownError> {
     let result = wpad_sys::shutdown();
     if result < 0 {
-        return Err(());
+        return Err(WpadShutdownError::Start(result));
     }
     // shutdown() only submits the Bluetooth close chain. Keep polling the
     // backend until IOS reports the close completion, including the retry path
@@ -956,14 +1012,14 @@ fn stop_wpad_services() -> Result<(), ()> {
     for _ in 0..SHUTDOWN_POLL_FRAMES {
         let scan_result = wpad_sys::scan_pads();
         if scan_result < 0 {
-            return Err(());
+            return Err(WpadShutdownError::Poll(scan_result));
         }
         if wpad_sys::bluetooth_shutdown_complete() {
             return Ok(());
         }
         ogc_lwp::sys::sleep_ticks(SHUTDOWN_POLL_TICKS.max(1));
     }
-    Err(())
+    Err(WpadShutdownError::Timeout)
 }
 
 #[cfg(target_arch = "powerpc")]
@@ -992,7 +1048,7 @@ fn transfer_executable(
     if startup.unmount_storage().is_err() {
         return Err("Could not stop storage. Application launch stopped.");
     }
-    stop_disc_services()
+    shutdown_disc_services()
         .map_err(|_| "Could not stop disc services. Application launch stopped.")?;
     hbc_rs::platform::wiiload::stop()
         .map_err(|_| "Could not stop the network receiver. Application launch stopped.")?;
@@ -1022,17 +1078,26 @@ fn exit_to_system(
     if startup.unmount_storage().is_err() {
         return Err("Could not stop storage. System exit stopped.");
     }
-    if stop_disc_services().is_err() {
+    if shutdown_disc_services().is_err() {
         return Err("Could not stop disc services. System exit stopped.");
     }
     if hbc_rs::platform::wiiload::stop().is_err() {
         return Err("Could not stop the network receiver. System exit stopped.");
     }
-    if stop_wpad_services().is_err() {
-        return Err("Could not finish Wii Remote shutdown. System exit stopped.");
-    }
-    hbc_rs::platform::video::shutdown();
-    reset_system(reset)
+    let controller_cleanup = stop_wpad_services();
+    hbc_rs::platform::lifecycle::reset_after_controller_cleanup(
+        controller_cleanup,
+        |error| {
+            ogc_system::report(format_args!(
+                "HBC: controller cleanup before system reset failed: {error}; Bluetooth: {:?}\n",
+                wpad_sys::bluetooth_diagnostics(),
+            ))
+        },
+        || {
+            hbc_rs::platform::video::shutdown();
+            reset_system(reset)
+        },
+    )
 }
 
 #[cfg(target_arch = "powerpc")]

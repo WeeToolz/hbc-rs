@@ -211,6 +211,7 @@ pub struct AppController {
     detail_description_max_scroll: usize,
     about_scroll: usize,
     about_scroll_ticks: usize,
+    measured_memo: Option<(Screen, usize, u16)>,
     about_has_theme_description: bool,
     detail_scroll_app: Option<String>,
     detail_scroll_pixel_remainder: i16,
@@ -373,6 +374,9 @@ impl AppController {
     }
 
     fn about_max_scroll(&self) -> usize {
+        if let Some((Screen::About, max_scroll, _)) = self.measured_memo {
+            return max_scroll;
+        }
         let lines = crate::text_layout::wrap_memo_lines(ABOUT_CREDITS, ABOUT_MEMO_LINE_WIDTH)
             .len()
             .saturating_add(if self.about_has_theme_description {
@@ -381,6 +385,32 @@ impl AppController {
                 0
             });
         lines.saturating_sub(ABOUT_MEMO_VISIBLE_LINES)
+    }
+
+    pub fn set_measured_memo(&mut self, max_scroll: usize, line_height: u16) {
+        self.measured_memo = Some((self.screen, max_scroll, line_height.max(1)));
+        match self.screen {
+            Screen::About => self.about_scroll = self.about_scroll.min(max_scroll),
+            Screen::AppDetails => {
+                self.detail_description_max_scroll = max_scroll;
+                self.detail_description_scroll = self.detail_description_scroll.min(max_scroll);
+            }
+            Screen::Notice => {
+                self.notice_scroll_max = max_scroll;
+                self.notice_scroll = self.notice_scroll.min(max_scroll);
+            }
+            Screen::WiiloadConfirm => {
+                self.wiiload_confirmation_max_scroll = max_scroll;
+                self.wiiload_confirmation_scroll = self.wiiload_confirmation_scroll.min(max_scroll);
+            }
+            _ => {}
+        }
+    }
+
+    fn memo_line_height(&self) -> i16 {
+        self.measured_memo
+            .filter(|(screen, _, _)| *screen == self.screen)
+            .map_or(9, |(_, _, height)| height.min(i16::MAX as u16) as i16)
     }
 
     /// Match the C About memo's delayed, slow upward crawl.
@@ -401,8 +431,9 @@ impl AppController {
         }
         self.detail_scroll_pixel_remainder =
             self.detail_scroll_pixel_remainder.saturating_add(pixels);
-        let lines = self.detail_scroll_pixel_remainder / 9;
-        self.detail_scroll_pixel_remainder %= 9;
+        let line_height = self.memo_line_height();
+        let lines = self.detail_scroll_pixel_remainder / line_height;
+        self.detail_scroll_pixel_remainder %= line_height;
         if lines > 0 {
             self.detail_description_scroll = self
                 .detail_description_scroll
@@ -439,8 +470,9 @@ impl AppController {
     fn scroll_notice_by_pixels(&mut self, pixels: i16) {
         self.notice_scroll_pixel_remainder =
             self.notice_scroll_pixel_remainder.saturating_add(pixels);
-        let lines = self.notice_scroll_pixel_remainder / 9;
-        self.notice_scroll_pixel_remainder %= 9;
+        let line_height = self.memo_line_height();
+        let lines = self.notice_scroll_pixel_remainder / line_height;
+        self.notice_scroll_pixel_remainder %= line_height;
         if lines > 0 {
             self.notice_scroll = self
                 .notice_scroll
@@ -457,8 +489,9 @@ impl AppController {
         self.wiiload_confirmation_scroll_pixel_remainder = self
             .wiiload_confirmation_scroll_pixel_remainder
             .saturating_add(pixels);
-        let lines = self.wiiload_confirmation_scroll_pixel_remainder / 9;
-        self.wiiload_confirmation_scroll_pixel_remainder %= 9;
+        let line_height = self.memo_line_height();
+        let lines = self.wiiload_confirmation_scroll_pixel_remainder / line_height;
+        self.wiiload_confirmation_scroll_pixel_remainder %= line_height;
         if lines > 0 {
             self.wiiload_confirmation_scroll = self
                 .wiiload_confirmation_scroll
@@ -581,7 +614,11 @@ impl AppController {
     }
 
     pub fn set_network_config(&mut self, config: crate::network_config::NetworkConfig) {
-        let wifi = config.profile(0).expect("profile zero exists").wifi();
+        let profile_index = config.active_profile().unwrap_or(0);
+        let wifi = config
+            .profile(profile_index)
+            .expect("profile index is valid")
+            .wifi();
         let ssid_len = usize::from(wifi.ssid_len()).min(32);
         let key_len = usize::from(wifi.key_len()).min(64);
         self.network_ssid.clear();
@@ -614,23 +651,38 @@ impl AppController {
 
     pub fn network_config_for_save(
         &self,
-    ) -> Result<crate::network_config::NetworkConfig, crate::network_config::WifiValidationError>
-    {
+    ) -> Result<crate::network_config::NetworkConfig, NetworkConfigEditError> {
         let mut config = self
             .network_config
             .clone()
-            .ok_or(crate::network_config::WifiValidationError::InvalidSsidLength)?;
-        let mut profile = config.profile_mut(0).expect("profile zero exists");
+            .ok_or(NetworkConfigEditError::MissingSnapshot)?;
+        let profile_index = config
+            .active_wifi_profile()
+            .map_err(NetworkConfigEditError::Profile)?;
+        let mut profile = config
+            .profile_mut(profile_index)
+            .expect("profile index is valid");
         let mut wifi = profile.wifi_mut();
         if !wifi.set_ssid(&self.network_ssid)
             || !wifi.set_encryption(self.network_encryption)
             || !wifi.set_key(&self.network_key)
         {
-            return Err(crate::network_config::WifiValidationError::InvalidWpaKey);
+            return Err(NetworkConfigEditError::Wifi(
+                crate::network_config::WifiValidationError::InvalidWpaKey,
+            ));
         }
         drop(wifi);
-        crate::network_config::validate_wifi(config.profile(0).unwrap().wifi())?;
+        crate::network_config::validate_wifi(config.profile(profile_index).unwrap().wifi())
+            .map_err(NetworkConfigEditError::Wifi)?;
         Ok(config)
+    }
+
+    pub fn network_config_snapshot(&self) -> Option<&crate::network_config::NetworkConfig> {
+        self.network_config.as_ref()
+    }
+
+    pub fn clear_network_config(&mut self) {
+        self.network_config = None;
     }
 
     pub fn pointer_target(&self) -> Option<PointerTarget> {
@@ -864,10 +916,7 @@ impl AppController {
                     Action::None
                 }
                 Input::Down => {
-                    let max =
-                        crate::text_layout::wrap_memo_lines(ABOUT_CREDITS, ABOUT_MEMO_LINE_WIDTH)
-                            .len()
-                            .saturating_sub(ABOUT_MEMO_VISIBLE_LINES);
+                    let max = self.about_max_scroll();
                     self.about_scroll = self.about_scroll.saturating_add(1).min(max);
                     Action::None
                 }
@@ -974,7 +1023,7 @@ impl AppController {
             }
             (Screen::WiiloadConfirm, PointerTarget::WiiloadMemo) => Action::None,
             (Screen::WiiloadInstalling | Screen::WiiloadReceiving, _) => Action::None,
-            (Screen::Options, PointerTarget::Option(index)) if index < 9 => {
+            (Screen::Options, PointerTarget::Option(index)) if self.option_enabled(index) => {
                 self.options_focus = index;
                 if pressed {
                     self.handle(Input::Confirm, catalog)
@@ -1119,7 +1168,7 @@ impl AppController {
                     _ => self.preferred_device.clamp(0, 3),
                 };
                 self.pending_sort = self.sort;
-                self.options_focus = 6;
+                self.options_focus = 7;
                 self.screen = Screen::Options;
                 Action::None
             }
@@ -1163,32 +1212,64 @@ impl AppController {
         }
     }
 
+    pub fn option_enabled(&self, index: usize) -> bool {
+        match index {
+            0..=3 => self.device_available(index) == Some(true),
+            4..=8 => true,
+            _ => false,
+        }
+    }
+
+    fn move_options_focus(&mut self, input: Input) {
+        const ROWS: [&[usize]; 5] = [&[0, 1], &[2, 3], &[4, 5], &[8], &[6, 7]];
+        let row = ROWS
+            .iter()
+            .position(|items| items.contains(&self.options_focus))
+            .unwrap_or(4);
+        let column = usize::from(self.options_focus < 8 && self.options_focus % 2 != 0);
+        match input {
+            Input::Left | Input::Right => {
+                let target = ROWS[row].get(usize::from(input == Input::Right)).copied();
+                if let Some(target) = target.filter(|index| self.option_enabled(*index)) {
+                    self.options_focus = target;
+                }
+            }
+            Input::Up | Input::Down => {
+                let step: isize = if input == Input::Up { -1 } else { 1 };
+                let mut next = row as isize + step;
+                while (0..ROWS.len() as isize).contains(&next) {
+                    let items = ROWS[next as usize];
+                    let preferred = items
+                        .get(column)
+                        .copied()
+                        .filter(|index| self.option_enabled(*index));
+                    if let Some(target) = preferred.or_else(|| {
+                        items
+                            .iter()
+                            .copied()
+                            .find(|index| self.option_enabled(*index))
+                    }) {
+                        self.options_focus = target;
+                        break;
+                    }
+                    next += step;
+                }
+            }
+            _ => {}
+        }
+    }
+
     fn handle_options(&mut self, input: Input, catalog: &[AppEntry]) -> Action {
         match input {
             Input::Back | Input::OpenOptions => {
                 self.screen = Screen::Browser;
                 Action::None
             }
-            Input::Left => {
-                if self.options_focus < 8 {
-                    self.options_focus &= !1;
-                }
+            Input::Left | Input::Right | Input::Up | Input::Down => {
+                self.move_options_focus(input);
                 Action::None
             }
-            Input::Right => {
-                if self.options_focus < 8 {
-                    self.options_focus |= 1;
-                }
-                Action::None
-            }
-            Input::Up => {
-                self.options_focus = self.options_focus.saturating_sub(2);
-                Action::None
-            }
-            Input::Down => {
-                self.options_focus = (self.options_focus + 2).min(8);
-                Action::None
-            }
+            Input::Confirm if !self.option_enabled(self.options_focus) => Action::None,
             Input::Confirm => match self.options_focus {
                 0 => {
                     self.pending_device = 0;
@@ -1506,6 +1587,13 @@ impl AppController {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum NetworkConfigEditError {
+    MissingSnapshot,
+    Profile(crate::network_config::NetworkProfileError),
+    Wifi(crate::network_config::WifiValidationError),
+}
+
 fn cycle_encryption(current: u8, forward: bool) -> u8 {
     const MODES: [u8; 6] = [0, 1, 2, 4, 5, 6];
     let index = MODES.iter().position(|mode| *mode == current).unwrap_or(0);
@@ -1543,6 +1631,7 @@ mod tests {
         );
         {
             let mut profile = config.profile_mut(0).unwrap();
+            profile.set_flag(crate::network_config::IS_ACTIVE, true);
             let mut wifi = profile.wifi_mut();
             assert!(wifi.set_ssid(&[0x57, 0xc3, 0xa9]));
             assert!(wifi.set_encryption(5));
@@ -2080,6 +2169,7 @@ mod tests {
         assert_eq!(controller.pending_device(), 1);
         assert_eq!(controller.pending_sort(), SortOrder::ReleaseDate);
         controller.handle(Input::Up, &catalog);
+        controller.handle(Input::Up, &catalog);
         controller.handle(Input::Left, &catalog);
         assert_eq!(controller.options_focus(), 4);
         controller.handle(Input::Confirm, &catalog);
@@ -2091,8 +2181,10 @@ mod tests {
 
         controller.handle(Input::OpenOptions, &catalog);
         controller.handle(Input::Up, &catalog);
+        controller.handle(Input::Up, &catalog);
         controller.handle(Input::Left, &catalog);
         controller.handle(Input::Confirm, &catalog);
+        controller.handle(Input::Down, &catalog);
         controller.handle(Input::Down, &catalog);
         assert_eq!(controller.options_focus(), 6);
         assert_eq!(
@@ -2231,8 +2323,10 @@ mod tests {
         controller.filter = Filter::MetadataOnly;
         controller.handle(Input::OpenOptions, &catalog);
         controller.handle(Input::Up, &catalog);
+        controller.handle(Input::Up, &catalog);
         controller.handle(Input::Left, &catalog);
         controller.handle(Input::Confirm, &catalog);
+        controller.handle(Input::Down, &catalog);
         controller.handle(Input::Down, &catalog);
         controller.handle(Input::Confirm, &catalog);
         assert_eq!(controller.selected_app.as_deref(), Some("e"));
@@ -2257,44 +2351,44 @@ mod tests {
     }
 
     #[test]
-    fn options_availability_is_a_snapshot_and_does_not_change_pending_choice() {
+    fn options_skip_unavailable_devices_and_network_is_controller_selectable() {
         let mut controller = AppController::new();
-        let snapshot = device_availability_snapshot(Some(0), [false, true, false, false]);
-        assert_eq!(snapshot, [true, true, false, false]);
-        controller.set_device_availability([true, false, false, false]);
-        controller.set_preferred_device(0);
+        controller.set_device_availability([false; 4]);
         controller.handle(Input::OpenOptions, &[]);
-        assert_eq!(controller.device_available(0), Some(true));
-        assert_eq!(controller.device_available(1), Some(false));
-        assert_eq!(controller.pending_device(), 0);
+        assert_eq!(controller.options_focus(), 7);
         controller.handle(Input::Up, &[]);
+        assert_eq!(controller.options_focus(), 8);
+        assert_eq!(
+            controller.handle(Input::Confirm, &[]),
+            Action::LoadNetworkConfig
+        );
         controller.handle(Input::Up, &[]);
+        assert_eq!(controller.options_focus(), 4);
         controller.handle(Input::Up, &[]);
-        controller.handle(Input::Right, &[]);
-        controller.handle(Input::Confirm, &[]);
-        assert_eq!(controller.pending_device(), 1);
-        assert_eq!(controller.device_available(1), Some(false));
-        controller.handle(Input::Back, &[]);
-        controller.handle(Input::OpenOptions, &[]);
-        assert_eq!(controller.pending_device(), 0);
+        assert_eq!(controller.options_focus(), 4);
+        let pending = controller.pending_device();
+        controller.handle_pointer(Some(PointerTarget::Option(1)), true, &[]);
+        assert_eq!(controller.options_focus(), 4);
+        assert_eq!(controller.pending_device(), pending);
     }
 
     #[test]
-    fn options_can_select_and_report_each_sd_gecko_slot() {
+    fn options_can_select_detected_devices_and_reject_removed_devices() {
         let mut controller = AppController::new();
-        let catalog = Vec::new();
-        controller.set_device_availability([false, false, true, false]);
-        controller.handle(Input::OpenOptions, &catalog);
-        controller.handle(Input::Up, &catalog);
-        controller.handle(Input::Up, &catalog);
-        controller.handle(Input::Up, &catalog);
-        controller.handle(Input::Down, &catalog);
-        controller.handle(Input::Confirm, &catalog);
+        controller.set_device_availability([false, false, true, true]);
+        controller.handle(Input::OpenOptions, &[]);
+        controller.handle(Input::Up, &[]);
+        controller.handle(Input::Up, &[]);
+        controller.handle(Input::Up, &[]);
+        assert_eq!(controller.options_focus(), 2);
+        controller.handle(Input::Confirm, &[]);
         assert_eq!(controller.pending_device(), 2);
-        assert_eq!(controller.device_available(2), Some(true));
-
-        controller.handle(Input::Right, &catalog);
-        controller.handle(Input::Confirm, &catalog);
+        controller.handle(Input::Right, &[]);
+        controller.handle(Input::Confirm, &[]);
         assert_eq!(controller.pending_device(), 3);
+        controller.set_device_availability([false; 4]);
+        controller.pending_device = 2;
+        controller.handle(Input::Confirm, &[]);
+        assert_eq!(controller.pending_device(), 2);
     }
 }

@@ -11,8 +11,13 @@ validate its C and Rust source references and generated status report.
 
 The parity target is the running channel application, including the C HBC
 support for SD Gecko adapters in GameCube ports A and B. This is FAT storage
-on an SD Gecko, not support for proprietary GameCube Memory Cards. The C update
-check, download, and installer path in `update.c` are out of scope. The reload
+on an SD Gecko, not support for proprietary GameCube Memory Cards. The former
+exclusions for the network editor, wireless scan, and optional updater are now
+under completeness review. Their open findings are recorded in
+[the exclusion review](review/former-exclusions-2026-10-07.md). The editor and
+scan are Rust extensions without C HBC counterparts. C disables the updater,
+uses a placeholder endpoint and signing key, and omits the installer source;
+Rust has only the update XML parser. These features remain partial. The reload
 stub, banner builder, WiiPAX, host-side wiiload tool, and WAD packaging are
 separate targets.
 
@@ -183,10 +188,11 @@ separate targets.
   enough free NAND space for both the old and new archive during the write.
 - Rust-only extension: Options includes a themed WiFi profile editor with a full
   on-screen keyboard. This is not part of the C HBC parity claim.
-  It edits profile zero in `/shared2/sys/net/02/config.dat`, validates the
-  SSID and security key, preserves other config bytes, and saves through the
-  temporary-file and backup recovery path. After save, HBC stops and starts the
-  Wiiload receiver so the network stack can reconnect. HBC polls for the
+  It edits the active wireless profile in `/shared2/sys/net/02/config.dat`,
+  validates profile flags and the SSID and security key, preserves other config
+  bytes and file attributes, and checks for a stale snapshot before commit.
+  HBC stops and restarts the Wiiload receiver around the save, then reloads the
+  committed config. HBC polls for the
   receiver's assigned IPv4 address for up to 60 seconds without blocking the UI.
   It reports the address only when Wiiload is listening. Read, save, restart,
   and connection timeout failures are shown in the shared notice dialog. This
@@ -238,7 +244,8 @@ target has no `test` crate.
   implemented; visual comparison on Dolphin and Wii remains pending. App
   scanning now streams directory entries and stops
   after C’s 1024 valid-app limit, so many unrelated files do not cause a false
-  scan failure. The C update feature is excluded by scope.
+  scan failure. The former scope exclusions are now reviewed as partial work;
+  see the exclusion review for network and updater findings.
 - Verify SD Gecko A/B insertion, mounting, scanning, selection, app loading, hot
   removal, and reinsertion on Wii hardware with actual adapters. Rust probes
   physical presence and routes both choices through `ogc-fat`'s SDGecko backend;

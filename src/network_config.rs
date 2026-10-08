@@ -142,9 +142,59 @@ impl NetworkConfig {
         self.bytes[4]
     }
 
+    pub fn active_wifi_profile(&self) -> Result<usize, NetworkProfileError> {
+        let index = self.active_profile()?;
+        if self
+            .profile(index)
+            .is_some_and(|profile| profile.flags() & USE_WIRED != 0)
+        {
+            return Err(NetworkProfileError::ActiveProfileIsWired);
+        }
+        Ok(index)
+    }
+
+    pub fn active_profile(&self) -> Result<usize, NetworkProfileError> {
+        let mut active = None;
+        for index in 0..PROFILE_COUNT {
+            if self
+                .profile(index)
+                .is_some_and(|profile| profile.flags() & IS_ACTIVE != 0)
+            {
+                if active.replace(index).is_some() {
+                    return Err(NetworkProfileError::MultipleActiveProfiles);
+                }
+            }
+        }
+        active.ok_or(NetworkProfileError::NoActiveProfile)
+    }
+
+    pub fn validate_format(&self) -> Result<(), NetworkFormatError> {
+        for index in 0..PROFILE_COUNT {
+            let flags = self.profile(index).expect("profile index is valid").flags();
+            if flags & 0x48 != 0 {
+                return Err(NetworkFormatError::ReservedProfileFlags(index));
+            }
+        }
+        self.active_profile().map_err(NetworkFormatError::Profile)?;
+        Ok(())
+    }
+
     pub fn set_interface_kind(&mut self, value: u8) {
         self.bytes[4] = value;
     }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum NetworkProfileError {
+    NoActiveProfile,
+    ActiveProfileIsWired,
+    MultipleActiveProfiles,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum NetworkFormatError {
+    ReservedProfileFlags(usize),
+    Profile(NetworkProfileError),
 }
 
 const fn profile_start(index: usize) -> usize {
@@ -307,6 +357,46 @@ pub fn validate_wifi(wifi: WifiConfig<'_>) -> Result<(), WifiValidationError> {
         4..=6 if (8..=63).contains(&key_len) || (key_len == 64 && is_hex(key)) => Ok(()),
         4..=6 => Err(WifiValidationError::InvalidWpaKey),
         _ => Err(WifiValidationError::UnsupportedEncryption),
+    }
+}
+
+#[cfg(test)]
+mod format_tests {
+    use super::*;
+
+    fn config_with_active_profile(index: usize, flags: u8) -> NetworkConfig {
+        let mut config = NetworkConfig::from_bytes([0; CONFIG_LEN]);
+        config.profile_mut(index).unwrap().set_flag(flags, true);
+        config
+    }
+
+    #[test]
+    fn format_accepts_one_active_wired_profile_but_editor_rejects_it() {
+        let config = config_with_active_profile(1, IS_ACTIVE | USE_WIRED);
+        assert_eq!(config.validate_format(), Ok(()));
+        assert_eq!(
+            config.active_wifi_profile(),
+            Err(NetworkProfileError::ActiveProfileIsWired)
+        );
+    }
+
+    #[test]
+    fn format_rejects_reserved_flags_and_ambiguous_active_profiles() {
+        let mut reserved = config_with_active_profile(0, IS_ACTIVE);
+        reserved.profile_mut(0).unwrap().set_flag(0x08, true);
+        assert_eq!(
+            reserved.validate_format(),
+            Err(NetworkFormatError::ReservedProfileFlags(0))
+        );
+
+        let mut ambiguous = config_with_active_profile(0, IS_ACTIVE);
+        ambiguous.profile_mut(2).unwrap().set_flag(IS_ACTIVE, true);
+        assert_eq!(
+            ambiguous.validate_format(),
+            Err(NetworkFormatError::Profile(
+                NetworkProfileError::MultipleActiveProfiles
+            ))
+        );
     }
 }
 

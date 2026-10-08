@@ -516,17 +516,19 @@ mod tests {
 
     #[test]
     fn maps_gamecube_and_wiimote_buttons_to_actions() {
-        let pad = map_buttons(0x0100 | 0x0008 | 0x0020 | 0x0400 | 0x0800, 0);
+        let pad = map_buttons(0x0100 | 0x0004 | 0x0008 | 0x0020 | 0x0400 | 0x0800, 0);
         assert!(pad.contains(Input::Confirm));
         assert!(pad.contains(Input::OpenOptions));
         assert!(pad.contains(Input::ToggleBrowseMode));
         assert!(pad.contains(Input::Up));
+        assert!(pad.contains(Input::Down));
         assert!(pad.contains(Input::NextPage));
-        let remote = map_buttons(0, 0x0001 | 0x0002 | 0x0008 | 0x0800 | 0x1000);
+        let remote = map_buttons(0, 0x0001 | 0x0002 | 0x0008 | 0x0400 | 0x0800 | 0x1000);
         assert!(remote.contains(Input::Confirm));
         assert!(remote.contains(Input::OpenOptions));
         assert!(remote.contains(Input::ToggleBrowseMode));
         assert!(remote.contains(Input::Up));
+        assert!(remote.contains(Input::Down));
         assert!(remote.contains(Input::NextPage));
         let classic_mask =
             map_extension_buttons((0x0010 << 16) | (0x8000 << 16), Extension::Classic);

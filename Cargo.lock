@@ -96,6 +96,7 @@ dependencies = [
  "ogc-network",
  "ogc-system",
  "ogc-usbgecko",
+ "ogc-usbstorage-sys",
  "ogc-video",
  "ogc-wd",
  "ogc-wiilaunch",
@@ -166,9 +167,6 @@ dependencies = [
 [[package]]
 name = "ogc-conf-sys"
 version = "0.1.0"
-dependencies = [
- "ogc-sys",
-]
 
 [[package]]
 name = "ogc-core"
@@ -288,9 +286,6 @@ dependencies = [
 [[package]]
 name = "ogc-gu-sys"
 version = "0.1.0"
-dependencies = [
- "ogc-sys",
-]
 
 [[package]]
 name = "ogc-gx"
@@ -311,9 +306,6 @@ dependencies = [
 [[package]]
 name = "ogc-gx-sys"
 version = "0.1.0"
-dependencies = [
- "ogc-sys",
-]
 
 [[package]]
 name = "ogc-input"

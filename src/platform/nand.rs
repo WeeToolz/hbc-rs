@@ -9,8 +9,26 @@ pub(crate) trait ReplaceBackend {
     fn exists(&mut self, path: &str) -> Result<bool, i32>;
     fn read_bounded(&mut self, path: &str, max_size: usize) -> Result<Option<Vec<u8>>, i32>;
     fn write_new(&mut self, path: &str, bytes: &[u8]) -> Result<(), i32>;
+    fn write_new_with_attributes(
+        &mut self,
+        path: &str,
+        bytes: &[u8],
+        _attributes: Option<FileAttributes>,
+    ) -> Result<(), i32> {
+        self.write_new(path, bytes)
+    }
     fn rename(&mut self, old_path: &str, new_path: &str) -> i32;
     fn delete(&mut self, path: &str) -> i32;
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct FileAttributes {
+    pub owner_id: u32,
+    pub group_id: u16,
+    pub attributes: u8,
+    pub owner_perm: u8,
+    pub group_perm: u8,
+    pub other_perm: u8,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -24,6 +42,7 @@ pub(crate) enum ReplaceError {
     CommittedCleanup(i32),
     BackupNeedsValidation,
     TemporaryMismatch,
+    StaleSnapshot,
 }
 
 #[cfg(any(target_arch = "powerpc", test))]
@@ -47,11 +66,22 @@ pub(crate) fn replace_file(
     path: &str,
     bytes: &[u8],
 ) -> Result<(), ReplaceError> {
+    replace_file_with_attributes(backend, path, bytes, None, None)
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+pub(crate) fn replace_file_with_attributes(
+    backend: &mut impl ReplaceBackend,
+    path: &str,
+    bytes: &[u8],
+    attributes: Option<FileAttributes>,
+    expected: Option<&[u8]>,
+) -> Result<(), ReplaceError> {
     let temporary = sibling_path(path, ".tmp");
     let backup = sibling_path(path, ".bak");
 
     recover_interrupted_replace(backend, &temporary, &backup)?;
-    if let Err(error) = backend.write_new(&temporary, bytes) {
+    if let Err(error) = backend.write_new_with_attributes(&temporary, bytes, attributes) {
         return Err(cleanup_temporary(backend, &temporary, Some(error)));
     }
     let staged = match backend.read_bounded(&temporary, bytes.len()) {
@@ -71,6 +101,21 @@ pub(crate) fn replace_file(
             return Err(cleanup_temporary(backend, &temporary, Some(error)));
         }
     };
+
+    if let Some(expected) = expected {
+        match backend.read_bounded(path, expected.len()) {
+            Ok(Some(current)) if current == expected => {}
+            Ok(_) => {
+                return match cleanup_temporary(backend, &temporary, None) {
+                    ReplaceError::TemporaryMismatch => Err(ReplaceError::StaleSnapshot),
+                    error => Err(error),
+                };
+            }
+            Err(error) => {
+                return Err(cleanup_temporary(backend, &temporary, Some(error)));
+            }
+        }
+    }
 
     if !original_exists {
         if let Err(error) = rename(backend, &temporary, path) {
@@ -226,7 +271,10 @@ fn sibling_path(path: &str, suffix: &str) -> String {
 
 #[cfg(target_arch = "powerpc")]
 mod wii {
-    use super::{is_missing_isfs_error, recover_file_for_load, replace_file, ReplaceBackend};
+    use super::{
+        is_missing_isfs_error, recover_file_for_load, replace_file, replace_file_with_attributes,
+        FileAttributes, ReplaceBackend,
+    };
     use crate::platform::settings::SettingsIoError;
     use alloc::ffi::CString;
     use alloc::vec::Vec;
@@ -319,10 +367,47 @@ mod wii {
         }
 
         fn write_new(&mut self, path: &str, bytes: &[u8]) -> Result<(), i32> {
+            self.write_new_with_attributes(path, bytes, None)
+        }
+
+        fn write_new_with_attributes(
+            &mut self,
+            path: &str,
+            bytes: &[u8],
+            attributes: Option<FileAttributes>,
+        ) -> Result<(), i32> {
             let path = CString::new(path).map_err(|_| isfs::ISFS_EINVAL)?;
-            let result = isfs::create_file(&path, 0, 3, 3, 0);
+            let permissions = attributes.unwrap_or(FileAttributes {
+                owner_id: 0,
+                group_id: 0,
+                attributes: 0,
+                owner_perm: 3,
+                group_perm: 3,
+                other_perm: 0,
+            });
+            let result = isfs::create_file(
+                &path,
+                permissions.attributes,
+                permissions.owner_perm,
+                permissions.group_perm,
+                permissions.other_perm,
+            );
             if result < 0 {
                 return Err(result);
+            }
+            if let Some(attributes) = attributes {
+                let result = isfs::set_attr(
+                    &path,
+                    attributes.owner_id,
+                    attributes.group_id,
+                    attributes.attributes,
+                    attributes.owner_perm,
+                    attributes.group_perm,
+                    attributes.other_perm,
+                );
+                if result < 0 {
+                    return Err(result);
+                }
             }
             let file = isfs::open(&path, isfs::ISFS_OPEN_RW)?;
             let write_result: Result<(), i32> = (|| {
@@ -373,6 +458,23 @@ mod wii {
         replace_file(&mut IsfsBackend, path, bytes).map_err(SettingsIoError::from_replace)
     }
 
+    pub(crate) fn save_with_attributes(
+        path: &CString,
+        bytes: &[u8],
+        attributes: FileAttributes,
+        expected: &[u8],
+    ) -> Result<(), SettingsIoError> {
+        let path = path.to_str().map_err(|_| SettingsIoError::InvalidPath)?;
+        replace_file_with_attributes(
+            &mut IsfsBackend,
+            path,
+            bytes,
+            Some(attributes),
+            Some(expected),
+        )
+        .map_err(SettingsIoError::from_replace)
+    }
+
     pub(crate) fn recover(
         path: &CString,
         max_size: usize,
@@ -388,6 +490,8 @@ mod wii {
 pub(crate) use wii::read_file as read_file_wii;
 #[cfg(target_arch = "powerpc")]
 pub(crate) use wii::save as save_wii;
+#[cfg(target_arch = "powerpc")]
+pub(crate) use wii::save_with_attributes as save_with_attributes_wii;
 
 #[cfg(target_arch = "powerpc")]
 pub(crate) use wii::read_exact_aligned as read_exact_wii;
@@ -494,6 +598,26 @@ mod tests {
         assert_eq!(backend.files.get("settings.xml"), Some(&vec![2, 3]));
         assert!(!backend.files.contains_key("settings.xml.bak"));
         assert!(!backend.files.contains_key("settings.xml.tmp"));
+    }
+
+    #[test]
+    fn compare_and_replace_rejects_a_changed_primary_before_commit() {
+        let mut backend = MemoryBackend::default();
+        backend
+            .files
+            .insert(String::from("config.dat"), vec![1, 2, 3]);
+        assert_eq!(
+            replace_file_with_attributes(
+                &mut backend,
+                "config.dat",
+                &[4, 5, 6],
+                None,
+                Some(&[1, 2, 4]),
+            ),
+            Err(ReplaceError::StaleSnapshot)
+        );
+        assert_eq!(backend.files.get("config.dat"), Some(&vec![1, 2, 3]));
+        assert!(!backend.files.contains_key("config.dat.tmp"));
     }
 
     #[test]

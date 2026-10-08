@@ -417,6 +417,7 @@ pub struct TextRun {
     pub file: Option<String>,
     pub fallback_file: Option<String>,
     pub size: u16,
+    pub memo: Option<crate::text_layout::MemoSpec>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -426,6 +427,36 @@ pub struct HitTarget {
 }
 
 impl Frame {
+    /// Resolve pending memos with the font face used by the production renderer.
+    pub fn resolve_memos(
+        &mut self,
+        mut layout: impl FnMut(
+            &TextRun,
+            crate::text_layout::MemoSpec,
+        )
+            -> Result<crate::text_layout::MemoLayout, crate::font::FontError>,
+    ) -> Result<Option<(usize, u16)>, crate::font::FontError> {
+        let mut resolved = Vec::new();
+        let mut bounds = None;
+        for run in &self.text_runs {
+            if let Some(spec) = run.memo {
+                let memo = layout(run, spec)?;
+                bounds = Some((memo.max_scroll, memo.line_height as u16));
+                for (index, line) in memo.lines.into_iter().enumerate() {
+                    let mut line_run = run.clone();
+                    line_run.value = line;
+                    line_run.y += index as f32 * memo.line_height;
+                    line_run.memo = None;
+                    resolved.push(line_run);
+                }
+            } else {
+                resolved.push(run.clone());
+            }
+        }
+        self.text_runs = resolved;
+        Ok(bounds)
+    }
+
     fn set_text_style(&mut self, style: TextStyle) {
         self.text_scale = style.scale;
         self.text_color = style.color;
@@ -770,6 +801,7 @@ impl Frame {
                 file: Some(file),
                 fallback_file: self.text_fallback_file.clone(),
                 size: self.text_size.unwrap_or(16).clamp(1, 128) as u16,
+                memo: None,
             });
             return;
         }
@@ -814,6 +846,17 @@ impl Frame {
         scroll_lines: usize,
     ) {
         if max_chars == 0 || max_lines == 0 || !scale.is_finite() || scale <= 0.0 {
+            return;
+        }
+        if self.text_file.is_some() {
+            self.text(x, y, value, scale, color, usize::MAX);
+            if let Some(run) = self.text_runs.last_mut() {
+                run.memo = Some(crate::text_layout::MemoSpec {
+                    width: max_chars as f32 * 6.0 * scale,
+                    height: max_lines as f32 * 9.0 * scale,
+                    scroll: scroll_lines,
+                });
+            }
             return;
         }
         let style_scale = if self.text_scale == 0.0 {
@@ -1110,34 +1153,23 @@ pub fn browser_frame_with_language(
             frame.theme_art(rect(60, 44, 520, 360), ThemeArt::Dialog, false);
             frame.theme_art(rect(202, 60, 236, 104), ThemeArt::About, false);
             frame.set_text_style(theme_text_style(theme, "memo", text_color));
-            let mut about_lines = wrap_memo_lines(ABOUT_CREDITS, ABOUT_MEMO_LINE_WIDTH);
+            let mut credits = String::from(ABOUT_CREDITS);
             if let Some(description) = theme
                 .and_then(|metadata| metadata.description.as_deref())
                 .filter(|description| !description.is_empty())
             {
-                about_lines.extend(wrap_memo_lines(
-                    &format!("{} {}", tr("Theme:"), description),
-                    ABOUT_MEMO_LINE_WIDTH,
-                ));
+                credits.push_str(&format!("\n{} {}", tr("Theme:"), description));
             }
-            let start = controller
-                .about_scroll()
-                .min(about_lines.len().saturating_sub(ABOUT_MEMO_VISIBLE_LINES));
-            for (line_index, line) in about_lines
-                .iter()
-                .skip(start)
-                .take(ABOUT_MEMO_VISIBLE_LINES)
-                .enumerate()
-            {
-                frame.text(
-                    92.0,
-                    176.0 + line_index as f32 * 9.0 * frame.text_scale,
-                    line,
-                    1.0,
-                    text_color,
-                    ABOUT_MEMO_LINE_WIDTH,
-                );
-            }
+            frame.text_wrapped_scrolled(
+                92.0,
+                176.0,
+                &credits,
+                1.0,
+                text_color,
+                ABOUT_MEMO_LINE_WIDTH,
+                ABOUT_MEMO_VISIBLE_LINES,
+                controller.about_scroll(),
+            );
             frame.text(144.0, 386.0, tr("Press B to return"), 1.0, text_color, 32);
         }
         Screen::Options
@@ -1179,38 +1211,46 @@ pub fn browser_frame_with_language(
                 112.0,
                 108.0,
                 ButtonSize::Small,
-                controller.options_focus() == 0,
+                controller.options_focus() == 0 && controller.option_enabled(0),
                 tr("Internal SD Slot"),
                 device_color(0),
             );
-            frame.hit_target(PointerTarget::Option(0), bounds);
+            if controller.option_enabled(0) {
+                frame.hit_target(PointerTarget::Option(0), bounds);
+            }
             let bounds = frame.button(
                 328.0,
                 108.0,
                 ButtonSize::Small,
-                controller.options_focus() == 1,
+                controller.options_focus() == 1 && controller.option_enabled(1),
                 tr("USB device"),
                 device_color(1),
             );
-            frame.hit_target(PointerTarget::Option(1), bounds);
+            if controller.option_enabled(1) {
+                frame.hit_target(PointerTarget::Option(1), bounds);
+            }
             let bounds = frame.button(
                 112.0,
                 164.0,
                 ButtonSize::Small,
-                controller.options_focus() == 2,
+                controller.options_focus() == 2 && controller.option_enabled(2),
                 tr("SDGecko Slot A"),
                 device_color(2),
             );
-            frame.hit_target(PointerTarget::Option(2), bounds);
+            if controller.option_enabled(2) {
+                frame.hit_target(PointerTarget::Option(2), bounds);
+            }
             let bounds = frame.button(
                 328.0,
                 164.0,
                 ButtonSize::Small,
-                controller.options_focus() == 3,
+                controller.options_focus() == 3 && controller.option_enabled(3),
                 tr("SDGecko Slot B"),
                 device_color(3),
             );
-            frame.hit_target(PointerTarget::Option(3), bounds);
+            if controller.option_enabled(3) {
+                frame.hit_target(PointerTarget::Option(3), bounds);
+            }
             frame.set_text_style(theme_text_style(theme, "label", text_color));
             frame.text(
                 92.0,
@@ -2375,6 +2415,52 @@ mod tests {
     }
 
     #[test]
+    fn about_memo_resolves_with_the_draw_font_inside_the_dialog() {
+        let mut controller = AppController::new();
+        controller.screen = Screen::About;
+        let mut frame = browser_frame(&controller, &[]);
+        let face = crate::font::ThemeFontFace::parse(
+            String::from("droid.ttf"),
+            include_bytes!("../assets/droid.ttf").to_vec(),
+        )
+        .unwrap();
+        let (max_scroll, line_height) = frame
+            .resolve_memos(|run, spec| face.layout_memo(&run.value, spec, run.size, run.scale))
+            .unwrap()
+            .unwrap();
+        assert!(max_scroll > 0);
+        let rows: Vec<_> = frame
+            .text_runs
+            .iter()
+            .filter(|run| run.y >= 176.0 && run.y < 356.0)
+            .collect();
+        assert!(rows.len() > 1);
+        for row in rows {
+            assert!(row.memo.is_none());
+            assert!(row.y + f32::from(line_height) <= 356.0);
+            assert!(row.x + face.measure_width(&row.value, row.size) * row.scale <= 548.0);
+        }
+        controller.set_measured_memo(max_scroll, line_height);
+        for _ in 0..max_scroll + 1 {
+            controller.handle(crate::app::Input::Down, &[]);
+        }
+        assert_eq!(controller.about_scroll(), max_scroll);
+    }
+
+    #[test]
+    fn failed_memo_layout_preserves_the_unresolved_frame() {
+        let mut controller = AppController::new();
+        controller.screen = Screen::About;
+        let mut frame = browser_frame(&controller, &[]);
+        let original = frame.clone();
+        assert_eq!(
+            frame.resolve_memos(|_, _| Err(crate::font::FontError::InvalidFont)),
+            Err(crate::font::FontError::InvalidFont)
+        );
+        assert_eq!(frame, original);
+    }
+
+    #[test]
     fn notice_kinds_select_the_hbc_title_and_icon_pair() {
         assert_eq!(
             notice_presentation(NoticeKind::Information),
@@ -2651,7 +2737,7 @@ mod tests {
                     if *bounds == expected
             )));
         }
-        assert_eq!(frame.hit_test(120.0, 120.0), Some(PointerTarget::Option(0)));
+        assert_eq!(frame.hit_test(120.0, 120.0), None);
         assert_eq!(frame.hit_test(120.0, 80.0), None);
     }
 

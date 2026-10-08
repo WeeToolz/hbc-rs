@@ -68,6 +68,7 @@ pub enum SettingsIoError {
     CommittedCleanup(i32),
     RecoveryConflict,
     TemporaryMismatch,
+    StaleSnapshot,
     InvalidPath,
     InvalidFileSize,
     Codec,
@@ -86,6 +87,7 @@ impl SettingsIoError {
             super::nand::ReplaceError::CommittedCleanup(error) => Self::CommittedCleanup(error),
             super::nand::ReplaceError::BackupNeedsValidation => Self::RecoveryConflict,
             super::nand::ReplaceError::TemporaryMismatch => Self::TemporaryMismatch,
+            super::nand::ReplaceError::StaleSnapshot => Self::StaleSnapshot,
         }
     }
 }

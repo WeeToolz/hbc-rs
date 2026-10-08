@@ -21,6 +21,8 @@ pub enum NetworkConfigError {
     ReadAndClose { read: i32, close: i32 },
     InvalidPath,
     InvalidFileSize,
+    InvalidFormat(crate::network_config::NetworkFormatError),
+    StaleSnapshot,
     Recovery(SettingsIoError),
     InvalidWifi(crate::network_config::WifiValidationError),
 }
@@ -29,7 +31,7 @@ pub enum NetworkConfigError {
 pub fn load() -> Result<NetworkConfig, NetworkConfigError> {
     initialize_isfs()?;
     let path = nand_path()?;
-    nand::recover_wii(&path, CONFIG_LEN, |bytes| bytes.len() == CONFIG_LEN)
+    nand::recover_wii(&path, CONFIG_LEN, valid_config_bytes)
         .map_err(NetworkConfigError::Recovery)?;
 
     let file = isfs::open(&path, isfs::ISFS_OPEN_READ).map_err(NetworkConfigError::Isfs)?;
@@ -66,15 +68,29 @@ pub fn load() -> Result<NetworkConfig, NetworkConfigError> {
     read_result?;
     // SAFETY: read_all returned success only after filling the full array.
     let config = unsafe { buffer.assume_init() }.0;
-    Ok(NetworkConfig::from_bytes(config))
+    let config = NetworkConfig::from_bytes(config);
+    config
+        .validate_format()
+        .map_err(NetworkConfigError::InvalidFormat)?;
+    Ok(config)
 }
 
 /// Replace the system network config after validating the WiFi fields.
 /// Unknown and unrelated profile bytes remain unchanged in `config`.
-pub fn save(config: &NetworkConfig) -> Result<(), NetworkConfigError> {
+pub fn save(config: &NetworkConfig, expected: &NetworkConfig) -> Result<(), NetworkConfigError> {
+    let current = load()?;
+    if current != *expected {
+        return Err(NetworkConfigError::StaleSnapshot);
+    }
+    config
+        .validate_format()
+        .map_err(NetworkConfigError::InvalidFormat)?;
+    let profile = config.active_wifi_profile().map_err(|error| {
+        NetworkConfigError::InvalidFormat(crate::network_config::NetworkFormatError::Profile(error))
+    })?;
     crate::network_config::validate_wifi(
         config
-            .profile(0)
+            .profile(profile)
             .ok_or(NetworkConfigError::InvalidFileSize)?
             .wifi(),
     )
@@ -82,9 +98,52 @@ pub fn save(config: &NetworkConfig) -> Result<(), NetworkConfigError> {
 
     initialize_isfs()?;
     let path = nand_path()?;
-    nand::recover_wii(&path, CONFIG_LEN, |bytes| bytes.len() == CONFIG_LEN)
+    nand::recover_wii(&path, CONFIG_LEN, valid_config_bytes)
         .map_err(NetworkConfigError::Recovery)?;
-    nand::save_wii(&path, config.as_bytes()).map_err(NetworkConfigError::Recovery)
+    let current = load()?;
+    if current != *expected {
+        return Err(NetworkConfigError::StaleSnapshot);
+    }
+    let attributes = file_attributes(&path)?;
+    nand::save_with_attributes_wii(&path, config.as_bytes(), attributes, expected.as_bytes())
+        .map_err(NetworkConfigError::Recovery)
+}
+
+fn valid_config_bytes(bytes: &[u8]) -> bool {
+    let Ok(array) = <&[u8; CONFIG_LEN]>::try_from(bytes) else {
+        return false;
+    };
+    NetworkConfig::from_bytes(*array).validate_format().is_ok()
+}
+
+#[cfg(target_arch = "powerpc")]
+fn file_attributes(path: &CStr) -> Result<nand::FileAttributes, NetworkConfigError> {
+    let mut owner_id = 0;
+    let mut group_id = 0;
+    let mut attributes = 0;
+    let mut owner_perm = 0;
+    let mut group_perm = 0;
+    let mut other_perm = 0;
+    let result = isfs::get_attr(
+        path,
+        &mut owner_id,
+        &mut group_id,
+        &mut attributes,
+        &mut owner_perm,
+        &mut group_perm,
+        &mut other_perm,
+    );
+    if result < 0 {
+        return Err(NetworkConfigError::Isfs(result));
+    }
+    Ok(nand::FileAttributes {
+        owner_id,
+        group_id,
+        attributes,
+        owner_perm,
+        group_perm,
+        other_perm,
+    })
 }
 
 fn nand_path() -> Result<CString, NetworkConfigError> {

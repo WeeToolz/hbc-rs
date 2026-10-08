@@ -82,3 +82,167 @@ again. It still reports `GX EFB DRAW BLACK`; this correction has not resolved
 the observed rendering failure. The Wii photo appears to report
 `GX EFB SQUARE FAIL`, which also leaves the EFB draw path open. HBC-GX-01 stays
 partial, and the corrected DOL still needs another Wii run.
+
+## 2026-10-07 rebuilt-DOL framebuffer capture
+
+I rebuilt `target/hbc-rs-startup.dol` from the current diagnostic source and
+captured its framebuffer through Dolphin's GDB interface after 20 seconds. The
+GX framebuffer contains the HBC Home menu and the white probe square. The
+diagnostic holds on a failure screen when its EFB or XFB square check fails. By
+reaching the normal menu, this run passed the XFB square check in Dolphin.
+The EFB result was not required for this success path. The
+user then provided a Dolphin screenshot of the same visible state, which
+confirms the capture. This does not resolve the Wii photo's `GX EFB SQUARE
+FAIL`.
+
+Keep HBC-GX-01 partial. Compare the EFB probe samples and GX/XFB memory on both
+systems before changing rendering behavior. Do not treat the Dolphin capture as
+proof of Wii parity.
+
+## C frame-state parity correction
+
+Source comparison found that C HBC invalidates the vertex and texture caches
+and establishes its 2D state at each frame start. Rust previously performed
+cache invalidation only during GX configuration and did not refresh that state
+for every rendered frame. Rust now begins every frame with the same cache
+invalidation and textured baseline. The Rust `GX_LoadTexObj` path also no longer
+invalidates the full texture cache for each object; C leaves that operation to
+`GX_InvalidateTexAll` at frame start.
+
+C HBC restores Z mode and color updates before retrace, then copies and clears
+the EFB. Rust now follows that order. The libogc-rs copy path now preserves and
+restores the active Z, color, and pixel-engine shadow words around a clear, as
+C `GX_CopyDisp` does, instead of restoring fixed GX initialization values.
+The Rust copy still waits for GX completion before scheduling VI scanout; this
+extra wait is a deliberate synchronization safeguard and does not change the
+copied frame contents.
+
+The Wii EFB/XFB probe has not been rerun after these changes. Keep HBC-GX-01
+partial until the updated DOL passes on Wii hardware.
+
+## Updated-DOL Dolphin run
+
+After the C frame-state parity changes and warning cleanup, I rebuilt the
+startup diagnostic DOL and ran it in Dolphin for 25 seconds. It reached the
+no-storage notice. The GX framebuffer capture at
+`target/hbc-startup-final-gx.png` shows readable notice text and the white
+probe square. This proves the XFB square check passed. The EFB result
+was used only to select a failure label; this run did not prove that the EFB
+readback check passed. The Dolphin log
+contains no error or invalid-opcode lines. The CPU progress framebuffer still
+shows `WIILOAD PROBE 3 START`; that label is separate from the GX scene capture
+and did not prevent the visible application frame.
+
+This verifies the updated renderer path in Dolphin. The Wii EFB/XFB result is
+still pending; keep HBC-GX-01 partial until the same diagnostic passes on Wii.
+
+## Default Dolphin settings reproduce the failure
+
+The user ran the rebuilt startup DOL and reported `GX EFB DRAW BLACK` again.
+On 2026-10-07, the same DOL reproduced that exact screen in an isolated
+Dolphin profile with default graphics settings. The captured scanout is
+`target/hbc-default-settings-failure.png`. Enabling immediate XFB RAM copies
+and CPU EFB access in the capture profile let the same DOL reach the
+no-storage notice (`target/hbc-readback-enabled.png`).
+
+The startup diagnostic reads EFB pixels and XFB RAM. Dolphin can skip those
+operations under its default graphics settings. The default-profile failure
+does not independently prove a GX draw failure. C HBC does not stop startup
+on these CPU readback tests. A normal release DOL, `target/hbc-rs.dol`, was
+built without startup diagnostics; actual GX rendering and presentation still
+use the same production implementation. No GX implementation was changed in
+this follow-up. Both builds and conversion had no warnings.
+
+The capture helper now explicitly enables `EFBAccessEnable` as well as
+disabling `XFBToTextureEnable` and `DeferEFBCopies`. Two regression tests
+check new and existing profiles, preserve unrelated options, and check
+repeatability. Dolphin's primary configuration source defines these options:
+https://github.com/dolphin-emu/dolphin/blob/master/Source/Core/Core/Config/GraphicsSettings.cpp
+
+Real Wii EFB/XFB results remain unverified. Earlier statements that a visible
+notice proved both readback checks passed were incorrect and are corrected
+above. Do not close HBC-GX-01 based on the emulator result.
+
+The normal DOL was also run for 25 seconds with an isolated capture profile.
+Its production VI scanout pointer (`ogc_video_sys::LAST_NEXT_FRAMEBUFFER`)
+was read through Dolphin GDB. The 640x480 XFB capture at
+`target/hbc-normal-gx.png` shows the no-storage notice, readable text, and
+background. It has no startup test square. The capture profile enables RAM
+readback; this result is not a separate default-settings visual test.
+The computer-use runtime could not load, so direct UI inspection was unavailable.
+
+## Wii normal build: black screen reported
+
+The user reports a black screen on a real Wii after launching the normal
+DOL copied to CARROT. This is a failed hardware result. The console model,
+launch method, video-signal state, and last completed startup stage are not
+yet known. A Dolphin pass does not resolve this failure.
+
+A separate `apps/hbc-rs-diagnostic` package was prepared from the existing
+startup-diagnostics production build. It displays CPU-written stage labels
+and checks EFB drawing and XFB copying. No rendering fix is claimed from
+this preparation. CARROT was not mounted when the issue was investigated;
+the diagnostic package is prepared locally pending access to the drive.
+
+CARROT became available during preparation. The diagnostic DOL and metadata
+were copied to `/Volumes/CARROT/apps/hbc-rs-diagnostic`, flushed, and
+verified against their source hashes. The normal app DOL was also verified
+to match `target/hbc-rs.dol`. The real-Wii diagnostic result is pending.
+
+The user confirms launch through the Homebrew Channel; the screen stays black.
+On request, the existing C `channelapp-channel.dol` build was copied to
+CARROT at `apps/hbc-c/boot.dol`, verified byte-for-byte, and named
+HBC C Reference. This is the C build identified in the earlier working
+Dolphin reference review. Its metadata retains the no-IOS-reload and AHB
+access tags used by the existing C app metadata on CARROT.
+The Rust packages currently lack those tags; launch policy differs and is
+an open comparison item, not an established cause of the black screen.
+The existing `apps/hbc` entry was left intact. Hardware comparison of
+C HBC and Rust diagnostic results remains pending.
+
+## Real Wii EFB square failure and C depth parity correction
+
+The user supplied a Wii photo showing `GX EFB SQUARE FAIL` and confirms
+that HBC C Reference works flawlessly on the same Wii through the Homebrew
+Channel. The diagnostic reaches frame presentation, but the EFB square read
+and XFB square check both fail. The displayed red/white square is the
+CPU-written scanout control, not proof that GX drew the test square.
+
+A source comparison found a concrete projection/depth difference:
+C `gfx_init` uses `guOrtho` with near=100 and far=1000, and `config.h`
+defines `VIEW_Z_ORIGIN=-420`. C applies that depth to its scene geometry.
+Rust used projection depth [-1, 0] and submitted solid and textured vertices
+at Z=0, which places the scene on the far clipping boundary.
+
+The new shared `platform/projection.rs` preserves the C depth coefficients
+and scene Z for both production draw paths. The existing pixel-coordinate
+X/Y mapping is unchanged. The normalized scene depth is -580/900, inside
+the clip volume. This fixes a verified source parity gap. It is a candidate
+for the hardware fault; the Wii root cause is not yet proven.
+
+Host tests passed: 230, including two regressions for the production
+projection helper, independent expected C depth, and both aspect ratios.
+Normal and diagnostic Wii builds completed without warnings. The source
+structure audit passed with three existing keyboard-queue debt notes.
+The full libogc-rs completeness audit still fails with the same 2238 open
+API findings. No audit conditions or evidence classifications were weakened.
+The updated normal and diagnostic packages were verified against their
+source DOL bytes. A new real-Wii run is required before reporting a fix.
+
+After CARROT was reconnected, both updated Rust app DOLs and metadata
+were copied, flushed, and verified against source hashes. Previous card
+files were saved under `target/wii-depth-previous`. The C reference was
+left in place. The new Wii result remains pending.
+
+The new diagnostic DOL was run in Dolphin with the readback-enabled
+capture profile for 25 seconds. `target/hbc-depth-diagnostic-gx.png` shows
+the no-storage notice and white GX test square. This is an XFB rendering
+regression check in the emulator, not proof of a real-Wii fix or a separate
+EFB readback success.
+
+## Wii rendering confirmed by the user
+
+The user confirms the depth-corrected build now works on Wii. New reports
+concern disc cleanup, USB detection, text layout, and directional input;
+see `wii-runtime-fixes-2026-10-07.md`. This is confirmation of visible
+rendering, not a separately reported EFB readback or full hardware probe pass.
