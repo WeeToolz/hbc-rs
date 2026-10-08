@@ -1273,7 +1273,7 @@ impl AppController {
 
     pub fn option_enabled(&self, index: usize) -> bool {
         match index {
-            0..=3 => self.device_available(index) == Some(true),
+            0..=3 => false,
             4..=8 => true,
             _ => false,
         }
@@ -1326,22 +1326,6 @@ impl AppController {
             }
             Input::Confirm if !self.option_enabled(self.options_focus) => Action::None,
             Input::Confirm => match self.options_focus {
-                0 => {
-                    self.pending_device = 0;
-                    Action::None
-                }
-                1 => {
-                    self.pending_device = 1;
-                    Action::None
-                }
-                2 => {
-                    self.pending_device = 2;
-                    Action::None
-                }
-                3 => {
-                    self.pending_device = 3;
-                    Action::None
-                }
                 4 => {
                     self.pending_sort = SortOrder::Name;
                     Action::None
@@ -2623,26 +2607,26 @@ mod tests {
     }
 
     #[test]
-    fn options_can_select_detected_devices_and_reject_removed_devices() {
+    fn detected_devices_remain_status_only_while_controller_skips_them() {
         let mut controller = AppController::new();
-        controller.set_device_availability([false, false, true, true]);
+        controller.set_device_availability([true; 4]);
         controller.handle(Input::OpenOptions, &[]);
+        for index in 0..4 {
+            assert!(!controller.option_enabled(index));
+        }
+        for index in 4..9 {
+            assert!(controller.option_enabled(index));
+        }
+        assert_eq!(controller.options_focus(), 7);
+        let pending_device = controller.pending_device();
+        controller.handle(Input::Up, &[]);
+        assert_eq!(controller.options_focus(), 8);
+        controller.handle(Input::Up, &[]);
+        assert_eq!(controller.options_focus(), 5);
         controller.handle(Input::Left, &[]);
-        controller.handle(Input::Left, &[]);
-        controller.handle(Input::Left, &[]);
-        controller.handle(Input::Left, &[]);
-        assert_eq!(controller.options_focus(), 3);
+        assert_eq!(controller.options_focus(), 4);
         controller.handle(Input::Confirm, &[]);
-        assert_eq!(controller.pending_device(), 3);
-        controller.handle(Input::Left, &[]);
-        controller.handle(Input::Confirm, &[]);
-        assert_eq!(controller.pending_device(), 2);
-        controller.handle(Input::Right, &[]);
-        controller.handle(Input::Confirm, &[]);
-        assert_eq!(controller.pending_device(), 3);
-        controller.set_device_availability([false; 4]);
-        controller.pending_device = 2;
-        controller.handle(Input::Confirm, &[]);
-        assert_eq!(controller.pending_device(), 2);
+        assert_eq!(controller.pending_sort(), SortOrder::Name);
+        assert_eq!(controller.pending_device(), pending_device);
     }
 }

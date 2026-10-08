@@ -1249,58 +1249,19 @@ pub fn browser_frame_with_language(
             frame.text(299.0, 60.0, tr("Options"), 1.0, text_color, 24);
             frame.set_text_style(theme_text_style(theme, "label", text_color));
             frame.text(92.0, 80.0, tr("Device:"), 1.0, text_color, 32);
-            let device_color = |index| {
-                if controller.device_available(index) == Some(false) {
-                    MUTED
-                } else if controller.pending_device() == index as i32 {
-                    ACCENT
-                } else {
-                    text_color
-                }
-            };
-            let bounds = frame.button(
-                112.0,
-                108.0,
-                ButtonSize::Small,
-                controller.options_focus() == 0 && controller.option_enabled(0),
-                tr("Internal SD Slot"),
-                device_color(0),
-            );
-            if controller.option_enabled(0) {
-                frame.hit_target(PointerTarget::Option(0), bounds);
-            }
-            let bounds = frame.button(
-                328.0,
-                108.0,
-                ButtonSize::Small,
-                controller.options_focus() == 1 && controller.option_enabled(1),
-                tr("USB device"),
-                device_color(1),
-            );
-            if controller.option_enabled(1) {
-                frame.hit_target(PointerTarget::Option(1), bounds);
-            }
-            let bounds = frame.button(
-                112.0,
-                172.0,
-                ButtonSize::Small,
-                controller.options_focus() == 2 && controller.option_enabled(2),
-                tr("SDGecko Slot A"),
-                device_color(2),
-            );
-            if controller.option_enabled(2) {
-                frame.hit_target(PointerTarget::Option(2), bounds);
-            }
-            let bounds = frame.button(
-                328.0,
-                172.0,
-                ButtonSize::Small,
-                controller.options_focus() == 3 && controller.option_enabled(3),
-                tr("SDGecko Slot B"),
-                device_color(3),
-            );
-            if controller.option_enabled(3) {
-                frame.hit_target(PointerTarget::Option(3), bounds);
+            for (index, (x, y, label)) in [
+                (112.0, 108.0, tr("Internal SD Slot")),
+                (328.0, 108.0, tr("USB device")),
+                (112.0, 172.0, tr("SDGecko Slot A")),
+                (328.0, 172.0, tr("SDGecko Slot B")),
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let available = controller.device_available(index) == Some(true);
+                let color = if available { ACCENT } else { MUTED };
+                frame.fill(rect(x, y + 19.0, 10.0, 10.0), color);
+                frame.text(x + 18.0, y + 20.0, label, 1.0, color, 27);
             }
             frame.set_text_style(theme_text_style(theme, "label", text_color));
             frame.text(
@@ -2942,8 +2903,9 @@ mod tests {
     }
 
     #[test]
-    fn options_screen_uses_hbc_dialog_and_storage_sort_buttons() {
+    fn options_device_statuses_are_lights_and_only_actions_are_buttons() {
         let mut controller = AppController::new();
+        controller.set_device_availability([true, false, true, false]);
         controller.handle(crate::app::Input::OpenOptions, &[]);
         let frame = browser_frame(&controller, &[]);
         assert!(frame.commands.iter().any(|command| matches!(
@@ -2952,10 +2914,6 @@ mod tests {
                 if *bounds == rect(60, 44, 520, 360)
         )));
         for expected in [
-            rect(112, 108, 200, 48),
-            rect(328, 108, 200, 48),
-            rect(112, 172, 200, 48),
-            rect(328, 172, 200, 48),
             rect(112, 248, 200, 48),
             rect(328, 248, 200, 48),
             rect(92, 340, 200, 48),
@@ -2969,9 +2927,33 @@ mod tests {
         }
         assert!(frame.commands.iter().any(|command| matches!(
             command,
-            FrameCommand::ThemeArt { art: ThemeArt::Button(ButtonSize::Small), bounds, .. }
-                if *bounds == rect(224, 310, 200, 28)
+                FrameCommand::ThemeArt { art: ThemeArt::Button(ButtonSize::Small), bounds, .. }
+                    if *bounds == rect(224, 310, 200, 28)
         )));
+        for device_bounds in [
+            rect(112, 108, 200, 48),
+            rect(328, 108, 200, 48),
+            rect(112, 172, 200, 48),
+            rect(328, 172, 200, 48),
+        ] {
+            assert!(!frame.commands.iter().any(|command| matches!(
+                command,
+                FrameCommand::ThemeArt { art: ThemeArt::Button(_), bounds, .. }
+                    if *bounds == device_bounds
+            )));
+        }
+        assert!(frame.fills.contains(&FillRect {
+            bounds: rect(112, 127, 10, 10),
+            color: ACCENT,
+        }));
+        assert!(frame.fills.contains(&FillRect {
+            bounds: rect(328, 127, 10, 10),
+            color: MUTED,
+        }));
+        assert!((0..4).all(|index| !frame
+            .hit_targets
+            .iter()
+            .any(|target| { target.target == PointerTarget::Option(index) })));
         assert_eq!(frame.hit_test(120.0, 120.0), None);
         assert_eq!(frame.hit_test(120.0, 80.0), None);
     }

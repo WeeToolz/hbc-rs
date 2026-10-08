@@ -448,7 +448,7 @@ mod tests {
     }
 
     #[test]
-    fn options_dialog_commits_device_and_sort_to_runtime_settings() {
+    fn options_dialog_commits_sort_without_selecting_device_indicators() {
         let mut runtime = AppRuntime::new(Vec::new());
         runtime.load_settings(UserSettings {
             device: 0,
@@ -461,11 +461,6 @@ mod tests {
                 Input::OpenOptions,
                 Input::Left, // Back -> OK
                 Input::Left, // OK -> Date
-                Input::Left, // Date -> Name
-                Input::Left, // Skip unavailable SD Gecko slots -> USB
-                Input::Confirm,
-                Input::Right, // USB -> Name
-                Input::Right, // Name -> Date
                 Input::Confirm,
                 Input::Right, // Date -> OK
                 Input::Confirm,
@@ -473,7 +468,7 @@ mod tests {
             ..InputFrame::default()
         });
         assert_eq!(actions, vec![Action::ApplyOptions]);
-        assert_eq!(runtime.settings().current().device, 1);
+        assert_eq!(runtime.settings().current().device, 0);
         assert_eq!(runtime.settings().current().sort_order, 1);
         assert_eq!(
             runtime.controller().filter,
