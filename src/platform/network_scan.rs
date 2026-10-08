@@ -11,6 +11,22 @@ pub enum ScanError {
     InvalidDescriptor,
 }
 
+impl ScanError {
+    pub fn user_message(self) -> alloc::string::String {
+        match self {
+            Self::Driver(code) if code.raw() == ogc_ipc::IPC_ENOENT => alloc::format!(
+                "IOS could not find the Wii wireless-driver service (/dev/net/wd/command). The network scan could not start. Error: {code}."
+            ),
+            Self::Driver(code) => {
+                alloc::format!("The Wii wireless-driver scan failed: {code}.")
+            }
+            Self::InvalidDescriptor => alloc::string::String::from(
+                "The Wii wireless driver returned an invalid scan result.",
+            ),
+        }
+    }
+}
+
 /// Scan nearby access points and return validated SSIDs and security modes.
 /// The caller must stop the active socket receiver before calling this API.
 pub fn scan() -> Result<ScannedNetworks, ScanError> {
@@ -96,6 +112,18 @@ fn add_network(list: &mut ScannedNetworks, network: ScannedNetwork) {
     } else if list.len < list.entries.len() {
         list.entries[list.len] = network;
         list.len += 1;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn missing_wireless_driver_error_explains_the_failed_service() {
+        let message = ScanError::Driver(ogc_wd::ErrorCode::new(ogc_ipc::IPC_ENOENT)).user_message();
+        assert!(message.contains("/dev/net/wd/command"));
+        assert!(message.contains("-6"));
     }
 }
 

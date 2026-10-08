@@ -261,7 +261,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             if let Err(message) = exit_to_system(&mut startup, reset) {
                 startup
                     .runtime_mut()
-                    .show_notice_with_kind(message, hbc_rs::app::NoticeKind::Error);
+                    .show_notice_with_kind(&message, hbc_rs::app::NoticeKind::Error);
             }
         }
 
@@ -325,7 +325,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                                     false,
                                     "Could not prepare the received application.",
                                 ) {
-                                    startup.runtime_mut().show_notice(notice);
+                                    startup.runtime_mut().show_notice(&notice);
                                 }
                             }
                             Err(_) => startup
@@ -847,13 +847,18 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                         );
                     }
                     (Err(error), Ok(())) => startup.runtime_mut().show_notice_with_kind(
-                        &format!("Could not scan nearby networks: {error:?}."),
+                        &hbc_rs::platform::network_scan::ScanError::user_message(error),
                         hbc_rs::app::NoticeKind::Error,
                     ),
-                    (Err(error), Err(restart_error)) => startup.runtime_mut().show_notice_with_kind(
-                        &format!("Network scan failed: {error:?}. Wiiload restart failed: {restart_error:?}."),
-                        hbc_rs::app::NoticeKind::Error,
-                    ),
+                    (Err(error), Err(restart_error)) => {
+                        startup.runtime_mut().show_notice_with_kind(
+                            &format!(
+                                "{} Wiiload restart also failed: {restart_error:?}.",
+                                hbc_rs::platform::network_scan::ScanError::user_message(error)
+                            ),
+                            hbc_rs::app::NoticeKind::Error,
+                        )
+                    }
                 }
                 continue;
             }
@@ -907,12 +912,15 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 continue;
             }
             if action == hbc_rs::app::Action::LaunchSelected {
-                let Ok(image) = startup.prepare_selected_executable() else {
-                    startup.runtime_mut().show_notice_with_kind(
-                        "Could not read or validate this application.",
-                        hbc_rs::app::NoticeKind::Error,
-                    );
-                    continue;
+                let image = match startup.prepare_selected_executable() {
+                    Ok(image) => image,
+                    Err(error) => {
+                        startup.runtime_mut().show_notice_with_kind(
+                            &format!("Could not load this application: {error:?}."),
+                            hbc_rs::app::NoticeKind::Error,
+                        );
+                        continue;
+                    }
                 };
                 let ahb_access = image.ahb_access;
                 if let Err(notice) = transfer_executable(
@@ -925,7 +933,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 ) {
                     startup
                         .runtime_mut()
-                        .show_notice_with_kind(notice, hbc_rs::app::NoticeKind::Error);
+                        .show_notice_with_kind(&notice, hbc_rs::app::NoticeKind::Error);
                     continue;
                 }
             }
@@ -997,7 +1005,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 if let Err(message) = exit_to_system(&mut startup, reset) {
                     startup
                         .runtime_mut()
-                        .show_notice_with_kind(message, hbc_rs::app::NoticeKind::Error);
+                        .show_notice_with_kind(&message, hbc_rs::app::NoticeKind::Error);
                 }
             }
         }
@@ -1086,31 +1094,38 @@ fn transfer_executable(
     plan: hbc_rs::loader::LoadPlan,
     arguments: Vec<u8>,
     ahb_access: bool,
-    prepare_error: &'static str,
-) -> Result<(), &'static str> {
+    prepare_error: &str,
+) -> Result<(), String> {
     let launch = hbc_rs::loader::stage_launch(
         bytes,
         &plan,
         arguments,
         hbc_rs::platform::startup::EXECUTABLE_MEMORY.clone(),
     )
-    .map_err(|_| prepare_error)?;
-    if startup
+    .map_err(|error| format!("{prepare_error} Loader error: {error:?}."))?;
+    if let Err(error) = startup
         .runtime_mut()
         .save_settings_if_dirty(hbc_rs::platform::settings::save)
-        .is_err()
     {
-        return Err("Could not save settings. Application launch stopped.");
+        return Err(format!(
+            "Could not save settings. Application launch stopped: {error:?}."
+        ));
     }
-    if startup.unmount_storage().is_err() {
-        return Err("Could not stop storage. Application launch stopped.");
+    if let Err(error) = startup.unmount_storage() {
+        return Err(format!(
+            "Could not stop storage. Application launch stopped: {error:?}."
+        ));
     }
-    shutdown_disc_services()
-        .map_err(|_| "Could not stop disc services. Application launch stopped.")?;
-    hbc_rs::platform::wiiload::stop()
-        .map_err(|_| "Could not stop the network receiver. Application launch stopped.")?;
-    if stop_wpad_services().is_err() {
-        return Err("Could not finish Wii Remote shutdown. Application launch stopped.");
+    shutdown_disc_services().map_err(|error| {
+        format!("Could not stop disc services. Application launch stopped ({error}).")
+    })?;
+    hbc_rs::platform::wiiload::stop().map_err(|error| {
+        format!("Could not stop the network receiver. Application launch stopped: {error:?}.")
+    })?;
+    if let Err(error) = stop_wpad_services() {
+        return Err(format!(
+            "Could not finish Wii Remote shutdown. Application launch stopped: {error}."
+        ));
     }
     hbc_rs::platform::video::shutdown();
     unsafe {
@@ -1122,24 +1137,40 @@ fn transfer_executable(
 fn exit_to_system(
     startup: &mut hbc_rs::platform::startup::WiiStartup,
     reset: u32,
-) -> Result<(), &'static str> {
+) -> Result<(), String> {
     match startup
         .runtime_mut()
         .save_settings_if_dirty(hbc_rs::platform::settings::save)
     {
         Ok(_) | Err(hbc_rs::runtime::SettingsSaveError::PreviousLoadFailed) => {}
-        Err(hbc_rs::runtime::SettingsSaveError::Backend(_)) => {
-            return Err("Could not save settings. System exit stopped.");
+        Err(error @ hbc_rs::runtime::SettingsSaveError::Backend(_)) => {
+            return Err(format!(
+                "Could not save settings. System exit stopped: {error:?}."
+            ));
         }
     }
-    if startup.unmount_storage().is_err() {
-        return Err("Could not stop storage. System exit stopped.");
+    if reset == ogc_system::SYS_RETURNTOMENU {
+        return match ogc_wiilaunch::try_return_to_menu() {
+            Err(error) => Err(format!("Could not start the System Menu: {error:?}.")),
+            Ok(()) => Err(String::from(
+                "The System Menu launch returned without transferring control.",
+            )),
+        };
     }
-    if shutdown_disc_services().is_err() {
-        return Err("Could not stop disc services. System exit stopped.");
+    if let Err(error) = startup.unmount_storage() {
+        return Err(format!(
+            "Could not stop storage. System exit stopped: {error:?}."
+        ));
     }
-    if hbc_rs::platform::wiiload::stop().is_err() {
-        return Err("Could not stop the network receiver. System exit stopped.");
+    if let Err(error) = shutdown_disc_services() {
+        return Err(format!(
+            "Could not stop disc services. System exit stopped ({error})."
+        ));
+    }
+    if let Err(error) = hbc_rs::platform::wiiload::stop() {
+        return Err(format!(
+            "Could not stop the network receiver. System exit stopped: {error:?}."
+        ));
     }
     let controller_cleanup = stop_wpad_services();
     hbc_rs::platform::lifecycle::reset_after_controller_cleanup(
