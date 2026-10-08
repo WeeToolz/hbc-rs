@@ -535,6 +535,11 @@ mod tests {
         let classic = map_buttons(0, classic_mask);
         assert!(classic.contains(Input::Confirm));
         assert!(classic.contains(Input::Right));
+
+        let classic_x = map_extension_buttons(0x0008 << 16, Extension::Classic);
+        assert!(map_buttons(0, classic_x).contains(Input::OpenOptions));
+        let classic_y = map_extension_buttons(0x0020 << 16, Extension::Classic);
+        assert!(map_buttons(0, classic_y).contains(Input::ToggleBrowseMode));
     }
 
     #[test]

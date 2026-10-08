@@ -414,6 +414,22 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             hbc_rs::platform::diagnostics::mark("FIRST ICON LOAD");
         }
         startup.refresh_visible_icons();
+        let ios_label = format!(
+            "IOS{} v{}.{}",
+            ogc_ios::get_version(),
+            ogc_ios::get_revision_major(),
+            ogc_ios::get_revision_minor()
+        );
+        let network_label = match hbc_rs::platform::wiiload::local_ip() {
+            Some(address) => format!(
+                "Your Wii's IP is {}.{}.{}.{}",
+                address[0], address[1], address[2], address[3]
+            ),
+            None => String::from("Network not initialized"),
+        };
+        startup
+            .runtime_mut()
+            .set_main_menu_status(ios_label, network_label);
         let mut scene = hbc_rs::render::browser_frame_with_language(
             startup.runtime().controller(),
             startup.runtime().catalog(),
@@ -744,7 +760,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                                     }
                                 },
                                 (Err(save_error), Ok(())) => startup.runtime_mut().show_notice_with_kind(
-                                    &format!("Could not save Wii network settings: {save_error:?}."),
+                                    &hbc_rs::platform::network_config::save_error_message(save_error),
                                     hbc_rs::app::NoticeKind::Error,
                                 ),
                                 (Ok(()), Err(restart_error)) => startup.runtime_mut().show_notice_with_kind(
@@ -752,7 +768,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                                     hbc_rs::app::NoticeKind::Error,
                                 ),
                                 (Err(save_error), Err(restart_error)) => startup.runtime_mut().show_notice_with_kind(
-                                    &format!("Could not save Wii network settings: {save_error:?}. Wiiload restart also failed: {restart_error:?}."),
+                                    &format!("{}. Wiiload restart also failed: {restart_error:?}.", hbc_rs::platform::network_config::save_error_message(save_error)),
                                     hbc_rs::app::NoticeKind::Error,
                                 ),
                             }
@@ -766,6 +782,47 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                         "Could not save Wii network settings: no loaded configuration snapshot.",
                         hbc_rs::app::NoticeKind::Error,
                     ),
+                }
+                continue;
+            }
+            if action == hbc_rs::app::Action::TestNetworkConnection {
+                let saved = startup.runtime().network_config_snapshot().cloned();
+                match startup.runtime().network_config_for_save() {
+                    Err(error) => startup.runtime_mut().show_notice_with_kind(
+                        &format!("WiFi settings are invalid: {error:?}."),
+                        hbc_rs::app::NoticeKind::Error,
+                    ),
+                    Ok(_) if saved.is_none() => startup.runtime_mut().show_notice_with_kind(
+                        "Load the saved Wii network settings before testing the connection.",
+                        hbc_rs::app::NoticeKind::Error,
+                    ),
+                    Ok(config) if saved.as_ref() != Some(&config) => {
+                        startup.runtime_mut().show_notice_with_kind(
+                            "Save the edited network settings before testing the connection.",
+                            hbc_rs::app::NoticeKind::Warning,
+                        );
+                    }
+                    Ok(_) => match hbc_rs::platform::wiiload::stop() {
+                        Err(error) => startup.runtime_mut().show_notice_with_kind(
+                            &format!(
+                                "Could not stop Wiiload before testing the connection: {error:?}."
+                            ),
+                            hbc_rs::app::NoticeKind::Error,
+                        ),
+                        Ok(()) => match hbc_rs::platform::wiiload::start() {
+                            Ok(()) => {
+                                network_check_frames = Some(0);
+                                startup.runtime_mut().show_notice_with_kind(
+                                    "Testing the saved network profile for an assigned Wii IP address...",
+                                    hbc_rs::app::NoticeKind::Information,
+                                );
+                            }
+                            Err(error) => startup.runtime_mut().show_notice_with_kind(
+                                &format!("Could not start the network test: {error:?}."),
+                                hbc_rs::app::NoticeKind::Error,
+                            ),
+                        },
+                    },
                 }
                 continue;
             }

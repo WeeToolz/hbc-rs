@@ -84,6 +84,11 @@ impl AppRuntime {
         self.controller.set_network_config(config);
     }
 
+    pub fn set_main_menu_status(&mut self, ios_label: String, network_label: String) {
+        self.controller
+            .set_main_menu_status(ios_label, network_label);
+    }
+
     pub fn set_scanned_networks(&mut self, networks: crate::network_config::ScannedNetworks) {
         self.controller.set_scanned_networks(networks);
     }
@@ -204,6 +209,21 @@ impl AppRuntime {
     /// applied twice when the platform reports it as both pressed and held.
     pub fn update(&mut self, frame: &InputFrame) -> Vec<Action> {
         self.controller.reconcile_catalog(&self.catalog);
+        if self.controller.error_notice_active() {
+            let input = frame
+                .pressed
+                .first()
+                .or_else(|| frame.held.first())
+                .copied();
+            if let Some(input) = input {
+                let mut actions = Vec::new();
+                push_action(&mut actions, self.controller.handle(input, &self.catalog));
+                self.controller.mark_error_notice_input_consumed();
+                return actions;
+            }
+            self.controller.tick_error_notice();
+            return Vec::new();
+        }
         self.controller.tick_about_scroll();
         self.controller
             .scroll_active_memo_by_stick(frame.stick_scroll_pixels);
@@ -315,6 +335,21 @@ mod tests {
     }
 
     #[test]
+    fn error_notice_dismissal_consumes_timeout_frame_input() {
+        let mut runtime = AppRuntime::new(vec![app("one")]);
+        runtime.show_notice_with_kind("Storage error", crate::app::NoticeKind::Error);
+        for _ in 0..299 {
+            runtime.update(&InputFrame::default());
+        }
+        assert_eq!(runtime.controller().screen, crate::app::Screen::Notice);
+        runtime.update(&InputFrame {
+            pressed: vec![Input::Confirm, Input::Down],
+            ..InputFrame::default()
+        });
+        assert_eq!(runtime.controller().screen, crate::app::Screen::Browser);
+    }
+
+    #[test]
     fn options_can_open_network_settings_without_any_mounted_apps() {
         let mut runtime = AppRuntime::new(Vec::new());
         runtime.update(&InputFrame {
@@ -323,7 +358,7 @@ mod tests {
         });
         assert_eq!(runtime.controller().screen, crate::app::Screen::Options);
         runtime.update(&InputFrame {
-            pressed: vec![Input::Up],
+            pressed: vec![Input::Right],
             ..Default::default()
         });
         let actions = runtime.update(&InputFrame {
@@ -370,6 +405,7 @@ mod tests {
                 Input::Confirm,
                 Input::Down,
                 Input::Down,
+                Input::Left,
                 Input::Confirm,
             ],
             held: vec![],
@@ -411,16 +447,15 @@ mod tests {
         let actions = runtime.update(&InputFrame {
             pressed: vec![
                 Input::OpenOptions,
-                Input::Up,    // Back -> Network setup
-                Input::Up,    // Network setup -> Name
-                Input::Right, // Date
+                Input::Left, // Back -> OK
+                Input::Left, // OK -> Date
+                Input::Left, // Date -> Name
+                Input::Left, // Skip unavailable SD Gecko slots -> USB
                 Input::Confirm,
-                Input::Up, // Skip unavailable SD Gecko row -> USB
+                Input::Right, // USB -> Name
+                Input::Right, // Name -> Date
                 Input::Confirm,
-                Input::Left, // SD
-                Input::Down, // Name
-                Input::Down, // Network setup
-                Input::Down, // OK
+                Input::Right, // Date -> OK
                 Input::Confirm,
             ],
             ..InputFrame::default()

@@ -317,7 +317,11 @@ pub unsafe fn draw_frame(
             unsafe { draw_fallback_text(video, frame, run, &info)? };
             continue;
         };
-        let mut cursor_x = run.x;
+        let mut cursor_x = if run.right_align {
+            run.x - face.measure_width(&run.value, run.size) * run.scale
+        } else {
+            run.x
+        };
         let mut previous_character = None;
         for character in run.value.chars() {
             if let Some(previous) = previous_character {
@@ -411,7 +415,11 @@ unsafe fn draw_fallback_text(
     run: &crate::render::TextRun,
     info: &crate::platform::video::FramebufferInfo,
 ) -> Result<(), VideoError> {
-    let mut x = run.x;
+    let mut x = if run.right_align {
+        run.x - run.value.chars().count() as f32 * 6.0 * run.scale
+    } else {
+        run.x
+    };
     for character in run.value.chars() {
         for (row, bits) in crate::render::glyph_rows(character).into_iter().enumerate() {
             let mut column = 0;

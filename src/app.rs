@@ -120,6 +120,7 @@ pub enum Action {
     ApplyOptions,
     LoadNetworkConfig,
     SaveNetworkConfig,
+    TestNetworkConnection,
     ScanNetworks,
     AcceptWiiloadZip,
     RejectWiiloadZip,
@@ -135,11 +136,11 @@ pub const MESSAGE_MEMO_VISIBLE_LINES: usize = 20;
 pub const ABOUT_MEMO_LINE_WIDTH: usize = 76;
 pub const ABOUT_MEMO_VISIBLE_LINES: usize = 20;
 pub const NETWORK_KEYBOARD_COLUMNS: usize = 10;
-pub const NETWORK_KEYBOARD_KEYS: usize = 46;
+pub const NETWORK_KEYBOARD_KEYS: usize = 47;
 const KEYBOARD_ALPHA: [&[u8; 10]; 4] = [b"1234567890", b"qwertyuiop", b"asdfghjkl;", b"zxcvbnm,./"];
 const KEYBOARD_SYMBOL: [&[u8; 10]; 4] =
     [b"!@#$%^&*()", b"`~[]{}<>?/", b"\\|:;\"'=-_+", b"~`#$%^&*()"];
-pub const ABOUT_CREDITS: &str = "Credits\n\nThis port is written in Rust and uses libogc-rs for Wii platform support.\n\nThe following credits are from the original C Homebrew Channel:\n\nThe Homebrew Channel was made possible by the following people:\n\ndhewg (EWRONGCHAN) - application code, geckoloader code\nblasty (ESTONED) - application code\nmarcan (EFAILURE) - reload stub, banner, installer, packaging\nbushing (EWANTPONY) - socket code, loader code\nsegher (EBUGFOUND) - nandloader stub code\nsouLLy (ENOTHERE) - banner graphics\ndrmr (EMORECOWBELL) - banner audio, channel graphics\nmha (E404) - update server and hosting\n\nThe original C HBC used devkitPPC and libogc, by shagkur, WinterMute, and everyone else who contributed.\n\nThanks to all the beta testers\n\nKind regards to the following people too:\n\nsepp256 - dropped some good GX hints\nchishm, svpe, rodries, hermes - libfat port\nalien - some graphics\njodi - the lulz\n\nThe following library credits are from the original C HBC:\n\nwiiuse - para's Wiimote library, then integrated with libogc\nlibpng - the official PNG library\nMini-XML - small and efficient XML parsing library\nFreeType - the free TrueType/OpenType font renderer\n";
+pub const ABOUT_CREDITS: &str = "Credits\n\nThe Homebrew Channel was made possible by the following people:\n\ndhewg (EWRONGCHAN) - application code, geckoloader code\nblasty (ESTONED) - application code\nmarcan (EFAILURE) - reload stub, banner, installer, packaging\nbushing (EWANTPONY) - socket code, loader code\nsegher (EBUGFOUND) - nandloader stub code\nsouLLy (ENOTHERE) - banner graphics\ndrmr (EMORECOWBELL) - banner audio, channel graphics\nmha (E404) - update server and hosting\n\nPowered by devkitPPC and libogc, by shagkur, WinterMute, and everyone else who contributed\n\nThanks to all the beta testers\n\nKind regards to the following people too:\n\nsepp256 - dropped some good GX hints\nchishm, svpe, rodries, hermes - libfat port\nalien - some graphics\njodi - the lulz\n\nAnd last but not least, thanks to the authors of the following libraries:\n\nwiiuse - para's Wiimote library, now integrated with libogc\nlibpng - the official PNG library\nMini-XML - small and efficient XML parsing library\nFreeType - the free TrueType/OpenType font renderer\n";
 
 /// Number of app columns and rows shown by the browser.
 ///
@@ -206,6 +207,8 @@ pub struct AppController {
     layout: BrowserLayout,
     grid_columns: usize,
     menu_focus: usize,
+    main_menu_ios_label: String,
+    main_menu_network_label: String,
     detail_focus: usize,
     detail_description_scroll: usize,
     detail_description_max_scroll: usize,
@@ -226,6 +229,8 @@ pub struct AppController {
     wiiload_install_progress: u8,
     notice: Option<String>,
     notice_kind: NoticeKind,
+    notice_idle_ticks: u16,
+    ignore_pointer_once: bool,
     notice_scroll: usize,
     notice_scroll_max: usize,
     notice_scroll_pixel_remainder: i16,
@@ -240,6 +245,7 @@ pub struct AppController {
     network_config: Option<crate::network_config::NetworkConfig>,
     network_ssid: Vec<u8>,
     network_key: Vec<u8>,
+    network_key_visible: bool,
     network_encryption: u8,
     network_focus: usize,
     scanned_networks: crate::network_config::ScannedNetworks,
@@ -267,6 +273,15 @@ impl AppController {
 
     pub fn menu_focus(&self) -> usize {
         self.menu_focus
+    }
+
+    pub fn set_main_menu_status(&mut self, ios_label: String, network_label: String) {
+        self.main_menu_ios_label = ios_label;
+        self.main_menu_network_label = network_label;
+    }
+
+    pub fn main_menu_status(&self) -> (&str, &str) {
+        (&self.main_menu_ios_label, &self.main_menu_network_label)
     }
 
     pub fn detail_focus(&self) -> usize {
@@ -425,6 +440,28 @@ impl AppController {
         }
     }
 
+    /// Close an error notice after five seconds without input.
+    pub fn tick_error_notice(&mut self) {
+        if self.screen != Screen::Notice || self.notice_kind != NoticeKind::Error {
+            return;
+        }
+        self.notice_idle_ticks = self.notice_idle_ticks.saturating_add(1);
+        if self.notice_idle_ticks >= 300 {
+            self.dismiss_notice();
+            self.ignore_pointer_once = true;
+        }
+    }
+
+    pub fn mark_error_notice_input_consumed(&mut self) {
+        self.ignore_pointer_once = true;
+    }
+
+    fn dismiss_notice(&mut self) {
+        self.notice = None;
+        self.screen = self.notice_return_screen;
+        self.notice_idle_ticks = 0;
+    }
+
     fn scroll_detail_by_pixels(&mut self, pixels: i16) {
         if self.screen != Screen::AppDetails {
             return;
@@ -457,6 +494,10 @@ impl AppController {
 
     pub fn notice_kind(&self) -> NoticeKind {
         self.notice_kind
+    }
+
+    pub fn error_notice_active(&self) -> bool {
+        self.screen == Screen::Notice && self.notice_kind == NoticeKind::Error
     }
 
     pub fn notice_scroll(&self) -> usize {
@@ -514,6 +555,7 @@ impl AppController {
             self.notice_return_screen = self.screen;
         }
         self.notice_scroll = 0;
+        self.notice_idle_ticks = 0;
         self.notice_scroll_pixel_remainder = 0;
         self.notice = Some(message);
         self.notice_kind = kind;
@@ -553,6 +595,10 @@ impl AppController {
 
     pub fn network_key(&self) -> &[u8] {
         &self.network_key
+    }
+
+    pub fn network_key_visible(&self) -> bool {
+        self.network_key_visible
     }
 
     pub fn network_encryption(&self) -> u8 {
@@ -609,6 +655,13 @@ impl AppController {
             43 => "BACK",
             44 => "CLEAR",
             45 => "DONE",
+            46 if self.keyboard_target_key => {
+                if self.network_key_visible {
+                    "HIDE"
+                } else {
+                    "SHOW"
+                }
+            }
             _ => "",
         }
     }
@@ -922,10 +975,13 @@ impl AppController {
                 }
                 _ => Action::None,
             },
+            Screen::Notice if self.notice_kind == NoticeKind::Error => {
+                self.dismiss_notice();
+                Action::None
+            }
             Screen::Notice => match input {
                 Input::Back | Input::Confirm | Input::Home => {
-                    self.notice = None;
-                    self.screen = self.notice_return_screen;
+                    self.dismiss_notice();
                     Action::None
                 }
                 Input::Up => {
@@ -963,8 +1019,15 @@ impl AppController {
         held: bool,
         catalog: &[AppEntry],
     ) -> Action {
+        if core::mem::replace(&mut self.ignore_pointer_once, false) {
+            return Action::None;
+        }
         self.pointer_target = target;
         self.update_detail_drag(target, pointer_y, pressed, held);
+        if self.screen == Screen::Notice && self.notice_kind == NoticeKind::Error && pressed {
+            self.dismiss_notice();
+            return Action::None;
+        }
         let Some(target) = target else {
             return Action::None;
         };
@@ -1031,7 +1094,7 @@ impl AppController {
                     Action::None
                 }
             }
-            (Screen::NetworkSettings, PointerTarget::NetworkOption(index)) if index < 6 => {
+            (Screen::NetworkSettings, PointerTarget::NetworkOption(index)) if index < 7 => {
                 self.network_focus = index;
                 if pressed {
                     self.handle(Input::Confirm, catalog)
@@ -1049,7 +1112,9 @@ impl AppController {
                     Action::None
                 }
             }
-            (Screen::NetworkKeyboard, PointerTarget::KeyboardKey(index)) if index < 46 => {
+            (Screen::NetworkKeyboard, PointerTarget::KeyboardKey(index))
+                if index < NETWORK_KEYBOARD_KEYS =>
+            {
                 self.keyboard_focus = index;
                 if pressed {
                     self.handle(Input::Confirm, catalog)
@@ -1184,11 +1249,11 @@ impl AppController {
                 self.screen = Screen::Browser;
                 Action::None
             }
-            Input::Up | Input::Left => {
+            Input::Up => {
                 self.move_menu_focus(false);
                 Action::None
             }
-            Input::Down | Input::Right => {
+            Input::Down => {
                 self.move_menu_focus(true);
                 Action::None
             }
@@ -1221,41 +1286,37 @@ impl AppController {
     }
 
     fn move_options_focus(&mut self, input: Input) {
+        let enabled: [bool; 9] = core::array::from_fn(|index| self.option_enabled(index));
+        if matches!(input, Input::Left | Input::Right) {
+            move_focus_c_style(&mut self.options_focus, &enabled, input, 9);
+            return;
+        }
         const ROWS: [&[usize]; 5] = [&[0, 1], &[2, 3], &[4, 5], &[8], &[6, 7]];
-        let row = ROWS
+        let Some(row) = ROWS
             .iter()
             .position(|items| items.contains(&self.options_focus))
-            .unwrap_or(4);
-        let column = usize::from(self.options_focus < 8 && self.options_focus % 2 != 0);
-        match input {
-            Input::Left | Input::Right => {
-                let target = ROWS[row].get(usize::from(input == Input::Right)).copied();
-                if let Some(target) = target.filter(|index| self.option_enabled(*index)) {
-                    self.options_focus = target;
-                }
+        else {
+            return;
+        };
+        let direction = if input == Input::Up { -1isize } else { 1isize };
+        let column = match self.options_focus {
+            1 | 3 | 5 | 7 => 1,
+            8 => 1,
+            _ => 0,
+        };
+        let mut next_row = row as isize + direction;
+        while (0..ROWS.len() as isize).contains(&next_row) {
+            let items = ROWS[next_row as usize];
+            let preferred = items
+                .get(column.min(items.len().saturating_sub(1)))
+                .copied()
+                .filter(|index| enabled[*index]);
+            if let Some(target) = preferred.or_else(|| items.iter().copied().find(|i| enabled[*i]))
+            {
+                self.options_focus = target;
+                break;
             }
-            Input::Up | Input::Down => {
-                let step: isize = if input == Input::Up { -1 } else { 1 };
-                let mut next = row as isize + step;
-                while (0..ROWS.len() as isize).contains(&next) {
-                    let items = ROWS[next as usize];
-                    let preferred = items
-                        .get(column)
-                        .copied()
-                        .filter(|index| self.option_enabled(*index));
-                    if let Some(target) = preferred.or_else(|| {
-                        items
-                            .iter()
-                            .copied()
-                            .find(|index| self.option_enabled(*index))
-                    }) {
-                        self.options_focus = target;
-                        break;
-                    }
-                    next += step;
-                }
-            }
-            _ => {}
+            next_row += direction;
         }
     }
 
@@ -1326,22 +1387,14 @@ impl AppController {
                 self.screen = Screen::Options;
                 Action::None
             }
-            Input::Up => {
-                self.network_focus = self.network_focus.saturating_sub(1);
-                Action::None
-            }
-            Input::Down => {
-                self.network_focus = (self.network_focus + 1).min(5);
-                Action::None
-            }
-            Input::Left | Input::Right if self.network_focus == 1 => {
-                self.network_encryption =
-                    cycle_encryption(self.network_encryption, input == Input::Right);
+            Input::Left | Input::Right | Input::Up | Input::Down => {
+                move_network_focus(&mut self.network_focus, input);
                 Action::None
             }
             Input::Confirm => match self.network_focus {
                 0 | 2 => {
                     self.keyboard_target_key = self.network_focus == 2;
+                    self.network_key_visible = false;
                     self.keyboard_focus = 0;
                     self.keyboard_symbols = false;
                     self.keyboard_shift = false;
@@ -1356,11 +1409,12 @@ impl AppController {
                     self.screen = Screen::Options;
                     Action::SaveNetworkConfig
                 }
-                4 => {
+                4 => Action::TestNetworkConnection,
+                5 => {
                     self.screen = Screen::Options;
                     Action::None
                 }
-                5 => Action::ScanNetworks,
+                6 => Action::ScanNetworks,
                 _ => Action::None,
             },
             _ => Action::None,
@@ -1379,8 +1433,7 @@ impl AppController {
             }
             Input::Down => {
                 self.network_scan_focus = (self.network_scan_focus + 1)
-                    .min(self.scanned_networks.len.saturating_sub(1))
-                    .min(7);
+                    .min(self.scanned_networks.len.saturating_sub(1).min(7));
                 Action::None
             }
             Input::Confirm => {
@@ -1415,7 +1468,8 @@ impl AppController {
                 Action::None
             }
             Input::Right => {
-                self.keyboard_focus = (self.keyboard_focus + 1).min(NETWORK_KEYBOARD_KEYS - 1);
+                let max = if self.keyboard_target_key { 46 } else { 45 };
+                self.keyboard_focus = (self.keyboard_focus + 1).min(max);
                 Action::None
             }
             Input::Up => {
@@ -1423,8 +1477,8 @@ impl AppController {
                 Action::None
             }
             Input::Down => {
-                self.keyboard_focus =
-                    (self.keyboard_focus + NETWORK_KEYBOARD_COLUMNS).min(NETWORK_KEYBOARD_KEYS - 1);
+                let max = if self.keyboard_target_key { 46 } else { 45 };
+                self.keyboard_focus = (self.keyboard_focus + NETWORK_KEYBOARD_COLUMNS).min(max);
                 Action::None
             }
             Input::Confirm => {
@@ -1468,6 +1522,9 @@ impl AppController {
                             }
                         }
                         45 => self.screen = Screen::NetworkSettings,
+                        46 if self.keyboard_target_key => {
+                            self.network_key_visible = !self.network_key_visible;
+                        }
                         _ => {}
                     }
                 }
@@ -1594,6 +1651,82 @@ pub enum NetworkConfigEditError {
     Wifi(crate::network_config::WifiValidationError),
 }
 
+fn move_focus_c_style(focus: &mut usize, enabled: &[bool], input: Input, vertical_count: usize) {
+    let Some(direction) = (match input {
+        Input::Left | Input::Up => Some(-1isize),
+        Input::Right | Input::Down => Some(1isize),
+        _ => None,
+    }) else {
+        return;
+    };
+    let horizontal = matches!(input, Input::Left | Input::Right);
+    if horizontal {
+        let mut next = *focus as isize + direction;
+        while (0..enabled.len() as isize).contains(&next) {
+            if enabled[next as usize] {
+                *focus = next as usize;
+                break;
+            }
+            next += direction;
+        }
+    } else {
+        // C options move two widgets at a time, then four when the first
+        // target is a label, disabled device, or outside the dialog.
+        for distance in [2, 4] {
+            let next = *focus as isize + direction * distance;
+            if (0..vertical_count as isize).contains(&next) && enabled[next as usize] {
+                *focus = next as usize;
+                break;
+            }
+        }
+    }
+}
+
+fn move_network_focus(focus: &mut usize, input: Input) {
+    // Focus follows the visible control layout. This keeps each direction
+    // useful when the controls do not form one straight list.
+    const POSITIONS: [(i16, i16); 7] = [
+        (2, 0), // Network name edit
+        (2, 1), // Security change
+        (2, 2), // Password edit
+        (0, 3), // Save
+        (1, 3), // Test connection
+        (2, 3), // Back
+        (1, 4), // Scan networks
+    ];
+    let Some(&(x, y)) = POSITIONS.get(*focus) else {
+        *focus = 0;
+        return;
+    };
+    let (dx, dy) = match input {
+        Input::Left => (-1, 0),
+        Input::Right => (1, 0),
+        Input::Up => (0, -1),
+        Input::Down => (0, 1),
+        _ => return,
+    };
+    let mut best: Option<(i32, usize)> = None;
+    for (index, &(candidate_x, candidate_y)) in POSITIONS.iter().enumerate() {
+        if index == *focus {
+            continue;
+        }
+        let vx = i32::from(candidate_x - x);
+        let vy = i32::from(candidate_y - y);
+        let primary = vx * dx + vy * dy;
+        if primary <= 0 {
+            continue;
+        }
+        let cross = (vx * dy - vy * dx).abs();
+        let score = primary * 100 + cross * 10 + vx.abs() + vy.abs();
+        if best.is_none_or(|(best_score, _)| score < best_score) {
+            best = Some((score, index));
+        }
+    }
+    if let Some((_, next)) = best {
+        *focus = next;
+    }
+}
+
 fn cycle_encryption(current: u8, forward: bool) -> u8 {
     const MODES: [u8; 6] = [0, 1, 2, 4, 5, 6];
     let index = MODES.iter().position(|mode| *mode == current).unwrap_or(0);
@@ -1643,6 +1776,60 @@ mod tests {
     }
 
     #[test]
+    fn network_settings_expose_save_test_back_and_scan_in_controller_order() {
+        let mut controller = AppController::new();
+        controller.screen = Screen::NetworkSettings;
+        controller.network_focus = 3;
+
+        assert_eq!(
+            controller.handle(Input::Confirm, &[]),
+            Action::SaveNetworkConfig
+        );
+
+        controller.screen = Screen::NetworkSettings;
+        controller.network_focus = 3;
+        assert_eq!(controller.handle(Input::Right, &[]), Action::None);
+        assert_eq!(controller.network_focus, 4);
+        assert_eq!(
+            controller.handle(Input::Confirm, &[]),
+            Action::TestNetworkConnection
+        );
+
+        controller.network_focus = 5;
+        assert_eq!(controller.handle(Input::Down, &[]), Action::None);
+        assert_eq!(controller.network_focus, 6);
+        assert_eq!(controller.handle(Input::Confirm, &[]), Action::ScanNetworks);
+        assert_eq!(
+            controller.handle_pointer(Some(PointerTarget::NetworkOption(6)), true, &[],),
+            Action::ScanNetworks
+        );
+    }
+
+    #[test]
+    fn added_network_menus_use_consistent_directional_focus_rules() {
+        let mut controller = AppController::new();
+        controller.screen = Screen::NetworkSettings;
+        controller.network_focus = 5;
+        controller.handle(Input::Left, &[]);
+        assert_eq!(controller.network_focus, 4);
+        controller.handle(Input::Right, &[]);
+        assert_eq!(controller.network_focus, 5);
+        controller.handle(Input::Up, &[]);
+        assert_eq!(controller.network_focus, 2);
+
+        controller.scanned_networks = crate::network_config::ScannedNetworks::default();
+        controller.scanned_networks.len = 3;
+        controller.screen = Screen::NetworkScan;
+        controller.network_scan_focus = 0;
+        controller.handle(Input::Right, &[]);
+        assert_eq!(controller.network_scan_focus, 0);
+        controller.handle(Input::Down, &[]);
+        assert_eq!(controller.network_scan_focus, 1);
+        controller.handle(Input::Left, &[]);
+        assert_eq!(controller.network_scan_focus, 1);
+    }
+
+    #[test]
     fn about_credits_scroll_after_delay_and_clamp_at_end() {
         let mut controller = AppController::new();
         controller.screen = Screen::About;
@@ -1661,6 +1848,25 @@ mod tests {
             .len()
             .saturating_sub(ABOUT_MEMO_VISIBLE_LINES);
         assert_eq!(controller.about_scroll(), max);
+    }
+
+    #[test]
+    fn about_keeps_manual_scrolling_while_the_delayed_auto_scroll_runs() {
+        let mut controller = AppController::new();
+        controller.screen = Screen::About;
+        controller.set_measured_memo(20, 10);
+        for _ in 0..119 {
+            controller.tick_about_scroll();
+        }
+        assert_eq!(controller.about_scroll(), 0);
+        controller.handle(Input::Down, &[]);
+        assert_eq!(controller.about_scroll(), 1);
+        for _ in 119..123 {
+            controller.tick_about_scroll();
+        }
+        assert_eq!(controller.about_scroll(), 2);
+        controller.handle(Input::Up, &[]);
+        assert_eq!(controller.about_scroll(), 1);
     }
 
     #[test]
@@ -1771,6 +1977,7 @@ mod tests {
         controller.handle(Input::Confirm, &catalog);
         controller.handle(Input::Down, &catalog);
         controller.handle(Input::Down, &catalog);
+        controller.handle(Input::Left, &catalog);
 
         controller.handle_pointer_frame(
             Some(PointerTarget::DetailMemo),
@@ -2140,6 +2347,8 @@ mod tests {
         controller.set_bootmii_available(true);
         controller.handle(Input::Home, &[]);
         assert_eq!(controller.screen, Screen::MainMenu);
+        controller.handle(Input::Right, &[]);
+        assert_eq!(controller.menu_focus(), 0);
         controller.handle(Input::Down, &[]);
         assert_eq!(controller.handle(Input::Confirm, &[]), Action::None);
         assert_eq!(controller.screen, Screen::About);
@@ -2186,6 +2395,7 @@ mod tests {
         controller.handle(Input::Confirm, &catalog);
         controller.handle(Input::Down, &catalog);
         controller.handle(Input::Down, &catalog);
+        controller.handle(Input::Left, &catalog);
         assert_eq!(controller.options_focus(), 6);
         assert_eq!(
             controller.handle(Input::Confirm, &catalog),
@@ -2237,6 +2447,37 @@ mod tests {
         assert_eq!(controller.handle(Input::Confirm, &catalog), Action::None);
         assert_eq!(controller.screen, Screen::AppDetails);
         assert_eq!(controller.notice(), None);
+    }
+
+    #[test]
+    fn error_notice_closes_on_any_button_or_after_five_seconds_idle() {
+        let mut controller = AppController::new();
+        controller.show_notice_with_kind("Storage error".into(), NoticeKind::Error);
+        for _ in 0..299 {
+            controller.tick_error_notice();
+        }
+        assert_eq!(controller.screen, Screen::Notice);
+        controller.tick_error_notice();
+        assert_eq!(controller.screen, Screen::Browser);
+
+        controller.show_notice_with_kind("USB error".into(), NoticeKind::Error);
+        controller.handle(Input::Up, &[]);
+        assert_eq!(controller.screen, Screen::Browser);
+    }
+
+    #[test]
+    fn password_keyboard_can_toggle_secret_visibility() {
+        let mut controller = AppController::new();
+        controller.screen = Screen::NetworkKeyboard;
+        controller.keyboard_target_key = true;
+        controller.network_key.extend_from_slice(b"secret");
+        controller.keyboard_focus = 46;
+        assert!(!controller.network_key_visible());
+        controller.handle(Input::Confirm, &[]);
+        assert!(controller.network_key_visible());
+        assert_eq!(controller.keyboard_command_label(46), "HIDE");
+        controller.handle(Input::Confirm, &[]);
+        assert!(!controller.network_key_visible());
     }
 
     #[test]
@@ -2328,6 +2569,7 @@ mod tests {
         controller.handle(Input::Confirm, &catalog);
         controller.handle(Input::Down, &catalog);
         controller.handle(Input::Down, &catalog);
+        controller.handle(Input::Left, &catalog);
         controller.handle(Input::Confirm, &catalog);
         assert_eq!(controller.selected_app.as_deref(), Some("e"));
         assert_eq!(controller.selected_index(), 4);
@@ -2356,19 +2598,19 @@ mod tests {
         controller.set_device_availability([false; 4]);
         controller.handle(Input::OpenOptions, &[]);
         assert_eq!(controller.options_focus(), 7);
+        controller.handle(Input::Right, &[]);
+        assert_eq!(controller.options_focus(), 8);
+        controller.handle(Input::Down, &[]);
+        assert_eq!(controller.options_focus(), 7);
         controller.handle(Input::Up, &[]);
         assert_eq!(controller.options_focus(), 8);
         assert_eq!(
             controller.handle(Input::Confirm, &[]),
             Action::LoadNetworkConfig
         );
-        controller.handle(Input::Up, &[]);
-        assert_eq!(controller.options_focus(), 4);
-        controller.handle(Input::Up, &[]);
-        assert_eq!(controller.options_focus(), 4);
         let pending = controller.pending_device();
         controller.handle_pointer(Some(PointerTarget::Option(1)), true, &[]);
-        assert_eq!(controller.options_focus(), 4);
+        assert_eq!(controller.options_focus(), 8);
         assert_eq!(controller.pending_device(), pending);
     }
 
@@ -2377,10 +2619,14 @@ mod tests {
         let mut controller = AppController::new();
         controller.set_device_availability([false, false, true, true]);
         controller.handle(Input::OpenOptions, &[]);
-        controller.handle(Input::Up, &[]);
-        controller.handle(Input::Up, &[]);
-        controller.handle(Input::Up, &[]);
-        assert_eq!(controller.options_focus(), 2);
+        controller.handle(Input::Left, &[]);
+        controller.handle(Input::Left, &[]);
+        controller.handle(Input::Left, &[]);
+        controller.handle(Input::Left, &[]);
+        assert_eq!(controller.options_focus(), 3);
+        controller.handle(Input::Confirm, &[]);
+        assert_eq!(controller.pending_device(), 3);
+        controller.handle(Input::Left, &[]);
         controller.handle(Input::Confirm, &[]);
         assert_eq!(controller.pending_device(), 2);
         controller.handle(Input::Right, &[]);

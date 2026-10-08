@@ -418,6 +418,7 @@ pub struct TextRun {
     pub fallback_file: Option<String>,
     pub size: u16,
     pub memo: Option<crate::text_layout::MemoSpec>,
+    pub right_align: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -727,7 +728,46 @@ impl Frame {
             ButtonSize::Small => 200.0,
             ButtonSize::Tiny => 132.0,
         };
-        let bounds = rect(x, y, width, 48.0);
+        self.button_with_geometry(
+            rect(x, y, width, 48.0),
+            y + 20.0,
+            size,
+            focused,
+            label,
+            color,
+        )
+    }
+
+    fn compact_button(
+        &mut self,
+        x: f32,
+        y: f32,
+        size: ButtonSize,
+        focused: bool,
+        label: &str,
+        color: Color,
+    ) -> Rect {
+        self.button_with_geometry(
+            rect(x, y, 200.0, 28.0),
+            y + 10.0,
+            size,
+            focused,
+            label,
+            color,
+        )
+    }
+
+    fn button_with_geometry(
+        &mut self,
+        bounds: Rect,
+        text_y: f32,
+        size: ButtonSize,
+        focused: bool,
+        label: &str,
+        color: Color,
+    ) -> Rect {
+        let width = bounds.width;
+        let x = bounds.x;
         self.theme_art(bounds, ThemeArt::Button(size), focused);
         let style = if focused {
             self.focused_button_style.clone()
@@ -741,7 +781,7 @@ impl Frame {
         let text_width = label.chars().count() as f32 * char_advance;
         self.text(
             x + ((width - text_width).max(0.0) / 2.0),
-            y + 20.0,
+            text_y,
             label,
             1.0,
             color,
@@ -802,6 +842,7 @@ impl Frame {
                 fallback_file: self.text_fallback_file.clone(),
                 size: self.text_size.unwrap_or(16).clamp(1, 128) as u16,
                 memo: None,
+                right_align: false,
             });
             return;
         }
@@ -831,6 +872,42 @@ impl Frame {
                 }
             }
             cursor_x += 6.0 * scale;
+        }
+    }
+
+    fn text_right(&mut self, right: f32, y: f32, value: &str, color: Color, max_chars: usize) {
+        let value: String = value.chars().take(max_chars).collect();
+        let style_scale = if self.text_scale == 0.0 {
+            1.0
+        } else {
+            self.text_scale
+        };
+        let color = self.text_color.unwrap_or(color);
+        if !style_scale.is_finite() || style_scale <= 0.0 {
+            return;
+        }
+        if self.text_file.is_some() {
+            self.text_runs.push(TextRun {
+                x: right,
+                y,
+                value,
+                scale: style_scale,
+                color,
+                file: self.text_file.clone(),
+                fallback_file: self.text_fallback_file.clone(),
+                size: self.text_size.unwrap_or(16).clamp(1, 128) as u16,
+                memo: None,
+                right_align: true,
+            });
+        } else {
+            self.text(
+                right - value.chars().count() as f32 * 6.0 * style_scale,
+                y,
+                &value,
+                1.0,
+                color,
+                max_chars,
+            );
         }
     }
 
@@ -1148,17 +1225,38 @@ pub fn browser_frame_with_language(
                 );
                 frame.hit_target(PointerTarget::Menu(index), bounds);
             }
+            let (ios_label, network_label) = controller.main_menu_status();
+            frame.set_text_style(theme_text_style(theme, "label", text_color));
+            frame.text(48.0, 32.0, network_label, 1.0, text_color, 64);
+            let status_right = (logical_width / 3 * 2 - 16 + logical_width / 3 - 32) as f32;
+            // C uses FreeType's face height. Droid Sans Bold at 16 px rounds
+            // to 19 px; keep that spacing proportional for a theme label size.
+            let status_line = libm::ceilf(frame.text_size.unwrap_or(16) as f32 * 1.1875);
+            frame.text_right(status_right, 32.0, "1.1.3", text_color, 20);
+            frame.text_right(status_right, 32.0 + status_line, ios_label, text_color, 24);
         }
         Screen::About => {
             frame.theme_art(rect(60, 44, 520, 360), ThemeArt::Dialog, false);
             frame.theme_art(rect(202, 60, 236, 104), ThemeArt::About, false);
             frame.set_text_style(theme_text_style(theme, "memo", text_color));
-            let mut credits = String::from(ABOUT_CREDITS);
-            if let Some(description) = theme
-                .and_then(|metadata| metadata.description.as_deref())
-                .filter(|description| !description.is_empty())
-            {
-                credits.push_str(&format!("\n{} {}", tr("Theme:"), description));
+            let mut credits = String::new();
+            if let Some((before_post, post)) = ABOUT_CREDITS.split_once("Powered by devkitPPC") {
+                credits.push_str(before_post);
+                let translation = tr("<YourLanguageHere> translation by <YourNickNameHere>");
+                if translation != "<YourLanguageHere> translation by <YourNickNameHere>" {
+                    credits.push_str("\n\n");
+                    credits.push_str(translation);
+                }
+                if let Some(description) = theme
+                    .and_then(|metadata| metadata.description.as_deref())
+                    .filter(|description| !description.is_empty())
+                {
+                    credits.push_str(&format!("\n\n{} {}", tr("Theme:"), description));
+                }
+                credits.push_str("\n\nPowered by devkitPPC");
+                credits.push_str(post);
+            } else {
+                credits.push_str(ABOUT_CREDITS);
             }
             frame.text_wrapped_scrolled(
                 92.0,
@@ -1170,7 +1268,6 @@ pub fn browser_frame_with_language(
                 ABOUT_MEMO_VISIBLE_LINES,
                 controller.about_scroll(),
             );
-            frame.text(144.0, 386.0, tr("Press B to return"), 1.0, text_color, 32);
         }
         Screen::Options
         | Screen::NetworkSettings
@@ -1192,7 +1289,15 @@ pub fn browser_frame_with_language(
             | Screen::NetworkScan
     ) {
         frame.fill(rect(0, 0, 640, 480), MODAL_SHADE);
-        frame.theme_art(rect(60, 44, 520, 360), ThemeArt::Dialog, false);
+        let dialog_bounds = if controller.screen == Screen::NetworkSettings {
+            rect(40, 24, 560, 432)
+        } else if controller.screen == Screen::NetworkKeyboard {
+            let extra = f32::from(logical_width - LOGICAL_WIDTH);
+            rect(24.0 - extra / 2.0, 28.0, 592.0 + extra, 388.0)
+        } else {
+            rect(60, 44, 520, 360)
+        };
+        frame.theme_art(dialog_bounds, ThemeArt::Dialog, false);
         if controller.screen == Screen::Options {
             frame.set_text_style(theme_text_style(theme, "dlgtitle", text_color));
             frame.text(299.0, 60.0, tr("Options"), 1.0, text_color, 24);
@@ -1231,7 +1336,7 @@ pub fn browser_frame_with_language(
             }
             let bounds = frame.button(
                 112.0,
-                164.0,
+                172.0,
                 ButtonSize::Small,
                 controller.options_focus() == 2 && controller.option_enabled(2),
                 tr("SDGecko Slot A"),
@@ -1242,7 +1347,7 @@ pub fn browser_frame_with_language(
             }
             let bounds = frame.button(
                 328.0,
-                164.0,
+                172.0,
                 ButtonSize::Small,
                 controller.options_focus() == 3 && controller.option_enabled(3),
                 tr("SDGecko Slot B"),
@@ -1254,7 +1359,7 @@ pub fn browser_frame_with_language(
             frame.set_text_style(theme_text_style(theme, "label", text_color));
             frame.text(
                 92.0,
-                210.0,
+                256.0,
                 tr("Sort applications by:"),
                 1.0,
                 text_color,
@@ -1262,7 +1367,7 @@ pub fn browser_frame_with_language(
             );
             let bounds = frame.button(
                 112.0,
-                232.0,
+                260.0,
                 ButtonSize::Small,
                 controller.options_focus() == 4,
                 tr("Name"),
@@ -1275,7 +1380,7 @@ pub fn browser_frame_with_language(
             frame.hit_target(PointerTarget::Option(4), bounds);
             let bounds = frame.button(
                 328.0,
-                232.0,
+                260.0,
                 ButtonSize::Small,
                 controller.options_focus() == 5,
                 tr("Date"),
@@ -1286,9 +1391,9 @@ pub fn browser_frame_with_language(
                 },
             );
             frame.hit_target(PointerTarget::Option(5), bounds);
-            let bounds = frame.button(
+            let bounds = frame.compact_button(
                 224.0,
-                286.0,
+                310.0,
                 ButtonSize::Small,
                 controller.options_focus() == 8,
                 tr("Network setup"),
@@ -1315,7 +1420,7 @@ pub fn browser_frame_with_language(
             frame.hit_target(PointerTarget::Option(7), bounds);
         } else if controller.screen == Screen::NetworkSettings {
             frame.set_text_style(theme_text_style(theme, "dlgtitle", text_color));
-            frame.text(235.0, 60.0, tr("Network setup"), 1.0, text_color, 32);
+            frame.text(235.0, 48.0, tr("Network setup"), 1.0, text_color, 32);
             let ssid = core::str::from_utf8(controller.network_ssid()).unwrap_or("(invalid text)");
             let key = "*".repeat(controller.network_key().len());
             for (index, (label, value)) in [
@@ -1337,7 +1442,7 @@ pub fn browser_frame_with_language(
             .into_iter()
             .enumerate()
             {
-                let y = 112.0 + index as f32 * 62.0;
+                let y = 102.0 + index as f32 * 72.0;
                 frame.set_text_style(theme_text_style(theme, "label", text_color));
                 frame.text(92.0, y + 14.0, label, 1.0, text_color, 24);
                 let shown = if value.is_empty() { "(empty)" } else { value };
@@ -1353,32 +1458,41 @@ pub fn browser_frame_with_language(
                 frame.hit_target(PointerTarget::NetworkOption(index), bounds);
             }
             let bounds = frame.button(
-                92.0,
-                330.0,
+                60.0,
+                340.0,
                 ButtonSize::Small,
                 controller.network_focus() == 3,
-                tr("Save and test"),
+                tr("Save"),
                 text_color,
             );
             frame.hit_target(PointerTarget::NetworkOption(3), bounds);
             let bounds = frame.button(
-                348.0,
-                330.0,
+                220.0,
+                340.0,
                 ButtonSize::Small,
                 controller.network_focus() == 4,
-                tr("Back"),
+                tr("Test connection"),
                 text_color,
             );
             frame.hit_target(PointerTarget::NetworkOption(4), bounds);
             let bounds = frame.button(
-                220.0,
-                374.0,
+                380.0,
+                340.0,
                 ButtonSize::Small,
                 controller.network_focus() == 5,
-                tr("Scan networks"),
+                tr("Back"),
                 text_color,
             );
             frame.hit_target(PointerTarget::NetworkOption(5), bounds);
+            let bounds = frame.button(
+                220.0,
+                396.0,
+                ButtonSize::Small,
+                controller.network_focus() == 6,
+                tr("Scan networks"),
+                text_color,
+            );
+            frame.hit_target(PointerTarget::NetworkOption(6), bounds);
         } else if controller.screen == Screen::NetworkScan {
             frame.set_text_style(theme_text_style(theme, "dlgtitle", text_color));
             frame.text(235.0, 60.0, tr("Choose a network"), 1.0, text_color, 32);
@@ -1404,6 +1518,16 @@ pub fn browser_frame_with_language(
             }
             frame.text(112.0, 374.0, tr("Confirm: select  B: back"), 0.9, MUTED, 44);
         } else if controller.screen == Screen::NetworkKeyboard {
+            let extra_width = f32::from(logical_width - LOGICAL_WIDTH);
+            let keyboard_left = 44.0 - extra_width / 2.0;
+            let keyboard_width = 552.0 + extra_width;
+            let key_pitch = keyboard_width / 10.0;
+            let command_count = if controller.keyboard_target_key() {
+                7.0
+            } else {
+                6.0
+            };
+            let command_pitch = keyboard_width / command_count;
             frame.set_text_style(theme_text_style(theme, "dlgtitle", text_color));
             let title = if controller.keyboard_target_key() {
                 tr("Enter network password")
@@ -1411,24 +1535,18 @@ pub fn browser_frame_with_language(
                 tr("Enter network name")
             };
             frame.text(198.0, 58.0, title, 1.0, text_color, 46);
-            let value = if controller.keyboard_target_key() {
-                "*".repeat(controller.network_key().len())
-            } else {
-                core::str::from_utf8(controller.network_ssid())
-                    .unwrap_or("(invalid text)")
-                    .into()
-            };
+            let value = network_keyboard_value(controller);
             frame.theme_art(
-                rect(92.0, 86.0, 456.0, 34.0),
+                rect(keyboard_left, 86.0, keyboard_width, 34.0),
                 ThemeArt::Button(ButtonSize::Small),
                 false,
             );
             frame.set_text_style(theme_text_style(theme, "label", text_color));
-            frame.text(104.0, 98.0, &value, 1.0, text_color, 72);
+            frame.text(keyboard_left + 12.0, 98.0, &value, 1.0, text_color, 72);
             for index in 0..40 {
-                let x = 88.0 + (index % 10) as f32 * 47.0;
+                let x = keyboard_left + (index % 10) as f32 * key_pitch;
                 let y = 132.0 + (index / 10) as f32 * 38.0;
-                let bounds = rect(x, y, 44.0, 34.0);
+                let bounds = rect(x, y, key_pitch - 4.0, 34.0);
                 frame.theme_art(
                     bounds,
                     ThemeArt::Button(ButtonSize::Tiny),
@@ -1437,7 +1555,7 @@ pub fn browser_frame_with_language(
                 let character = controller.keyboard_char(index).unwrap_or('?');
                 let label = [character as u8];
                 frame.text(
-                    x + 18.0,
+                    x + (key_pitch - 4.0) / 2.0 - 4.0,
                     y + 12.0,
                     core::str::from_utf8(&label).unwrap_or("?"),
                     1.0,
@@ -1446,21 +1564,26 @@ pub fn browser_frame_with_language(
                 );
                 frame.hit_target(PointerTarget::KeyboardKey(index), bounds);
             }
-            for index in 40..46 {
-                let x = 88.0 + (index - 40) as f32 * 77.0;
+            let command_end = if controller.keyboard_target_key() {
+                47
+            } else {
+                46
+            };
+            for index in 40..command_end {
+                let x = keyboard_left + (index - 40) as f32 * command_pitch;
                 let y = 294.0;
-                let bounds = rect(x, y, 72.0, 34.0);
+                let bounds = rect(x, y, command_pitch - 6.0, 34.0);
                 frame.theme_art(
                     bounds,
                     ThemeArt::Button(ButtonSize::Tiny),
                     controller.keyboard_focus() == index,
                 );
                 let label = controller.keyboard_command_label(index);
-                frame.text(x + 3.0, y + 12.0, label, 0.8, text_color, 12);
+                frame.text(x + 8.0, y + 12.0, label, 0.9, text_color, 12);
                 frame.hit_target(PointerTarget::KeyboardKey(index), bounds);
             }
             frame.text(
-                96.0,
+                keyboard_left + 8.0,
                 352.0,
                 tr("Select a key, then choose Done."),
                 0.85,
@@ -1468,7 +1591,7 @@ pub fn browser_frame_with_language(
                 64,
             );
             frame.text(
-                96.0,
+                keyboard_left + 8.0,
                 374.0,
                 tr("B returns without closing the editor."),
                 0.85,
@@ -1633,7 +1756,12 @@ pub fn browser_frame_with_language(
                 frame.hit_target(PointerTarget::WiiloadChoice { yes: *yes }, bounds);
             }
         } else {
-            frame.theme_art(rect(60, 44, 520, 360), ThemeArt::Dialog, false);
+            let dialog_bounds = if controller.screen == Screen::NetworkSettings {
+                rect(40, 24, 560, 432)
+            } else {
+                rect(60, 44, 520, 360)
+            };
+            frame.theme_art(dialog_bounds, ThemeArt::Dialog, false);
             frame.set_text_style(theme_text_style(theme, "dlgtitle", text_color));
             let receiving = controller.screen == Screen::WiiloadReceiving;
             frame.text(
@@ -1686,7 +1814,15 @@ pub fn browser_frame_with_language(
     }
     if controller.screen == Screen::Notice {
         frame.fill(rect(0, 0, 640, 480), MODAL_SHADE);
-        frame.theme_art(rect(60, 44, 520, 360), ThemeArt::Dialog, false);
+        let dialog_bounds = if controller.screen == Screen::NetworkSettings {
+            rect(40, 24, 560, 432)
+        } else if controller.screen == Screen::NetworkKeyboard {
+            let extra = f32::from(logical_width - LOGICAL_WIDTH);
+            rect(24.0 - extra / 2.0, 28.0, 592.0 + extra, 388.0)
+        } else {
+            rect(60, 44, 520, 360)
+        };
+        frame.theme_art(dialog_bounds, ThemeArt::Dialog, false);
         frame.set_text_style(theme_text_style(theme, "dlgtitle", text_color));
         let (title, icon) = notice_presentation(controller.notice_kind());
         let title = tr(title);
@@ -1735,6 +1871,22 @@ pub fn browser_frame_with_language(
         frame.widen_canvas();
     }
     frame
+}
+
+fn network_keyboard_value(controller: &AppController) -> String {
+    if controller.keyboard_target_key() {
+        if controller.network_key_visible() {
+            core::str::from_utf8(controller.network_key())
+                .unwrap_or("(invalid text)")
+                .into()
+        } else {
+            "*".repeat(controller.network_key().len())
+        }
+    } else {
+        core::str::from_utf8(controller.network_ssid())
+            .unwrap_or("(invalid text)")
+            .into()
+    }
 }
 
 fn notice_presentation(kind: NoticeKind) -> (&'static str, DialogIcon) {
@@ -2606,6 +2758,103 @@ mod tests {
     }
 
     #[test]
+    fn wide_keyboard_uses_available_width_and_keeps_every_key_selectable() {
+        let mut controller = AppController::new();
+        controller.screen = Screen::NetworkKeyboard;
+        for width in [LOGICAL_WIDTH, WIDE_LOGICAL_WIDTH] {
+            let frame = browser_frame_with_viewport(&controller, &[], None, width);
+            let keys: Vec<_> = frame
+                .hit_targets
+                .iter()
+                .filter(|hit| matches!(hit.target, PointerTarget::KeyboardKey(_)))
+                .collect();
+            assert_eq!(keys.len(), 46);
+            let first = keys[0].bounds;
+            let last = keys[9].bounds;
+            assert!(first.width > if width == LOGICAL_WIDTH { 50.0 } else { 70.0 });
+            assert!((first.x - 44.0).abs() < 0.01);
+            assert!((f32::from(width) - (last.x + last.width) - 48.0).abs() < 0.01);
+            for key in keys {
+                let bounds = key.bounds;
+                assert!(bounds.x >= 24.0 && bounds.x + bounds.width <= f32::from(width) - 24.0);
+                assert_eq!(
+                    frame.hit_test(
+                        bounds.x + bounds.width / 2.0,
+                        bounds.y + bounds.height / 2.0
+                    ),
+                    Some(key.target)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn password_keyboard_renders_masked_and_visible_password_values() {
+        let mut config = crate::network_config::NetworkConfig::from_bytes(
+            [0; crate::network_config::CONFIG_LEN],
+        );
+        {
+            let mut profile = config.profile_mut(0).unwrap();
+            let mut wifi = profile.wifi_mut();
+            assert!(wifi.set_ssid(b"HomeNet"));
+            assert!(wifi.set_key(b"secret"));
+        }
+        let mut controller = AppController::new();
+        controller.set_network_config(config);
+        controller.screen = Screen::NetworkSettings;
+        controller.handle_pointer(Some(PointerTarget::NetworkOption(2)), true, &[]);
+        assert_eq!(network_keyboard_value(&controller), "******");
+        let masked = browser_frame(&controller, &[]);
+        assert!(masked.text_runs.iter().any(|run| run.value == "******"));
+        assert!(!masked.text_runs.iter().any(|run| run.value == "secret"));
+
+        controller.handle_pointer(Some(PointerTarget::KeyboardKey(46)), true, &[]);
+        assert_eq!(network_keyboard_value(&controller), "secret");
+        let visible = browser_frame(&controller, &[]);
+        assert!(visible.text_runs.iter().any(|run| run.value == "secret"));
+        assert!(!visible.text_runs.iter().any(|run| run.value == "******"));
+    }
+
+    #[test]
+    fn network_settings_rows_and_actions_have_clear_vertical_spacing() {
+        let mut controller = AppController::new();
+        controller.screen = Screen::NetworkSettings;
+        let frame = browser_frame(&controller, &[]);
+        let row_edits: Vec<_> = frame
+            .hit_targets
+            .iter()
+            .filter(|target| matches!(target.target, PointerTarget::NetworkOption(0..=2)))
+            .map(|target| target.bounds.y)
+            .collect();
+        let save_y = frame
+            .hit_targets
+            .iter()
+            .find(|target| target.target == PointerTarget::NetworkOption(3))
+            .unwrap()
+            .bounds
+            .y;
+        let test_y = frame
+            .hit_targets
+            .iter()
+            .find(|target| target.target == PointerTarget::NetworkOption(4))
+            .unwrap()
+            .bounds
+            .y;
+        let scan_y = frame
+            .hit_targets
+            .iter()
+            .find(|target| target.target == PointerTarget::NetworkOption(6))
+            .unwrap()
+            .bounds
+            .y;
+        assert_eq!(row_edits, [102.0, 174.0, 246.0]);
+        assert!(save_y - row_edits[2] >= 60.0);
+        assert_eq!(test_y, save_y);
+        assert!(scan_y - save_y >= 48.0);
+        assert!(scan_y + 24.0 <= 456.0);
+    }
+
+    #[test]
     fn options_dialog_does_not_show_a_message_icon() {
         let mut controller = AppController::new();
         controller.screen = Screen::Options;
@@ -2728,8 +2977,12 @@ mod tests {
         for expected in [
             rect(112, 108, 200, 48),
             rect(328, 108, 200, 48),
-            rect(112, 164, 200, 48),
-            rect(328, 164, 200, 48),
+            rect(112, 172, 200, 48),
+            rect(328, 172, 200, 48),
+            rect(112, 260, 200, 48),
+            rect(328, 260, 200, 48),
+            rect(92, 340, 200, 48),
+            rect(348, 340, 200, 48),
         ] {
             assert!(frame.commands.iter().any(|command| matches!(
                 command,
@@ -2737,6 +2990,11 @@ mod tests {
                     if *bounds == expected
             )));
         }
+        assert!(frame.commands.iter().any(|command| matches!(
+            command,
+            FrameCommand::ThemeArt { art: ThemeArt::Button(ButtonSize::Small), bounds, .. }
+                if *bounds == rect(224, 310, 200, 28)
+        )));
         assert_eq!(frame.hit_test(120.0, 120.0), None);
         assert_eq!(frame.hit_test(120.0, 80.0), None);
     }
