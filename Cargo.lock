@@ -95,6 +95,7 @@ dependencies = [
  "ogc-lwp",
  "ogc-network",
  "ogc-system",
+ "ogc-ui",
  "ogc-usbgecko",
  "ogc-usbstorage-sys",
  "ogc-video",
@@ -476,6 +477,10 @@ dependencies = [
  "ogc-wiilaunch",
  "wpad-sys",
 ]
+
+[[package]]
+name = "ogc-ui"
+version = "0.1.0"
 
 [[package]]
 name = "ogc-usb-events"
