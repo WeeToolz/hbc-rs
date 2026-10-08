@@ -739,9 +739,10 @@ impl WiiStartup {
         let mut runtime = AppRuntime::new(Vec::new());
         runtime.set_settings_persistence_enabled(settings_load_error.is_none());
         if let Some(error) = settings_load_error {
-            ogc_system::report(format_args!(
-                "HBC: could not load saved settings ({error:?}); using defaults and keeping settings writes disabled\n"
-            ));
+            runtime.show_notice_with_kind(
+                &format!("Could not load saved settings ({error:?}). HBC will not overwrite them."),
+                crate::app::NoticeKind::Warning,
+            );
         }
         if input_error.is_some() {
             runtime.show_notice_with_kind(

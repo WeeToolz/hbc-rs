@@ -70,6 +70,6 @@ Compared C `controls.c`, `controls.h`, `main.c`, `dialogs.c`, `m_main.c`, and `v
 
 C `theme_init(NULL, 0)` attempts to read `theme.zip` from the channel data directory. When it cannot load an installed archive, it selects the built-in default theme without opening a warning dialog. Rust now follows that visible behavior for theme read and parse failures. It keeps the real failure in the system log and uses its validated built-in theme assets. A malformed installed archive still falls back as a whole, which is safer than C's partial theme mutation. The `-101` ISFS detail from the recent Dolphin warning remains available in the log for diagnosis.
 
-C also continues with default settings when its settings load fails. Rust now logs that failure and starts with defaults without a modal warning. It keeps settings persistence disabled after a failed read, so it cannot overwrite settings that it did not read successfully; this is a deliberate safety difference.
+C also continues with default settings when its settings load fails. Rust keeps settings persistence disabled after a failed read, so it cannot overwrite settings that it did not read successfully; this is a deliberate safety difference. Rust still shows the settings failure as a five-second warning.
 
-The initial theme and settings warnings are no longer runtime UI states, so the five-second warning timeout does not apply to them. Source comparison is complete; verify the updated default-theme startup screen and settings persistence on Wii hardware.
+The theme fallback is no longer a runtime warning, while real settings read failures remain visible for five seconds. Source comparison is complete; verify the updated default-theme startup screen and settings persistence on Wii hardware.
