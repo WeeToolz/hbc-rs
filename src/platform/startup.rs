@@ -707,11 +707,30 @@ impl WiiStartup {
         // return IPC_EQUEUEFULL (-8).
         #[cfg(feature = "startup-diagnostics")]
         super::diagnostics::mark("NAND SETTINGS LOAD");
-        let (loaded_settings, settings_load_error) = match settings::load() {
-            Ok(settings) => (settings, None),
-            Err(settings::SettingsIoError::Missing) => (UserSettings::default(), None),
-            Err(error) => (UserSettings::default(), Some(error)),
-        };
+        let default_settings = UserSettings::default();
+        let (loaded_settings, settings_error, settings_persistence_enabled) =
+            match crate::settings::load_or_create(
+                default_settings.clone(),
+                settings::load,
+                |error| matches!(error, settings::SettingsIoError::Missing),
+                settings::save,
+            ) {
+                Ok(settings) => (settings, None, true),
+                Err(crate::settings::SettingsInitializationError::Load(error)) => (
+                    default_settings,
+                    Some(alloc::format!(
+                        "Could not load saved settings ({error:?}). HBC will not overwrite them."
+                    )),
+                    false,
+                ),
+                Err(crate::settings::SettingsInitializationError::Save(error)) => (
+                    default_settings,
+                    Some(alloc::format!(
+                        "Could not create initial saved settings ({error:?}). HBC will not overwrite them."
+                    )),
+                    false,
+                ),
+            };
         let widescreen = view_width > crate::render::LOGICAL_WIDTH;
         #[cfg(feature = "startup-diagnostics")]
         super::diagnostics::mark("NAND THEME LOAD");
@@ -728,12 +747,9 @@ impl WiiStartup {
 
         let preference = loaded_settings.device;
         let mut runtime = AppRuntime::new(Vec::new());
-        runtime.set_settings_persistence_enabled(settings_load_error.is_none());
-        if let Some(error) = settings_load_error {
-            runtime.show_notice_with_kind(
-                &format!("Could not load saved settings ({error:?}). HBC will not overwrite them."),
-                crate::app::NoticeKind::Warning,
-            );
+        runtime.set_settings_persistence_enabled(settings_persistence_enabled);
+        if let Some(message) = settings_error {
+            runtime.show_notice_with_kind(&message, crate::app::NoticeKind::Warning);
         }
         if input_error.is_some() {
             runtime.show_notice_with_kind(

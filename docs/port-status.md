@@ -184,8 +184,11 @@ separate targets.
   the old file moves. Recovery validates the primary before removing its backup;
   it restores a valid backup when the primary fails validation and keeps both
   files if neither validates. A settings load error blocks later saves so HBC
-  does not overwrite unreadable settings with defaults. Theme replacement needs
-  enough free NAND space for both the old and new archive during the write.
+  does not overwrite unreadable settings with defaults. If `settings.xml` alone
+  is missing after ES resolves the title data directory, HBC writes C-compatible
+  defaults through the normal staged NAND save path for the next startup. Theme
+  replacement needs enough free NAND space for both the old and new archive
+  during the write.
 - Rust-only extension: Options includes a themed WiFi profile editor with a full
   on-screen keyboard. This is not part of the C HBC parity claim.
   It edits the active wireless profile in `/shared2/sys/net/02/config.dat`,

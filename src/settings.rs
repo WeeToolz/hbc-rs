@@ -8,6 +8,30 @@ pub const SETTINGS_PATH: &str = "settings.xml";
 pub const MAX_SETTINGS_XML_SIZE: usize = 16 * 1024;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SettingsInitializationError<E> {
+    Load(E),
+    Save(E),
+}
+
+/// Load persisted settings. Save the HBC defaults only when the caller confirms
+/// that the settings file itself is missing.
+pub fn load_or_create<E>(
+    defaults: UserSettings,
+    load: impl FnOnce() -> Result<UserSettings, E>,
+    is_missing: impl FnOnce(&E) -> bool,
+    save: impl FnOnce(&UserSettings) -> Result<(), E>,
+) -> Result<UserSettings, SettingsInitializationError<E>> {
+    match load() {
+        Ok(settings) => Ok(settings),
+        Err(error) if is_missing(&error) => {
+            save(&defaults).map_err(SettingsInitializationError::Save)?;
+            Ok(defaults)
+        }
+        Err(error) => Err(SettingsInitializationError::Load(error)),
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SettingsCodecError {
     InvalidXml(String),
     TooLarge,
@@ -69,10 +93,7 @@ pub struct SettingsState {
 
 impl Default for SettingsState {
     fn default() -> Self {
-        let defaults = UserSettings {
-            device: -1,
-            ..UserSettings::default()
-        };
+        let defaults = UserSettings::default();
         Self {
             current: defaults.clone(),
             persisted: defaults,
@@ -122,6 +143,74 @@ pub use crate::platform::settings::{
 #[cfg(test)]
 mod tests {
     use super::*;
+    use core::cell::RefCell;
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    enum StoreError {
+        Missing,
+        Read,
+        Write,
+    }
+
+    #[test]
+    fn missing_settings_are_created_and_reload_from_the_encoded_bytes() {
+        let bytes = RefCell::new(None::<alloc::vec::Vec<u8>>);
+        let defaults = UserSettings::default();
+        let initialized = load_or_create(
+            defaults.clone(),
+            || match bytes.borrow().as_deref() {
+                Some(saved) => decode_settings_xml(saved).map_err(|_| StoreError::Read),
+                None => Err(StoreError::Missing),
+            },
+            |error| *error == StoreError::Missing,
+            |settings| {
+                *bytes.borrow_mut() = Some(
+                    encode_settings_xml(settings)
+                        .map_err(|_| StoreError::Write)?
+                        .into_bytes(),
+                );
+                Ok(())
+            },
+        );
+
+        assert_eq!(initialized, Ok(defaults.clone()));
+        let saved = bytes.borrow().clone().unwrap();
+        assert_eq!(
+            saved,
+            b"<?xml version=\"1.0\" encoding=\"UTF-8\"?><hbc><device>-1</device><sort_order>0</sort_order><browse_mode>0</browse_mode></hbc>"
+        );
+        assert_eq!(decode_settings_xml(&saved), Ok(defaults));
+    }
+
+    #[test]
+    fn load_errors_do_not_write_defaults_and_initial_save_errors_fail() {
+        let mut save_called = false;
+        let load_error = load_or_create(
+            UserSettings::default(),
+            || Err::<UserSettings, _>(StoreError::Read),
+            |error| *error == StoreError::Missing,
+            |_| {
+                save_called = true;
+                Ok(())
+            },
+        );
+        assert_eq!(
+            load_error,
+            Err(SettingsInitializationError::Load(StoreError::Read))
+        );
+        assert!(!save_called);
+
+        let save_error = load_or_create(
+            UserSettings::default(),
+            || Err::<UserSettings, _>(StoreError::Missing),
+            |error| *error == StoreError::Missing,
+            |_| Err(StoreError::Write),
+        );
+        assert_eq!(
+            save_error,
+            Err(SettingsInitializationError::Save(StoreError::Write))
+        );
+    }
 
     #[test]
     fn settings_xml_round_trips_and_escapes_selected_app() {
@@ -149,6 +238,9 @@ mod tests {
 
     #[test]
     fn settings_defaults_match_hbc_and_dirty_state_is_coalesced() {
+        assert_eq!(UserSettings::default().device, -1);
+        assert_eq!(UserSettings::default().sort_order, 0);
+        assert_eq!(UserSettings::default().browse_mode, 0);
         let mut state = SettingsState::default();
         assert_eq!(state.current().device, -1);
         assert!(!state.is_dirty());

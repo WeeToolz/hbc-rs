@@ -37,12 +37,23 @@ pub struct UpdateMetadata {
     pub hash: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UserSettings {
     pub device: i32,
     pub sort_order: i32,
     pub browse_mode: i32,
     pub selected_app: Option<String>,
+}
+
+impl Default for UserSettings {
+    fn default() -> Self {
+        Self {
+            device: -1,
+            sort_order: 0,
+            browse_mode: 0,
+            selected_app: None,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
