@@ -18,6 +18,7 @@ struct AlignedFstats(isfs::Fstats);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum NetworkConfigError {
+    Missing,
     Isfs(i32),
     ReadAndClose { read: i32, close: i32 },
     InvalidPath,
@@ -74,7 +75,10 @@ pub fn load() -> Result<NetworkConfig, NetworkConfigError> {
     nand::recover_wii(&path, CONFIG_LEN, valid_config_bytes)
         .map_err(NetworkConfigError::Recovery)?;
 
-    let file = isfs::open(&path, isfs::ISFS_OPEN_READ).map_err(NetworkConfigError::Isfs)?;
+    let file = match isfs::open(&path, isfs::ISFS_OPEN_READ) {
+        Ok(file) => file,
+        Err(error) => return Err(open_error(error)),
+    };
     let mut stats = AlignedFstats(isfs::Fstats::default());
     let stat_result = isfs::get_file_stats(&file, &mut stats.0);
     if stat_result < 0 {
@@ -113,6 +117,14 @@ pub fn load() -> Result<NetworkConfig, NetworkConfigError> {
         .validate_format()
         .map_err(NetworkConfigError::InvalidFormat)?;
     Ok(config)
+}
+
+fn open_error(error: i32) -> NetworkConfigError {
+    if nand::is_missing_isfs_error(error, isfs::ISFS_ENOENT) {
+        NetworkConfigError::Missing
+    } else {
+        NetworkConfigError::Isfs(error)
+    }
 }
 
 /// Replace the system network config after validating the WiFi fields.
@@ -215,6 +227,12 @@ fn close_after_error<T>(file: isfs::IsfsFile, error: i32) -> Result<T, NetworkCo
 #[cfg(test)]
 mod save_message_tests {
     use super::*;
+
+    #[test]
+    fn missing_system_profile_is_distinguished_from_read_failure() {
+        assert_eq!(open_error(isfs::ISFS_ENOENT), NetworkConfigError::Missing);
+        assert_eq!(open_error(isfs::ISFS_EACCES), NetworkConfigError::Isfs(isfs::ISFS_EACCES));
+    }
 
     #[test]
     fn isfs_101_is_reported_as_a_file_operation_error() {

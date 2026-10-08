@@ -712,6 +712,14 @@ impl WiiStartup {
             Err(settings::SettingsIoError::Missing) => (UserSettings::default(), None),
             Err(error) => (UserSettings::default(), Some(error)),
         };
+        #[cfg(feature = "startup-diagnostics")]
+        super::diagnostics::mark("NAND NETWORK CONFIG LOAD");
+        let (loaded_network_config, network_config_load_error) =
+            match super::network_config::load() {
+                Ok(config) => (Some(config), None),
+                Err(super::network_config::NetworkConfigError::Missing) => (None, None),
+                Err(error) => (None, Some(error)),
+            };
         let widescreen = view_width > crate::render::LOGICAL_WIDTH;
         #[cfg(feature = "startup-diagnostics")]
         super::diagnostics::mark("NAND THEME LOAD");
@@ -728,6 +736,15 @@ impl WiiStartup {
 
         let preference = loaded_settings.device;
         let mut runtime = AppRuntime::new(Vec::new());
+        if let Some(config) = loaded_network_config {
+            runtime.set_network_config(config);
+        }
+        if let Some(error) = network_config_load_error {
+            runtime.show_notice_with_kind(
+                &format!("Could not load saved Wii network credentials ({error:?})."),
+                crate::app::NoticeKind::Warning,
+            );
+        }
         runtime.set_settings_persistence_enabled(settings_load_error.is_none());
         if let Some(error) = settings_load_error {
             runtime.show_notice_with_kind(
