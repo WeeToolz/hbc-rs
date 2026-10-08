@@ -38,7 +38,7 @@ def memory(address, count):
     return bytes.fromhex(value)
 
 symbols = subprocess.check_output(
-    ['/opt/homebrew/opt/llvm/bin/llvm-nm', '-nC', str(root/'target/powerpc-unknown-wii/release/hbc-rs')],
+    ['/opt/homebrew/opt/llvm/bin/llvm-nm', '-nC', str(root/'target/powerpc-nintendo-none/release/hbc-rs')],
     text=True,
 )
 addresses = {}
