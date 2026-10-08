@@ -440,9 +440,9 @@ impl AppController {
         }
     }
 
-    /// Close an error notice after five seconds without input.
-    pub fn tick_error_notice(&mut self) {
-        if self.screen != Screen::Notice || self.notice_kind != NoticeKind::Error {
+    /// Close warning and error notices after five seconds without input.
+    pub fn tick_timed_notice(&mut self) {
+        if !self.timed_notice_active() {
             return;
         }
         self.notice_idle_ticks = self.notice_idle_ticks.saturating_add(1);
@@ -452,7 +452,7 @@ impl AppController {
         }
     }
 
-    pub fn mark_error_notice_input_consumed(&mut self) {
+    pub fn mark_timed_notice_input_consumed(&mut self) {
         self.ignore_pointer_once = true;
     }
 
@@ -496,8 +496,9 @@ impl AppController {
         self.notice_kind
     }
 
-    pub fn error_notice_active(&self) -> bool {
-        self.screen == Screen::Notice && self.notice_kind == NoticeKind::Error
+    pub fn timed_notice_active(&self) -> bool {
+        self.screen == Screen::Notice
+            && matches!(self.notice_kind, NoticeKind::Warning | NoticeKind::Error)
     }
 
     pub fn notice_scroll(&self) -> usize {
@@ -975,7 +976,7 @@ impl AppController {
                 }
                 _ => Action::None,
             },
-            Screen::Notice if self.notice_kind == NoticeKind::Error => {
+            Screen::Notice if self.timed_notice_active() => {
                 self.dismiss_notice();
                 Action::None
             }
@@ -1024,7 +1025,7 @@ impl AppController {
         }
         self.pointer_target = target;
         self.update_detail_drag(target, pointer_y, pressed, held);
-        if self.screen == Screen::Notice && self.notice_kind == NoticeKind::Error && pressed {
+        if self.timed_notice_active() && pressed {
             self.dismiss_notice();
             return Action::None;
         }
@@ -2450,19 +2451,21 @@ mod tests {
     }
 
     #[test]
-    fn error_notice_closes_on_any_button_or_after_five_seconds_idle() {
+    fn warning_and_error_notices_close_on_any_button_or_after_five_seconds_idle() {
         let mut controller = AppController::new();
-        controller.show_notice_with_kind("Storage error".into(), NoticeKind::Error);
-        for _ in 0..299 {
-            controller.tick_error_notice();
-        }
-        assert_eq!(controller.screen, Screen::Notice);
-        controller.tick_error_notice();
-        assert_eq!(controller.screen, Screen::Browser);
+        for kind in [NoticeKind::Warning, NoticeKind::Error] {
+            controller.show_notice_with_kind("Notice".into(), kind);
+            for _ in 0..299 {
+                controller.tick_timed_notice();
+            }
+            assert_eq!(controller.screen, Screen::Notice);
+            controller.tick_timed_notice();
+            assert_eq!(controller.screen, Screen::Browser);
 
-        controller.show_notice_with_kind("USB error".into(), NoticeKind::Error);
-        controller.handle(Input::Up, &[]);
-        assert_eq!(controller.screen, Screen::Browser);
+            controller.show_notice_with_kind("Notice".into(), kind);
+            controller.handle(Input::Up, &[]);
+            assert_eq!(controller.screen, Screen::Browser);
+        }
     }
 
     #[test]

@@ -209,7 +209,7 @@ impl AppRuntime {
     /// applied twice when the platform reports it as both pressed and held.
     pub fn update(&mut self, frame: &InputFrame) -> Vec<Action> {
         self.controller.reconcile_catalog(&self.catalog);
-        if self.controller.error_notice_active() {
+        if self.controller.timed_notice_active() {
             let input = frame
                 .pressed
                 .first()
@@ -218,10 +218,10 @@ impl AppRuntime {
             if let Some(input) = input {
                 let mut actions = Vec::new();
                 push_action(&mut actions, self.controller.handle(input, &self.catalog));
-                self.controller.mark_error_notice_input_consumed();
+                self.controller.mark_timed_notice_input_consumed();
                 return actions;
             }
-            self.controller.tick_error_notice();
+            self.controller.tick_timed_notice();
             return Vec::new();
         }
         self.controller.tick_about_scroll();
@@ -346,6 +346,18 @@ mod tests {
             pressed: vec![Input::Confirm, Input::Down],
             ..InputFrame::default()
         });
+        assert_eq!(runtime.controller().screen, crate::app::Screen::Browser);
+    }
+
+    #[test]
+    fn warning_notice_closes_after_five_seconds_without_input() {
+        let mut runtime = AppRuntime::new(vec![app("one")]);
+        runtime.show_notice_with_kind("Theme warning", crate::app::NoticeKind::Warning);
+        for _ in 0..299 {
+            runtime.update(&InputFrame::default());
+        }
+        assert_eq!(runtime.controller().screen, crate::app::Screen::Notice);
+        runtime.update(&InputFrame::default());
         assert_eq!(runtime.controller().screen, crate::app::Screen::Browser);
     }
 
