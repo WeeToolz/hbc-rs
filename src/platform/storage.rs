@@ -294,6 +294,26 @@ impl FatStorage {
         }
     }
 
+    /// Read an executable directly into its reserved launch buffer.
+    pub fn read_file_into(
+        &mut self,
+        path: &str,
+        bytes: &mut [u8],
+    ) -> Result<Option<usize>, StorageError> {
+        let path = self.full_path(path)?;
+        let mut file = match ogc_fat::FatFile::open(&path) {
+            Ok(file) => file,
+            Err(ogc_fat::FatError::NotFound) => return Ok(None),
+            Err(error) => return Err(StorageError::Fat(error)),
+        };
+        let len = file.len() as usize;
+        if len > bytes.len() {
+            return Ok(None);
+        }
+        read_exact_file(&mut file, &mut bytes[..len]).map_err(StorageError::Fat)?;
+        Ok(Some(len))
+    }
+
     /// Save a screenshot to the active volume without replacing an existing capture.
     pub fn save_screenshot_png(&self, bytes: &[u8]) -> Result<String, StorageError> {
         match crate::screenshot::save_png_with(
@@ -604,14 +624,20 @@ impl CatalogStorage for FatStorage {
             .try_reserve_exact(len)
             .map_err(|_| StorageError::Allocation)?;
         bytes.resize(len, 0);
-        let mut offset = 0;
-        while offset < len {
-            let read = file.read(&mut bytes[offset..]).map_err(StorageError::Fat)?;
-            if read == 0 {
-                return Err(StorageError::Fat(ogc_fat::FatError::Io));
-            }
-            offset += read;
-        }
+        read_exact_file(&mut file, &mut bytes).map_err(StorageError::Fat)?;
         Ok(Some(bytes))
     }
+}
+
+#[cfg(target_arch = "powerpc")]
+fn read_exact_file(file: &mut ogc_fat::FatFile, bytes: &mut [u8]) -> Result<(), ogc_fat::FatError> {
+    let mut offset = 0;
+    while offset < bytes.len() {
+        let read = file.read(&mut bytes[offset..])?;
+        if read == 0 {
+            return Err(ogc_fat::FatError::Io);
+        }
+        offset += read;
+    }
+    Ok(())
 }

@@ -387,7 +387,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                             Ok(plan) => {
                                 if let Err(notice) = transfer_executable(
                                     &mut startup,
-                                    payload.data,
+                                    hbc_rs::loader::LaunchSource::from_vec(payload.data),
                                     plan,
                                     payload.args,
                                     false,
@@ -1235,7 +1235,7 @@ fn stop_wpad_services() -> Result<(), WpadShutdownError> {
 #[cfg(target_arch = "powerpc")]
 fn transfer_executable(
     startup: &mut hbc_rs::platform::startup::WiiStartup,
-    bytes: Vec<u8>,
+    bytes: hbc_rs::loader::LaunchSource,
     plan: hbc_rs::loader::LoadPlan,
     arguments: Vec<u8>,
     ahb_access: bool,

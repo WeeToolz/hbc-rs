@@ -43,7 +43,7 @@ const _: () = assert!(core::mem::offset_of!(LaunchContext, argv_len) == 24);
 /// control leaves HBC. The final routine does not use this Rust object's stack.
 pub struct LaunchImage {
     trampoline: Vec<u32>,
-    bytes: Vec<u8>,
+    bytes: super::LaunchSource,
     arguments: Vec<u8>,
     operations: Vec<LaunchOperation>,
     context: Vec<LaunchContext>,
@@ -224,9 +224,10 @@ unsafe extern "C" {
 /// The returned object owns every source and descriptor used by the final
 /// transfer. Its allocations must stay alive until the Arena2 trampoline
 /// branches to the application. The input buffers must come from the active
-/// MEM2 allocator; this is checked before any service is stopped.
+/// MEM2. Arena2Hi-backed storage and the managed Rust heap are both valid
+/// sources; the source range is checked before any service is stopped.
 pub fn stage_launch(
-    bytes: Vec<u8>,
+    bytes: super::LaunchSource,
     plan: &LoadPlan,
     arguments: Vec<u8>,
     allowed_memory: Range<u32>,
@@ -247,8 +248,9 @@ pub fn stage_launch(
             "launch range is outside HBC's reserved executable area",
         ));
     }
-    super::validate_load_plan(&bytes, plan, &allowed_memory)?;
-    if !mem2_range(bytes.as_ptr() as usize, bytes.len())
+    let bytes_slice = bytes.as_slice();
+    super::validate_load_plan(bytes_slice, plan, &allowed_memory)?;
+    if !mem2_range(bytes_slice.as_ptr() as usize, bytes_slice.len())
         || !mem2_range(arguments.as_ptr() as usize, arguments.len())
     {
         return Err(ParseError::InvalidFormat(
@@ -276,11 +278,11 @@ pub fn stage_launch(
         .then(|| segment.file_range.start + (crt0_offset - segment.address) as usize)
     });
     let patch_crt0 = crt0_source
-        .and_then(|offset| bytes.get(offset))
+        .and_then(|offset| bytes_slice.get(offset))
         .is_some_and(|byte| *byte == 0x41);
 
     let argv_record_is_loaded = entry_record_source.is_some_and(|offset| {
-        bytes
+        bytes_slice
             .get(offset + 4..offset + 8)
             .is_some_and(|magic| magic == ARGV_MAGIC.to_be_bytes())
     });
@@ -305,7 +307,7 @@ pub fn stage_launch(
         .try_reserve_exact(operation_capacity)
         .map_err(|_| ParseError::OutOfBounds)?;
     for segment in &plan.segments {
-        let source = bytes.as_ptr().wrapping_add(segment.file_range.start) as usize;
+        let source = bytes_slice.as_ptr().wrapping_add(segment.file_range.start) as usize;
         let source = u32::try_from(source).map_err(|_| ParseError::OutOfBounds)?;
         operations.push(LaunchOperation {
             source,
@@ -416,8 +418,8 @@ pub unsafe fn transfer_control(image: LaunchImage, policy: super::IosLaunchPolic
         ptr::write_volatile(0x8000_00f8usize as *mut u32, 0x0e7b_e2c0);
         ptr::write_volatile(0x8000_00fcusize as *mut u32, 0x2b73_a840);
         ogc_cache::dc_flush_range(
-            image.bytes.as_ptr().cast::<c_void>(),
-            image.bytes.len() as u32,
+            image.bytes.as_slice().as_ptr().cast::<c_void>(),
+            image.bytes.as_slice().len() as u32,
         );
         if !image.arguments.is_empty() {
             ogc_cache::dc_flush_range(

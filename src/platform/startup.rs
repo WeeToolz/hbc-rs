@@ -1219,14 +1219,14 @@ impl WiiStartup {
         };
         let relative_path = alloc::format!("apps/{}/{}", entry.directory, filename);
         let storage = self.storage.as_mut().ok_or(StartupError::NoStorage)?;
-        let bytes = storage
-            .read_file(
-                &relative_path,
-                usize::try_from(entry.size).map_err(|_| StartupError::TooLarge)?,
-            )
+        let executable_size = usize::try_from(entry.size).map_err(|_| StartupError::TooLarge)?;
+        let mut bytes = crate::loader::LaunchSource::try_allocate(executable_size)
+            .ok_or(StartupError::Storage(StorageError::Allocation))?;
+        let read_size = storage
+            .read_file_into(&relative_path, bytes.as_mut_slice())
             .map_err(StartupError::Storage)?
             .ok_or(StartupError::MissingExecutable)?;
-        if bytes.len() as u64 != entry.size {
+        if read_size != executable_size || read_size as u64 != entry.size {
             return Err(StartupError::MissingExecutable);
         }
         let prefix = storage.prefix();
@@ -1239,8 +1239,8 @@ impl WiiStartup {
         let launch_arguments =
             build_launch_arguments(&executable_path, arguments).map_err(StartupError::Loader)?;
         let plan = match entry.kind {
-            AppKind::Elf => parse_elf32_ppc(&bytes, Some(EXECUTABLE_MEMORY.clone())),
-            AppKind::Dol => parse_dol(&bytes, Some(EXECUTABLE_MEMORY.clone())),
+            AppKind::Elf => parse_elf32_ppc(bytes.as_slice(), Some(EXECUTABLE_MEMORY.clone())),
+            AppKind::Dol => parse_dol(bytes.as_slice(), Some(EXECUTABLE_MEMORY.clone())),
             AppKind::Theme => return Err(StartupError::NotExecutable),
         }
         .map_err(StartupError::Loader)?;
@@ -1398,7 +1398,7 @@ fn bootmii_ios_available() -> bool {
 }
 
 pub struct LaunchImage {
-    pub bytes: Vec<u8>,
+    pub bytes: crate::loader::LaunchSource,
     pub plan: LoadPlan,
     pub arguments: Vec<u8>,
     /// The app metadata requests access to hardware registers after launch.

@@ -161,6 +161,9 @@ mod wii;
 #[cfg(target_arch = "powerpc")]
 pub use wii::{stage_launch, transfer_control, LaunchImage};
 
+mod launch_source;
+pub use launch_source::LaunchSource;
+
 /// Parse a DOL file. `allowed_memory` optionally limits each section to a
 /// half-open destination range, as HBC's overlap check does.
 pub fn parse_dol(bytes: &[u8], allowed_memory: Option<Range<u32>>) -> Result<LoadPlan, ParseError> {
