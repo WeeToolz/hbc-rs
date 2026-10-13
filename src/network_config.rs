@@ -151,28 +151,59 @@ pub(crate) fn commit_unbacked_config<E>(
 /// files. The caller supplies real storage operations; every write is read
 /// back before the next step can change the primary file.
 #[cfg(any(target_arch = "powerpc", test))]
-pub(crate) fn save_with_recovery_backups<E>(
+pub(crate) struct RecoveryBackupOps<
+    VerifyOriginal,
+    WriteCurrent,
+    ReadCurrent,
+    ReadPrimary,
+    WritePrimary,
+> {
+    pub(crate) verify_original_backup: VerifyOriginal,
+    pub(crate) write_current_backup: WriteCurrent,
+    pub(crate) read_current_backup: ReadCurrent,
+    pub(crate) read_primary: ReadPrimary,
+    pub(crate) write_primary: WritePrimary,
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+pub(crate) fn save_with_recovery_backups<
+    E,
+    VerifyOriginal,
+    WriteCurrent,
+    ReadCurrent,
+    ReadPrimary,
+    WritePrimary,
+>(
     current: &[u8],
     replacement: &[u8],
     is_valid: impl Fn(&[u8]) -> bool,
-    mut verify_original_backup: impl FnMut() -> Result<(), E>,
-    mut write_current_backup: impl FnMut(&[u8]) -> Result<(), E>,
-    mut read_current_backup: impl FnMut() -> Result<Option<alloc::vec::Vec<u8>>, E>,
-    mut read_primary: impl FnMut() -> Result<Option<alloc::vec::Vec<u8>>, E>,
-    mut write_primary: impl FnMut(&[u8]) -> Result<(), E>,
-) -> Result<(), ConfigSaveError<E>> {
-    verify_original_backup().map_err(ConfigSaveError::OriginalBackup)?;
-    write_current_backup(current).map_err(ConfigSaveError::CurrentBackupWrite)?;
-    match read_current_backup().map_err(ConfigSaveError::CurrentBackupRead)? {
+    mut operations: RecoveryBackupOps<
+        VerifyOriginal,
+        WriteCurrent,
+        ReadCurrent,
+        ReadPrimary,
+        WritePrimary,
+    >,
+) -> Result<(), ConfigSaveError<E>>
+where
+    VerifyOriginal: FnMut() -> Result<(), E>,
+    WriteCurrent: for<'a> FnMut(&'a [u8]) -> Result<(), E>,
+    ReadCurrent: FnMut() -> Result<Option<alloc::vec::Vec<u8>>, E>,
+    ReadPrimary: FnMut() -> Result<Option<alloc::vec::Vec<u8>>, E>,
+    WritePrimary: for<'a> FnMut(&'a [u8]) -> Result<(), E>,
+{
+    (operations.verify_original_backup)().map_err(ConfigSaveError::OriginalBackup)?;
+    (operations.write_current_backup)(current).map_err(ConfigSaveError::CurrentBackupWrite)?;
+    match (operations.read_current_backup)().map_err(ConfigSaveError::CurrentBackupRead)? {
         Some(bytes) if bytes == current && is_valid(&bytes) => {}
         _ => return Err(ConfigSaveError::CurrentBackupInvalid),
     }
-    match read_primary().map_err(ConfigSaveError::PrimaryRead)? {
+    match (operations.read_primary)().map_err(ConfigSaveError::PrimaryRead)? {
         Some(bytes) if bytes == current => {}
         _ => return Err(ConfigSaveError::PrimaryChanged),
     }
-    write_primary(replacement).map_err(ConfigSaveError::PrimaryWrite)?;
-    match read_primary().map_err(ConfigSaveError::PrimaryVerificationRead)? {
+    (operations.write_primary)(replacement).map_err(ConfigSaveError::PrimaryWrite)?;
+    match (operations.read_primary)().map_err(ConfigSaveError::PrimaryVerificationRead)? {
         Some(bytes) if bytes == replacement && is_valid(&bytes) => Ok(()),
         _ => Err(ConfigSaveError::PrimaryVerificationFailed),
     }
@@ -1085,19 +1116,21 @@ mod transaction_tests {
                 current,
                 replacement,
                 |bytes| bytes.len() == CONFIG_LEN,
-                || {
-                    assert_eq!(files.borrow().0.as_deref(), Some(original.as_slice()));
-                    Ok::<_, i32>(())
-                },
-                |bytes| {
-                    files.borrow_mut().1 = Some(bytes.to_vec());
-                    Ok(())
-                },
-                || Ok(files.borrow().1.clone()),
-                || Ok(files.borrow().2.clone()),
-                |bytes| {
-                    files.borrow_mut().2 = Some(bytes.to_vec());
-                    Ok(())
+                RecoveryBackupOps {
+                    verify_original_backup: || {
+                        assert_eq!(files.borrow().0.as_deref(), Some(original.as_slice()));
+                        Ok::<_, i32>(())
+                    },
+                    write_current_backup: |bytes: &[u8]| {
+                        files.borrow_mut().1 = Some(bytes.to_vec());
+                        Ok(())
+                    },
+                    read_current_backup: || Ok(files.borrow().1.clone()),
+                    read_primary: || Ok(files.borrow().2.clone()),
+                    write_primary: |bytes: &[u8]| {
+                        files.borrow_mut().2 = Some(bytes.to_vec());
+                        Ok(())
+                    },
                 },
             );
             assert_eq!(result, Ok(()));
@@ -1118,11 +1151,15 @@ mod transaction_tests {
             &original,
             &replacement,
             |bytes| bytes.len() == CONFIG_LEN,
-            || Ok::<_, i32>(()),
-            |_| Err(-102),
-            || panic!("backup read is not valid after backup write fails"),
-            || Ok(primary.borrow().clone()),
-            |_| panic!("primary write must wait for a verified recovery copy"),
+            RecoveryBackupOps {
+                verify_original_backup: || Ok::<_, i32>(()),
+                write_current_backup: |_: &[u8]| Err(-102),
+                read_current_backup: || panic!("backup read is not valid after backup write fails"),
+                read_primary: || Ok(primary.borrow().clone()),
+                write_primary: |_: &[u8]| {
+                    panic!("primary write must wait for a verified recovery copy")
+                },
+            },
         );
         assert_eq!(result, Err(ConfigSaveError::CurrentBackupWrite(-102)));
         assert_eq!(primary.borrow().as_deref(), Some(original.as_slice()));
@@ -1182,19 +1219,11 @@ mod transaction_tests {
         );
         assert_eq!(failed_write, Err(UnbackedSaveError::PrimaryWrite(19)));
 
-        let reads = core::cell::Cell::new(0);
         let failed_verify = commit_unbacked_config::<i32>(
             &current,
             &replacement,
             |bytes| bytes.len() == CONFIG_LEN,
-            || {
-                reads.set(reads.get() + 1);
-                if reads.get() == 1 {
-                    Ok(Some(current.clone()))
-                } else {
-                    Ok(Some(current.clone()))
-                }
-            },
+            || Ok(Some(current.clone())),
             |_| Ok(()),
         );
         assert_eq!(failed_verify, Err(UnbackedSaveError::VerificationFailed));
@@ -1211,14 +1240,16 @@ mod transaction_tests {
             &expected,
             &replacement,
             |bytes| bytes.len() == CONFIG_LEN,
-            || Ok::<_, i32>(()),
-            |bytes| {
-                *current_backup.borrow_mut() = Some(bytes.to_vec());
-                Ok(())
+            RecoveryBackupOps {
+                verify_original_backup: || Ok::<_, i32>(()),
+                write_current_backup: |bytes: &[u8]| {
+                    *current_backup.borrow_mut() = Some(bytes.to_vec());
+                    Ok(())
+                },
+                read_current_backup: || Ok(current_backup.borrow().clone()),
+                read_primary: || Ok(primary.borrow().clone()),
+                write_primary: |_: &[u8]| panic!("changed primary must not be overwritten"),
             },
-            || Ok(current_backup.borrow().clone()),
-            || Ok(primary.borrow().clone()),
-            |_| panic!("changed primary must not be overwritten"),
         );
         assert_eq!(result, Err(ConfigSaveError::PrimaryChanged));
         assert_eq!(primary.borrow().as_deref(), Some(changed.as_slice()));

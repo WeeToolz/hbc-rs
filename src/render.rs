@@ -1429,7 +1429,14 @@ pub fn browser_frame_with_language(
                     48,
                 );
             }
-            frame.text(112.0, 374.0, tr("Confirm: select  B: back"), 0.9, MUTED, 44);
+            frame.text(
+                112.0,
+                374.0,
+                tr("Confirm: select  Back: return"),
+                0.9,
+                MUTED,
+                44,
+            );
         } else if controller.screen == Screen::NetworkKeyboard {
             let extra_width = f32::from(logical_width - LOGICAL_WIDTH);
             let keyboard_left = 44.0 - extra_width / 2.0;
@@ -2861,6 +2868,20 @@ mod tests {
         }
         assert!(action_bounds[0].right() < action_bounds[1].x);
         assert!(action_bounds[1].right() < action_bounds[2].x);
+    }
+
+    #[test]
+    fn network_scan_help_uses_logical_labels_for_all_controller_kinds() {
+        let mut controller = AppController::new();
+        controller.screen = Screen::NetworkScan;
+        let frame = browser_frame(&controller, &[]);
+        let help = frame
+            .text_runs
+            .iter()
+            .find(|run| run.value.contains("Confirm: select"))
+            .unwrap();
+        assert_eq!(help.value, "Confirm: select  Back: return");
+        assert!(!help.value.contains("B:"));
     }
 
     #[test]

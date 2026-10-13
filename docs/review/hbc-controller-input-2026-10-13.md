@@ -19,6 +19,8 @@ Previous Page, R for Next Page, and Home for Main Menu. The normalized left
 stick scrolls vertically; the right Joy-Con right stick supplies its vertical
 scroll. HBC logs every reported USB or Bluetooth source error with its full
 error detail.
+The network scan help uses logical Confirm/Back labels because input can come
+from different controller kinds with different physical back buttons.
 
 The manager gates raw press edges when a controller connects or reconnects
 while a button is held. It keeps the held masks and reports release masks on

@@ -363,16 +363,21 @@ fn commit_with_nand_backup(
         expected.as_bytes(),
         config.as_bytes(),
         valid_config_bytes,
-        || verify_original(),
-        |bytes| save_nand_current_backup(current_backup, bytes),
-        || nand::read_file_wii(current_backup, CONFIG_LEN).map_err(NetworkConfigError::Recovery),
-        || {
-            let path = nand_path()?;
-            read_raw_config(&path)
-        },
-        |bytes| {
-            let path = nand_path()?;
-            write_existing_config(&path, bytes)
+        network_config::RecoveryBackupOps {
+            verify_original_backup: || verify_original(),
+            write_current_backup: |bytes| save_nand_current_backup(current_backup, bytes),
+            read_current_backup: || {
+                nand::read_file_wii(current_backup, CONFIG_LEN)
+                    .map_err(NetworkConfigError::Recovery)
+            },
+            read_primary: || {
+                let path = nand_path()?;
+                read_raw_config(&path)
+            },
+            write_primary: |bytes| {
+                let path = nand_path()?;
+                write_existing_config(&path, bytes)
+            },
         },
     )
 }
@@ -390,25 +395,27 @@ fn commit_with_external_backup(
         expected.as_bytes(),
         config.as_bytes(),
         valid_config_bytes,
-        || verify_external_original(original_backup, device_id),
-        |bytes| {
-            write_storage_backup(
-                current_backup,
-                bytes,
-                device_id,
-                network_config::CURRENT_BACKUP_KIND,
-                false,
-            )
+        network_config::RecoveryBackupOps {
+            verify_original_backup: || verify_external_original(original_backup, device_id),
+            write_current_backup: |bytes| {
+                write_storage_backup(
+                    current_backup,
+                    bytes,
+                    device_id,
+                    network_config::CURRENT_BACKUP_KIND,
+                    false,
+                )
+            },
+            read_current_backup: || {
+                read_storage_backup(
+                    current_backup,
+                    device_id,
+                    network_config::CURRENT_BACKUP_KIND,
+                )
+            },
+            read_primary: || read_raw_config(&path),
+            write_primary: |bytes| write_existing_config(&path, bytes),
         },
-        || {
-            read_storage_backup(
-                current_backup,
-                device_id,
-                network_config::CURRENT_BACKUP_KIND,
-            )
-        },
-        || read_raw_config(&path),
-        |bytes| write_existing_config(&path, bytes),
     );
     map_save_error(result)
 }
