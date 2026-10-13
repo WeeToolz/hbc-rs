@@ -178,7 +178,9 @@ dependencies = [
  "ogc-bt-sync",
  "ogc-input",
  "ogc-ipc",
+ "ogc-system",
  "ogc-usb",
+ "ogc-video",
  "wpad-sys",
 ]
 
