@@ -299,7 +299,7 @@ impl AppRuntime {
         pointer_pressed: bool,
         pointer_held: bool,
     ) -> Vec<Action> {
-        if pointer_pressed {
+        if pointer_pressed && target.is_some() {
             frame.pressed.retain(|input| {
                 !matches!(
                     input,
@@ -424,6 +424,23 @@ mod tests {
     }
 
     #[test]
+    fn pointer_press_without_a_hit_target_keeps_page_navigation() {
+        let catalog = (0..10)
+            .map(|index| app(&alloc::format!("app-{index}")))
+            .collect();
+        let mut runtime = AppRuntime::new(catalog);
+        let mut frame = InputFrame {
+            pressed: vec![Input::NextPage],
+            held: vec![Input::NextPage],
+            ..InputFrame::default()
+        };
+
+        runtime.update_frame_with_pointer(&mut frame, None, None, true, false);
+
+        assert_eq!(runtime.controller().selected_app.as_deref(), Some("app-5"));
+    }
+
+    #[test]
     fn controller_screen_transition_consumes_pointer_activation() {
         let mut runtime = AppRuntime::new(vec![app("one")]);
         let mut frame = InputFrame {
@@ -441,6 +458,30 @@ mod tests {
 
         assert_eq!(runtime.controller().screen, crate::app::Screen::MainMenu);
         assert_eq!(runtime.controller().pointer_target(), None);
+    }
+
+    #[test]
+    fn back_transition_takes_priority_over_pointer_activation() {
+        let mut runtime = AppRuntime::new(vec![app("one")]);
+        runtime.update(&InputFrame {
+            pressed: vec![Input::Confirm],
+            ..InputFrame::default()
+        });
+        assert_eq!(runtime.controller().screen, crate::app::Screen::AppDetails);
+
+        let mut frame = InputFrame {
+            pressed: vec![Input::Back],
+            ..InputFrame::default()
+        };
+        runtime.update_frame_with_pointer(
+            &mut frame,
+            Some(PointerTarget::App(0)),
+            None,
+            true,
+            false,
+        );
+
+        assert_eq!(runtime.controller().screen, crate::app::Screen::Browser);
     }
 
     #[test]
