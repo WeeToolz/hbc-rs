@@ -365,7 +365,7 @@ fn commit_with_nand_backup(
         valid_config_bytes,
         network_config::RecoveryBackupOps {
             verify_original_backup: || verify_original(),
-            write_current_backup: |bytes| save_nand_current_backup(current_backup, bytes),
+            write_current_backup: |bytes: &[u8]| save_nand_current_backup(current_backup, bytes),
             read_current_backup: || {
                 nand::read_file_wii(current_backup, CONFIG_LEN)
                     .map_err(NetworkConfigError::Recovery)
@@ -374,7 +374,7 @@ fn commit_with_nand_backup(
                 let path = nand_path()?;
                 read_raw_config(&path)
             },
-            write_primary: |bytes| {
+            write_primary: |bytes: &[u8]| {
                 let path = nand_path()?;
                 write_existing_config(&path, bytes)
             },
@@ -397,7 +397,7 @@ fn commit_with_external_backup(
         valid_config_bytes,
         network_config::RecoveryBackupOps {
             verify_original_backup: || verify_external_original(original_backup, device_id),
-            write_current_backup: |bytes| {
+            write_current_backup: |bytes: &[u8]| {
                 write_storage_backup(
                     current_backup,
                     bytes,
@@ -414,7 +414,7 @@ fn commit_with_external_backup(
                 )
             },
             read_primary: || read_raw_config(&path),
-            write_primary: |bytes| write_existing_config(&path, bytes),
+            write_primary: |bytes: &[u8]| write_existing_config(&path, bytes),
         },
     );
     map_save_error(result)
