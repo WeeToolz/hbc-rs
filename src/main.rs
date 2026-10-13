@@ -454,17 +454,6 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         let pointer = frame.pointer;
         let pointer_pressed = frame.pointer_pressed;
         let pointer_held = frame.pointer_held;
-        if pointer_pressed {
-            // HBC applies Confirm from the pointer owner or GameCube pad to
-            // the widget under the pointer. Delay it until after hit-testing.
-            frame
-                .pressed
-                .retain(|input| *input != hbc_rs::app::Input::Confirm);
-        }
-        let screenshot_requested = frame.screenshot_requested;
-        let mut actions = startup.runtime_mut().update(&frame);
-        #[cfg(feature = "startup-diagnostics")]
-        hbc_rs::platform::diagnostics::runtime_stage(32, "RUNTIME INPUT UPDATE DONE");
         let language = hbc_rs::localization::Language::from_console(
             ogc_conf::get_language(),
             startup.runtime().theme(),
@@ -478,12 +467,20 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         );
         let pointer_target = pointer
             .and_then(|position| hit_frame.hit_test(f32::from(position.x), f32::from(position.y)));
-        actions.extend(startup.runtime_mut().update_pointer_frame(
+        let screenshot_requested = frame.screenshot_requested;
+        let actions = startup.runtime_mut().update_frame_with_pointer(
+            &mut frame,
             pointer_target,
             pointer.map(|pointer| pointer.y),
             pointer_pressed,
             pointer_held,
-        ));
+        );
+        #[cfg(feature = "startup-diagnostics")]
+        for action in &actions {
+            hbc_rs::platform::diagnostics::event(&format!("HBC input action: {action:?}"));
+        }
+        #[cfg(feature = "startup-diagnostics")]
+        hbc_rs::platform::diagnostics::runtime_stage(32, "RUNTIME INPUT UPDATE DONE");
         if actions.contains(&hbc_rs::app::Action::DeleteSelected) {
             background_animation.pop_all();
         }

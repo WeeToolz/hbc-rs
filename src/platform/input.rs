@@ -6,6 +6,10 @@
 use alloc::vec::Vec;
 #[cfg(target_arch = "powerpc")]
 use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, Ordering};
+#[cfg(any(target_arch = "powerpc", test))]
+use ogc_controller::{
+    Buttons as ControllerButtons, ControllerKind, ControllerSnapshot, ControllerSource,
+};
 
 use crate::app::Input;
 #[cfg(target_arch = "powerpc")]
@@ -273,6 +277,133 @@ fn map_input_masks(
     mapped
 }
 
+#[cfg(any(target_arch = "powerpc", test))]
+fn map_normalized_controller_buttons(kind: ControllerKind, mask: u32, out: &mut Buttons) {
+    // These are HBC application defaults for normalized USB and Bluetooth
+    // controllers. The C HBC mappings above remain authoritative for PAD and
+    // WPAD sources.
+    map_directions(
+        mask as u16,
+        ControllerButtons::UP.bits() as u16,
+        ControllerButtons::DOWN.bits() as u16,
+        ControllerButtons::LEFT.bits() as u16,
+        ControllerButtons::RIGHT.bits() as u16,
+        out,
+    );
+    let bindings = match kind {
+        ControllerKind::GameCube => [
+            (ControllerButtons::A, Buttons::CONFIRM),
+            (ControllerButtons::B, Buttons::BACK),
+            (ControllerButtons::X, Buttons::OPTIONS),
+            (ControllerButtons::Y, Buttons::BROWSE_MODE),
+            (ControllerButtons::START, Buttons::HOME),
+            (ControllerButtons::L, Buttons::PREVIOUS),
+            (ControllerButtons::R, Buttons::NEXT),
+            (ControllerButtons::HOME, Buttons::HOME),
+        ],
+        ControllerKind::JoyConLeft => [
+            (ControllerButtons::SR, Buttons::CONFIRM),
+            (ControllerButtons::SL, Buttons::BACK),
+            (ControllerButtons::SELECT, Buttons::PREVIOUS),
+            (ControllerButtons::L, Buttons::PREVIOUS),
+            (ControllerButtons::R, Buttons::NEXT),
+            (ControllerButtons::HOME, Buttons::HOME),
+            (ControllerButtons::A, Buttons::CONFIRM),
+            (ControllerButtons::B, Buttons::BACK),
+        ],
+        ControllerKind::JoyConRight => [
+            (ControllerButtons::A, Buttons::CONFIRM),
+            (ControllerButtons::B, Buttons::BACK),
+            (ControllerButtons::X, Buttons::OPTIONS),
+            (ControllerButtons::Y, Buttons::BROWSE_MODE),
+            (ControllerButtons::START, Buttons::NEXT),
+            (ControllerButtons::L, Buttons::PREVIOUS),
+            (ControllerButtons::R, Buttons::NEXT),
+            (ControllerButtons::HOME, Buttons::HOME),
+        ],
+        ControllerKind::JoyConPair | ControllerKind::SwitchPro => [
+            (ControllerButtons::A, Buttons::CONFIRM),
+            (ControllerButtons::B, Buttons::BACK),
+            (ControllerButtons::X, Buttons::OPTIONS),
+            (ControllerButtons::Y, Buttons::BROWSE_MODE),
+            (ControllerButtons::SELECT, Buttons::PREVIOUS),
+            (ControllerButtons::START, Buttons::NEXT),
+            (ControllerButtons::HOME, Buttons::HOME),
+            (ControllerButtons::L, Buttons::PREVIOUS),
+        ],
+        _ => [
+            (ControllerButtons::A, Buttons::CONFIRM),
+            (ControllerButtons::B, Buttons::BACK),
+            (ControllerButtons::X, Buttons::OPTIONS),
+            (ControllerButtons::Y, Buttons::BROWSE_MODE),
+            (ControllerButtons::START, Buttons::HOME),
+            (ControllerButtons::SELECT, Buttons::OPTIONS),
+            (ControllerButtons::L, Buttons::PREVIOUS),
+            (ControllerButtons::R, Buttons::NEXT),
+        ],
+    };
+    for (source, target) in bindings {
+        if mask & source.bits() != 0 {
+            out.0 |= target;
+        }
+    }
+    if mask & ControllerButtons::HOME.bits() != 0 {
+        out.0 |= Buttons::HOME;
+    }
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+fn is_additional_source(source: ControllerSource) -> bool {
+    matches!(
+        source,
+        ControllerSource::UsbGameCube { .. }
+            | ControllerSource::UsbHid(_)
+            | ControllerSource::BluetoothHid(_)
+            | ControllerSource::BluetoothHidPair(_, _)
+    )
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+fn normalized_stick_scroll(kind: ControllerKind, axes: ogc_controller::Axes) -> i32 {
+    let axis = match kind {
+        ControllerKind::JoyConRight => axes.right_y,
+        _ => axes.left_y,
+    };
+    deadzone(i32::from(axis) / 256)
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+fn map_additional_controllers(snapshot: &ControllerSnapshot, mapped: &mut MappedInput) -> i32 {
+    let mut stick_scroll = 0;
+    for controller in snapshot.controllers() {
+        if !is_additional_source(controller.source) {
+            continue;
+        }
+        map_controller_edges(controller, mapped);
+        stick_scroll += normalized_stick_scroll(controller.kind, controller.axes);
+    }
+    for reset in snapshot.resets() {
+        if is_additional_source(reset.state.source) {
+            map_controller_edges(&reset.state, mapped);
+        }
+    }
+    stick_scroll
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+fn map_controller_edges(state: &ogc_controller::ControllerState, mapped: &mut MappedInput) {
+    map_normalized_controller_buttons(state.kind, state.buttons_down.bits(), &mut mapped.down);
+    map_normalized_controller_buttons(state.kind, state.buttons.bits(), &mut mapped.held);
+    map_normalized_controller_buttons(state.kind, state.buttons_up.bits(), &mut mapped.up);
+}
+
+#[cfg(target_arch = "powerpc")]
+fn report_controller_input_error(snapshot: &ControllerSnapshot) {
+    for error in snapshot.errors() {
+        ogc_system::report(format_args!("HBC: controller input error: {error:?}\n"));
+    }
+}
+
 fn bit_for(input: Input) -> u16 {
     match input {
         Input::Up => Buttons::UP,
@@ -352,7 +483,9 @@ pub fn initialize(view_width: u16, view_height: u16) -> Result<(), i32> {
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("PAD INIT");
     // SAFETY: HBC owns this manager from startup on its single main thread.
-    unsafe { (&mut *core::ptr::addr_of_mut!(CONTROLLER_MANAGER)).init() };
+    let manager = unsafe { &mut *core::ptr::addr_of_mut!(CONTROLLER_MANAGER) };
+    manager.init();
+    manager.enable_usb_hid();
     POINTER_OWNER.store(-1, Ordering::Release);
     WPAD_VIEW_WIDTH.store(u32::from(view_width), Ordering::Release);
     WPAD_VIEW_HEIGHT.store(u32::from(view_height), Ordering::Release);
@@ -396,6 +529,7 @@ pub fn scan() -> Result<InputFrame, i32> {
     // SAFETY: one main-thread scan owns the shared production manager.
     let raw = unsafe { (&mut *core::ptr::addr_of_mut!(CONTROLLER_MANAGER)).scan_with_raw() };
     diagnostic_scan_mark("WPAD SCAN DONE");
+    report_controller_input_error(&raw.snapshot);
 
     if let Some(error) = raw
         .snapshot
@@ -443,7 +577,6 @@ pub fn scan() -> Result<InputFrame, i32> {
             stick_scroll += extension_stick_y(state);
         }
     }
-    stick_scroll /= 8;
     let mut wpad_transitions = [RawWpadTransitions::default(); 4];
     for (channel, transitions) in wpad_transitions.iter_mut().enumerate() {
         transitions.extension = extension_from_raw_type(raw.wpad_extension_type[channel]);
@@ -451,7 +584,7 @@ pub fn scan() -> Result<InputFrame, i32> {
         transitions.held = raw.wpad_buttons_held[channel];
         transitions.up = raw.wpad_buttons_up[channel];
     }
-    let mapped = map_input_masks(
+    let mut mapped = map_input_masks(
         raw.pad_buttons_down[0],
         raw.pad_buttons_held[0],
         raw.pad_buttons_up[0],
@@ -459,6 +592,8 @@ pub fn scan() -> Result<InputFrame, i32> {
         owner,
         raw.pad_status[0].err == ogc_input::PAD_ERR_NONE as i8,
     );
+    stick_scroll += map_additional_controllers(&raw.snapshot, &mut mapped);
+    stick_scroll /= 8;
     if let Some(owner) = owner {
         if let Some(state) = raw.wpad_data[owner]
             .as_ref()
@@ -587,6 +722,114 @@ mod tests {
         assert!(map_buttons(0, classic_x).contains(Input::OpenOptions));
         let classic_y = map_extension_buttons(0x0020 << 16, Extension::Classic);
         assert!(map_buttons(0, classic_y).contains(Input::ToggleBrowseMode));
+    }
+
+    #[test]
+    fn normalized_controller_defaults_map_buttons_to_hbc_actions() {
+        let mut gamecube = Buttons::default();
+        map_normalized_controller_buttons(
+            ControllerKind::GameCube,
+            ControllerButtons::A.bits()
+                | ControllerButtons::Y.bits()
+                | ControllerButtons::UP.bits()
+                | ControllerButtons::START.bits()
+                | ControllerButtons::L.bits()
+                | ControllerButtons::R.bits(),
+            &mut gamecube,
+        );
+        assert_eq!(
+            gamecube.0,
+            Buttons::CONFIRM
+                | Buttons::BROWSE_MODE
+                | Buttons::UP
+                | Buttons::HOME
+                | Buttons::PREVIOUS
+                | Buttons::NEXT
+        );
+
+        let mut joycon_left = Buttons::default();
+        map_normalized_controller_buttons(
+            ControllerKind::JoyConLeft,
+            ControllerButtons::SR.bits()
+                | ControllerButtons::SL.bits()
+                | ControllerButtons::SELECT.bits(),
+            &mut joycon_left,
+        );
+        assert_eq!(
+            joycon_left.0,
+            Buttons::CONFIRM | Buttons::BACK | Buttons::PREVIOUS
+        );
+
+        let mut joycon_right = Buttons::default();
+        map_normalized_controller_buttons(
+            ControllerKind::JoyConRight,
+            ControllerButtons::A.bits()
+                | ControllerButtons::B.bits()
+                | ControllerButtons::START.bits(),
+            &mut joycon_right,
+        );
+        assert_eq!(
+            joycon_right.0,
+            Buttons::CONFIRM | Buttons::BACK | Buttons::NEXT
+        );
+
+        let mut pro = Buttons::default();
+        map_normalized_controller_buttons(
+            ControllerKind::SwitchPro,
+            ControllerButtons::SELECT.bits()
+                | ControllerButtons::START.bits()
+                | ControllerButtons::HOME.bits(),
+            &mut pro,
+        );
+        assert_eq!(pro.0, Buttons::PREVIOUS | Buttons::NEXT | Buttons::HOME);
+
+        let mut pair = Buttons::default();
+        map_normalized_controller_buttons(
+            ControllerKind::JoyConPair,
+            ControllerButtons::X.bits() | ControllerButtons::Y.bits(),
+            &mut pair,
+        );
+        assert_eq!(pair.0, Buttons::OPTIONS | Buttons::BROWSE_MODE);
+    }
+
+    #[test]
+    fn normalized_snapshot_maps_adapter_and_stick_scroll() {
+        let mut snapshot = ControllerSnapshot::empty();
+        snapshot.push(ogc_controller::ControllerState {
+            source: ControllerSource::UsbGameCube {
+                adapter_slot: 0,
+                port: 2,
+            },
+            kind: ControllerKind::GameCube,
+            connected: true,
+            buttons: ControllerButtons::A,
+            buttons_down: ControllerButtons::A,
+            axes: ogc_controller::Axes {
+                left_y: 8192,
+                ..Default::default()
+            },
+            ..ogc_controller::ControllerState::empty()
+        });
+        let mut mapped = MappedInput::default();
+        let scroll = map_additional_controllers(&snapshot, &mut mapped);
+        assert_eq!(mapped.down.0, Buttons::CONFIRM);
+        assert_eq!(mapped.held.0, Buttons::CONFIRM);
+        assert_eq!(scroll, 22);
+    }
+
+    #[test]
+    fn reset_edges_keep_quick_press_and_release_visible() {
+        let state = ogc_controller::ControllerState {
+            source: ControllerSource::BluetoothHid(0),
+            kind: ControllerKind::SwitchPro,
+            buttons_down: ControllerButtons::A,
+            buttons_up: ControllerButtons::A,
+            ..ogc_controller::ControllerState::empty()
+        };
+        let mut mapped = MappedInput::default();
+        map_controller_edges(&state, &mut mapped);
+        assert_eq!(mapped.down.0, Buttons::CONFIRM);
+        assert_eq!(mapped.up.0, Buttons::CONFIRM);
     }
 
     #[test]

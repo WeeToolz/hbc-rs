@@ -286,6 +286,37 @@ impl AppRuntime {
         actions
     }
 
+    /// Apply controller input and pointer input in the same frame.
+    ///
+    /// HBC handles a pointer activation before Minus/Plus page navigation. A
+    /// screen transition from controller input also ends the C frame, so a
+    /// pointer action cannot run against the newly opened screen.
+    pub fn update_frame_with_pointer(
+        &mut self,
+        frame: &mut InputFrame,
+        target: Option<PointerTarget>,
+        pointer_y: Option<i16>,
+        pointer_pressed: bool,
+        pointer_held: bool,
+    ) -> Vec<Action> {
+        if pointer_pressed {
+            frame.pressed.retain(|input| {
+                !matches!(
+                    input,
+                    Input::Confirm | Input::PreviousPage | Input::NextPage
+                )
+            });
+            frame.held.retain(|input| !is_repeatable(*input));
+        }
+        let screen_before = self.controller.screen;
+        let mut actions = self.update(frame);
+        if self.controller.screen != screen_before {
+            return actions;
+        }
+        actions.extend(self.update_pointer_frame(target, pointer_y, pointer_pressed, pointer_held));
+        actions
+    }
+
     fn sync_settings(&mut self) {
         let current = self.settings.current_mut();
         current.sort_order = match self.controller.sort {
@@ -365,6 +396,51 @@ mod tests {
             ..InputFrame::default()
         });
         assert_eq!(runtime.controller().screen, crate::app::Screen::MainMenu);
+    }
+
+    #[test]
+    fn pointer_activation_consumes_simultaneous_page_navigation() {
+        let catalog = (0..10)
+            .map(|index| app(&alloc::format!("app-{index}")))
+            .collect();
+        let mut runtime = AppRuntime::new(catalog);
+        let mut frame = InputFrame {
+            pressed: vec![Input::NextPage, Input::Confirm],
+            held: vec![Input::NextPage],
+            ..InputFrame::default()
+        };
+
+        let actions = runtime.update_frame_with_pointer(
+            &mut frame,
+            Some(PointerTarget::App(0)),
+            None,
+            true,
+            false,
+        );
+
+        assert!(actions.is_empty());
+        assert_eq!(runtime.controller().screen, crate::app::Screen::AppDetails);
+        assert_eq!(runtime.controller().selected_app.as_deref(), Some("app-0"));
+    }
+
+    #[test]
+    fn controller_screen_transition_consumes_pointer_activation() {
+        let mut runtime = AppRuntime::new(vec![app("one")]);
+        let mut frame = InputFrame {
+            pressed: vec![Input::Home],
+            ..InputFrame::default()
+        };
+
+        runtime.update_frame_with_pointer(
+            &mut frame,
+            Some(PointerTarget::App(0)),
+            None,
+            true,
+            false,
+        );
+
+        assert_eq!(runtime.controller().screen, crate::app::Screen::MainMenu);
+        assert_eq!(runtime.controller().pointer_target(), None);
     }
 
     #[test]
