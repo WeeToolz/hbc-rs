@@ -435,9 +435,12 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         }
         let mut frame = match hbc_rs::platform::input::scan() {
             Ok(frame) => frame,
-            Err(_) => {
+            Err(error) => {
+                ogc_system::report(format_args!(
+                    "HBC: controller input scan failed: {error:?}\n"
+                ));
                 startup.runtime_mut().show_notice_with_kind(
-                    "Wii Remote input failed. GameCube controller input remains available.",
+                    "Controller input failed. See the system log for details.",
                     hbc_rs::app::NoticeKind::Warning,
                 );
                 hbc_rs::platform::input::InputFrame::default()

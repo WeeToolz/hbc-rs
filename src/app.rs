@@ -388,7 +388,32 @@ impl AppController {
         self.scroll_detail_by_pixels(pixels);
     }
 
-    pub fn scroll_active_memo_by_stick(&mut self, pixels: i16) {
+    pub fn scroll_active_memo_by_stick(&mut self, pixels: i16) -> Option<Input> {
+        let consumed = match self.screen {
+            Screen::AppDetails if pixels > 0 && self.detail_description_scroll > 0 => {
+                Some(Input::Up)
+            }
+            Screen::AppDetails
+                if pixels < 0
+                    && self.detail_description_scroll < self.detail_description_max_scroll =>
+            {
+                Some(Input::Down)
+            }
+            Screen::Notice if pixels > 0 && self.notice_scroll < self.notice_scroll_max => {
+                Some(Input::Down)
+            }
+            Screen::Notice if pixels < 0 && self.notice_scroll > 0 => Some(Input::Up),
+            Screen::WiiloadConfirm
+                if pixels > 0
+                    && self.wiiload_confirmation_scroll < self.wiiload_confirmation_max_scroll =>
+            {
+                Some(Input::Down)
+            }
+            Screen::WiiloadConfirm if pixels < 0 && self.wiiload_confirmation_scroll > 0 => {
+                Some(Input::Up)
+            }
+            _ => None,
+        };
         match self.screen {
             Screen::AppDetails => self.scroll_detail_by_pixels(pixels),
             Screen::Notice => self.scroll_notice_by_pixels(pixels),
@@ -396,6 +421,7 @@ impl AppController {
             Screen::WiiloadConfirm => self.scroll_wiiload_confirmation_by_pixels(pixels),
             _ => {}
         }
+        consumed
     }
 
     pub fn about_scroll(&self) -> usize {
@@ -2009,6 +2035,23 @@ mod tests {
         assert_eq!(controller.detail_description_scroll(), max_scroll);
         controller.handle(Input::Up, &catalog);
         assert_eq!(controller.detail_description_scroll(), max_scroll - 1);
+    }
+
+    #[test]
+    fn analog_memo_scroll_reports_only_directions_available_inside_bounds() {
+        let mut controller = AppController::new();
+        controller.handle(Input::Confirm, &[app("one", "One", false)]);
+        controller.set_measured_memo(1, 1);
+        assert_eq!(controller.scroll_active_memo_by_stick(1), None);
+        assert_eq!(
+            controller.scroll_active_memo_by_stick(-1),
+            Some(Input::Down)
+        );
+        assert_eq!(controller.detail_description_scroll(), 1);
+        assert_eq!(controller.scroll_active_memo_by_stick(-1), None);
+        assert_eq!(controller.scroll_active_memo_by_stick(1), Some(Input::Up));
+        assert_eq!(controller.detail_description_scroll(), 0);
+        assert_eq!(controller.scroll_active_memo_by_stick(1), None);
     }
 
     #[test]

@@ -227,11 +227,15 @@ impl AppRuntime {
             return Vec::new();
         }
         self.controller.tick_about_scroll();
-        self.controller
+        let memo_scroll_input = self
+            .controller
             .scroll_active_memo_by_stick(frame.stick_scroll_pixels);
         let mut actions = Vec::new();
         let mut screen_changed = false;
         for &input in &frame.pressed {
+            if memo_scroll_input == Some(input) && frame.stick_navigation.contains(&input) {
+                continue;
+            }
             let screen = self.controller.screen;
             push_action(&mut actions, self.controller.handle(input, &self.catalog));
             if self.controller.screen != screen {
@@ -386,6 +390,77 @@ mod tests {
         runtime.update(&InputFrame::default());
         runtime.update(&first);
         assert_eq!(runtime.controller().selected_app.as_deref(), Some("c"));
+    }
+
+    #[test]
+    fn right_stick_focus_input_is_suppressed_only_when_memo_scroll_can_consume_it() {
+        let mut runtime = AppRuntime::new(vec![app("one"), app("two")]);
+        runtime.update(&InputFrame {
+            pressed: vec![Input::Confirm],
+            ..InputFrame::default()
+        });
+        runtime.set_measured_memo(4, 1);
+        runtime.update(&InputFrame {
+            stick_scroll_pixels: -2,
+            ..InputFrame::default()
+        });
+        assert_eq!(runtime.controller().detail_description_scroll(), 2);
+
+        runtime.update(&InputFrame {
+            pressed: vec![Input::Up],
+            stick_navigation: vec![Input::Up],
+            stick_scroll_pixels: 2,
+            ..InputFrame::default()
+        });
+        assert_eq!(runtime.controller().detail_description_scroll(), 0);
+        runtime.update(&InputFrame {
+            pressed: vec![Input::Up],
+            stick_navigation: vec![Input::Up],
+            stick_scroll_pixels: 2,
+            ..InputFrame::default()
+        });
+        assert_eq!(runtime.controller().detail_description_scroll(), 0);
+        runtime.update(&InputFrame {
+            pressed: vec![Input::Down],
+            stick_navigation: vec![Input::Down],
+            stick_scroll_pixels: -2,
+            ..InputFrame::default()
+        });
+        assert_eq!(runtime.controller().detail_description_scroll(), 2);
+
+        runtime.update(&InputFrame {
+            pressed: vec![Input::Up],
+            stick_navigation: vec![Input::Up],
+            stick_scroll_pixels: 1,
+            ..InputFrame::default()
+        });
+        assert_eq!(runtime.controller().detail_description_scroll(), 1);
+
+        runtime.update(&InputFrame {
+            pressed: vec![Input::Down],
+            stick_navigation: vec![Input::Down],
+            stick_scroll_pixels: -1,
+            ..InputFrame::default()
+        });
+        assert_eq!(runtime.controller().detail_description_scroll(), 2);
+
+        runtime.update(&InputFrame {
+            pressed: vec![Input::Back],
+            ..InputFrame::default()
+        });
+        runtime.update(&InputFrame {
+            pressed: vec![Input::Down],
+            stick_navigation: vec![Input::Down],
+            stick_scroll_pixels: 10,
+            ..InputFrame::default()
+        });
+        assert_eq!(runtime.controller().selected_app.as_deref(), Some("two"));
+        runtime.update(&InputFrame {
+            pressed: vec![Input::Up],
+            stick_scroll_pixels: 10,
+            ..InputFrame::default()
+        });
+        assert_eq!(runtime.controller().selected_app.as_deref(), Some("one"));
     }
 
     #[test]

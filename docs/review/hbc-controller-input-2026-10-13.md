@@ -13,12 +13,17 @@ new HBC defaults, not C parity claims: GameCube uses A Confirm, B Back, X
 Options, Y Browse Mode, Start/Home Main Menu, and L/R Previous/Next Page.
 Switch Pro and paired Joy-Cons use A Confirm, B Back, X Options, Y Browse Mode,
 Minus Previous Page, Plus Next Page, and Home Main Menu. A right Joy-Con uses
-A/B for Confirm/Back, X/Y for Options/Browse Mode, Plus for Next Page, and
-Home for Main Menu. A left Joy-Con uses SR Confirm, SL Back, Minus/L for
-Previous Page, R for Next Page, and Home for Main Menu. The normalized left
-stick scrolls vertically; the right Joy-Con right stick supplies its vertical
-scroll. HBC logs every reported USB or Bluetooth source error with its full
-error detail.
+A/B for Confirm/Back, X/Y for Options/Browse Mode, Plus for Next Page, R for
+Previous Page, and Home for Main Menu. Its right stick
+provides vertical memo scroll and identity-gated Up/Down/Left/Right focus
+presses. When analog memo scroll can consume the same vertical direction, HBC
+suppresses only that generated stick direction for the frame. A left Joy-Con
+uses SR Confirm, SL Back, L Previous Page, ZL Next Page, L-stick click Options,
+Capture Browse Mode, and Minus/Select Main Menu. Its direction buttons provide
+focus navigation. These half-controller mappings are new HBC defaults, not C
+parity claims. HBC logs every reported USB or Bluetooth source error with its
+full error detail and reports missing identity or stick-mapper errors as scan
+failures.
 The network scan help uses logical Confirm/Back labels because input can come
 from different controller kinds with different physical back buttons.
 
@@ -47,8 +52,13 @@ pointer-owner arbitration, disconnect releases, and screenshot chords. Runtime
 regression tests also check simultaneous pointer/page activation and
 screen-transition input consumption. Host tests also cover each normalized
 controller kind, adapter input, stick scroll, and a quick press plus release
-preserved by a reset. When `startup-diagnostics` is enabled, HBC writes each
-action returned by the production runtime to the existing diagnostic event
+preserved by a reset. The Right Stick mapping test checks disconnect release,
+reconnect gating until neutral, and no duplicate direction when PAD already
+pressed that direction. The runtime test checks analog memo-scroll arbitration
+and confirms stick or PAD directions still navigate when no memo consumes
+scroll. These are host checks; real controller behavior remains unverified.
+When `startup-diagnostics` is enabled, HBC writes each action returned by the
+production runtime to the existing diagnostic event
 stream before platform dispatch. This records the action result; it does not
 record whether a later hardware or storage operation succeeds. The full HBC
 host suite and PowerPC custom-target check are required before claiming build

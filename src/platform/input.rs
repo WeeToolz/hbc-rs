@@ -9,6 +9,8 @@ use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, Ordering};
 #[cfg(any(target_arch = "powerpc", test))]
 use ogc_controller::{
     Buttons as ControllerButtons, ControllerKind, ControllerSnapshot, ControllerSource,
+    DigitalStickMapper, StickDirectionError, StickDirectionFrame, StickDirectionSample,
+    MAX_CONTROLLERS,
 };
 
 use crate::app::Input;
@@ -23,6 +25,8 @@ static WPAD_VIEW_WIDTH: AtomicU32 = AtomicU32::new(0);
 static WPAD_VIEW_HEIGHT: AtomicU32 = AtomicU32::new(0);
 #[cfg(target_arch = "powerpc")]
 static mut CONTROLLER_MANAGER: ControllerManager = ControllerManager::new();
+#[cfg(target_arch = "powerpc")]
+static mut RIGHT_STICK_MAPPER: DigitalStickMapper<MAX_CONTROLLERS> = DigitalStickMapper::new();
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct InputFrame {
@@ -34,6 +38,9 @@ pub struct InputFrame {
     pub pointer_held: bool,
     /// Signed HBC-style vertical stick scroll in logical pixels for this frame.
     pub stick_scroll_pixels: i16,
+    /// Directions pressed by a Right Joy-Con stick. Runtime suppresses only a
+    /// matching direction when memo scrolling consumes that same movement.
+    pub stick_navigation: Vec<Input>,
     /// Capture the rendered frame when the HBC network/screenshot chord is pressed.
     pub screenshot_requested: bool,
 }
@@ -303,9 +310,11 @@ fn map_normalized_controller_buttons(kind: ControllerKind, mask: u32, out: &mut 
         ControllerKind::JoyConLeft => &[
             (ControllerButtons::SR, Buttons::CONFIRM),
             (ControllerButtons::SL, Buttons::BACK),
-            (ControllerButtons::SELECT, Buttons::PREVIOUS),
+            (ControllerButtons::SELECT, Buttons::HOME),
             (ControllerButtons::L, Buttons::PREVIOUS),
-            (ControllerButtons::R, Buttons::NEXT),
+            (ControllerButtons::ZL, Buttons::NEXT),
+            (ControllerButtons::L_STICK, Buttons::OPTIONS),
+            (ControllerButtons::CAPTURE, Buttons::BROWSE_MODE),
         ],
         ControllerKind::JoyConRight => &[
             (ControllerButtons::A, Buttons::CONFIRM),
@@ -313,8 +322,8 @@ fn map_normalized_controller_buttons(kind: ControllerKind, mask: u32, out: &mut 
             (ControllerButtons::X, Buttons::OPTIONS),
             (ControllerButtons::Y, Buttons::BROWSE_MODE),
             (ControllerButtons::START, Buttons::NEXT),
-            (ControllerButtons::L, Buttons::PREVIOUS),
-            (ControllerButtons::R, Buttons::NEXT),
+            (ControllerButtons::R, Buttons::PREVIOUS),
+            (ControllerButtons::HOME, Buttons::HOME),
         ],
         ControllerKind::JoyConPair | ControllerKind::SwitchPro => &[
             (ControllerButtons::A, Buttons::CONFIRM),
@@ -373,21 +382,95 @@ fn normalized_stick_scroll(kind: ControllerKind, axes: ogc_controller::Axes) -> 
 }
 
 #[cfg(any(target_arch = "powerpc", test))]
-fn map_additional_controllers(snapshot: &ControllerSnapshot, mapped: &mut MappedInput) -> i32 {
+fn map_additional_controllers<const N: usize>(
+    snapshot: &ControllerSnapshot,
+    mapped: &mut MappedInput,
+    stick_mapper: &mut DigitalStickMapper<N>,
+) -> Result<(i32, Buttons), InputScanError> {
     let mut stick_scroll = 0;
+    let mut samples =
+        [const { core::mem::MaybeUninit::<StickDirectionSample>::uninit() }; MAX_CONTROLLERS];
+    let mut sample_count = 0;
     for controller in snapshot.controllers() {
         if !is_additional_source(controller.source) {
             continue;
         }
         map_controller_edges(controller, mapped);
         stick_scroll += normalized_stick_scroll(controller.kind, controller.axes);
+        if controller.kind == ControllerKind::JoyConRight && controller.connected {
+            let id = snapshot
+                .controller_id(controller.source)
+                .ok_or(InputScanError::MissingControllerIdentity(controller.source))?;
+            samples[sample_count].write(StickDirectionSample {
+                id,
+                x: controller.axes.right_x,
+                y: controller.axes.right_y,
+                threshold: 8192,
+            });
+            sample_count += 1;
+        }
     }
     for reset in snapshot.resets() {
         if is_additional_source(reset.state.source) {
             map_controller_edges(&reset.state, mapped);
         }
     }
-    stick_scroll
+    // SAFETY: each entry before sample_count was initialized above. The
+    // snapshot is bounded by MAX_CONTROLLERS and the mapper validates capacity.
+    let samples = unsafe {
+        core::slice::from_raw_parts(
+            samples.as_ptr().cast::<StickDirectionSample>(),
+            sample_count,
+        )
+    };
+    let frame = stick_mapper
+        .map(samples)
+        .map_err(InputScanError::StickDirection)?;
+    let navigation = map_stick_direction_frame(&frame, mapped);
+    Ok((stick_scroll, navigation))
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+fn map_stick_direction_frame<const N: usize>(
+    frame: &StickDirectionFrame<N>,
+    mapped: &mut MappedInput,
+) -> Buttons {
+    let mut navigation = Buttons::default();
+    for state in frame.states() {
+        let previous_down = mapped.down;
+        map_normalized_controller_buttons(
+            ControllerKind::JoyConRight,
+            state.action_down.to_buttons().bits(),
+            &mut mapped.down,
+        );
+        navigation.0 |= mapped.down.0 & !previous_down.0;
+        map_normalized_controller_buttons(
+            ControllerKind::JoyConRight,
+            state.action_held.to_buttons().bits(),
+            &mut mapped.held,
+        );
+        map_normalized_controller_buttons(
+            ControllerKind::JoyConRight,
+            state.action_up.to_buttons().bits(),
+            &mut mapped.up,
+        );
+    }
+    for reset in frame.resets() {
+        map_normalized_controller_buttons(
+            ControllerKind::JoyConRight,
+            reset.action_released.to_buttons().bits(),
+            &mut mapped.up,
+        );
+    }
+    navigation
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg(any(target_arch = "powerpc", test))]
+pub enum InputScanError {
+    Wpad(i32),
+    MissingControllerIdentity(ControllerSource),
+    StickDirection(StickDirectionError),
 }
 
 #[cfg(any(target_arch = "powerpc", test))]
@@ -509,7 +592,7 @@ pub fn initialize(view_width: u16, view_height: u16) -> Result<(), i32> {
 
 /// Scan GameCube port zero and Wii Remote channels using HBC pointer ownership.
 #[cfg(target_arch = "powerpc")]
-pub fn scan() -> Result<InputFrame, i32> {
+pub fn scan() -> Result<InputFrame, InputScanError> {
     use wpad_sys as wpad;
 
     diagnostic_scan_mark("WPAD SCAN START");
@@ -520,9 +603,10 @@ pub fn scan() -> Result<InputFrame, i32> {
             configure_wpad(
                 WPAD_VIEW_WIDTH.load(Ordering::Acquire),
                 WPAD_VIEW_HEIGHT.load(Ordering::Acquire),
-            )?;
+            )
+            .map_err(InputScanError::Wpad)?;
         } else if start != wpad::WPAD_ERR_NOT_READY as i32 {
-            return Err(start);
+            return Err(InputScanError::Wpad(start));
         }
     }
     diagnostic_scan_mark("PAD AND WPAD SCAN START");
@@ -537,7 +621,7 @@ pub fn scan() -> Result<InputFrame, i32> {
         .find(|error| error.operation == "WPAD poll")
     {
         if let ogc_controller::InputFailure::Source(code) = error.failure {
-            return Err(code);
+            return Err(InputScanError::Wpad(code));
         }
     }
 
@@ -592,7 +676,12 @@ pub fn scan() -> Result<InputFrame, i32> {
         owner,
         raw.pad_status[0].err == ogc_input::PAD_ERR_NONE as i8,
     );
-    stick_scroll += map_additional_controllers(&raw.snapshot, &mut mapped);
+    // SAFETY: HBC scans on one main thread and owns this mapper for its life.
+    let (additional_scroll, stick_navigation) =
+        map_additional_controllers(&raw.snapshot, &mut mapped, unsafe {
+            &mut *core::ptr::addr_of_mut!(RIGHT_STICK_MAPPER)
+        })?;
+    stick_scroll += additional_scroll;
     stick_scroll /= 8;
     if let Some(owner) = owner {
         if let Some(state) = raw.wpad_data[owner]
@@ -612,6 +701,7 @@ pub fn scan() -> Result<InputFrame, i32> {
         pointer_pressed,
         pointer_held,
         stick_scroll_pixels: stick_scroll.clamp(i32::from(i16::MIN), i32::from(i16::MAX)) as i16,
+        stick_navigation: inputs(stick_navigation),
         screenshot_requested: screenshot_chord(mapped.down, mapped.held),
     })
 }
@@ -754,12 +844,22 @@ mod tests {
                 | ControllerButtons::B.bits()
                 | ControllerButtons::SR.bits()
                 | ControllerButtons::SL.bits()
-                | ControllerButtons::SELECT.bits(),
+                | ControllerButtons::SELECT.bits()
+                | ControllerButtons::L.bits()
+                | ControllerButtons::ZL.bits()
+                | ControllerButtons::L_STICK.bits()
+                | ControllerButtons::CAPTURE.bits(),
             &mut joycon_left,
         );
         assert_eq!(
             joycon_left.0,
-            Buttons::CONFIRM | Buttons::BACK | Buttons::PREVIOUS
+            Buttons::CONFIRM
+                | Buttons::BACK
+                | Buttons::HOME
+                | Buttons::PREVIOUS
+                | Buttons::NEXT
+                | Buttons::OPTIONS
+                | Buttons::BROWSE_MODE
         );
 
         let mut joycon_right = Buttons::default();
@@ -767,12 +867,14 @@ mod tests {
             ControllerKind::JoyConRight,
             ControllerButtons::A.bits()
                 | ControllerButtons::B.bits()
-                | ControllerButtons::START.bits(),
+                | ControllerButtons::START.bits()
+                | ControllerButtons::R.bits()
+                | ControllerButtons::HOME.bits(),
             &mut joycon_right,
         );
         assert_eq!(
             joycon_right.0,
-            Buttons::CONFIRM | Buttons::BACK | Buttons::NEXT
+            Buttons::CONFIRM | Buttons::BACK | Buttons::NEXT | Buttons::PREVIOUS | Buttons::HOME
         );
 
         let mut pro = Buttons::default();
@@ -814,10 +916,109 @@ mod tests {
             ..ogc_controller::ControllerState::empty()
         });
         let mut mapped = MappedInput::default();
-        let scroll = map_additional_controllers(&snapshot, &mut mapped);
+        let mut mapper = DigitalStickMapper::<MAX_CONTROLLERS>::new();
+        let (scroll, _) = map_additional_controllers(&snapshot, &mut mapped, &mut mapper).unwrap();
         assert_eq!(mapped.down.0, Buttons::CONFIRM);
         assert_eq!(mapped.held.0, Buttons::CONFIRM);
         assert_eq!(scroll, 22);
+    }
+
+    #[test]
+    fn right_stick_actions_rearm_after_reconnect_and_do_not_duplicate_pad_direction() {
+        let source = ControllerSource::BluetoothHid(0);
+        let id = ogc_controller::ControllerId {
+            source,
+            generation: 1,
+        };
+        let mut mapper = DigitalStickMapper::<2>::new();
+        let sample = |id, y| StickDirectionSample {
+            id,
+            x: 0,
+            y,
+            threshold: 8192,
+        };
+        assert!(
+            mapper
+                .map(&[sample(id, 0)])
+                .unwrap()
+                .states()
+                .next()
+                .unwrap()
+                .action_down
+                .bits()
+                == 0
+        );
+        let pressed = mapper.map(&[sample(id, 9000)]).unwrap();
+        let mut mapped = MappedInput::default();
+        let navigation = map_stick_direction_frame(&pressed, &mut mapped);
+        assert_eq!(navigation.0, Buttons::UP);
+        assert_eq!(mapped.down.0, Buttons::UP);
+
+        let mut pad_already_pressed = MappedInput {
+            down: Buttons(Buttons::UP),
+            ..MappedInput::default()
+        };
+        assert_eq!(
+            map_stick_direction_frame(&pressed, &mut pad_already_pressed).0,
+            0
+        );
+
+        let reset = mapper.map(&[]).unwrap();
+        let mut released = MappedInput::default();
+        map_stick_direction_frame(&reset, &mut released);
+        assert_eq!(released.up.0, Buttons::UP);
+        let replacement = ogc_controller::ControllerId {
+            generation: 2,
+            ..id
+        };
+        let held_after_reconnect = mapper.map(&[sample(replacement, 9000)]).unwrap();
+        assert!(
+            held_after_reconnect
+                .states()
+                .next()
+                .unwrap()
+                .action_down
+                .bits()
+                == 0
+        );
+        assert!(
+            mapper
+                .map(&[sample(replacement, 0)])
+                .unwrap()
+                .states()
+                .next()
+                .unwrap()
+                .action_down
+                .bits()
+                == 0
+        );
+        let new_press = mapper.map(&[sample(replacement, 9000)]).unwrap();
+        assert_eq!(
+            new_press.states().next().unwrap().action_down.to_buttons(),
+            ControllerButtons::UP
+        );
+    }
+
+    #[test]
+    fn right_stick_input_without_manager_identity_is_an_error() {
+        let mut snapshot = ControllerSnapshot::empty();
+        snapshot.push(ogc_controller::ControllerState {
+            source: ControllerSource::BluetoothHid(0),
+            kind: ControllerKind::JoyConRight,
+            connected: true,
+            axes: ogc_controller::Axes {
+                right_y: 9000,
+                ..Default::default()
+            },
+            ..ogc_controller::ControllerState::empty()
+        });
+        let mut mapper = DigitalStickMapper::<MAX_CONTROLLERS>::new();
+        let error = map_additional_controllers(&snapshot, &mut MappedInput::default(), &mut mapper)
+            .unwrap_err();
+        assert_eq!(
+            error,
+            InputScanError::MissingControllerIdentity(ControllerSource::BluetoothHid(0))
+        );
     }
 
     #[test]
