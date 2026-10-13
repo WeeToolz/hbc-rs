@@ -210,11 +210,9 @@ impl AppRuntime {
     pub fn update(&mut self, frame: &InputFrame) -> Vec<Action> {
         self.controller.reconcile_catalog(&self.catalog);
         if self.controller.timed_notice_active() {
-            let input = frame
-                .pressed
-                .first()
-                .or_else(|| frame.held.first())
-                .copied();
+            // The button that started a synchronous operation can still be held
+            // when its result arrives. Only a new press can dismiss that result.
+            let input = frame.pressed.first().copied();
             if let Some(input) = input {
                 let mut actions = Vec::new();
                 push_action(&mut actions, self.controller.handle(input, &self.catalog));
@@ -347,6 +345,35 @@ mod tests {
             ..InputFrame::default()
         });
         assert_eq!(runtime.controller().screen, crate::app::Screen::Browser);
+    }
+
+    #[test]
+    fn save_error_remains_visible_while_the_save_button_is_held() {
+        let mut runtime = AppRuntime::new(vec![app("one")]);
+        runtime.controller.screen = crate::app::Screen::NetworkSettings;
+        assert_eq!(
+            runtime.update_pointer(Some(PointerTarget::NetworkOption(3)), true),
+            vec![Action::SaveNetworkConfig]
+        );
+        runtime.show_notice_with_kind("NAND write failed", crate::app::NoticeKind::Error);
+        for _ in 0..60 {
+            assert!(runtime
+                .update(&InputFrame {
+                    held: vec![Input::Confirm],
+                    ..InputFrame::default()
+                })
+                .is_empty());
+        }
+        assert_eq!(runtime.controller().screen, crate::app::Screen::Notice);
+        assert_eq!(runtime.controller().notice(), Some("NAND write failed"));
+        runtime.update(&InputFrame {
+            pressed: vec![Input::Confirm],
+            ..InputFrame::default()
+        });
+        assert_eq!(
+            runtime.controller().screen,
+            crate::app::Screen::NetworkSettings
+        );
     }
 
     #[test]

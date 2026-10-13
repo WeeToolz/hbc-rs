@@ -55,18 +55,29 @@ pub fn take_ready_exit(
     }
 }
 
-/// C HBC records controller cleanup errors and still performs the requested
-/// system reset. Call only after persistent writes, storage and network cleanup
-/// have completed. This policy does not apply to an application handoff.
-pub fn reset_after_controller_cleanup<E, R>(
-    cleanup: Result<(), E>,
-    report: impl FnOnce(E),
-    reset: impl FnOnce() -> R,
-) -> R {
-    if let Err(error) = cleanup {
-        report(error);
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExitCleanupStep {
+    Storage,
+    Disc,
+    NetworkReceiver,
+    Controllers,
+}
+
+const EXIT_CLEANUP_ORDER: [ExitCleanupStep; 4] = [
+    ExitCleanupStep::Disc,
+    ExitCleanupStep::NetworkReceiver,
+    ExitCleanupStep::Storage,
+    ExitCleanupStep::Controllers,
+];
+
+/// Run shared shutdown work in order and stop when a required step fails.
+pub fn run_exit_cleanup<E>(
+    mut cleanup: impl FnMut(ExitCleanupStep) -> Result<(), E>,
+) -> Result<(), (ExitCleanupStep, E)> {
+    for step in EXIT_CLEANUP_ORDER {
+        cleanup(step).map_err(|error| (step, error))?;
     }
-    reset()
+    Ok(())
 }
 
 #[cfg(target_arch = "powerpc")]
@@ -111,18 +122,45 @@ mod tests {
     }
 
     #[test]
-    fn failed_controller_close_is_recorded_before_the_real_reset_boundary() {
+    fn system_menu_and_power_off_share_ordered_cleanup() {
         let events = core::cell::RefCell::new(alloc::vec::Vec::new());
-        let outcome = reset_after_controller_cleanup(
-            Err(-116),
-            |error| events.borrow_mut().push(error),
-            || {
-                events.borrow_mut().push(1);
-                "reset completed"
-            },
+        let result = run_exit_cleanup(|step| {
+            events.borrow_mut().push(step);
+            Ok::<(), ()>(())
+        });
+        assert_eq!(result, Ok(()));
+        assert_eq!(
+            *events.borrow(),
+            [
+                ExitCleanupStep::Disc,
+                ExitCleanupStep::NetworkReceiver,
+                ExitCleanupStep::Storage,
+                ExitCleanupStep::Controllers,
+            ]
         );
-        assert_eq!(*events.borrow(), [-116, 1]);
-        assert_eq!(outcome, "reset completed");
+    }
+
+    #[test]
+    fn system_exit_cleanup_stops_at_the_first_failed_step() {
+        let events = core::cell::RefCell::new(alloc::vec::Vec::new());
+        let result = run_exit_cleanup(|step| {
+            events.borrow_mut().push(step);
+            if step == ExitCleanupStep::Controllers {
+                Err(-9)
+            } else {
+                Ok(())
+            }
+        });
+        assert_eq!(result, Err((ExitCleanupStep::Controllers, -9)));
+        assert_eq!(
+            *events.borrow(),
+            [
+                ExitCleanupStep::Disc,
+                ExitCleanupStep::NetworkReceiver,
+                ExitCleanupStep::Storage,
+                ExitCleanupStep::Controllers,
+            ]
+        );
     }
 
     #[test]

@@ -447,7 +447,7 @@ fn parse_chunks(data: &[u8], limits: PngLimits) -> Result<Chunks, PngError> {
                 debug_assert_eq!(compressed.len(), new_len);
             }
             IEND => {
-                if payload.len() != 0 || !saw_idat {
+                if !payload.is_empty() || !saw_idat {
                     return Err(PngError::InvalidChunk);
                 }
                 saw_iend = true;
@@ -491,7 +491,7 @@ fn parse_header(payload: &[u8], limits: PngLimits) -> Result<Header, PngError> {
         || height > limits.max_height as usize
         || width
             .checked_mul(height)
-            .map_or(true, |count| count > limits.max_pixels)
+            .is_none_or(|count| count > limits.max_pixels)
     {
         return Err(PngError::InvalidDimensions);
     }
@@ -602,7 +602,7 @@ fn decode_passes(chunks: &Chunks, inflated: &[u8], output: &mut [u8]) -> Result<
         ]
     };
     let bytes_per_pixel =
-        (usize::from(channels(header.color_type)) * usize::from(header.bit_depth) + 7) / 8;
+        (usize::from(channels(header.color_type)) * usize::from(header.bit_depth)).div_ceil(8);
     let bytes_per_pixel = bytes_per_pixel.max(1);
     let mut cursor = 0usize;
     for &(start_x, start_y, step_x, step_y) in passes {
@@ -653,7 +653,12 @@ fn decode_passes(chunks: &Chunks, inflated: &[u8], output: &mut [u8]) -> Result<
                 .ok_or(PngError::InvalidScanline)?;
             unfilter_row(filter, encoded, &previous, &mut current, bytes_per_pixel)?;
             write_row(
-                chunks, &current, start_x, start_y, step_x, step_y, row_index, output,
+                chunks,
+                &current,
+                (start_x, start_y),
+                (step_x, step_y),
+                row_index,
+                output,
             )?;
             cursor = encoded_end;
             core::mem::swap(&mut current, &mut previous);
@@ -720,13 +725,13 @@ fn paeth(left: u8, above: u8, upper_left: u8) -> u8 {
 fn write_row(
     chunks: &Chunks,
     row: &[u8],
-    start_x: usize,
-    start_y: usize,
-    step_x: usize,
-    step_y: usize,
+    start: (usize, usize),
+    step: (usize, usize),
     row_index: usize,
     output: &mut [u8],
 ) -> Result<(), PngError> {
+    let (start_x, start_y) = start;
+    let (step_x, step_y) = step;
     let header = chunks.header;
     let channels = usize::from(channels(header.color_type));
     let width = pass_extent(header.width, start_x, step_x);
@@ -851,7 +856,7 @@ fn pass_extent(size: usize, start: usize, step: usize) -> usize {
     if size <= start {
         0
     } else {
-        (size - start + step - 1) / step
+        (size - start).div_ceil(step)
     }
 }
 

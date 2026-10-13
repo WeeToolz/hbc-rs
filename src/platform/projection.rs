@@ -33,7 +33,7 @@ mod tests {
         assert_eq!(SCENE_Z, -420.0);
         assert!(clip[0].abs() < 0.000001);
         assert!(clip[1].abs() < 0.000001);
-        assert!((clip[2] - (-0.6444444444)).abs() < 0.000001);
+        assert!((clip[2] - (-0.644_444_47)).abs() < 0.000001);
         assert!(clip[2] > -1.0 && clip[2] < 0.0);
     }
 

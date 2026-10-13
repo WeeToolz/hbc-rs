@@ -120,10 +120,17 @@ pub enum Action {
     ApplyOptions,
     LoadNetworkConfig,
     SaveNetworkConfig,
+    SaveNetworkConfigWithoutBackup,
     TestNetworkConnection,
     ScanNetworks,
     AcceptWiiloadZip,
     RejectWiiloadZip,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ConfirmationAction {
+    AcceptReceivedZip,
+    SaveNetworkConfigWithoutBackup,
 }
 
 /// Main menu focus follows the options available on this console.
@@ -219,6 +226,8 @@ pub struct AppController {
     wiiload_confirmation_scroll: usize,
     wiiload_confirmation_max_scroll: usize,
     wiiload_confirmation_scroll_pixel_remainder: i16,
+    confirmation_action: Option<ConfirmationAction>,
+    confirmation_return_screen: Screen,
     wiiload_install_progress: u8,
     notice: Option<String>,
     notice_kind: NoticeKind,
@@ -287,6 +296,23 @@ impl AppController {
         self.wiiload_confirmation_scroll = 0;
         self.wiiload_confirmation_max_scroll = 0;
         self.wiiload_confirmation_scroll_pixel_remainder = 0;
+        self.confirmation_action = Some(ConfirmationAction::AcceptReceivedZip);
+        self.confirmation_return_screen = Screen::Browser;
+        self.screen = Screen::WiiloadConfirm;
+    }
+
+    fn request_unbacked_network_save_confirmation(&mut self) {
+        self.wiiload_confirmation_yes = false;
+        self.wiiload_confirmation_text = String::from(
+            "This writes the new settings directly to Wii NAND without a backup. If the write fails, the saved network settings can be lost. Continue?",
+        );
+        self.wiiload_confirmation_scroll = 0;
+        self.wiiload_confirmation_scroll_pixel_remainder = 0;
+        self.wiiload_confirmation_max_scroll = wrap_lines(&self.wiiload_confirmation_text, 74)
+            .len()
+            .saturating_sub(MESSAGE_MEMO_VISIBLE_LINES);
+        self.confirmation_action = Some(ConfirmationAction::SaveNetworkConfigWithoutBackup);
+        self.confirmation_return_screen = Screen::NetworkSettings;
         self.screen = Screen::WiiloadConfirm;
     }
 
@@ -427,7 +453,7 @@ impl AppController {
             return;
         }
         self.about_scroll_ticks = self.about_scroll_ticks.saturating_add(1);
-        if self.about_scroll_ticks > 120 && self.about_scroll_ticks % 3 == 0 {
+        if self.about_scroll_ticks > 120 && self.about_scroll_ticks.is_multiple_of(3) {
             let max = self.about_max_scroll();
             self.about_scroll = self.about_scroll.saturating_add(1).min(max);
         }
@@ -706,19 +732,20 @@ impl AppController {
         let profile_index = config
             .active_wifi_profile()
             .map_err(NetworkConfigEditError::Profile)?;
-        let mut profile = config
-            .profile_mut(profile_index)
-            .expect("profile index is valid");
-        let mut wifi = profile.wifi_mut();
-        if !wifi.set_ssid(&self.network_ssid)
-            || !wifi.set_encryption(self.network_encryption)
-            || !wifi.set_key(&self.network_key)
         {
-            return Err(NetworkConfigEditError::Wifi(
-                crate::network_config::WifiValidationError::InvalidWpaKey,
-            ));
+            let mut profile = config
+                .profile_mut(profile_index)
+                .expect("profile index is valid");
+            let mut wifi = profile.wifi_mut();
+            if !wifi.set_ssid(&self.network_ssid)
+                || !wifi.set_encryption(self.network_encryption)
+                || !wifi.set_key(&self.network_key)
+            {
+                return Err(NetworkConfigEditError::Wifi(
+                    crate::network_config::WifiValidationError::InvalidWpaKey,
+                ));
+            }
         }
-        drop(wifi);
         crate::network_config::validate_wifi(config.profile(profile_index).unwrap().wifi())
             .map_err(NetworkConfigEditError::Wifi)?;
         Ok(config)
@@ -928,21 +955,46 @@ impl AppController {
                     Action::None
                 }
                 Input::Back => {
-                    self.screen = Screen::Browser;
-                    Action::RejectWiiloadZip
+                    let action = self.confirmation_action.take();
+                    self.screen = self.confirmation_return_screen;
+                    if action == Some(ConfirmationAction::AcceptReceivedZip) {
+                        Action::RejectWiiloadZip
+                    } else {
+                        Action::None
+                    }
                 }
                 Input::Home => {
                     self.screen = Screen::MainMenu;
                     self.menu_focus = 0;
-                    Action::RejectWiiloadZip
-                }
-                Input::Confirm if self.wiiload_confirmation_yes => {
-                    self.screen = Screen::Browser;
-                    Action::AcceptWiiloadZip
+                    if self.confirmation_action.take()
+                        == Some(ConfirmationAction::AcceptReceivedZip)
+                    {
+                        Action::RejectWiiloadZip
+                    } else {
+                        Action::None
+                    }
                 }
                 Input::Confirm => {
-                    self.screen = Screen::Browser;
-                    Action::RejectWiiloadZip
+                    let accepted = self.wiiload_confirmation_yes;
+                    let action = self.confirmation_action.take();
+                    self.screen = if action.is_some() {
+                        self.confirmation_return_screen
+                    } else {
+                        Screen::Browser
+                    };
+                    match (action, accepted) {
+                        (Some(ConfirmationAction::AcceptReceivedZip), true) => {
+                            Action::AcceptWiiloadZip
+                        }
+                        (Some(ConfirmationAction::AcceptReceivedZip), false) => {
+                            Action::RejectWiiloadZip
+                        }
+                        (Some(ConfirmationAction::SaveNetworkConfigWithoutBackup), true) => {
+                            Action::SaveNetworkConfigWithoutBackup
+                        }
+                        (Some(ConfirmationAction::SaveNetworkConfigWithoutBackup), false)
+                        | (None, _) => Action::None,
+                    }
                 }
                 _ => Action::None,
             },
@@ -1088,7 +1140,7 @@ impl AppController {
                     Action::None
                 }
             }
-            (Screen::NetworkSettings, PointerTarget::NetworkOption(index)) if index < 7 => {
+            (Screen::NetworkSettings, PointerTarget::NetworkOption(index)) if index < 8 => {
                 self.network_focus = index;
                 if pressed {
                     self.handle(Input::Confirm, catalog)
@@ -1383,16 +1435,17 @@ impl AppController {
                     self.network_encryption = cycle_encryption(self.network_encryption, true);
                     Action::None
                 }
-                3 => {
-                    self.screen = Screen::Options;
-                    Action::SaveNetworkConfig
-                }
+                3 => Action::SaveNetworkConfig,
                 4 => Action::TestNetworkConnection,
                 5 => {
                     self.screen = Screen::Options;
                     Action::None
                 }
                 6 => Action::ScanNetworks,
+                7 => {
+                    self.request_unbacked_network_save_confirmation();
+                    Action::None
+                }
                 _ => Action::None,
             },
             _ => Action::None,
@@ -1663,14 +1716,15 @@ fn move_focus_c_style(focus: &mut usize, enabled: &[bool], input: Input, vertica
 fn move_network_focus(focus: &mut usize, input: Input) {
     // Focus follows the visible control layout. This keeps each direction
     // useful when the controls do not form one straight list.
-    const POSITIONS: [(i16, i16); 7] = [
+    const POSITIONS: [(i16, i16); 8] = [
         (2, 0), // Network name edit
         (2, 1), // Security change
         (2, 2), // Password edit
         (0, 3), // Save
         (1, 3), // Test connection
         (2, 3), // Back
-        (1, 4), // Scan networks
+        (0, 4), // Scan networks
+        (2, 4), // Write without backup
     ];
     let Some(&(x, y)) = POSITIONS.get(*focus) else {
         *focus = 0;
@@ -1763,6 +1817,7 @@ mod tests {
             controller.handle(Input::Confirm, &[]),
             Action::SaveNetworkConfig
         );
+        assert_eq!(controller.screen, Screen::NetworkSettings);
 
         controller.screen = Screen::NetworkSettings;
         controller.network_focus = 3;
@@ -1773,7 +1828,7 @@ mod tests {
             Action::TestNetworkConnection
         );
 
-        controller.network_focus = 5;
+        controller.network_focus = 4;
         assert_eq!(controller.handle(Input::Down, &[]), Action::None);
         assert_eq!(controller.network_focus, 6);
         assert_eq!(controller.handle(Input::Confirm, &[]), Action::ScanNetworks);
@@ -1781,6 +1836,32 @@ mod tests {
             controller.handle_pointer(Some(PointerTarget::NetworkOption(6)), true, &[],),
             Action::ScanNetworks
         );
+    }
+
+    #[test]
+    fn unbacked_network_save_requires_explicit_confirmation() {
+        let mut controller = AppController::new();
+        controller.screen = Screen::NetworkSettings;
+        controller.network_focus = 7;
+        assert_eq!(controller.handle(Input::Confirm, &[]), Action::None);
+        assert_eq!(controller.screen, Screen::WiiloadConfirm);
+        assert!(!controller.wiiload_confirmation_yes());
+        assert!(controller
+            .wiiload_confirmation_text()
+            .contains("without a backup"));
+
+        assert_eq!(controller.handle(Input::Confirm, &[]), Action::None);
+        assert_eq!(controller.screen, Screen::NetworkSettings);
+
+        controller.network_focus = 7;
+        controller.handle(Input::Confirm, &[]);
+        controller.handle(Input::Right, &[]);
+        assert!(controller.wiiload_confirmation_yes());
+        assert_eq!(
+            controller.handle(Input::Confirm, &[]),
+            Action::SaveNetworkConfigWithoutBackup
+        );
+        assert_eq!(controller.screen, Screen::NetworkSettings);
     }
 
     #[test]
@@ -2116,6 +2197,24 @@ mod tests {
     }
 
     #[test]
+    fn pointer_activates_exit_and_shutdown_menu_items() {
+        let mut controller = AppController::new();
+        controller.handle(Input::Home, &[]);
+
+        assert_eq!(
+            controller.handle_pointer(Some(PointerTarget::Menu(2)), true, &[]),
+            Action::Exit
+        );
+
+        controller.handle(Input::Back, &[]);
+        controller.handle(Input::Home, &[]);
+        assert_eq!(
+            controller.handle_pointer(Some(PointerTarget::Menu(3)), true, &[]),
+            Action::Shutdown
+        );
+    }
+
+    #[test]
     fn deleting_an_app_requires_an_explicit_yes_confirmation() {
         let catalog = [app("one", "One", true)];
         let mut controller = AppController::new();
@@ -2154,7 +2253,7 @@ mod tests {
         );
         controller.request_wiiload_zip_confirmation();
         controller.handle(Input::Right, &[]);
-        assert_eq!(controller.wiiload_confirmation_yes(), true);
+        assert!(controller.wiiload_confirmation_yes());
         assert_eq!(
             controller.handle(Input::Confirm, &[]),
             Action::AcceptWiiloadZip

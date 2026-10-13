@@ -16,6 +16,8 @@ pub mod localization;
 pub mod management;
 pub mod metadata;
 pub mod network_config;
+#[cfg(any(target_arch = "powerpc", test))]
+mod network_scan;
 mod playtime;
 pub mod png;
 pub mod render;

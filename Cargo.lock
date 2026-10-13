@@ -148,6 +148,7 @@ version = "0.1.0"
 dependencies = [
  "ogc-cache",
  "ogc-ipc",
+ "wiiuse-rs",
 ]
 
 [[package]]
@@ -586,6 +587,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "wiiuse-rs"
+version = "0.1.0"
+
+[[package]]
 name = "wpad-sys"
 version = "0.1.0"
 dependencies = [
@@ -596,4 +601,5 @@ dependencies = [
  "ogc-ipc",
  "ogc-lwp-driver",
  "ogc-sys",
+ "wiiuse-rs",
 ]

@@ -137,3 +137,41 @@ Final combined DOL: release build passed without warnings; copied to `/Volumes/C
 ## 2026-10-08 Wii follow-up: ISFS access denied and scan failure
 
 The latest Wii photo shows `Recovery(Isfs(-102))`. The Wii [`/dev/fs` error list](https://wiibrew.org/wiki//dev/fs) defines `-102` as `EACCES` (permission denied), so the earlier invalid staging-name fix did not resolve the hardware failure. The notice does not identify the denied path or request. The network scan also fails on this DOL per the user; its driver error value has not been reported, so it is a separate open issue. Rust WD scan code propagates the driver result; C `WD_ScanOnce` ignores several operation results and returns success, so host or source-level parity cannot be treated as proof that Wii scanning works. The save notice now names -102 as access denied and retains its nested operation details. Host tests remain 235/235. The new Wii-only notice regression is present in source, but the Wii test target cannot link its tests because this target has no `test`/`std` runtime; the release build compiles the production path without warnings. This diagnostic change is not deployed and does not fix the permission denial. Do not mark network save or scan as hardware verified.
+
+## 2026-10-08 direct network-config write probe
+
+The user authorized a direct write to the existing `/shared2/sys/net/02/config.dat` to identify the ISFS failure. Save makes a new, exclusive backup at `apps/hbc-rs/netcfg.bak` on the active mounted volume, flushes it, reads it back, and compares all `CONFIG_LEN` bytes before it opens the existing NAND file for writing. It then reads the NAND file back and compares the committed bytes. The backup path uses the mount prefix for the current catalog volume, such as `usb:` or `sd:`. An existing backup blocks another attempt. The backup remains on the active volume after success and contains the stored WiFi password. If the direct write fails after a partial write, the old bytes remain on that volume, but software does not yet restore them automatically. The previous Wii run returned FAT `NotFound` because the hard-coded SD path was not available; the updated DOL must show whether the active-volume path fixes backup creation and, if so, whether IOS accepts the existing NAND file write. Network connection, wireless-driver unlock, and selected-app launch are still open hardware issues.
+
+The shared commit engine now has host tests for successful direct writes with backup retention and refusal to write when backup verification fails. The app-detail renderer also skips catalog text on modal screens because the Wii renderer draws text after dialog artwork.
+
+## 2026-10-08 retained recovery and repeated saves
+
+Startup now reads `/shared2/sys/net/02/config.dat` first. A structurally valid
+primary is left unchanged, even when older backups exist. Missing or malformed
+primary data triggers recovery in this order: HBC title-data current-state
+backup, HBC original backup, then current-state and original backups on the
+active mounted volume. Removable records include the Wii ES device ID, fixed
+length, version, kind, and CRC. A record that fails any check is not restored.
+After restore, Rust reads the primary again, validates its structure, and
+compares all bytes. Recovery files remain in place.
+
+Each save verifies the retained original backup, writes and reads back a
+separate current-state recovery copy, confirms that the NAND primary still
+matches the editor snapshot, then writes the replacement and verifies it.
+Repeated saves reuse the first original backup and replace only the current
+state copy. If reading the primary fails with an IOS error, recovery stops;
+that error does not prove that the file is damaged. Host tests exercise this
+shared production sequence. Real Wii IOS permissions, device identity, restore,
+and repeated-save behavior remain unverified.
+
+The follow-up CARROT file `/Volumes/CARROT/apps/hbc-rs/NETCFG.V1` was present
+with size zero. This matches the first-run FAT `Io` report: the old path created
+the final file before writing its record, then left the empty file behind. The
+retry found that file and correctly rejected it as invalid. Removable original
+backups now use a filename that includes the Wii device ID. Rust writes a
+temporary record, reads it back and validates its CRC and device ID, then
+renames it to the final name. It reuses a valid record from the older shared
+name when its device ID matches. It leaves an invalid shared-name file in place
+and uses the device-specific name, so this zero-byte file does not block a new
+verified backup. The USB path, temporary-file cleanup, rename, and real Wii
+write remain to be verified with the rebuilt DOL.

@@ -246,3 +246,23 @@ The user confirms the depth-corrected build now works on Wii. New reports
 concern disc cleanup, USB detection, text layout, and directional input;
 see `wii-runtime-fixes-2026-10-07.md`. This is confirmation of visible
 rendering, not a separately reported EFB readback or full hardware probe pass.
+
+## 2026-10-08 startup diagnostic frame transition
+
+Run `1791492295-180497000` uploaded successfully and received 486 progress packets through `GX XFB HAS IMAGE`, but no final report. Input startup labels were still being painted and synchronously sent on every runtime frame. The latest photo showing `PAD SCAN START` therefore does not establish a blocked first PAD scan; that scan completed in the captured trace.
+
+Startup completion now publishes `FIRST HBC FRAME DISPLAYED` without replacing the GX framebuffer. Later startup marks no longer paint or send labels. A production-helper regression test verifies suppression over 120 subsequent input labels. The diagnostic frame loop polls for an actual VI retrace with a one-second bound and reports `VI FRAME RETRACE TIMEOUT` on failure. It does not report a passing frame when that wait fails. The normal queue wait also includes the libogc-rs critical-section correction recorded in `libvideo.md`. Wii confirmation remains pending.
+
+## 2026-10-08 second-frame hardware trace
+
+Run `1791493961-872597000` sent build `d02e255183f858c4712b285f6b0bd087182c1fa5ea7b2611ff9bc35d0095c67e` through Terminal and received 494 progress packets. After `FIRST HBC FRAME DISPLAYED`, the next loop completed storage/result and device polling, Wiiload status polling, input scan/update, and GX scene drawing. The final received marker was `RUNTIME GX DRAW DONE`; framebuffer presentation did not report completion and no final report arrived within 45 seconds. This narrows the observed failure interval but does not prove the exact blocked call.
+
+Runtime progress markers are emitted once per phase after startup completion and do not repaint the diagnostic framebuffer. The next diagnostic build bounds the VI wait inside `VideoSystem::present` on every frame, rather than only its first invocation. It also records GX completion wait, VI wait, and XFB copy boundaries. Normal builds retain the queue wait so this diagnostic change does not establish a production scheduler fix. Verification: 309 HBC host tests and the diagnostic PowerPC release build passed. The latest presentation markers and bounded subsequent-frame VI path still require Wii validation.
+
+## Early snapshot before the HBC screen
+
+The diagnostic DOL now sends a WIR2 startup checkpoint after heap setup and report-network setup, before CONF/GX initialization, playtime/settings/theme operations, controller setup, storage workers and the first HBC frame. It sends the CPU diagnostic framebuffer, actual logs, heap use and build/run identity. Frame samples remain zero; no runtime passing summary is added. Host status is `checkpoint_received`, with `probe_passed: false`. HBC continues normally after transmission and does not request restart for this snapshot. Subsequent runtime failures retain their own error screen instead of presenting the completed checkpoint as a report failure. The normal build does not use this checkpoint path. Hardware transmission remains pending until the Wii is listening again.
+
+## Live stage capture extension
+
+Diagnostic HBC now keeps its report socket open after the early snapshot. It sends CPU framebuffer snapshots at major completed startup milestones and GX framebuffer snapshots after the first displayed HBC frame and at each one-time runtime/presentation boundary. Fine-grained PNG parsing progress remains text-only to avoid transferring hundreds of full frames during theme decode. Each actual completed snapshot carries WIR2 flags `0x0006`; final reports retain flags zero. A failed capture is recorded and prevents a later passing runtime report. The host persists each frame and live progress before waiting for the next frame. Its gallery indexes captured images and refreshes automatically. Timeout regression coverage verifies that two distinct saved images and logs survive a later stall. Real Wii streaming remains pending.

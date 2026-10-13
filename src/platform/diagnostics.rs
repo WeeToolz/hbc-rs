@@ -133,6 +133,50 @@ fn retry_report_network(mut initialize: impl FnMut() -> bool, mut wait: impl FnM
     false
 }
 
+fn wait_for_retraces(mut remaining: usize, mut wait_for_retrace: impl FnMut() -> bool) -> bool {
+    while remaining > 0 {
+        if !wait_for_retrace() {
+            return false;
+        }
+        remaining -= 1;
+    }
+    true
+}
+
+fn emit_startup_stage(
+    completed: &core::sync::atomic::AtomicBool,
+    label: &str,
+    emit: impl FnOnce(&str),
+) {
+    if !completed.load(core::sync::atomic::Ordering::Acquire) {
+        emit(label);
+    }
+}
+
+fn claim_runtime_stage(seen: &core::sync::atomic::AtomicUsize, bit: usize) -> bool {
+    seen.fetch_or(bit, core::sync::atomic::Ordering::AcqRel) & bit == 0
+}
+
+fn emit_runtime_stage(
+    active: &core::sync::atomic::AtomicBool,
+    seen: &core::sync::atomic::AtomicUsize,
+    bit: usize,
+    label: &str,
+    emit: impl FnOnce(&str),
+) {
+    if active.load(core::sync::atomic::Ordering::Acquire)
+        && bit != 0
+        && claim_runtime_stage(seen, bit)
+    {
+        emit(label);
+    }
+}
+
+fn emit_diagnostic_event(label: &str, record: impl FnOnce(&str), send: impl FnOnce(&str)) {
+    record(label);
+    send(label);
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct ReportIdentity {
     host: [u8; 4],
@@ -290,6 +334,9 @@ mod wii {
     static HEIGHT: AtomicUsize = AtomicUsize::new(0);
     static LENGTH: AtomicUsize = AtomicUsize::new(0);
     static DRAWING: AtomicBool = AtomicBool::new(false);
+    static STARTUP_COMPLETE: AtomicBool = AtomicBool::new(false);
+    static RUNTIME_STAGES: AtomicUsize = AtomicUsize::new(0);
+    static RUNTIME_TRACE_ACTIVE: AtomicBool = AtomicBool::new(false);
 
     /// Call on the main thread after system initialization and before GX setup.
     pub fn initialize(
@@ -353,8 +400,19 @@ mod wii {
     }
 
     pub fn mark(label: &str) {
-        show(label, false);
-        send_progress(label);
+        super::emit_startup_stage(&STARTUP_COMPLETE, label, |label| {
+            show(label, false);
+            send_progress(label);
+            if capture_milestone(label) {
+                capture_stage();
+            }
+        });
+    }
+
+    /// Send a diagnostic event without changing the Wii display. This also
+    /// works after startup, when `mark` is no longer allowed to change stages.
+    pub fn event(label: &str) {
+        super::emit_diagnostic_event(label, |label| record_stage(label, false), send_progress);
     }
 
     /// Establish reporting before NAND/theme loading can block startup.
@@ -384,7 +442,12 @@ mod wii {
     }
 
     pub fn complete() {
+        // Publish the transition without switching VI back to the CPU
+        // diagnostic framebuffer. Later input scans must leave HBC visible.
         record_stage("FIRST HBC FRAME DISPLAYED", false);
+        send_progress("FIRST HBC FRAME DISPLAYED");
+        STARTUP_COMPLETE.store(true, Ordering::Release);
+        capture_stage();
         unsafe {
             let now = ogc_core::powerpc::read_timebase();
             REPORT_START_TICKS = now;
@@ -394,6 +457,29 @@ mod wii {
             SAMPLE_TOTAL_TICKS = 0;
             SAMPLE_MIN_TICKS = u64::MAX;
             SAMPLE_MAX_TICKS = 0;
+        }
+    }
+
+    /// Record a one-time main-loop marker without replacing the GX display.
+    pub fn runtime_stage(bit: usize, label: &str) {
+        super::emit_runtime_stage(
+            &RUNTIME_TRACE_ACTIVE,
+            &RUNTIME_STAGES,
+            bit,
+            label,
+            |label| {
+                record_stage(label, false);
+                send_progress(label);
+                capture_stage();
+            },
+        );
+    }
+
+    pub fn begin_runtime_trace() {
+        if STARTUP_COMPLETE.load(Ordering::Acquire)
+            && !RUNTIME_TRACE_ACTIVE.swap(true, Ordering::AcqRel)
+        {
+            RUNTIME_STAGES.store(0, Ordering::Release);
         }
     }
 
@@ -420,7 +506,7 @@ mod wii {
             }
         };
         if done {
-            if !send_report(true) {
+            if !send_report(!CAPTURE_FAILED.load(Ordering::Acquire)) {
                 show(report_error_label(), true);
                 hold_for_report_error();
             }
@@ -432,8 +518,10 @@ mod wii {
 
     /// Keep a completed stage visible before switching to the GX framebuffer.
     pub fn hold() {
-        for _ in 0..90 {
-            ogc_video::wait_vsync();
+        if !super::wait_for_retraces(90, || ogc_video::wait_vsync_timeout_us(100_000)) {
+            // Do not wait forever on the interrupt path. Keep startup moving so
+            // the image checks and report path can identify the next failure.
+            mark("VI HOLD RETRACE TIMEOUT");
         }
     }
 
@@ -442,6 +530,7 @@ mod wii {
         [const { core::sync::atomic::AtomicU8::new(0) }; REPORT_LOG_CAPACITY];
     static REPORT_LOG_LEN: AtomicUsize = AtomicUsize::new(0);
     static REPORT_SENT: AtomicBool = AtomicBool::new(false);
+    static CAPTURE_FAILED: AtomicBool = AtomicBool::new(false);
     static REPORT_READY: AtomicBool = AtomicBool::new(false);
     static REPORT_ERROR: AtomicUsize = AtomicUsize::new(0);
     static REPORT_NETWORK_READY: AtomicBool = AtomicBool::new(false);
@@ -539,19 +628,66 @@ mod wii {
     }
 
     fn send_report(passed: bool) -> bool {
+        send_report_kind(passed, false)
+    }
+
+    /// Send a snapshot before synchronous application startup can freeze.
+    /// This reports no runtime pass/fail result and does not request a reset.
+    pub fn startup_checkpoint() -> Option<bool> {
+        if !REPORT_READY.load(Ordering::Acquire) {
+            return None;
+        }
+        show("STARTUP CHECKPOINT BEFORE SETTINGS", false);
+        send_progress("STARTUP CHECKPOINT BEFORE SETTINGS");
+        let sent = send_report_kind(false, true);
+        CAPTURE_FAILED.store(!sent, Ordering::Release);
+        Some(sent)
+    }
+
+    fn capture_milestone(label: &str) -> bool {
+        matches!(
+            label,
+            "CONF READY"
+                | "GX 2D READY"
+                | "NAND SETTINGS READY"
+                | "THEME TEXTURES READY"
+                | "STORAGE WORKER START"
+                | "NETWORK WORKER START"
+                | "PAD SCAN DONE"
+                | "WPAD SCAN DONE"
+                | "GX XFB HAS IMAGE"
+        )
+    }
+
+    fn capture_stage() {
+        if !REPORT_READY.load(Ordering::Acquire) || REPORT_SENT.load(Ordering::Acquire) {
+            return;
+        }
+        if !send_report_kind(false, true) {
+            CAPTURE_FAILED.store(true, Ordering::Release);
+            record_stage("STAGE CAPTURE SEND FAILED", true);
+        }
+    }
+
+    fn send_report_kind(passed: bool, checkpoint: bool) -> bool {
         use ogc_network as network;
 
-        if !REPORT_READY.load(Ordering::Acquire) || REPORT_SENT.swap(true, Ordering::AcqRel) {
+        if !REPORT_READY.load(Ordering::Acquire) || REPORT_SENT.load(Ordering::Acquire) {
+            return false;
+        }
+        if !checkpoint && REPORT_SENT.swap(true, Ordering::AcqRel) {
             return false;
         }
         REPORT_ERROR.store(REPORT_ERROR_NONE, Ordering::Release);
         let identity = unsafe { core::ptr::addr_of!(REPORT_IDENTITY).read() };
-        let framebuffer = if GX_FRAMEBUFFER.load(Ordering::Acquire) != 0 {
+        let use_gx = (!checkpoint || STARTUP_COMPLETE.load(Ordering::Acquire))
+            && GX_FRAMEBUFFER.load(Ordering::Acquire) != 0;
+        let framebuffer = if use_gx {
             ogc_core::mem_k0_to_k1(GX_FRAMEBUFFER.load(Ordering::Acquire))
         } else {
             FRAMEBUFFER.load(Ordering::Acquire)
         };
-        let (width, height, framebuffer_bytes) = if GX_FRAMEBUFFER.load(Ordering::Acquire) != 0 {
+        let (width, height, framebuffer_bytes) = if use_gx {
             (
                 GX_FRAMEBUFFER_WIDTH.load(Ordering::Acquire),
                 GX_FRAMEBUFFER_HEIGHT.load(Ordering::Acquire),
@@ -570,6 +706,7 @@ mod wii {
         let mut header = [0u8; 156];
         header[..4].copy_from_slice(b"WIR2");
         header[4..6].copy_from_slice(&2u16.to_be_bytes());
+        header[6..8].copy_from_slice(&(if checkpoint { 6u16 } else { 0u16 }).to_be_bytes());
         header[8..12].copy_from_slice(&(log_len as u32).to_be_bytes());
         header[12..16].copy_from_slice(&(framebuffer_bytes as u32).to_be_bytes());
         header[16..20].copy_from_slice(&(width as u32).to_be_bytes());
@@ -579,8 +716,12 @@ mod wii {
             .copy_from_slice(&identity.run_id[..identity.run_id_len as usize]);
         header[92..156].copy_from_slice(&identity.build_id);
 
-        let summary = if passed {
+        let summary = if checkpoint {
+            b"INFO startup checkpoint; HBC runtime has not been evaluated\n".as_slice()
+        } else if passed {
             b"PASS summary passes=1 fails=0\n".as_slice()
+        } else if CAPTURE_FAILED.load(Ordering::Acquire) {
+            b"FAIL stage framebuffer transfer failed\nFAIL summary passes=0 fails=1\n".as_slice()
         } else {
             b"FAIL summary passes=0 fails=1\n".as_slice()
         };
@@ -630,7 +771,11 @@ mod wii {
             performance[start..start + 4].copy_from_slice(&value.to_be_bytes());
         }
 
-        let progress_socket = PROGRESS_SOCKET.swap(-1, Ordering::AcqRel);
+        let progress_socket = if checkpoint {
+            PROGRESS_SOCKET.load(Ordering::Acquire)
+        } else {
+            PROGRESS_SOCKET.swap(-1, Ordering::AcqRel)
+        };
         let socket = if progress_socket >= 0 {
             progress_socket
         } else {
@@ -648,12 +793,21 @@ mod wii {
             && write_all(socket, &log[..report_log_len])
             && write_all(socket, framebuffer)
             && write_all(socket, &performance);
+        if checkpoint && sent {
+            PROGRESS_SOCKET.store(socket, Ordering::Release);
+            PROGRESS_ENABLED.store(true, Ordering::Release);
+            return true;
+        }
         if !sent {
             REPORT_ERROR.store(REPORT_ERROR_WRITE, Ordering::Release);
         }
         PROGRESS_ENABLED.store(false, Ordering::Release);
-        network::close(socket);
-        sent
+        PROGRESS_SOCKET.store(-1, Ordering::Release);
+        let closed = network::close(socket);
+        if closed < 0 {
+            REPORT_ERROR.store(REPORT_ERROR_WRITE, Ordering::Release);
+        }
+        sent && closed >= 0
     }
 
     fn initialize_report_network() -> bool {
@@ -805,12 +959,92 @@ pub fn mark_fp_value(msr: u32, enabled: &'static str, disabled: &'static str) {
 
 #[cfg(target_arch = "powerpc")]
 pub use wii::{
-    begin_reporting, complete, fail, hold, initialize, mark, sample_frame, set_gx_framebuffer_info,
+    begin_reporting, begin_runtime_trace, complete, event, fail, hold, initialize, mark,
+    runtime_stage, sample_frame, set_gx_framebuffer_info, startup_checkpoint,
 };
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn diagnostic_event_records_and_sends_without_a_display_callback() {
+        let mut recorded = alloc::vec::Vec::<alloc::string::String>::new();
+        let mut sent = alloc::vec::Vec::<alloc::string::String>::new();
+        emit_diagnostic_event(
+            "ISFS CreateFile failed rc=-102",
+            |label| recorded.push(label.into()),
+            |label| sent.push(label.into()),
+        );
+        assert_eq!(recorded, alloc::vec!["ISFS CreateFile failed rc=-102"]);
+        assert_eq!(sent, alloc::vec!["ISFS CreateFile failed rc=-102"]);
+    }
+
+    #[test]
+    fn completed_startup_does_not_paint_or_send_repeated_input_labels() {
+        use core::sync::atomic::{AtomicBool, Ordering};
+        let completed = AtomicBool::new(false);
+        let mut labels = alloc::vec::Vec::<alloc::string::String>::new();
+        emit_startup_stage(&completed, "PAD SCAN START", |label| {
+            labels.push(label.into())
+        });
+        completed.store(true, Ordering::Release);
+        for _ in 0..120 {
+            emit_startup_stage(&completed, "PAD SCAN START", |label| {
+                labels.push(label.into())
+            });
+        }
+        assert_eq!(
+            labels,
+            alloc::vec![alloc::string::String::from("PAD SCAN START")]
+        );
+    }
+
+    #[test]
+    fn runtime_stage_is_recorded_only_once_per_marker() {
+        use core::sync::atomic::{AtomicBool, AtomicUsize};
+        let active = AtomicBool::new(false);
+        let seen = AtomicUsize::new(0);
+        let mut emitted = alloc::vec::Vec::<alloc::string::String>::new();
+        emit_runtime_stage(&active, &seen, 1, "FIRST", |label| {
+            emitted.push(label.into())
+        });
+        assert!(emitted.is_empty());
+        active.store(true, core::sync::atomic::Ordering::Release);
+        emit_runtime_stage(&active, &seen, 1, "FIRST", |label| {
+            emitted.push(label.into())
+        });
+        emit_runtime_stage(&active, &seen, 2, "SECOND", |label| {
+            emitted.push(label.into())
+        });
+        emit_runtime_stage(&active, &seen, 1, "FIRST", |label| {
+            emitted.push(label.into())
+        });
+        assert_eq!(emitted, alloc::vec!["FIRST", "SECOND"]);
+        assert_eq!(seen.load(core::sync::atomic::Ordering::Acquire), 3);
+    }
+
+    #[test]
+    fn diagnostic_hold_stops_when_retrace_wait_times_out() {
+        let mut waits = 0;
+        let completed = wait_for_retraces(90, || {
+            waits += 1;
+            waits < 4
+        });
+        assert!(!completed);
+        assert_eq!(waits, 4);
+    }
+
+    #[test]
+    fn diagnostic_hold_completes_after_requested_retraces() {
+        let mut waits = 0;
+        let completed = wait_for_retraces(90, || {
+            waits += 1;
+            true
+        });
+        assert!(completed);
+        assert_eq!(waits, 90);
+    }
 
     #[test]
     fn startup_progress_uses_the_host_wip1_identity_and_length_fields() {

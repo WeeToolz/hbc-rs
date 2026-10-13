@@ -27,6 +27,13 @@ const PLAYTIME_RECORD_SIZE: u32 = 4;
 const IPC_EQUEUEFULL: i32 = -8;
 const IPC_QUEUE_RETRY_LIMIT: usize = 32;
 
+#[cfg(target_arch = "powerpc")]
+fn report_settings_event(message: &str) {
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::event(message);
+    ogc_system::report(format_args!("HBC: {message}\n"));
+}
+
 fn retry_ipc_queue_full(mut request: impl FnMut() -> i32) -> i32 {
     let mut last = IPC_EQUEUEFULL;
     for _ in 0..IPC_QUEUE_RETRY_LIMIT {
@@ -111,19 +118,30 @@ fn resolve_title_data_directory() -> Result<TitleDataDirectory, TitlePathError> 
     if rc < 0 {
         #[cfg(feature = "startup-diagnostics")]
         super::diagnostics::mark("ES TITLE ID FAILED");
-        return Err(TitlePathError::Es(rc));
+        if rc == -1017 {
+            ogc_system::report(format_args!(
+                "HBC: ES could not resolve direct-DOL title ID; using /title/00010001/48424345/data\n"
+            ));
+        }
     }
-    let mut data_dir = AlignedDataDir([0; TITLE_DATA_DIR_BUFFER_LEN]);
-    #[cfg(feature = "startup-diagnostics")]
-    super::diagnostics::mark("ES DATA DIR REQUEST");
-    let rc =
-        retry_ipc_queue_full(|| unsafe { es::get_data_dir(title_id.0, data_dir.0.as_mut_ptr()) });
-    if rc < 0 {
+    TitleDataDirectory::for_title_id_result((rc >= 0).then_some(title_id.0).ok_or(rc), |title_id| {
+        let mut data_dir = AlignedDataDir([0; TITLE_DATA_DIR_BUFFER_LEN]);
         #[cfg(feature = "startup-diagnostics")]
-        super::diagnostics::mark("ES DATA DIR FAILED");
-        return Err(TitlePathError::Es(rc));
-    }
-    TitleDataDirectory::from_es_buffer(data_dir.0)
+        super::diagnostics::mark("ES DATA DIR REQUEST");
+        let rc =
+            retry_ipc_queue_full(|| unsafe { es::get_data_dir(title_id, data_dir.0.as_mut_ptr()) });
+        if rc < 0 {
+            #[cfg(feature = "startup-diagnostics")]
+            super::diagnostics::mark("ES DATA DIR FAILED");
+            if rc == -1017 {
+                ogc_system::report(format_args!(
+                    "HBC: ES has no direct-DOL title data directory; using /title/00010001/48424345/data\n"
+                ));
+            }
+            return Err(TitlePathError::Es(rc));
+        }
+        TitleDataDirectory::from_es_buffer(data_dir.0)
+    })
 }
 
 fn title_data_directory() -> Result<TitleDataDirectory, SettingsIoError> {
@@ -149,6 +167,23 @@ pub(crate) fn title_data_file_path(name: &str) -> Result<CString, SettingsIoErro
     let path = directory.file_path(name).map_err(map_title_path_error)?;
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("TITLE FILE PATH READY");
+    Ok(path)
+}
+
+/// Prepare the explicit development directory only when ES selected that path.
+/// Installed channels keep their ES directory and its existing permissions.
+pub(crate) fn prepare_title_data_file_path(name: &str) -> Result<CString, SettingsIoError> {
+    let directory = title_data_directory()?;
+    let path = directory.file_path(name).map_err(map_title_path_error)?;
+    let result = isfs::initialize();
+    if result < 0 {
+        return Err(SettingsIoError::Isfs(result));
+    }
+    if let Some(parents) = directory.development_parents() {
+        for parent in parents {
+            super::nand::ensure_directory_wii(parent)?;
+        }
+    }
     Ok(path)
 }
 
@@ -190,7 +225,7 @@ fn save_banner_if_needed() -> Result<(), SettingsIoError> {
     if !BANNER_SAVE_NEEDED.load(Ordering::Acquire) {
         return Ok(());
     }
-    let path = banner_path()?;
+    let path = prepare_title_data_file_path(BANNER_PATH)?;
     super::nand::save_wii(&path, SAVE_BANNER)?;
     BANNER_SAVE_NEEDED.store(false, Ordering::Release);
     Ok(())
@@ -203,10 +238,26 @@ pub fn load() -> Result<UserSettings, SettingsIoError> {
     if rc < 0 {
         return Err(SettingsIoError::Isfs(rc));
     }
-    validate_save_banner()?;
-    super::nand::recover_wii(&path, MAX_SETTINGS_XML_SIZE, |bytes| {
-        decode_settings_xml(bytes).is_ok()
-    })?;
+    if let Err(error) = validate_save_banner() {
+        ogc_system::report(format_args!(
+            "HBC: could not validate saved banner ({error:?}); settings read will continue\n"
+        ));
+    }
+    match read_settings_file(&path) {
+        Ok(settings) => Ok(settings),
+        Err(
+            SettingsIoError::Missing | SettingsIoError::InvalidFileSize | SettingsIoError::Codec,
+        ) => {
+            super::nand::recover_wii(&path, MAX_SETTINGS_XML_SIZE, |bytes| {
+                decode_settings_xml(bytes).is_ok()
+            })?;
+            read_settings_file(&path)
+        }
+        Err(error) => Err(error),
+    }
+}
+
+fn read_settings_file(path: &CString) -> Result<UserSettings, SettingsIoError> {
     let file = match isfs::open(&path, isfs::ISFS_OPEN_READ) {
         Ok(file) => file,
         Err(error) if super::nand::is_missing_isfs_error(error, ogc_filesystem::ISFS_ENOENT) => {
@@ -247,14 +298,32 @@ pub fn load() -> Result<UserSettings, SettingsIoError> {
 
 /// Replace the settings XML file without deleting the previous valid copy.
 pub fn save(settings: &UserSettings) -> Result<(), SettingsIoError> {
-    let path = settings_path()?;
     let xml = encode_settings_xml(settings).map_err(|_| SettingsIoError::Codec)?;
+    let path = prepare_title_data_file_path(SETTINGS_PATH)?;
+    report_settings_event(&alloc::format!(
+        "settings target path={:?}",
+        path.to_bytes()
+    ));
     let rc = isfs::initialize();
     if rc < 0 {
+        report_settings_event(&alloc::format!(
+            "ISFS Initialize before settings save failed rc={rc}"
+        ));
         return Err(SettingsIoError::Isfs(rc));
     }
-    save_banner_if_needed()?;
-    super::nand::save_wii(&path, xml.as_bytes())
+    if let Err(error) = save_banner_if_needed() {
+        report_settings_event(&alloc::format!(
+            "settings save stopped while saving banner: {error:?}"
+        ));
+        return Err(error);
+    }
+    match super::nand::save_wii(&path, xml.as_bytes()) {
+        Ok(()) => Ok(()),
+        Err(error) => {
+            report_settings_event(&alloc::format!("settings XML save failed: {error:?}"));
+            Err(error)
+        }
+    }
 }
 
 /// Reset the first four bytes of the System Menu playtime file, as C does.

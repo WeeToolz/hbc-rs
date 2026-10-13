@@ -548,7 +548,11 @@ mod tests {
                 memory_size: 8,
                 executable: true,
             }],
-            bss: Some(0x8000_3410..0x8000_340f),
+            bss: Some({
+                let lower = 0x8000_3410;
+                let upper = 0x8000_340f;
+                lower..upper
+            }),
             entry: 0x8000_3400,
         };
         assert_eq!(

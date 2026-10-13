@@ -34,13 +34,26 @@ impl Language {
         }
     }
 
-    pub fn text<'a>(self, source: &'a str) -> &'a str {
+    pub fn text(self, source: &str) -> &str {
         localization_catalog::lookup(self, source).unwrap_or_else(|| self.extension_text(source))
     }
 
-    fn extension_text<'a>(self, source: &'a str) -> &'a str {
+    fn extension_text(self, source: &str) -> &str {
         use Language::*;
         match (self, source) {
+
+            (Spanish, "Write without backup") => "Escribir sin copia de seguridad",
+            (French, "Write without backup") => "Écrire sans sauvegarde",
+            (German, "Write without backup") => "Ohne Sicherung schreiben",
+            (Dutch, "Write without backup") => "Schrijven zonder back-up",
+            (Italian, "Write without backup") => "Scrivi senza backup",
+            (Japanese, "Write without backup") => "バックアップなしで書き込む",
+            (Spanish, "This writes the new settings directly to Wii NAND without a backup. If the write fails, the saved network settings can be lost. Continue?") => "Esto escribe la configuración directamente en la NAND de Wii sin una copia de seguridad. Si falla la escritura, se puede perder la configuración de red guardada. ¿Continuar?",
+            (French, "This writes the new settings directly to Wii NAND without a backup. If the write fails, the saved network settings can be lost. Continue?") => "Cette opération écrit les paramètres directement dans la NAND de la Wii sans sauvegarde. En cas d’échec, les paramètres réseau enregistrés peuvent être perdus. Continuer ?",
+            (German, "This writes the new settings directly to Wii NAND without a backup. If the write fails, the saved network settings can be lost. Continue?") => "Diese Aktion schreibt die neuen Einstellungen ohne Sicherung direkt in den Wii-NAND. Bei einem Fehler können die gespeicherten Netzwerkeinstellungen verloren gehen. Fortfahren?",
+            (Dutch, "This writes the new settings directly to Wii NAND without a backup. If the write fails, the saved network settings can be lost. Continue?") => "Hiermee worden de nieuwe instellingen zonder back-up naar het Wii-NAND geschreven. Bij een fout kunnen de opgeslagen netwerkinstellingen verloren gaan. Doorgaan?",
+            (Italian, "This writes the new settings directly to Wii NAND without a backup. If the write fails, the saved network settings can be lost. Continue?") => "Questa operazione scrive le nuove impostazioni nella NAND Wii senza backup. Se la scrittura non riesce, le impostazioni di rete salvate potrebbero andare perse. Continuare?",
+            (Japanese, "This writes the new settings directly to Wii NAND without a backup. If the write fails, the saved network settings can be lost. Continue?") => "バックアップを作成せず、新しい設定をWiiのNANDに直接書き込みます。書き込みに失敗すると、保存済みのネットワーク設定が失われる場合があります。続行しますか？",
 
             (Spanish, "Apply") => "Aplicar",
             (French, "Apply") => "Appliquer",

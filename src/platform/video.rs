@@ -6,11 +6,6 @@
 use super::draw_state::{DrawFormat, DrawState};
 use crate::png::GxRgba8Texture;
 
-#[cfg(feature = "startup-diagnostics")]
-static POLL_FIRST_VI_RETRACE: core::sync::atomic::AtomicBool =
-    core::sync::atomic::AtomicBool::new(true);
-
-#[cfg(feature = "startup-diagnostics")]
 static TRACE_FIRST_PRESENT: core::sync::atomic::AtomicBool =
     core::sync::atomic::AtomicBool::new(true);
 
@@ -246,8 +241,10 @@ impl VideoSystem {
     /// The caller must finish drawing the frame and keep all referenced graphics
     /// resources alive until this function returns.
     pub unsafe fn present(&self) -> Result<(), VideoError> {
-        #[cfg(feature = "startup-diagnostics")]
         let trace = TRACE_FIRST_PRESENT.swap(false, core::sync::atomic::Ordering::Relaxed);
+        if trace {
+            ogc_system::report(format_args!("HBC: first GX draw wait starting\n"));
+        }
 
         // HBC finishes rendering, waits for the next retrace, and only then copies
         // the EFB to the XFB. This prevents GX from writing the framebuffer while
@@ -256,16 +253,27 @@ impl VideoSystem {
         if trace {
             super::diagnostics::mark("GX DRAW WAIT START");
         }
+        #[cfg(feature = "startup-diagnostics")]
+        super::diagnostics::runtime_stage(2048, "PRESENT GX WAIT START");
         if !unsafe { ogc_gx::finish_frame_and_wait() } {
+            if trace {
+                ogc_system::report(format_args!("HBC: first GX draw wait timed out\n"));
+            }
             #[cfg(feature = "startup-diagnostics")]
             if trace {
                 super::diagnostics::mark("GX DRAW WAIT FAILED");
             }
             return Err(VideoError::GxDrawTimeout);
         }
+        #[cfg(feature = "startup-diagnostics")]
+        super::diagnostics::runtime_stage(4096, "PRESENT GX WAIT DONE");
         unsafe {
             ogc_gx::set_z_mode(ogc_gx::GX_ENABLE, ogc_gx::GX_LEQUAL, ogc_gx::GX_TRUE);
             ogc_gx::set_color_update(ogc_gx::GX_TRUE);
+        }
+        if trace {
+            ogc_system::report(format_args!("HBC: first GX draw wait complete\n"));
+            ogc_system::report(format_args!("HBC: first VI retrace wait starting\n"));
         }
         #[cfg(feature = "startup-diagnostics")]
         if trace {
@@ -273,34 +281,52 @@ impl VideoSystem {
             super::diagnostics::mark("VI RETRACE WAIT START");
         }
         #[cfg(feature = "startup-diagnostics")]
-        let poll_vi = POLL_FIRST_VI_RETRACE.swap(false, core::sync::atomic::Ordering::Relaxed);
-        #[cfg(feature = "startup-diagnostics")]
-        if poll_vi {
-            super::diagnostics::mark("VI RETRACE POLL START");
-            if ogc_video::wait_vsync_timeout_us(1_000_000) {
-                super::diagnostics::mark("VI POLL RETRACE SEEN");
-            } else {
-                super::diagnostics::mark("VI IRQ COUNT STALLED");
+        {
+            if trace {
+                super::diagnostics::mark("VI RETRACE POLL START");
+            }
+            super::diagnostics::runtime_stage(8192, "PRESENT VI WAIT START");
+            if !ogc_video::wait_vsync_timeout_us(1_000_000) {
                 return Err(VideoError::ViRetraceTimeout);
             }
-        } else {
-            self.wait_vsync();
+            if trace {
+                super::diagnostics::mark("VI POLL RETRACE SEEN");
+            }
+            super::diagnostics::runtime_stage(16384, "PRESENT VI WAIT DONE");
         }
         #[cfg(not(feature = "startup-diagnostics"))]
         self.wait_vsync();
+        if trace {
+            ogc_system::report(format_args!("HBC: first VI retrace wait complete\n"));
+            ogc_system::report(format_args!("HBC: first XFB copy starting\n"));
+        }
         #[cfg(feature = "startup-diagnostics")]
         if trace {
             super::diagnostics::mark("VI RETRACE WAIT DONE");
             super::diagnostics::mark("GX COPY WAIT START");
         }
+        #[cfg(feature = "startup-diagnostics")]
+        super::diagnostics::runtime_stage(32768, "PRESENT XFB COPY START");
         unsafe { ogc_gx::copy_display(self.config, true) };
+        if trace {
+            ogc_system::report(format_args!("HBC: first XFB copy queued\n"));
+            ogc_system::report(format_args!("HBC: first XFB copy wait starting\n"));
+        }
         if !unsafe { ogc_gx::finish_frame_and_wait() } {
+            if trace {
+                ogc_system::report(format_args!("HBC: first XFB copy wait timed out\n"));
+            }
             #[cfg(feature = "startup-diagnostics")]
             if trace {
                 super::diagnostics::mark("GX COPY WAIT FAILED");
             }
             return Err(VideoError::GxDrawTimeout);
         }
+        if trace {
+            ogc_system::report(format_args!("HBC: first XFB copy wait complete\n"));
+        }
+        #[cfg(feature = "startup-diagnostics")]
+        super::diagnostics::runtime_stage(65536, "PRESENT XFB COPY DONE");
         #[cfg(feature = "startup-diagnostics")]
         if trace {
             super::diagnostics::mark("GX COPY WAIT DONE");
@@ -313,6 +339,9 @@ impl VideoSystem {
             super::diagnostics::mark("VI FLUSH START");
         }
         ogc_video::flush();
+        if trace {
+            ogc_system::report(format_args!("HBC: first framebuffer queued for scanout\n"));
+        }
         #[cfg(feature = "startup-diagnostics")]
         if trace {
             super::diagnostics::mark("VI FLUSH DONE");

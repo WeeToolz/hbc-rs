@@ -12,6 +12,12 @@ pub const WIILOAD_MAX_DATA: usize = 0x0132_c7ff;
 /// Maximum time allowed for one TCP upload, including the header and body.
 pub const WIILOAD_CLIENT_TIMEOUT_TICKS: u64 = 120 * 60_750_000;
 
+/// IOS socket errors use a different namespace from the network init API.
+/// IOS SO_EAGAIN is 6; network initialization uses POSIX EAGAIN (11).
+pub fn socket_would_block(result: i32) -> bool {
+    result == -6
+}
+
 /// Return true when the elapsed time reaches a fixed client-wide deadline.
 /// Wrapping subtraction keeps this valid across the timebase counter rollover.
 pub fn client_deadline_expired(started_at: u64, now: u64, timeout_ticks: u64) -> bool {
@@ -231,6 +237,13 @@ pub struct WiiloadPayload {
 mod tests {
     use super::*;
     use core::sync::atomic::AtomicBool;
+
+    #[test]
+    fn ios_accept_would_block_code_is_recognized_separately_from_net_init_eagain() {
+        assert!(socket_would_block(-6));
+        assert!(!socket_would_block(-11));
+        assert!(!socket_would_block(-1));
+    }
 
     #[test]
     fn failed_worker_join_keeps_worker_marked_as_started() {

@@ -88,12 +88,28 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         return -1;
     }
     install_return_stub();
+    let wiilaunch_init = ogc_wiilaunch::initialize();
+    if wiilaunch_init < 0 {
+        ogc_system::report(format_args!(
+            "HBC: Wii return-to-menu initialization failed: {wiilaunch_init}\n"
+        ));
+    }
     #[cfg(feature = "startup-diagnostics")]
     hbc_rs::platform::diagnostics::mark_fp_state("FP AFTER HEAP ON", "FP AFTER HEAP OFF");
 
     #[cfg(feature = "startup-diagnostics")]
+    {
+        hbc_rs::platform::diagnostics::begin_reporting();
+        if hbc_rs::platform::diagnostics::startup_checkpoint() == Some(false) {
+            hbc_rs::platform::diagnostics::mark("STARTUP CHECKPOINT SEND FAILED");
+        }
+    }
+
+    #[cfg(feature = "startup-diagnostics")]
     hbc_rs::platform::diagnostics::mark("CONF START");
     let _ = ogc_conf::init();
+    #[cfg(feature = "startup-diagnostics")]
+    hbc_rs::platform::diagnostics::mark("CONF READY");
     #[cfg(feature = "startup-diagnostics")]
     hbc_rs::platform::diagnostics::mark_fp_state("FP AFTER CONF ON", "FP AFTER CONF OFF");
     let view_width = if ogc_conf::get_aspect_ratio() == ogc_conf::CONF_ASPECT_16_9 as i32 {
@@ -101,10 +117,14 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     } else {
         hbc_rs::render::LOGICAL_WIDTH
     };
+    ogc_system::report(format_args!("HBC: initializing video\n"));
     let video =
         match hbc_rs::platform::video::initialize(view_width > hbc_rs::render::LOGICAL_WIDTH) {
             Ok(video) => video,
-            Err(_) => {
+            Err(error) => {
+                ogc_system::report(format_args!(
+                    "HBC: video initialization failed: {error:?}\n"
+                ));
                 #[cfg(feature = "startup-diagnostics")]
                 if hbc_rs::platform::diagnostics::fail("VIDEO OR GX FIFO ERROR") {
                     reset_after_diagnostic_report();
@@ -112,20 +132,23 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 return -2;
             }
         };
+    ogc_system::report(format_args!("HBC: video initialized\n"));
     #[cfg(feature = "startup-diagnostics")]
     hbc_rs::platform::diagnostics::mark("GX 2D SETUP");
     video.configure_2d();
-
     #[cfg(feature = "startup-diagnostics")]
-    hbc_rs::platform::diagnostics::begin_reporting();
+    hbc_rs::platform::diagnostics::mark("GX 2D READY");
+
     // C HBC submits its startup disc motor stop asynchronously. ogc-di's
     // stop_motor() is synchronous, so calling it here can block first-frame
     // startup when IOS or an emulator does not complete the DI request. Keep
     // the shutdown/handoff stop below, but do not substitute a synchronous
     // operation for C's non-blocking startup request.
 
+    ogc_system::report(format_args!("HBC: loading settings and theme\n"));
     let playtime_reset_error = hbc_rs::platform::settings::reset_playtime_record().err();
     let mut startup = hbc_rs::platform::startup::WiiStartup::initialize(view_width, 480);
+    ogc_system::report(format_args!("HBC: settings and theme loaded\n"));
     if let Some(error) = playtime_reset_error {
         ogc_system::report(format_args!("HBC: playtime reset failed: {error:?}\n"));
     }
@@ -151,13 +174,32 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     let mut wiiload_cleanup_notice_shown = false;
     let mut network_check_frames: Option<u16> = None;
     let mut network_indicator_frame = 0u16;
+    let mut reported_receiver_status = None;
+    ogc_system::report(format_args!(
+        "HBC: startup complete; entering render loop\n"
+    ));
 
     loop {
+        #[cfg(feature = "startup-diagnostics")]
+        if display_ready {
+            hbc_rs::platform::diagnostics::begin_runtime_trace();
+        }
+        #[cfg(feature = "startup-diagnostics")]
+        hbc_rs::platform::diagnostics::runtime_stage(1, "RUNTIME LOOP ENTER");
+        let first_frame = !display_ready;
         if let Some(request) = hbc_rs::platform::lifecycle::take_request() {
             hbc_rs::platform::lifecycle::defer_exit(&mut deferred_exit, request);
         }
+        if first_frame {
+            ogc_system::report(format_args!("HBC: first lifecycle poll complete\n"));
+        }
 
         startup.poll_storage_scan();
+        #[cfg(feature = "startup-diagnostics")]
+        hbc_rs::platform::diagnostics::runtime_stage(2, "STORAGE RESULT POLL DONE");
+        if first_frame {
+            ogc_system::report(format_args!("HBC: first storage poll complete\n"));
+        }
         if let Err(error) = startup.poll_device_availability() {
             ogc_system::report(format_args!(
                 "HBC: storage availability probe failed: {error:?}\n"
@@ -167,7 +209,32 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 hbc_rs::app::NoticeKind::Error,
             );
         }
+        #[cfg(feature = "startup-diagnostics")]
+        hbc_rs::platform::diagnostics::runtime_stage(4, "DEVICE AVAILABILITY POLL DONE");
+        if first_frame {
+            ogc_system::report(format_args!("HBC: first device poll complete\n"));
+        }
         let receiver_status = hbc_rs::platform::wiiload::status();
+        if reported_receiver_status != Some(receiver_status) {
+            #[cfg(feature = "startup-diagnostics")]
+            hbc_rs::platform::diagnostics::event(&format!(
+                "WIILOAD RECEIVER STATE {receiver_status:?}"
+            ));
+            match hbc_rs::platform::wiiload::cleanup_error() {
+                Some(error) => ogc_system::report(format_args!(
+                    "HBC: Wiiload receiver state changed to {receiver_status:?}; cleanup error={error}\n"
+                )),
+                None => ogc_system::report(format_args!(
+                    "HBC: Wiiload receiver state changed to {receiver_status:?}\n"
+                )),
+            }
+            reported_receiver_status = Some(receiver_status);
+        }
+        #[cfg(feature = "startup-diagnostics")]
+        hbc_rs::platform::diagnostics::runtime_stage(8, "WIILOAD STATUS POLL DONE");
+        if first_frame {
+            ogc_system::report(format_args!("HBC: first receiver poll complete\n"));
+        }
         if let Some(frames) = network_check_frames.as_mut() {
             if let Some(address) = hbc_rs::platform::wiiload::local_ip() {
                 network_check_frames = None;
@@ -363,6 +430,9 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         if !display_ready {
             hbc_rs::platform::diagnostics::mark("FIRST INPUT SCAN");
         }
+        if first_frame {
+            ogc_system::report(format_args!("HBC: first controller scan starting\n"));
+        }
         let mut frame = match hbc_rs::platform::input::scan() {
             Ok(frame) => frame,
             Err(_) => {
@@ -373,6 +443,11 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 hbc_rs::platform::input::InputFrame::default()
             }
         };
+        #[cfg(feature = "startup-diagnostics")]
+        hbc_rs::platform::diagnostics::runtime_stage(16, "RUNTIME INPUT SCAN DONE");
+        if first_frame {
+            ogc_system::report(format_args!("HBC: first controller scan complete\n"));
+        }
         let storage_scan_pending = startup.storage_scan_pending();
         // Device probes own storage in their worker. Menu input stays active;
         // operations that need storage validate worker ownership at the backend.
@@ -388,6 +463,8 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         }
         let screenshot_requested = frame.screenshot_requested;
         let mut actions = startup.runtime_mut().update(&frame);
+        #[cfg(feature = "startup-diagnostics")]
+        hbc_rs::platform::diagnostics::runtime_stage(32, "RUNTIME INPUT UPDATE DONE");
         let language = hbc_rs::localization::Language::from_console(
             ogc_conf::get_language(),
             startup.runtime().theme(),
@@ -438,6 +515,12 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             startup.logical_width(),
             language,
         );
+        if first_frame {
+            ogc_system::report(format_args!("HBC: first scene construction complete\n"));
+        }
+        if first_frame {
+            ogc_system::report(format_args!("HBC: first memo layout starting\n"));
+        }
         match hbc_rs::platform::renderer::layout_memos(&mut scene, startup.theme_textures()) {
             Ok(Some((max_scroll, line_height))) => {
                 startup
@@ -451,6 +534,9 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 hbc_rs::platform::diagnostics::fail("TEXT LAYOUT ERROR");
                 return -3;
             }
+        }
+        if first_frame {
+            ogc_system::report(format_args!("HBC: first memo layout complete\n"));
         }
         if startup.runtime().controller().screen == hbc_rs::app::Screen::Browser {
             let indicators = hbc_rs::platform::wiiload::indicator_state();
@@ -482,40 +568,35 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         if storage_scan_pending {
             scene.storage_loading();
         }
+        if first_frame {
+            ogc_system::report(format_args!("HBC: first GX scene drawing starting\n"));
+        }
         #[cfg(feature = "startup-diagnostics")]
         if !display_ready {
             hbc_rs::platform::diagnostics::mark("FIRST GX FRAME");
         }
-        #[cfg(not(feature = "startup-diagnostics"))]
-        if unsafe {
+        let draw_result = unsafe {
             hbc_rs::platform::renderer::draw_frame(
                 &video,
                 &scene,
                 startup.icon_textures(),
                 startup.theme_textures(),
             )
-        }
-        .is_err()
-        {
-            return -3;
-        }
+        };
         #[cfg(feature = "startup-diagnostics")]
-        if unsafe {
-            hbc_rs::platform::renderer::draw_frame(
-                &video,
-                &scene,
-                startup.icon_textures(),
-                startup.theme_textures(),
-            )
-        }
-        .is_err()
-        {
+        hbc_rs::platform::diagnostics::runtime_stage(64, "RUNTIME GX DRAW DONE");
+        if let Err(error) = draw_result {
+            ogc_system::report(format_args!("HBC: frame rendering failed: {error:?}\n"));
+            #[cfg(feature = "startup-diagnostics")]
             if hbc_rs::platform::diagnostics::fail("GX RENDER ERROR") {
                 if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
                     hbc_rs::platform::diagnostics::fail(&message);
                 }
             }
             return -3;
+        }
+        if first_frame {
+            ogc_system::report(format_args!("HBC: first GX scene drawing complete\n"));
         }
         #[cfg(feature = "startup-diagnostics")]
         {
@@ -609,7 +690,13 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 );
             }
         }
+        if first_frame {
+            ogc_system::report(format_args!(
+                "HBC: first framebuffer presentation starting\n"
+            ));
+        }
         if let Err(_error) = unsafe { video.present() } {
+            ogc_system::report(format_args!("HBC: frame presentation failed: {_error:?}\n"));
             #[cfg(feature = "startup-diagnostics")]
             {
                 let message = match _error {
@@ -623,6 +710,13 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 }
             }
             return -4;
+        }
+        #[cfg(feature = "startup-diagnostics")]
+        hbc_rs::platform::diagnostics::runtime_stage(128, "RUNTIME GX PRESENT DONE");
+        if first_frame {
+            ogc_system::report(format_args!(
+                "HBC: first scene rendered and copied to XFB\n"
+            ));
         }
         if !display_ready {
             #[cfg(feature = "startup-diagnostics")]
@@ -669,9 +763,26 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             }
             video.show();
             display_ready = true;
+            ogc_system::report(format_args!(
+                "HBC: display enabled after first rendered frame\n"
+            ));
             #[cfg(feature = "startup-diagnostics")]
             hbc_rs::platform::diagnostics::complete();
         }
+        #[cfg(feature = "startup-diagnostics")]
+        if !ogc_video::wait_vsync_timeout_us(1_000_000) {
+            if hbc_rs::platform::diagnostics::fail("VI FRAME RETRACE TIMEOUT") {
+                if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
+                    hbc_rs::platform::diagnostics::fail(&message);
+                }
+            }
+            loop {
+                hbc_rs::platform::diagnostics::hold();
+            }
+        }
+        #[cfg(feature = "startup-diagnostics")]
+        hbc_rs::platform::diagnostics::runtime_stage(256, "RUNTIME VI RETRACE DONE");
+        #[cfg(not(feature = "startup-diagnostics"))]
         video.wait_vsync();
         // Give the lower-priority storage worker a bounded slice after each
         // visible frame. Sleeping the main thread for 1 ms lets the worker run,
@@ -682,11 +793,15 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             ogc_lwp::sys::sleep_ticks((ogc_lwp::sys::TICKS_PER_SECOND / 1_000).max(1));
         }
         #[cfg(feature = "startup-diagnostics")]
+        hbc_rs::platform::diagnostics::runtime_stage(512, "RUNTIME WORKER SLICE DONE");
+        #[cfg(feature = "startup-diagnostics")]
         if hbc_rs::platform::diagnostics::sample_frame() {
             if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
                 hbc_rs::platform::diagnostics::fail(&message);
             }
         }
+        #[cfg(feature = "startup-diagnostics")]
+        hbc_rs::platform::diagnostics::runtime_stage(1024, "RUNTIME REPORT SAMPLE DONE");
 
         for action in actions {
             let exit = match action {
@@ -730,7 +845,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 continue;
             }
             if action == hbc_rs::app::Action::LoadNetworkConfig {
-                match hbc_rs::platform::network_config::load() {
+                match hbc_rs::platform::network_config::load(startup.storage_prefix()) {
                     Ok(config) => startup.runtime_mut().set_network_config(config),
                     Err(error) => startup.runtime_mut().show_notice_with_kind(
                         &format!("Could not read Wii network settings: {error:?}."),
@@ -739,7 +854,11 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 }
                 continue;
             }
-            if action == hbc_rs::app::Action::SaveNetworkConfig {
+            if action == hbc_rs::app::Action::SaveNetworkConfig
+                || action == hbc_rs::app::Action::SaveNetworkConfigWithoutBackup
+            {
+                let make_backup = action == hbc_rs::app::Action::SaveNetworkConfig;
+                ogc_system::report(format_args!("HBC: network Save action received\n"));
                 let expected = startup.runtime().network_config_snapshot().cloned();
                 let prepared = startup.runtime().network_config_for_save();
                 match (expected, prepared) {
@@ -749,10 +868,22 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                             hbc_rs::app::NoticeKind::Error,
                         ),
                         Ok(()) => {
-                            let save = hbc_rs::platform::network_config::save(&config, &expected);
+                            let save = if make_backup {
+                                hbc_rs::platform::network_config::save(
+                                    &config,
+                                    &expected,
+                                    startup.storage_prefix(),
+                                )
+                            } else {
+                                hbc_rs::platform::network_config::save_without_backup(
+                                    &config,
+                                    &expected,
+                                )
+                            };
+                            ogc_system::report(format_args!("HBC: network save result: {save:?}\n"));
                             let restart = hbc_rs::platform::wiiload::start();
                             match (save, restart) {
-                                (Ok(()), Ok(())) => match hbc_rs::platform::network_config::load() {
+                                (Ok(()), Ok(())) => match hbc_rs::platform::network_config::load(startup.storage_prefix()) {
                                     Ok(saved) => {
                                         startup.runtime_mut().set_network_config(saved);
                                         network_check_frames = Some(0);
@@ -922,6 +1053,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 continue;
             }
             if action == hbc_rs::app::Action::LaunchSelected {
+                ogc_system::report(format_args!("HBC: reading selected executable\n"));
                 let image = match startup.prepare_selected_executable() {
                     Ok(image) => image,
                     Err(error) => {
@@ -932,6 +1064,9 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                         continue;
                     }
                 };
+                ogc_system::report(format_args!(
+                    "HBC: selected executable read and validated\n"
+                ));
                 let ahb_access = image.ahb_access;
                 if let Err(notice) = transfer_executable(
                     &mut startup,
@@ -1106,6 +1241,7 @@ fn transfer_executable(
     ahb_access: bool,
     prepare_error: &str,
 ) -> Result<(), String> {
+    ogc_system::report(format_args!("HBC: staging executable in MEM2\n"));
     let launch = hbc_rs::loader::stage_launch(
         bytes,
         &plan,
@@ -1113,6 +1249,9 @@ fn transfer_executable(
         hbc_rs::platform::startup::EXECUTABLE_MEMORY.clone(),
     )
     .map_err(|error| format!("{prepare_error} Loader error: {error:?}."))?;
+    ogc_system::report(format_args!(
+        "HBC: saving settings before executable launch\n"
+    ));
     if let Err(error) = startup
         .runtime_mut()
         .save_settings_if_dirty(hbc_rs::platform::settings::save)
@@ -1121,22 +1260,35 @@ fn transfer_executable(
             "Could not save settings. Application launch stopped: {error:?}."
         ));
     }
+    ogc_system::report(format_args!(
+        "HBC: unmounting storage before executable launch\n"
+    ));
     if let Err(error) = startup.unmount_storage() {
         return Err(format!(
             "Could not stop storage. Application launch stopped: {error:?}."
         ));
     }
+    ogc_system::report(format_args!(
+        "HBC: closing disc service before executable launch\n"
+    ));
     shutdown_disc_services().map_err(|error| {
         format!("Could not stop disc services. Application launch stopped ({error}).")
     })?;
+    ogc_system::report(format_args!(
+        "HBC: stopping receiver before executable launch\n"
+    ));
     hbc_rs::platform::wiiload::stop().map_err(|error| {
         format!("Could not stop the network receiver. Application launch stopped: {error:?}.")
     })?;
+    ogc_system::report(format_args!(
+        "HBC: stopping Bluetooth before executable launch\n"
+    ));
     if let Err(error) = stop_wpad_services() {
         return Err(format!(
             "Could not finish Wii Remote shutdown. Application launch stopped: {error}."
         ));
     }
+    ogc_system::report(format_args!("HBC: transferring executable control\n"));
     hbc_rs::platform::video::shutdown();
     unsafe {
         hbc_rs::loader::transfer_control(launch, hbc_rs::loader::ios_launch_policy(ahb_access))
@@ -1159,43 +1311,30 @@ fn exit_to_system(
             ));
         }
     }
-    if reset == ogc_system::SYS_RETURNTOMENU {
-        return match ogc_wiilaunch::try_return_to_menu() {
-            Err(error) => Err(format!("Could not start the System Menu: {error:?}.")),
-            Ok(()) => Err(String::from(
-                "The System Menu launch returned without transferring control.",
-            )),
-        };
-    }
-    if let Err(error) = startup.unmount_storage() {
-        return Err(format!(
-            "Could not stop storage. System exit stopped: {error:?}."
-        ));
-    }
-    if let Err(error) = shutdown_disc_services() {
-        return Err(format!(
-            "Could not stop disc services. System exit stopped ({error})."
-        ));
-    }
-    if let Err(error) = hbc_rs::platform::wiiload::stop() {
-        return Err(format!(
-            "Could not stop the network receiver. System exit stopped: {error:?}."
-        ));
-    }
-    let controller_cleanup = stop_wpad_services();
-    hbc_rs::platform::lifecycle::reset_after_controller_cleanup(
-        controller_cleanup,
-        |error| {
-            ogc_system::report(format_args!(
-                "HBC: controller cleanup before system reset failed: {error}; Bluetooth: {:?}\n",
-                wpad_sys::bluetooth_diagnostics(),
-            ))
-        },
-        || {
-            hbc_rs::platform::video::shutdown();
-            reset_system(reset)
-        },
-    )
+    hbc_rs::platform::lifecycle::run_exit_cleanup(|step| match step {
+        hbc_rs::platform::lifecycle::ExitCleanupStep::Storage => startup
+            .unmount_storage()
+            .map_err(|error| format!("Could not stop storage. System exit stopped: {error:?}.")),
+        hbc_rs::platform::lifecycle::ExitCleanupStep::Disc => shutdown_disc_services()
+            .map_err(|error| format!("Could not stop disc services. System exit stopped ({error}).")),
+        hbc_rs::platform::lifecycle::ExitCleanupStep::NetworkReceiver => {
+            hbc_rs::platform::wiiload::stop().map_err(|error| {
+                format!("Could not stop the network receiver. System exit stopped: {error:?}.")
+            })
+        }
+        hbc_rs::platform::lifecycle::ExitCleanupStep::Controllers => {
+            stop_wpad_services().map_err(|error| {
+                ogc_system::report(format_args!(
+                    "HBC: controller cleanup before system reset failed: {error}; Bluetooth: {:?}\n",
+                    wpad_sys::bluetooth_diagnostics(),
+                ));
+                format!("Could not finish Wii Remote shutdown. System exit stopped: {error}.")
+            })
+        }
+    })
+    .map_err(|(_, error)| error)?;
+    hbc_rs::platform::video::shutdown();
+    reset_system(reset)
 }
 
 #[cfg(target_arch = "powerpc")]
@@ -1218,6 +1357,7 @@ fn reset_after_diagnostic_report() -> ! {
 #[cfg(target_arch = "powerpc")]
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo<'_>) -> ! {
+    ogc_system::report(format_args!("HBC: Rust panic: {_info}\n"));
     #[cfg(feature = "startup-diagnostics")]
     if hbc_rs::platform::diagnostics::fail("RUST PANIC") {
         reset_after_diagnostic_report();

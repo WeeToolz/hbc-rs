@@ -217,7 +217,7 @@ fn parse_date(s: &str) -> Option<u64> {
     if !(1..=12).contains(&month) {
         return None;
     }
-    let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let leap = year.is_multiple_of(4) && (!year.is_multiple_of(100) || year.is_multiple_of(400));
     let max_day = match month {
         2 if leap => 29,
         2 => 28,

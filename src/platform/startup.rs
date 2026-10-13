@@ -731,6 +731,8 @@ impl WiiStartup {
                     false,
                 ),
             };
+        #[cfg(feature = "startup-diagnostics")]
+        super::diagnostics::mark("NAND SETTINGS READY");
         let widescreen = view_width > crate::render::LOGICAL_WIDTH;
         #[cfg(feature = "startup-diagnostics")]
         super::diagnostics::mark("NAND THEME LOAD");
@@ -837,6 +839,11 @@ impl WiiStartup {
 
     pub fn mounted_volume(&self) -> Option<Volume> {
         self.volume
+    }
+
+    /// Return the mount prefix for the volume that supplied the current catalog.
+    pub fn storage_prefix(&self) -> Option<&'static str> {
+        self.storage.as_ref().map(FatStorage::prefix)
     }
 
     /// Check whether a received app ZIP would replace an existing app folder.

@@ -519,7 +519,7 @@ pub fn save(archive: &[u8]) -> Result<(), SettingsIoError> {
     if archive.is_empty() || archive.len() > MAX_THEME_ARCHIVE_BYTES {
         return Err(SettingsIoError::InvalidFileSize);
     }
-    let path = title_data_file_path(THEME_FILENAME)?;
+    let path = super::settings::prepare_title_data_file_path(THEME_FILENAME)?;
     let rc = isfs::initialize();
     if rc < 0 {
         return Err(SettingsIoError::Isfs(rc));

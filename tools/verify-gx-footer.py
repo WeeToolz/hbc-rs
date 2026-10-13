@@ -16,6 +16,7 @@ import zlib
 
 root = Path(__file__).resolve().parents[1]
 from dolphin_capture_config import configure_capture_profile
+from xfb_capture import summarize_yuyv_luma
 parser = argparse.ArgumentParser(description='Capture production HBC notice, footer, menu, and Options paths in Dolphin.')
 parser.add_argument('--label', default='fixed')
 parser.add_argument('--dol', type=Path, default=root / 'target/hbc-rs.dol')
@@ -38,7 +39,7 @@ with socket.socket() as port_check:
 configure_capture_profile(profile)
 config = profile / 'Config'
 (config / 'Dolphin.ini').write_text('[Core]\nCPUThread = False\nSIDevice0 = 6\nSIDevice1 = 0\nSIDevice2 = 0\nSIDevice3 = 0\nWiiSDCard = False\n[Interface]\nConfirmStop = False\nUsePanicHandlers = False\n[Input]\nBackgroundInput = True\n')
-(config / 'GCPadNew.ini').write_text('[GCPad1]\nDevice = Pipe/0/footer\nButtons/A = `Button A`\nButtons/B = `Button B`\nButtons/X = `Button X`\nButtons/Start = `Button START`\nD-Pad/Down = `Button DOWN`\n')
+(config / 'GCPadNew.ini').write_text('[GCPad1]\nDevice = Pipe/0/footer\nButtons/A = `Button A`\nButtons/B = `Button B`\nButtons/X = `Button X`\nButtons/Start = `Button START`\nD-Pad/Down = `Button D_DOWN`\nD-Pad/Up = `Button D_UP`\n')
 (config / 'Logger.ini').write_text('[Options]\nWriteToFile = True\nWriteToConsole = True\nVerbosity = 3\n[Logs]\nVIDEO = True\nCOMMANDPROCESSOR = True\nOSREPORT = True\nCONTROLLERINTERFACE = True\n')
 pipes = profile / 'Pipes'
 pipes.mkdir(exist_ok=True)
@@ -88,6 +89,8 @@ def memory(address, count):
     return bytes.fromhex(reply)
 
 def button(name, pressed):
+    if name in ("UP", "DOWN", "LEFT", "RIGHT"):
+        name = "D_" + name
     payload = f"{'PRESS' if pressed else 'RELEASE'} {name}\n".encode('ascii')
     if os.write(pipe_fd, payload) != len(payload):
         raise RuntimeError('incomplete Dolphin controller command')
@@ -103,6 +106,7 @@ def run(seconds):
     return stop
 
 def capture(name):
+    global capture_failure
     pointer = int.from_bytes(memory(xfb_symbol, 4), 'big')
     if not 0x80000000 <= pointer < 0x94000000:
         raise RuntimeError('invalid XFB pointer')
@@ -110,6 +114,12 @@ def capture(name):
     length = 640 * 480 * 2
     xfb = b''.join(memory(address + offset, min(4096, length - offset)) for offset in range(0, length, 4096))
     (output / (name + '.xfb')).write_bytes(xfb)
+    try:
+        summary = summarize_yuyv_luma(xfb, 640, 480)
+    except ValueError as error:
+        capture_failure = f'{name}: {error}'
+        print('capture rejected:', capture_failure, flush=True)
+        raise
     rgb = bytearray()
     for offset in range(0, len(xfb), 4):
         y0, u, y1, v = xfb[offset:offset + 4]
@@ -125,9 +135,10 @@ def capture(name):
     png = (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', 640, 480, 8, 2, 0, 0, 0))
            + chunk(b'IDAT', zlib.compress(rows)) + chunk(b'IEND', b''))
     (output / (name + '.png')).write_bytes(png)
-    print('capture', name, hex(pointer), flush=True)
+    print('capture', name, hex(pointer), summary, flush=True)
 
 completed = False
+capture_failure = None
 started = time.monotonic()
 try:
     for _ in range(100):
@@ -167,9 +178,11 @@ try:
         run(3)
         capture('options-idle')
         if args.check_network_button:
-            button('DOWN', True)
+            # Options opens with Back (7) focused. Network setup (8) is
+            # directly above it, so follow the rendered layout with Up.
+            button('UP', True)
             run(1)
-            button('DOWN', False)
+            button('UP', False)
             run(1)
             capture('network-focus')
             button('A', True)
@@ -217,6 +230,7 @@ finally:
         'network_button_checked': args.check_network_button,
         'expected_fifo_errors': args.expect_fifo_errors,
         'visual_review_required': True,
+        'capture_failure': capture_failure,
     }
     (output / 'result.json').write_text(json.dumps(result, indent=2) + '\n')
 

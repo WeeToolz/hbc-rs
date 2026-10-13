@@ -11,8 +11,8 @@ use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicU8, Ordering};
 pub use crate::wiiload::ReceiverStatus;
 use crate::wiiload::{
     client_deadline_expired, indicator_state as map_indicator_state, same_local_subnet_16,
-    IndicatorState, WiiloadError, WiiloadHeader, WiiloadPayload, WIILOAD_CLIENT_TIMEOUT_TICKS,
-    WIILOAD_HEADER_LEN,
+    socket_would_block, IndicatorState, WiiloadError, WiiloadHeader, WiiloadPayload,
+    WIILOAD_CLIENT_TIMEOUT_TICKS, WIILOAD_HEADER_LEN,
 };
 use ogc_lwp::{sys as lwp_sys, ThreadHandle};
 use ogc_network::sys::{F_GETFL, F_SETFL};
@@ -303,7 +303,7 @@ fn worker_main(shared: &Shared) -> ReceiverStatus {
         }
         let mut peer = SockaddrIn::default();
         let client = network::accept_addr(listener, &mut peer);
-        if client == EAGAIN {
+        if socket_would_block(client) {
             sleep_poll();
             continue;
         }
@@ -413,6 +413,18 @@ fn record_cleanup_error(shared: &Shared, error: i32) {
 }
 
 fn initialize_network(shared: &Shared) -> bool {
+    if shared.is_stopped() {
+        return false;
+    }
+
+    // HBC starts Wiiload with an active IOS network service. When this DOL is
+    // launched through that listener, attach to the existing service instead
+    // of starting NWC24 again. Applications launched from other entry points
+    // can fail this probe and use the normal initialization path below.
+    if network::attach_active() >= 0 {
+        return true;
+    }
+
     for _ in 0..NETWORK_INIT_RETRIES {
         if shared.is_stopped() {
             return false;
@@ -682,7 +694,7 @@ fn read_exact(
                     .store(offset as u32, Ordering::Release);
             }
             idle_polls = 0;
-        } else if read < 0 && read != EAGAIN {
+        } else if read < 0 && !socket_would_block(read) {
             return Err(ReceiveError::Invalid);
         } else {
             idle_polls += 1;

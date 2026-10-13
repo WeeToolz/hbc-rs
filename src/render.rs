@@ -243,7 +243,7 @@ impl BackgroundAnimation {
         } else {
             self.update_calls += 1;
         }
-        if self.update_calls % 6 == 0 {
+        if self.update_calls.is_multiple_of(6) {
             if self.bubbles.len() < self.desired_count {
                 self.reset_bubble(logical_width, 0.0);
             } else if self.bubbles.len() > self.desired_count {
@@ -918,10 +918,9 @@ impl Frame {
         value: &str,
         scale: f32,
         color: Color,
-        max_chars: usize,
-        max_lines: usize,
-        scroll_lines: usize,
+        layout: (usize, usize, usize),
     ) {
+        let (max_chars, max_lines, scroll_lines) = layout;
         if max_chars == 0 || max_lines == 0 || !scale.is_finite() || scale <= 0.0 {
             return;
         }
@@ -1024,8 +1023,10 @@ pub fn browser_frame_with_language(
     } else {
         LOGICAL_WIDTH
     };
-    let mut frame = Frame::default();
-    frame.logical_width = logical_width;
+    let mut frame = Frame {
+        logical_width,
+        ..Frame::default()
+    };
     let text_color = theme
         .and_then(|theme| theme.default_font.color)
         .map(color_from_rgba)
@@ -1106,6 +1107,11 @@ pub fn browser_frame_with_language(
                         frame.icon(catalog_index, icon_bounds);
                     }
                 }
+                // The GX renderer submits text after all artwork. Catalog
+                // labels would otherwise cover a modal dialog drawn later.
+                if controller.screen != Screen::Browser {
+                    continue;
+                }
                 let name = app
                     .metadata
                     .as_ref()
@@ -1153,7 +1159,7 @@ pub fn browser_frame_with_language(
                     tr("Shutdown"),
                 ]
             };
-            for index in 0..controller.menu_item_count() {
+            for (index, label) in labels.iter().enumerate().take(controller.menu_item_count()) {
                 let y = 80.0
                     + index as f32
                         * if controller.bootmii_available() {
@@ -1166,7 +1172,7 @@ pub fn browser_frame_with_language(
                     y,
                     ButtonSize::Large,
                     index == controller.menu_focus(),
-                    labels[index],
+                    label,
                     text_color,
                 );
                 frame.hit_target(PointerTarget::Menu(index), bounds);
@@ -1174,7 +1180,8 @@ pub fn browser_frame_with_language(
             let (ios_label, network_label) = controller.main_menu_status();
             frame.set_text_style(theme_text_style(theme, "label", text_color));
             frame.text(48.0, 32.0, network_label, 1.0, text_color, 64);
-            let status_right = (logical_width / 3 * 2 - 16 + logical_width / 3 - 32) as f32;
+            let wide_offset = f32::from(logical_width.saturating_sub(LOGICAL_WIDTH)) / 2.0;
+            let status_right = f32::from((logical_width / 3) * 3 - 48) - wide_offset;
             // C uses FreeType's face height. Droid Sans Bold at 16 px rounds
             // to 19 px; keep that spacing proportional for a theme label size.
             let status_line = libm::ceilf(frame.text_size.unwrap_or(16) as f32 * 1.1875);
@@ -1210,9 +1217,11 @@ pub fn browser_frame_with_language(
                 &credits,
                 1.0,
                 text_color,
-                ABOUT_MEMO_LINE_WIDTH,
-                ABOUT_MEMO_VISIBLE_LINES,
-                controller.about_scroll(),
+                (
+                    ABOUT_MEMO_LINE_WIDTH,
+                    ABOUT_MEMO_VISIBLE_LINES,
+                    controller.about_scroll(),
+                ),
             );
         }
         Screen::Options
@@ -1236,7 +1245,7 @@ pub fn browser_frame_with_language(
     ) {
         frame.fill(rect(0, 0, 640, 480), MODAL_SHADE);
         let dialog_bounds = if controller.screen == Screen::NetworkSettings {
-            rect(40, 24, 560, 432)
+            rect(20, 24, 600, 432)
         } else if controller.screen == Screen::NetworkKeyboard {
             let extra = f32::from(logical_width - LOGICAL_WIDTH);
             rect(24.0 - extra / 2.0, 28.0, 592.0 + extra, 388.0)
@@ -1364,42 +1373,39 @@ pub fn browser_frame_with_language(
                 );
                 frame.hit_target(PointerTarget::NetworkOption(index), bounds);
             }
-            let bounds = frame.button(
-                60.0,
-                340.0,
-                ButtonSize::Small,
-                controller.network_focus() == 3,
-                tr("Save"),
-                text_color,
-            );
-            frame.hit_target(PointerTarget::NetworkOption(3), bounds);
-            let bounds = frame.button(
-                220.0,
-                340.0,
-                ButtonSize::Small,
-                controller.network_focus() == 4,
-                tr("Test connection"),
-                text_color,
-            );
-            frame.hit_target(PointerTarget::NetworkOption(4), bounds);
-            let bounds = frame.button(
-                380.0,
-                340.0,
-                ButtonSize::Small,
-                controller.network_focus() == 5,
-                tr("Back"),
-                text_color,
-            );
-            frame.hit_target(PointerTarget::NetworkOption(5), bounds);
-            let bounds = frame.button(
-                220.0,
-                396.0,
+            for (index, x, label) in [
+                (3, 32.0, tr("Save")),
+                (4, 228.0, tr("Test connection")),
+                (5, 424.0, tr("Back")),
+            ] {
+                let bounds = frame.button_with_geometry(
+                    rect(x, 340.0, 184.0, 48.0),
+                    360.0,
+                    ButtonSize::Small,
+                    controller.network_focus() == index,
+                    label,
+                    text_color,
+                );
+                frame.hit_target(PointerTarget::NetworkOption(index), bounds);
+            }
+            let bounds = frame.button_with_geometry(
+                rect(32.0, 396.0, 184.0, 48.0),
+                416.0,
                 ButtonSize::Small,
                 controller.network_focus() == 6,
                 tr("Scan networks"),
                 text_color,
             );
             frame.hit_target(PointerTarget::NetworkOption(6), bounds);
+            let bounds = frame.button_with_geometry(
+                rect(228.0, 396.0, 364.0, 48.0),
+                416.0,
+                ButtonSize::Small,
+                controller.network_focus() == 7,
+                tr("Write without backup"),
+                text_color,
+            );
+            frame.hit_target(PointerTarget::NetworkOption(7), bounds);
         } else if controller.screen == Screen::NetworkScan {
             frame.set_text_style(theme_text_style(theme, "dlgtitle", text_color));
             frame.text(235.0, 60.0, tr("Choose a network"), 1.0, text_color, 32);
@@ -1564,9 +1570,11 @@ pub fn browser_frame_with_language(
                     description,
                     1.0,
                     text_color,
-                    DETAIL_DESCRIPTION_LINE_WIDTH,
-                    DETAIL_DESCRIPTION_VISIBLE_LINES,
-                    controller.detail_description_scroll(),
+                    (
+                        DETAIL_DESCRIPTION_LINE_WIDTH,
+                        DETAIL_DESCRIPTION_VISIBLE_LINES,
+                        controller.detail_description_scroll(),
+                    ),
                 );
                 draw_memo_scroll_arrows(
                     &mut frame,
@@ -1609,9 +1617,7 @@ pub fn browser_frame_with_language(
                 tr("Do you really want to delete this application?"),
                 1.0,
                 text_color,
-                74,
-                MESSAGE_MEMO_VISIBLE_LINES,
-                0,
+                (74, MESSAGE_MEMO_VISIBLE_LINES, 0),
             );
             for (index, yes) in [true, false].iter().enumerate() {
                 let bounds = frame.button(
@@ -1636,12 +1642,14 @@ pub fn browser_frame_with_language(
             frame.text_wrapped_scrolled(
                 92.0,
                 120.0,
-                controller.wiiload_confirmation_text(),
+                tr(controller.wiiload_confirmation_text()),
                 1.0,
                 text_color,
-                74,
-                MESSAGE_MEMO_VISIBLE_LINES,
-                controller.wiiload_confirmation_scroll(),
+                (
+                    74,
+                    MESSAGE_MEMO_VISIBLE_LINES,
+                    controller.wiiload_confirmation_scroll(),
+                ),
             );
             draw_memo_scroll_arrows(
                 &mut frame,
@@ -1751,9 +1759,7 @@ pub fn browser_frame_with_language(
                 language.text(message),
                 1.0,
                 text_color,
-                74,
-                MESSAGE_MEMO_VISIBLE_LINES,
-                controller.notice_scroll(),
+                (74, MESSAGE_MEMO_VISIBLE_LINES, controller.notice_scroll()),
             );
             draw_memo_scroll_arrows(
                 &mut frame,
@@ -1968,8 +1974,10 @@ mod tests {
 
     #[test]
     fn status_indicators_use_hbc_footer_positions_and_states() {
-        let mut frame = Frame::default();
-        frame.logical_width = LOGICAL_WIDTH;
+        let mut frame = Frame {
+            logical_width: LOGICAL_WIDTH,
+            ..Frame::default()
+        };
         frame.status_indicators(true, false);
         assert!(matches!(
             frame.commands[0],
@@ -1995,6 +2003,34 @@ mod tests {
                 },
             }
         ));
+    }
+
+    #[test]
+    fn main_menu_status_text_stays_inside_narrow_and_wide_viewports() {
+        let theme = ThemeMetadata {
+            default_font: crate::metadata::ThemeFont {
+                file: Some(String::from("droid.ttf")),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        for (width, expected_right) in [(LOGICAL_WIDTH, 591.0), (WIDE_LOGICAL_WIDTH, 804.0)] {
+            let mut controller = AppController::new();
+            controller.screen = Screen::MainMenu;
+            controller.set_main_menu_status(
+                String::from("IOS58 v24.0"),
+                String::from("Network not initialized"),
+            );
+            let frame = browser_frame_with_viewport(&controller, &[], Some(&theme), width);
+            let version = frame
+                .text_runs
+                .iter()
+                .find(|run| run.value == "IOS58 v24.0")
+                .expect("main menu must render the IOS status label");
+            assert!(version.right_align);
+            assert_eq!(version.x, expected_right);
+            assert!(version.x <= f32::from(width) - 48.0);
+        }
     }
     use crate::catalog::{AppEntry, AppKind};
     use alloc::{string::String, vec};
@@ -2754,7 +2790,7 @@ mod tests {
     }
 
     #[test]
-    fn network_settings_rows_and_actions_have_clear_vertical_spacing() {
+    fn network_settings_rows_and_actions_have_separate_pointer_bounds() {
         let mut controller = AppController::new();
         controller.screen = Screen::NetworkSettings;
         let frame = browser_frame(&controller, &[]);
@@ -2778,6 +2814,12 @@ mod tests {
             .unwrap()
             .bounds
             .y;
+        let action_bounds: Vec<_> = frame
+            .hit_targets
+            .iter()
+            .filter(|target| matches!(target.target, PointerTarget::NetworkOption(3..=5)))
+            .map(|target| target.bounds)
+            .collect();
         let scan_y = frame
             .hit_targets
             .iter()
@@ -2785,11 +2827,40 @@ mod tests {
             .unwrap()
             .bounds
             .y;
+        let bypass_bounds = frame
+            .hit_targets
+            .iter()
+            .find(|target| target.target == PointerTarget::NetworkOption(7))
+            .unwrap()
+            .bounds;
+        let label_y = |label: &str| {
+            frame
+                .text_runs
+                .iter()
+                .find(|run| run.value == label)
+                .unwrap()
+                .y
+        };
         assert_eq!(row_edits, [102.0, 174.0, 246.0]);
         assert!(save_y - row_edits[2] >= 60.0);
         assert_eq!(test_y, save_y);
         assert!(scan_y - save_y >= 48.0);
         assert!(scan_y + 24.0 <= 456.0);
+        assert_eq!(bypass_bounds.y, scan_y);
+        assert_eq!(bypass_bounds.x, 228.0);
+        assert!(bypass_bounds.width >= 360.0);
+        assert!(bypass_bounds.right() <= 608.0);
+        assert_eq!(label_y("Test connection"), 360.0);
+        assert_eq!(label_y("Scan networks"), 416.0);
+        assert_eq!(label_y("Write without backup"), 416.0);
+        assert_eq!(action_bounds.len(), 3);
+        for bounds in &action_bounds {
+            assert!(bounds.width >= 180.0);
+            assert!(bounds.x >= 32.0);
+            assert!(bounds.right() <= 608.0);
+        }
+        assert!(action_bounds[0].right() < action_bounds[1].x);
+        assert!(action_bounds[1].right() < action_bounds[2].x);
     }
 
     #[test]
@@ -2860,6 +2931,17 @@ mod tests {
     }
 
     #[test]
+    fn app_details_do_not_draw_catalog_labels_over_the_dialog() {
+        let catalog = vec![app("one"), app("two")];
+        let mut controller = AppController::new();
+        controller.selected_app = Some(String::from("one"));
+        controller.screen = Screen::AppDetails;
+        let frame = browser_frame(&controller, &catalog);
+        assert!(frame.text_runs.iter().any(|run| run.value == "one"));
+        assert!(!frame.text_runs.iter().any(|run| run.value == "two"));
+    }
+
+    #[test]
     fn notice_exposes_its_wrapped_message_as_a_drag_target() {
         let mut controller = AppController::new();
         controller.show_notice("Long message ".repeat(80));
@@ -2877,7 +2959,14 @@ mod tests {
     #[test]
     fn wrapped_text_breaks_lines_and_obeys_the_visible_line_limit() {
         let mut frame = Frame::default();
-        frame.text_wrapped_scrolled(10.0, 20.0, "ONE TWO THREE FOUR FIVE", 1.0, ACCENT, 7, 2, 0);
+        frame.text_wrapped_scrolled(
+            10.0,
+            20.0,
+            "ONE TWO THREE FOUR FIVE",
+            1.0,
+            ACCENT,
+            (7, 2, 0),
+        );
         let mut line_ys: Vec<f32> = frame.fills.iter().map(|fill| fill.bounds.y).collect();
         line_ys.sort_by(f32::total_cmp);
         line_ys.dedup();
@@ -2893,7 +2982,7 @@ mod tests {
         assert_eq!(wrapped_line_window(&lines, 2, 99), &["THREE", "FOUR"]);
 
         let mut frame = Frame::default();
-        frame.text_wrapped_scrolled(10.0, 20.0, "ONE TWO THREE FOUR", 1.0, ACCENT, 7, 2, 99);
+        frame.text_wrapped_scrolled(10.0, 20.0, "ONE TWO THREE FOUR", 1.0, ACCENT, (7, 2, 99));
         let mut line_ys: Vec<f32> = frame.fills.iter().map(|fill| fill.bounds.y).collect();
         line_ys.sort_by(f32::total_cmp);
         line_ys.dedup();
