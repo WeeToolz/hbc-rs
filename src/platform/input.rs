@@ -8,6 +8,8 @@ use alloc::vec::Vec;
 use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, Ordering};
 
 use crate::app::Input;
+#[cfg(target_arch = "powerpc")]
+use ogc_controller::ControllerManager;
 
 #[cfg(target_arch = "powerpc")]
 static WPAD_STARTED: AtomicBool = AtomicBool::new(false);
@@ -15,6 +17,8 @@ static WPAD_STARTED: AtomicBool = AtomicBool::new(false);
 static WPAD_VIEW_WIDTH: AtomicU32 = AtomicU32::new(0);
 #[cfg(target_arch = "powerpc")]
 static WPAD_VIEW_HEIGHT: AtomicU32 = AtomicU32::new(0);
+#[cfg(target_arch = "powerpc")]
+static mut CONTROLLER_MANAGER: ControllerManager = ControllerManager::new();
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct InputFrame {
@@ -60,6 +64,23 @@ fn pointer_confirm_held(owner_present: bool, held: Buttons) -> bool {
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 struct Buttons(u16);
+
+#[cfg(any(target_arch = "powerpc", test))]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct RawWpadTransitions {
+    extension: Option<Extension>,
+    down: u32,
+    held: u32,
+    up: u32,
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct MappedInput {
+    down: Buttons,
+    held: Buttons,
+    up: Buttons,
+}
 
 impl Buttons {
     const UP: u16 = 1 << 0;
@@ -177,6 +198,10 @@ fn map_pad(mask: u16, out: &mut Buttons) {
     if mask & 0x0020 != 0 {
         out.0 |= Buttons::NEXT;
     }
+    #[cfg(any(target_arch = "powerpc", test))]
+    if mask & 0x0010 != 0 {
+        out.0 |= Buttons::NETWORK_INIT;
+    }
 }
 
 fn map_wiimote(mask: u32, out: &mut Buttons) {
@@ -218,6 +243,34 @@ fn map_directions(mask: u16, up: u16, down: u16, left: u16, right: u16, out: &mu
     if mask & right != 0 {
         out.0 |= Buttons::RIGHT;
     }
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+fn map_input_masks(
+    pad_down: u16,
+    pad_held: u16,
+    pad_up: u16,
+    wpad: [RawWpadTransitions; 4],
+    pointer_owner: Option<usize>,
+    pad_sample_valid: bool,
+) -> MappedInput {
+    let mut mapped = MappedInput::default();
+    if pad_sample_valid {
+        map_pad(pad_down, &mut mapped.down);
+        map_pad(pad_held, &mut mapped.held);
+    }
+    map_pad(pad_up, &mut mapped.up);
+    for (channel, transitions) in wpad.into_iter().enumerate() {
+        // Releases from disconnected controllers must reach the input frame,
+        // even when there is no current raw WPAD sample or pointer owner.
+        map_wpad_buttons(transitions.extension, transitions.up, &mut mapped.up);
+        if pointer_owner.is_some_and(|owner| owner != channel) {
+            continue;
+        }
+        map_wpad_buttons(transitions.extension, transitions.down, &mut mapped.down);
+        map_wpad_buttons(transitions.extension, transitions.held, &mut mapped.held);
+    }
+    mapped
 }
 
 fn bit_for(input: Input) -> u16 {
@@ -298,7 +351,8 @@ fn configure_wpad(view_width: u32, view_height: u32) -> Result<(), i32> {
 pub fn initialize(view_width: u16, view_height: u16) -> Result<(), i32> {
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("PAD INIT");
-    ogc_input::init();
+    // SAFETY: HBC owns this manager from startup on its single main thread.
+    unsafe { (&mut *core::ptr::addr_of_mut!(CONTROLLER_MANAGER)).init() };
     POINTER_OWNER.store(-1, Ordering::Release);
     WPAD_VIEW_WIDTH.store(u32::from(view_width), Ordering::Release);
     WPAD_VIEW_HEIGHT.store(u32::from(view_height), Ordering::Release);
@@ -306,7 +360,8 @@ pub fn initialize(view_width: u16, view_height: u16) -> Result<(), i32> {
 
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("WPAD INIT");
-    let wpad_result = wpad_sys::init();
+    // SAFETY: the same main-thread-owned manager is used for every scan.
+    let wpad_result = unsafe { (&mut *core::ptr::addr_of_mut!(CONTROLLER_MANAGER)).enable_wpad() };
     if wpad_result == wpad_sys::WPAD_ERR_NONE as i32 {
         return configure_wpad(u32::from(view_width), u32::from(view_height));
     }
@@ -322,18 +377,12 @@ pub fn initialize(view_width: u16, view_height: u16) -> Result<(), i32> {
 /// Scan GameCube port zero and Wii Remote channels using HBC pointer ownership.
 #[cfg(target_arch = "powerpc")]
 pub fn scan() -> Result<InputFrame, i32> {
-    use ogc_input as pad;
     use wpad_sys as wpad;
 
-    diagnostic_scan_mark("PAD SCAN START");
-    pad::scan_pads();
-    diagnostic_scan_mark("PAD SCAN DONE");
-    let mut down = Buttons::default();
-    let mut held = Buttons::default();
-    let mut up = Buttons::default();
     diagnostic_scan_mark("WPAD SCAN START");
     if !WPAD_STARTED.load(Ordering::Acquire) {
-        let start = wpad::init();
+        // SAFETY: HBC scans from its main thread only.
+        let start = unsafe { (&mut *core::ptr::addr_of_mut!(CONTROLLER_MANAGER)).enable_wpad() };
         if start == wpad::WPAD_ERR_NONE as i32 {
             configure_wpad(
                 WPAD_VIEW_WIDTH.load(Ordering::Acquire),
@@ -343,47 +392,34 @@ pub fn scan() -> Result<InputFrame, i32> {
             return Err(start);
         }
     }
-    let scan_result = wpad::scan_pads();
-    if scan_result < 0 {
-        return Err(scan_result);
-    }
+    diagnostic_scan_mark("PAD AND WPAD SCAN START");
+    // SAFETY: one main-thread scan owns the shared production manager.
+    let raw = unsafe { (&mut *core::ptr::addr_of_mut!(CONTROLLER_MANAGER)).scan_with_raw() };
     diagnostic_scan_mark("WPAD SCAN DONE");
-    // HBC reads only PAD channel zero. Other controller buttons are accepted
-    // only when no Wii Remote owns the IR pointer; then they are combined.
-    let pressed_pad = pad::buttons_down(0);
-    let held_pad = pad::buttons_held(0);
-    let released_pad = pad::buttons_up(0);
-    map_pad(pressed_pad, &mut down);
-    map_pad(held_pad, &mut held);
-    map_pad(released_pad, &mut up);
 
-    let mut data = [core::ptr::null_mut(); 4];
+    if let Some(error) = raw
+        .snapshot
+        .errors()
+        .find(|error| error.operation == "WPAD poll")
+    {
+        if let ogc_controller::InputFailure::Source(code) = error.failure {
+            return Err(code);
+        }
+    }
+
     let mut ir_valid = [false; 4];
-    for channel in 0..4 {
-        let channel = channel as i32;
-        let mut expansion = 0;
+    for (channel, sample) in raw.wpad_data.iter().enumerate() {
         diagnostic_scan_mark(match channel {
             0 => "WPAD PROBE 0 START",
             1 => "WPAD PROBE 1 START",
             2 => "WPAD PROBE 2 START",
             _ => "WPAD PROBE 3 START",
         });
-        let probe_result = unsafe { wpad::probe(channel, &mut expansion) };
-        if probe_result != wpad::WPAD_ERR_NONE as i32 {
-            continue;
+        if let Some(sample) =
+            sample.filter(|sample| sample.err == wpad::WPAD_ERR_NONE && sample.data_present != 0)
+        {
+            ir_valid[channel] = sample.ir.valid != 0;
         }
-        diagnostic_scan_mark(match channel {
-            0 => "WPAD PROBE 0 DONE",
-            1 => "WPAD PROBE 1 DONE",
-            2 => "WPAD PROBE 2 DONE",
-            _ => "WPAD PROBE 3 DONE",
-        });
-        let state = wpad::data(channel);
-        if state.is_null() {
-            continue;
-        }
-        data[channel as usize] = state;
-        ir_valid[channel as usize] = unsafe { (*state).ir.valid != 0 };
     }
     let owner = select_pointer_owner(&ir_valid, POINTER_OWNER.load(Ordering::Acquire));
     POINTER_OWNER.store(
@@ -393,42 +429,55 @@ pub fn scan() -> Result<InputFrame, i32> {
 
     let mut pointer = None;
     let mut pointer_pressed = false;
-    let mut stick_scroll = deadzone(i32::from(pad::stick_y(0)));
+    let mut stick_scroll = if raw.pad_status[0].err == ogc_input::PAD_ERR_NONE as i8 {
+        deadzone(i32::from(raw.pad_status[0].stick_y))
+    } else {
+        0
+    };
     if let Some(owner) = owner {
-        if !data[owner].is_null() {
-            stick_scroll += extension_stick_y(unsafe { &*data[owner] });
+        if let Some(state) = raw.wpad_data[owner].as_ref() {
+            stick_scroll += extension_stick_y(state);
         }
     } else {
-        for state in data.into_iter().filter(|state| !state.is_null()) {
-            stick_scroll += extension_stick_y(unsafe { &*state });
+        for state in raw.wpad_data.iter().flatten() {
+            stick_scroll += extension_stick_y(state);
         }
     }
     stick_scroll /= 8;
-    for channel in 0..4 {
-        if data[channel].is_null() || owner.is_some_and(|owner| owner != channel) {
-            continue;
-        }
-        let channel_id = channel as i32;
-        let pressed = wpad::buttons_down(channel_id);
-        map_wpad_channel(channel_id, pressed, &mut down);
-        if owner == Some(channel) {
-            let state = unsafe { &*data[channel] };
-            pointer = logical_pointer_position(state.ir.x, state.ir.y);
-            pointer_pressed = pointer_confirm_pressed(owner.is_some(), down);
-        }
-        map_wpad_channel(channel_id, wpad::buttons_held(channel_id), &mut held);
-        map_wpad_channel(channel_id, wpad::buttons_up(channel_id), &mut up);
+    let mut wpad_transitions = [RawWpadTransitions::default(); 4];
+    for (channel, transitions) in wpad_transitions.iter_mut().enumerate() {
+        transitions.extension = extension_from_raw_type(raw.wpad_extension_type[channel]);
+        transitions.down = raw.wpad_buttons_down[channel];
+        transitions.held = raw.wpad_buttons_held[channel];
+        transitions.up = raw.wpad_buttons_up[channel];
     }
-    let pointer_held = pointer_confirm_held(owner.is_some(), held);
+    let mapped = map_input_masks(
+        raw.pad_buttons_down[0],
+        raw.pad_buttons_held[0],
+        raw.pad_buttons_up[0],
+        wpad_transitions,
+        owner,
+        raw.pad_status[0].err == ogc_input::PAD_ERR_NONE as i8,
+    );
+    if let Some(owner) = owner {
+        if let Some(state) = raw.wpad_data[owner]
+            .as_ref()
+            .filter(|state| state.err == wpad::WPAD_ERR_NONE && state.data_present != 0)
+        {
+            pointer = logical_pointer_position(state.ir.x, state.ir.y);
+            pointer_pressed = pointer_confirm_pressed(true, mapped.down);
+        }
+    }
+    let pointer_held = pointer_confirm_held(owner.is_some(), mapped.held);
     Ok(InputFrame {
-        pressed: inputs(down),
-        held: inputs(held),
-        released: inputs(up),
+        pressed: inputs(mapped.down),
+        held: inputs(mapped.held),
+        released: inputs(mapped.up),
         pointer,
         pointer_pressed,
         pointer_held,
         stick_scroll_pixels: stick_scroll.clamp(i32::from(i16::MIN), i32::from(i16::MAX)) as i16,
-        screenshot_requested: screenshot_chord(down, held),
+        screenshot_requested: screenshot_chord(mapped.down, mapped.held),
     })
 }
 
@@ -482,20 +531,8 @@ fn select_pointer_owner(ir_valid: &[bool; 4], previous: i32) -> Option<usize> {
     ir_valid.iter().position(|valid| *valid)
 }
 
-#[cfg(target_arch = "powerpc")]
-fn map_wpad_channel(channel: i32, buttons: u32, out: &mut Buttons) {
-    let data = wpad_sys::data(channel);
-    if data.is_null() {
-        map_wiimote(buttons, out);
-        return;
-    }
-    let expansion = unsafe { (*data).exp.type_ };
-    let extension = match expansion {
-        value if value == wpad_sys::WPAD_EXP_NUNCHUK as i32 => Some(Extension::Nunchuk),
-        value if value == wpad_sys::WPAD_EXP_CLASSIC as i32 => Some(Extension::Classic),
-        value if value == wpad_sys::WPAD_EXP_GUITARHERO3 as i32 => Some(Extension::GuitarHero3),
-        _ => None,
-    };
+#[cfg(any(target_arch = "powerpc", test))]
+fn map_wpad_buttons(extension: Option<Extension>, buttons: u32, out: &mut Buttons) {
     if let Some(extension) = extension {
         map_screenshot_extension_buttons(buttons, extension, out);
     }
@@ -508,6 +545,16 @@ fn map_wpad_channel(channel: i32, buttons: u32, out: &mut Buttons) {
         });
     // HBC promotes extension buttons into the base Remote mask before use.
     map_wiimote(transformed, out);
+}
+
+#[cfg(target_arch = "powerpc")]
+fn extension_from_raw_type(expansion: i32) -> Option<Extension> {
+    match expansion {
+        value if value == wpad_sys::WPAD_EXP_NUNCHUK as i32 => Some(Extension::Nunchuk),
+        value if value == wpad_sys::WPAD_EXP_CLASSIC as i32 => Some(Extension::Classic),
+        value if value == wpad_sys::WPAD_EXP_GUITARHERO3 as i32 => Some(Extension::GuitarHero3),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
@@ -543,7 +590,66 @@ mod tests {
     }
 
     #[test]
+    fn production_mapper_keeps_pad_actions_when_wpad_is_neutral() {
+        let mapped = map_input_masks(0x0100, 0, 0, [RawWpadTransitions::default(); 4], None, true);
+        assert!(mapped.down.0 & Buttons::CONFIRM != 0);
+        assert_eq!(mapped.held, Buttons::default());
+    }
+
+    #[test]
+    fn production_mapper_preserves_classic_x_y_and_remote_minus_mappings() {
+        let mut classic = RawWpadTransitions {
+            extension: Some(Extension::Classic),
+            down: (0x0008 << 16) | (0x0020 << 16),
+            ..RawWpadTransitions::default()
+        };
+        let mut wpad = [RawWpadTransitions::default(); 4];
+        wpad[0] = classic;
+        let mapped = map_input_masks(0, 0, 0, wpad, None, true);
+        assert!(mapped.down.0 & Buttons::OPTIONS != 0);
+        assert!(mapped.down.0 & Buttons::BROWSE_MODE != 0);
+
+        classic.extension = None;
+        classic.down = 0x0010;
+        wpad[0] = classic;
+        let mapped = map_input_masks(0, 0, 0, wpad, None, true);
+        assert!(mapped.down.0 & Buttons::PREVIOUS != 0);
+        assert_eq!(mapped.down.0 & Buttons::OPTIONS, 0);
+    }
+
+    #[test]
+    fn production_mapper_combines_wpad_channels_and_keeps_releases_on_disconnect() {
+        let mut wpad = [RawWpadTransitions::default(); 4];
+        wpad[0].down = 0x0008;
+        wpad[1].down = 0x0004;
+        wpad[1].up = 0x0001;
+        let mapped = map_input_masks(0, 0, 0, wpad, None, true);
+        assert!(mapped.down.0 & Buttons::CONFIRM != 0);
+        assert!(mapped.down.0 & Buttons::BACK != 0);
+        assert!(mapped.up.0 & Buttons::BROWSE_MODE != 0);
+
+        let owner = map_input_masks(0, 0, 0, wpad, Some(0), true);
+        assert!(owner.down.0 & Buttons::CONFIRM != 0);
+        assert_eq!(owner.down.0 & Buttons::BACK, 0);
+        assert!(owner.up.0 & Buttons::BROWSE_MODE != 0);
+    }
+
+    #[test]
+    fn production_mapper_preserves_extension_screenshot_chords() {
+        let mut wpad = [RawWpadTransitions::default(); 4];
+        wpad[0] = RawWpadTransitions {
+            extension: Some(Extension::Classic),
+            down: 0x0080 << 16,
+            held: 0x0004 << 16,
+            up: 0,
+        };
+        let mapped = map_input_masks(0, 0, 0, wpad, None, true);
+        assert!(screenshot_chord(mapped.down, mapped.held));
+    }
+
+    #[test]
     fn maps_hbc_screenshot_chord_buttons_for_nunchuk_and_classic() {
+        assert_ne!(map_buttons(0x0010, 0).0 & Buttons::NETWORK_INIT, 0);
         for (mask, extension) in [
             (0x0001 << 16, Extension::Nunchuk),
             (0x0004 << 16, Extension::Classic),

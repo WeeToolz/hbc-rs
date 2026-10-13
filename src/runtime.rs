@@ -9,6 +9,7 @@ use crate::{
     platform::input::InputFrame,
     settings::SettingsState,
 };
+use ogc_ui::KeyRepeat;
 
 /// Owns the current catalog and applies platform input to the app controller.
 /// Storage, drawing, and service actions remain at the platform edge.
@@ -19,6 +20,7 @@ pub struct AppRuntime {
     settings: SettingsState,
     settings_persistence_enabled: bool,
     theme: Option<ThemeMetadata>,
+    page_repeat: KeyRepeat<Input>,
 }
 
 impl Default for AppRuntime {
@@ -41,6 +43,8 @@ impl AppRuntime {
             settings: SettingsState::default(),
             settings_persistence_enabled: true,
             theme: None,
+            // C HBC applies held page buttons once per frame.
+            page_repeat: KeyRepeat::new(0, 1),
         }
     }
 
@@ -226,12 +230,33 @@ impl AppRuntime {
         self.controller
             .scroll_active_memo_by_stick(frame.stick_scroll_pixels);
         let mut actions = Vec::new();
+        let mut screen_changed = false;
         for &input in &frame.pressed {
+            let screen = self.controller.screen;
             push_action(&mut actions, self.controller.handle(input, &self.catalog));
+            if self.controller.screen != screen {
+                self.page_repeat.reset();
+                screen_changed = true;
+                break;
+            }
         }
-        for &input in &frame.held {
-            if is_repeatable(input) && !frame.pressed.contains(&input) {
+        let held = frame
+            .held
+            .iter()
+            .copied()
+            .find(|input| is_repeatable(*input));
+        let pressed = frame
+            .pressed
+            .iter()
+            .copied()
+            .find(|input| is_repeatable(*input));
+        if !screen_changed && self.page_repeat.sample(held, pressed) {
+            if let Some(input) = held.filter(|input| !frame.pressed.contains(input)) {
+                let screen = self.controller.screen;
                 push_action(&mut actions, self.controller.handle(input, &self.catalog));
+                if self.controller.screen != screen {
+                    self.page_repeat.reset();
+                }
             }
         }
         self.sync_settings();
@@ -330,6 +355,16 @@ mod tests {
         runtime.update(&InputFrame::default());
         runtime.update(&first);
         assert_eq!(runtime.controller().selected_app.as_deref(), Some("c"));
+    }
+
+    #[test]
+    fn the_input_that_opens_a_screen_consumes_the_rest_of_its_frame() {
+        let mut runtime = AppRuntime::new(vec![app("one")]);
+        runtime.update(&InputFrame {
+            pressed: vec![Input::Home, Input::Confirm],
+            ..InputFrame::default()
+        });
+        assert_eq!(runtime.controller().screen, crate::app::Screen::MainMenu);
     }
 
     #[test]
@@ -437,7 +472,6 @@ mod tests {
 
         let frame = InputFrame {
             pressed: vec![
-                Input::OpenOptions,
                 Input::Up,
                 Input::Up,
                 Input::Left,
@@ -451,6 +485,10 @@ mod tests {
             released: vec![],
             ..InputFrame::default()
         };
+        runtime.update(&InputFrame {
+            pressed: vec![Input::OpenOptions],
+            ..InputFrame::default()
+        });
         runtime.update(&frame);
         assert!(runtime.settings().is_dirty());
         assert_eq!(runtime.settings().current().sort_order, 0);
@@ -483,9 +521,12 @@ mod tests {
             ..UserSettings::default()
         });
         runtime.set_device_availability([true, true, false, false]);
+        runtime.update(&InputFrame {
+            pressed: vec![Input::OpenOptions],
+            ..InputFrame::default()
+        });
         let actions = runtime.update(&InputFrame {
             pressed: vec![
-                Input::OpenOptions,
                 Input::Left, // Back -> OK
                 Input::Left, // OK -> Date
                 Input::Confirm,

@@ -82,6 +82,7 @@ dependencies = [
  "ogc-alloc",
  "ogc-cache",
  "ogc-conf",
+ "ogc-controller",
  "ogc-core",
  "ogc-di",
  "ogc-es-sys",
@@ -169,6 +170,17 @@ dependencies = [
 [[package]]
 name = "ogc-conf-sys"
 version = "0.1.0"
+
+[[package]]
+name = "ogc-controller"
+version = "0.1.0"
+dependencies = [
+ "ogc-bt-sync",
+ "ogc-input",
+ "ogc-ipc",
+ "ogc-usb",
+ "wpad-sys",
+]
 
 [[package]]
 name = "ogc-core"
@@ -482,6 +494,15 @@ dependencies = [
 [[package]]
 name = "ogc-ui"
 version = "0.1.0"
+
+[[package]]
+name = "ogc-usb"
+version = "0.1.0"
+dependencies = [
+ "ogc-lwp",
+ "ogc-sys",
+ "ogc-usb-sys",
+]
 
 [[package]]
 name = "ogc-usb-events"
