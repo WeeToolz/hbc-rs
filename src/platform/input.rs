@@ -290,8 +290,8 @@ fn map_normalized_controller_buttons(kind: ControllerKind, mask: u32, out: &mut 
         ControllerButtons::RIGHT.bits() as u16,
         out,
     );
-    let bindings = match kind {
-        ControllerKind::GameCube => [
+    let bindings: &[(ControllerButtons, u16)] = match kind {
+        ControllerKind::GameCube => &[
             (ControllerButtons::A, Buttons::CONFIRM),
             (ControllerButtons::B, Buttons::BACK),
             (ControllerButtons::X, Buttons::OPTIONS),
@@ -299,19 +299,15 @@ fn map_normalized_controller_buttons(kind: ControllerKind, mask: u32, out: &mut 
             (ControllerButtons::START, Buttons::HOME),
             (ControllerButtons::L, Buttons::PREVIOUS),
             (ControllerButtons::R, Buttons::NEXT),
-            (ControllerButtons::HOME, Buttons::HOME),
         ],
-        ControllerKind::JoyConLeft => [
+        ControllerKind::JoyConLeft => &[
             (ControllerButtons::SR, Buttons::CONFIRM),
             (ControllerButtons::SL, Buttons::BACK),
             (ControllerButtons::SELECT, Buttons::PREVIOUS),
             (ControllerButtons::L, Buttons::PREVIOUS),
             (ControllerButtons::R, Buttons::NEXT),
-            (ControllerButtons::HOME, Buttons::HOME),
-            (ControllerButtons::A, Buttons::CONFIRM),
-            (ControllerButtons::B, Buttons::BACK),
         ],
-        ControllerKind::JoyConRight => [
+        ControllerKind::JoyConRight => &[
             (ControllerButtons::A, Buttons::CONFIRM),
             (ControllerButtons::B, Buttons::BACK),
             (ControllerButtons::X, Buttons::OPTIONS),
@@ -319,19 +315,16 @@ fn map_normalized_controller_buttons(kind: ControllerKind, mask: u32, out: &mut 
             (ControllerButtons::START, Buttons::NEXT),
             (ControllerButtons::L, Buttons::PREVIOUS),
             (ControllerButtons::R, Buttons::NEXT),
-            (ControllerButtons::HOME, Buttons::HOME),
         ],
-        ControllerKind::JoyConPair | ControllerKind::SwitchPro => [
+        ControllerKind::JoyConPair | ControllerKind::SwitchPro => &[
             (ControllerButtons::A, Buttons::CONFIRM),
             (ControllerButtons::B, Buttons::BACK),
             (ControllerButtons::X, Buttons::OPTIONS),
             (ControllerButtons::Y, Buttons::BROWSE_MODE),
             (ControllerButtons::SELECT, Buttons::PREVIOUS),
             (ControllerButtons::START, Buttons::NEXT),
-            (ControllerButtons::HOME, Buttons::HOME),
-            (ControllerButtons::L, Buttons::PREVIOUS),
         ],
-        _ => [
+        _ => &[
             (ControllerButtons::A, Buttons::CONFIRM),
             (ControllerButtons::B, Buttons::BACK),
             (ControllerButtons::X, Buttons::OPTIONS),
@@ -347,7 +340,14 @@ fn map_normalized_controller_buttons(kind: ControllerKind, mask: u32, out: &mut 
             out.0 |= target;
         }
     }
-    if mask & ControllerButtons::HOME.bits() != 0 {
+    if matches!(
+        kind,
+        ControllerKind::JoyConLeft
+            | ControllerKind::JoyConRight
+            | ControllerKind::JoyConPair
+            | ControllerKind::SwitchPro
+    ) && mask & ControllerButtons::HOME.bits() != 0
+    {
         out.0 |= Buttons::HOME;
     }
 }
@@ -750,7 +750,9 @@ mod tests {
         let mut joycon_left = Buttons::default();
         map_normalized_controller_buttons(
             ControllerKind::JoyConLeft,
-            ControllerButtons::SR.bits()
+            ControllerButtons::A.bits()
+                | ControllerButtons::B.bits()
+                | ControllerButtons::SR.bits()
                 | ControllerButtons::SL.bits()
                 | ControllerButtons::SELECT.bits(),
             &mut joycon_left,
@@ -778,7 +780,8 @@ mod tests {
             ControllerKind::SwitchPro,
             ControllerButtons::SELECT.bits()
                 | ControllerButtons::START.bits()
-                | ControllerButtons::HOME.bits(),
+                | ControllerButtons::HOME.bits()
+                | ControllerButtons::L.bits(),
             &mut pro,
         );
         assert_eq!(pro.0, Buttons::PREVIOUS | Buttons::NEXT | Buttons::HOME);
