@@ -28,6 +28,23 @@ static mut CONTROLLER_MANAGER: ControllerManager = ControllerManager::new();
 #[cfg(target_arch = "powerpc")]
 static mut RIGHT_STICK_MAPPER: DigitalStickMapper<MAX_CONTROLLERS> = DigitalStickMapper::new();
 
+#[cfg(target_arch = "powerpc")]
+fn report_bluetooth_startup(stage: &'static str) {
+    ogc_system::report(format_args!("HBC: Bluetooth startup: {stage}\n"));
+}
+
+#[cfg(target_arch = "powerpc")]
+fn report_bluetooth_event(event: &'static str) {
+    ogc_system::report(format_args!("HBC: Bluetooth event: {event}\n"));
+}
+
+#[cfg(target_arch = "powerpc")]
+fn report_bluetooth_diagnostics(diagnostics: ogc_bt_sync::HostDiagnostics) {
+    ogc_system::report(format_args!(
+        "HBC: Bluetooth diagnostics: {diagnostics:?}\n"
+    ));
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct InputFrame {
     pub pressed: Vec<Input>,
@@ -567,6 +584,9 @@ pub fn initialize(view_width: u16, view_height: u16) -> Result<(), i32> {
     super::diagnostics::mark("PAD INIT");
     // SAFETY: HBC owns this manager from startup on its single main thread.
     let manager = unsafe { &mut *core::ptr::addr_of_mut!(CONTROLLER_MANAGER) };
+    manager.set_bluetooth_startup_hook(Some(report_bluetooth_startup));
+    manager.set_bluetooth_event_hook(Some(report_bluetooth_event));
+    manager.set_bluetooth_diagnostics_hook(Some(report_bluetooth_diagnostics));
     manager.init();
     manager.enable_usb_hid();
     POINTER_OWNER.store(-1, Ordering::Release);

@@ -30,6 +30,7 @@ ogc-ios = { path = "../libogc-rs/crates/core/ogc-ios" }
 ogc-ipc = { path = "../libogc-rs/crates/core/ogc-ipc" }
 ogc-lwp = { path = "../libogc-rs/crates/core/ogc-lwp" }
 ogc-irq = { path = "../libogc-rs/crates/core/ogc-irq" }
+ogc-bt-sync = { path = "../libogc-rs/crates/services/ogc-bt-sync" }
 ogc-network = { path = "../libogc-rs/crates/services/ogc-network" }
 ogc-system = { path = "../libogc-rs/crates/core/ogc-system" }
 ogc-video = { path = "../libogc-rs/crates/hardware/ogc-video" }
