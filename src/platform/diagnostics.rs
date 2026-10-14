@@ -328,7 +328,7 @@ mod wii {
     };
 
     static FRAMEBUFFER: AtomicUsize = AtomicUsize::new(0);
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     pub static GX_FRAMEBUFFER: AtomicUsize = AtomicUsize::new(0);
     static WIDTH: AtomicUsize = AtomicUsize::new(0);
     static HEIGHT: AtomicUsize = AtomicUsize::new(0);
