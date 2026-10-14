@@ -44,6 +44,12 @@ This is a confirmed support gap. It does not prove that it caused this user's
 blinking remote because the Wii's stored key count and order were not captured.
 The user reports that the remote was paired before the test.
 
+HBC-RS now writes Bluetooth startup stages, connection events, and changed
+`HostDiagnostics` values to the Wii system log. The diagnostic record includes
+link-key requests, matches and misses, connection attempts and failures, and
+authentication status. This uses the existing `ControllerManager` hooks. It
+does not change pairing or connection behavior.
+
 ## Verification
 
 - `ogc-bt-sync`: 92 host tests pass; strict Clippy passes.
@@ -51,6 +57,8 @@ The user reports that the remote was paired before the test.
   build passes.
 - `cargo fmt --check` and `git diff --check` pass for the HBC-RS change.
 - No real-Wii acceptance test was run.
+- The rebuilt DOL is `target/hbc-rs.dol`, 2.3 MiB, SHA-256
+  `861cfcc01b856c1be05e669779c10e732713c242fb544db3e3a8289d365250d1`.
 
 ## Wii follow-up
 
@@ -58,5 +66,6 @@ Run the rebuilt HBC-RS DOL with the same USB Tetris directory and compare it
 with C HBC. Record the Tetris `boot.dol` size and whether the error dialog still
 appears. For the Wii Remote, capture Bluetooth startup stage, key request,
 key match/miss, connection attempt/failure, and authentication failure counts.
-Then verify buttons and pointer input. Keep both results marked hardware-pending
-until those checks pass on the Wii.
+The Wii system log now reports these values after boot. Then verify buttons and
+pointer input. Keep both results marked hardware-pending until those checks
+pass on the Wii.
