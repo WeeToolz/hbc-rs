@@ -80,6 +80,7 @@ dependencies = [
  "libm",
  "miniz_oxide",
  "ogc-alloc",
+ "ogc-bt-sync",
  "ogc-cache",
  "ogc-conf",
  "ogc-controller",
