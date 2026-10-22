@@ -41,6 +41,13 @@ impl Language {
     fn extension_text(self, source: &str) -> &str {
         use Language::*;
         match (self, source) {
+            // Reborn-only entry: keep generated C translation catalogs unchanged.
+            (Spanish, "Restart network") => "Reiniciar red",
+            (French, "Restart network") => "Redémarrer le réseau",
+            (German, "Restart network") => "Netzwerk neu starten",
+            (Dutch, "Restart network") => "Netwerk opnieuw starten",
+            (Italian, "Restart network") => "Riavvia rete",
+            (Japanese, "Restart network") => "ネットワークを再起動",
 
             (Spanish, "Write without backup") => "Escribir sin copia de seguridad",
             (French, "Write without backup") => "Écrire sans sauvegarde",
@@ -48,12 +55,42 @@ impl Language {
             (Dutch, "Write without backup") => "Schrijven zonder back-up",
             (Italian, "Write without backup") => "Scrivi senza backup",
             (Japanese, "Write without backup") => "バックアップなしで書き込む",
-            (Spanish, "This writes the new settings directly to Wii NAND without a backup. If the write fails, the saved network settings can be lost. Continue?") => "Esto escribe la configuración directamente en la NAND de Wii sin una copia de seguridad. Si falla la escritura, se puede perder la configuración de red guardada. ¿Continuar?",
-            (French, "This writes the new settings directly to Wii NAND without a backup. If the write fails, the saved network settings can be lost. Continue?") => "Cette opération écrit les paramètres directement dans la NAND de la Wii sans sauvegarde. En cas d’échec, les paramètres réseau enregistrés peuvent être perdus. Continuer ?",
-            (German, "This writes the new settings directly to Wii NAND without a backup. If the write fails, the saved network settings can be lost. Continue?") => "Diese Aktion schreibt die neuen Einstellungen ohne Sicherung direkt in den Wii-NAND. Bei einem Fehler können die gespeicherten Netzwerkeinstellungen verloren gehen. Fortfahren?",
-            (Dutch, "This writes the new settings directly to Wii NAND without a backup. If the write fails, the saved network settings can be lost. Continue?") => "Hiermee worden de nieuwe instellingen zonder back-up naar het Wii-NAND geschreven. Bij een fout kunnen de opgeslagen netwerkinstellingen verloren gaan. Doorgaan?",
-            (Italian, "This writes the new settings directly to Wii NAND without a backup. If the write fails, the saved network settings can be lost. Continue?") => "Questa operazione scrive le nuove impostazioni nella NAND Wii senza backup. Se la scrittura non riesce, le impostazioni di rete salvate potrebbero andare perse. Continuare?",
-            (Japanese, "This writes the new settings directly to Wii NAND without a backup. If the write fails, the saved network settings can be lost. Continue?") => "バックアップを作成せず、新しい設定をWiiのNANDに直接書き込みます。書き込みに失敗すると、保存済みのネットワーク設定が失われる場合があります。続行しますか？",
+            (
+                Spanish,
+                "This writes the new settings directly to Wii NAND without a backup. If the write fails, the saved network settings can be lost. Continue?",
+            ) => {
+                "Esto escribe la configuración directamente en la NAND de Wii sin una copia de seguridad. Si falla la escritura, se puede perder la configuración de red guardada. ¿Continuar?"
+            }
+            (
+                French,
+                "This writes the new settings directly to Wii NAND without a backup. If the write fails, the saved network settings can be lost. Continue?",
+            ) => {
+                "Cette opération écrit les paramètres directement dans la NAND de la Wii sans sauvegarde. En cas d’échec, les paramètres réseau enregistrés peuvent être perdus. Continuer ?"
+            }
+            (
+                German,
+                "This writes the new settings directly to Wii NAND without a backup. If the write fails, the saved network settings can be lost. Continue?",
+            ) => {
+                "Diese Aktion schreibt die neuen Einstellungen ohne Sicherung direkt in den Wii-NAND. Bei einem Fehler können die gespeicherten Netzwerkeinstellungen verloren gehen. Fortfahren?"
+            }
+            (
+                Dutch,
+                "This writes the new settings directly to Wii NAND without a backup. If the write fails, the saved network settings can be lost. Continue?",
+            ) => {
+                "Hiermee worden de nieuwe instellingen zonder back-up naar het Wii-NAND geschreven. Bij een fout kunnen de opgeslagen netwerkinstellingen verloren gaan. Doorgaan?"
+            }
+            (
+                Italian,
+                "This writes the new settings directly to Wii NAND without a backup. If the write fails, the saved network settings can be lost. Continue?",
+            ) => {
+                "Questa operazione scrive le nuove impostazioni nella NAND Wii senza backup. Se la scrittura non riesce, le impostazioni di rete salvate potrebbero andare perse. Continuare?"
+            }
+            (
+                Japanese,
+                "This writes the new settings directly to Wii NAND without a backup. If the write fails, the saved network settings can be lost. Continue?",
+            ) => {
+                "バックアップを作成せず、新しい設定をWiiのNANDに直接書き込みます。書き込みに失敗すると、保存済みのネットワーク設定が失われる場合があります。続行しますか？"
+            }
 
             (Spanish, "Apply") => "Aplicar",
             (French, "Apply") => "Appliquer",
@@ -471,48 +508,132 @@ impl Language {
             (Dutch, "Received ZIP is complete.") => "Het ontvangen ZIP-bestand is geïnstalleerd.",
             (Italian, "Received ZIP is complete.") => "Lo ZIP ricevuto è stato installato.",
             (Japanese, "Received ZIP is complete.") => "受信したZIPをインストールしました。",
-            (Spanish, "Could not install the received ZIP.") => "No se pudo instalar el ZIP recibido.",
-            (French, "Could not install the received ZIP.") => "Impossible d’installer le ZIP reçu.",
-            (German, "Could not install the received ZIP.") => "Die empfangene ZIP-Datei konnte nicht installiert werden.",
-            (Dutch, "Could not install the received ZIP.") => "Het ontvangen ZIP-bestand kan niet worden geïnstalleerd.",
-            (Italian, "Could not install the received ZIP.") => "Impossibile installare lo ZIP ricevuto.",
-            (Japanese, "Could not install the received ZIP.") => "受信したZIPをインストールできません。",
-            (Spanish, "Could not prepare the received application.") => "No se pudo preparar la aplicación recibida.",
-            (French, "Could not prepare the received application.") => "Impossible de préparer l’application reçue.",
-            (German, "Could not prepare the received application.") => "Die empfangene Anwendung konnte nicht vorbereitet werden.",
-            (Dutch, "Could not prepare the received application.") => "De ontvangen applicatie kan niet worden voorbereid.",
-            (Italian, "Could not prepare the received application.") => "Impossibile preparare l’applicazione ricevuta.",
-            (Japanese, "Could not prepare the received application.") => "受信したアプリを準備できません。",
-            (Spanish, "Could not prepare this application to run.") => "No se pudo preparar esta aplicación para ejecutarla.",
-            (French, "Could not prepare this application to run.") => "Impossible de préparer cette application au lancement.",
-            (German, "Could not prepare this application to run.") => "Diese Anwendung konnte nicht zum Start vorbereitet werden.",
-            (Dutch, "Could not prepare this application to run.") => "Deze applicatie kan niet worden voorbereid om te starten.",
-            (Italian, "Could not prepare this application to run.") => "Impossibile preparare questa applicazione per l’avvio.",
-            (Japanese, "Could not prepare this application to run.") => "このアプリを起動する準備ができません。",
-            (Spanish, "Could not change the storage device.") => "No se pudo cambiar el dispositivo de almacenamiento.",
-            (French, "Could not change the storage device.") => "Impossible de changer de périphérique de stockage.",
-            (German, "Could not change the storage device.") => "Das Speichergerät konnte nicht gewechselt werden.",
-            (Dutch, "Could not change the storage device.") => "Het opslagapparaat kan niet worden gewijzigd.",
-            (Italian, "Could not change the storage device.") => "Impossibile cambiare il dispositivo di archiviazione.",
-            (Japanese, "Could not change the storage device.") => "ストレージデバイスを変更できません。",
-            (Spanish, "Could not save the new settings to NAND.") => "No se pudo guardar la configuración en NAND.",
-            (French, "Could not save the new settings to NAND.") => "Impossible d’enregistrer les nouveaux paramètres dans la NAND.",
-            (German, "Could not save the new settings to NAND.") => "Die neuen Einstellungen konnten nicht im NAND gespeichert werden.",
-            (Dutch, "Could not save the new settings to NAND.") => "De nieuwe instellingen kunnen niet op NAND worden opgeslagen.",
-            (Italian, "Could not save the new settings to NAND.") => "Impossibile salvare le nuove impostazioni nella NAND.",
-            (Japanese, "Could not save the new settings to NAND.") => "新しい設定をNANDに保存できません。",
-            (Spanish, "Could not save settings. Application launch stopped.") => "No se pudo guardar la configuración. Se canceló el inicio de la aplicación.",
-            (French, "Could not save settings. Application launch stopped.") => "Impossible d’enregistrer les paramètres. Le lancement de l’application est annulé.",
-            (German, "Could not save settings. Application launch stopped.") => "Die Einstellungen konnten nicht gespeichert werden. Die Anwendung wird nicht gestartet.",
-            (Dutch, "Could not save settings. Application launch stopped.") => "Instellingen kunnen niet worden opgeslagen. De applicatie wordt niet gestart.",
-            (Italian, "Could not save settings. Application launch stopped.") => "Impossibile salvare le impostazioni. Avvio dell’applicazione annullato.",
-            (Japanese, "Could not save settings. Application launch stopped.") => "設定を保存できません。アプリの起動を中止しました。",
-            (Spanish, "Could not stop storage. Application launch stopped.") => "No se pudo detener el almacenamiento. Se canceló el inicio de la aplicación.",
-            (French, "Could not stop storage. Application launch stopped.") => "Impossible d’arrêter le stockage. Le lancement de l’application est annulé.",
-            (German, "Could not stop storage. Application launch stopped.") => "Der Speicher konnte nicht gestoppt werden. Die Anwendung wird nicht gestartet.",
-            (Dutch, "Could not stop storage. Application launch stopped.") => "Opslag kan niet worden gestopt. De applicatie wordt niet gestart.",
-            (Italian, "Could not stop storage. Application launch stopped.") => "Impossibile arrestare il dispositivo. Avvio dell’applicazione annullato.",
-            (Japanese, "Could not stop storage. Application launch stopped.") => "ストレージを停止できません。アプリの起動を中止しました。",
+            (Spanish, "Could not install the received ZIP.") => {
+                "No se pudo instalar el ZIP recibido."
+            }
+            (French, "Could not install the received ZIP.") => {
+                "Impossible d’installer le ZIP reçu."
+            }
+            (German, "Could not install the received ZIP.") => {
+                "Die empfangene ZIP-Datei konnte nicht installiert werden."
+            }
+            (Dutch, "Could not install the received ZIP.") => {
+                "Het ontvangen ZIP-bestand kan niet worden geïnstalleerd."
+            }
+            (Italian, "Could not install the received ZIP.") => {
+                "Impossibile installare lo ZIP ricevuto."
+            }
+            (Japanese, "Could not install the received ZIP.") => {
+                "受信したZIPをインストールできません。"
+            }
+            (Spanish, "Could not prepare the received application.") => {
+                "No se pudo preparar la aplicación recibida."
+            }
+            (French, "Could not prepare the received application.") => {
+                "Impossible de préparer l’application reçue."
+            }
+            (German, "Could not prepare the received application.") => {
+                "Die empfangene Anwendung konnte nicht vorbereitet werden."
+            }
+            (Dutch, "Could not prepare the received application.") => {
+                "De ontvangen applicatie kan niet worden voorbereid."
+            }
+            (Italian, "Could not prepare the received application.") => {
+                "Impossibile preparare l’applicazione ricevuta."
+            }
+            (Japanese, "Could not prepare the received application.") => {
+                "受信したアプリを準備できません。"
+            }
+            (Spanish, "Could not prepare this application to run.") => {
+                "No se pudo preparar esta aplicación para ejecutarla."
+            }
+            (French, "Could not prepare this application to run.") => {
+                "Impossible de préparer cette application au lancement."
+            }
+            (German, "Could not prepare this application to run.") => {
+                "Diese Anwendung konnte nicht zum Start vorbereitet werden."
+            }
+            (Dutch, "Could not prepare this application to run.") => {
+                "Deze applicatie kan niet worden voorbereid om te starten."
+            }
+            (Italian, "Could not prepare this application to run.") => {
+                "Impossibile preparare questa applicazione per l’avvio."
+            }
+            (Japanese, "Could not prepare this application to run.") => {
+                "このアプリを起動する準備ができません。"
+            }
+            (Spanish, "Could not change the storage device.") => {
+                "No se pudo cambiar el dispositivo de almacenamiento."
+            }
+            (French, "Could not change the storage device.") => {
+                "Impossible de changer de périphérique de stockage."
+            }
+            (German, "Could not change the storage device.") => {
+                "Das Speichergerät konnte nicht gewechselt werden."
+            }
+            (Dutch, "Could not change the storage device.") => {
+                "Het opslagapparaat kan niet worden gewijzigd."
+            }
+            (Italian, "Could not change the storage device.") => {
+                "Impossibile cambiare il dispositivo di archiviazione."
+            }
+            (Japanese, "Could not change the storage device.") => {
+                "ストレージデバイスを変更できません。"
+            }
+            (Spanish, "Could not save the new settings to NAND.") => {
+                "No se pudo guardar la configuración en NAND."
+            }
+            (French, "Could not save the new settings to NAND.") => {
+                "Impossible d’enregistrer les nouveaux paramètres dans la NAND."
+            }
+            (German, "Could not save the new settings to NAND.") => {
+                "Die neuen Einstellungen konnten nicht im NAND gespeichert werden."
+            }
+            (Dutch, "Could not save the new settings to NAND.") => {
+                "De nieuwe instellingen kunnen niet op NAND worden opgeslagen."
+            }
+            (Italian, "Could not save the new settings to NAND.") => {
+                "Impossibile salvare le nuove impostazioni nella NAND."
+            }
+            (Japanese, "Could not save the new settings to NAND.") => {
+                "新しい設定をNANDに保存できません。"
+            }
+            (Spanish, "Could not save settings. Application launch stopped.") => {
+                "No se pudo guardar la configuración. Se canceló el inicio de la aplicación."
+            }
+            (French, "Could not save settings. Application launch stopped.") => {
+                "Impossible d’enregistrer les paramètres. Le lancement de l’application est annulé."
+            }
+            (German, "Could not save settings. Application launch stopped.") => {
+                "Die Einstellungen konnten nicht gespeichert werden. Die Anwendung wird nicht gestartet."
+            }
+            (Dutch, "Could not save settings. Application launch stopped.") => {
+                "Instellingen kunnen niet worden opgeslagen. De applicatie wordt niet gestart."
+            }
+            (Italian, "Could not save settings. Application launch stopped.") => {
+                "Impossibile salvare le impostazioni. Avvio dell’applicazione annullato."
+            }
+            (Japanese, "Could not save settings. Application launch stopped.") => {
+                "設定を保存できません。アプリの起動を中止しました。"
+            }
+            (Spanish, "Could not stop storage. Application launch stopped.") => {
+                "No se pudo detener el almacenamiento. Se canceló el inicio de la aplicación."
+            }
+            (French, "Could not stop storage. Application launch stopped.") => {
+                "Impossible d’arrêter le stockage. Le lancement de l’application est annulé."
+            }
+            (German, "Could not stop storage. Application launch stopped.") => {
+                "Der Speicher konnte nicht gestoppt werden. Die Anwendung wird nicht gestartet."
+            }
+            (Dutch, "Could not stop storage. Application launch stopped.") => {
+                "Opslag kan niet worden gestopt. De applicatie wordt niet gestart."
+            }
+            (Italian, "Could not stop storage. Application launch stopped.") => {
+                "Impossibile arrestare il dispositivo. Avvio dell’applicazione annullato."
+            }
+            (Japanese, "Could not stop storage. Application launch stopped.") => {
+                "ストレージを停止できません。アプリの起動を中止しました。"
+            }
             (Spanish, "Extract the received ZIP file?") => "¿Extraer el archivo ZIP recibido?",
             (French, "Extract the received ZIP file?") => "Extraire le fichier ZIP reçu ?",
             (German, "Extract the received ZIP file?") => "Empfangene ZIP-Datei entpacken?",
