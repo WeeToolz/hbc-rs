@@ -2,9 +2,9 @@
 
 This crate is a native Rust port of the HBC channel application in `../hbc/channel/channelapp`.
 It does not call or wrap the C implementation. Port each behavior in Rust, and use
-the vendored `libogc-rs/` workspace for Wii services and hardware access where its
-Rust APIs provide the required operation. The vendored checkout is ignored by this
-repository so library changes remain local and do not enlarge HBC commits.
+the sibling `../libogc-rs/` workspace for Wii services and hardware access where its
+Rust APIs provide the required operation. The library checkout is a separate
+repository. Commit library changes there.
 
 ## Scope
 
@@ -138,8 +138,9 @@ generated report. Run `python3 tools/generate-localization.py` after C PO change
 and `python3 tools/generate-localization.py --check` to verify the embedded six
 language catalogs. `C-sources/hbc/` must be available beside `RustPorts/`.
 
-Before building from a fresh HBC checkout, copy the local `libogc-rs` workspace to
-`hbc-rs/libogc-rs/`. The dependency paths in `Cargo.toml` point to that location.
+Before building from a fresh HBC checkout, place the local `libogc-rs` workspace
+beside `hbc-rs`, at `../libogc-rs/`. The dependency paths in `Cargo.toml` point
+to that sibling directory.
 
 ## Early bug candidates
 
