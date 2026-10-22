@@ -153,3 +153,37 @@ performed. Host tests and target checks do not prove hardware behavior. Real Wii
 acceptance remains open for interrupted-install recovery and controller input.
 Follow the mandatory hardware procedure before those probes. A linked PowerPC
 ELF was not produced, so the binary stack audit was not run.
+
+## Follow-up integration tests — 2026-10-22
+
+Added three tests for gaps found after the five-item DRY cleanup. Production
+code is unchanged.
+
+- ZIP classification accepts both ASCII and multibyte UTF-8 app folder names
+  at 243 bytes and rejects them at 244 bytes. The test checks the actual relative
+  extraction operations, total payload bytes, and stage and backup component
+  lengths of 254 and 255 bytes.
+- A decoded Right Joy-Con wire packet passes through the production mailbox.
+  The test checks pending versus applied completion, press and release edges at
+  both threshold boundaries, rearming, held input, expiry, and a single release.
+- A production menu frame supplies the labels and hit targets used for pointer
+  activation. The test checks each displayed action and resulting screen at
+  both viewport widths, with BootMii available and unavailable. It runs in both
+  normal and legacy menu builds. Expected labels and actions are independent
+  of the shared menu definitions.
+
+| Check | Result |
+| --- | --- |
+| `cargo test --quiet` | 379 passed; no ignored tests |
+| `cargo test --features legacy-main-menu --quiet` | 379 passed; no ignored tests |
+| `cargo test --features startup-diagnostics,debugger-network --quiet` | 400 passed; no ignored tests |
+| `cargo clippy --lib --tests` | Completed; the same seven existing warnings |
+| `python3 tools/parity.py check` | Passed; 39 areas |
+| `python3 tools/generate-localization.py --check` | Passed; all six catalogs |
+| Rustfmt check of the three changed Rust files | Passed |
+| Complete diff whitespace and file-mode review | Passed; no file-mode changes |
+
+These tests call the production parser, mailbox, renderer, and navigation code.
+No hardware model or replacement backend was added. Real Wii input and recovery
+verification remain open. No hardware operation, Dolphin run, or new PowerPC
+build was performed for this test-only change.

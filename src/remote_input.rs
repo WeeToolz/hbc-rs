@@ -255,6 +255,41 @@ mod tests {
         assert!(frame(&mailbox, &mut state, 221).released.is_empty());
     }
     #[test]
+    fn wire_right_stick_threshold_crossings_release_and_rearm_input() {
+        let mailbox = Mailbox::new();
+        let mut state = RemoteState::default();
+        for (now, y, pressed, held, released) in [
+            (100, 8193i16, Some(Input::Up), Some(Input::Up), None),
+            (110, 8192, None, None, Some(Input::Up)),
+            (120, -8193, Some(Input::Down), Some(Input::Down), None),
+            (130, -8192, None, None, Some(Input::Down)),
+            (140, 8193, Some(Input::Up), Some(Input::Up), None),
+        ] {
+            let mut bytes = packet();
+            bytes[5] = 8; // Right Joy-Con, using the right Y axis.
+            bytes[8..12].fill(0);
+            bytes[26..28].copy_from_slice(&y.to_be_bytes());
+            mailbox
+                .submit(Command::decode(&bytes).unwrap(), now)
+                .unwrap();
+            assert_eq!(mailbox.completion(), PENDING);
+            let sample = frame(&mailbox, &mut state, now);
+            assert_eq!(mailbox.completion(), APPLIED);
+            assert_eq!(sample.pressed, pressed.into_iter().collect::<Vec<_>>());
+            assert_eq!(sample.held, held.into_iter().collect::<Vec<_>>());
+            assert_eq!(sample.released, released.into_iter().collect::<Vec<_>>());
+        }
+        let held = frame(&mailbox, &mut state, 259);
+        assert!(held.pressed.is_empty());
+        assert_eq!(held.held, [Input::Up]);
+        let expired = frame(&mailbox, &mut state, 260);
+        assert!(expired.pressed.is_empty());
+        assert!(expired.held.is_empty());
+        assert_eq!(expired.released, [Input::Up]);
+        assert!(frame(&mailbox, &mut state, 261).released.is_empty());
+    }
+
+    #[test]
     fn rejects_invalid_packets_without_changing_pending_input() {
         let good = packet();
         assert_eq!(Command::decode(&good[..31]), Err(INVALID));

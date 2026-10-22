@@ -245,6 +245,51 @@ mod tests {
     }
 
     #[test]
+    fn classification_enforces_install_folder_byte_bounds_and_keeps_relative_paths() {
+        for directory in ["a".repeat(243), alloc::format!("{}a", "é".repeat(121))] {
+            let executable = alloc::format!("{directory}/boot.elf");
+            let metadata = alloc::format!("{directory}/meta.xml");
+            let data = zip(&[(&executable, b"elf"), (&metadata, b"<app/>")]);
+            let WiiloadZipClassification::App {
+                directory: actual,
+                kind,
+                extraction,
+            } = classify_received_zip(&data).unwrap()
+            else {
+                panic!("valid app rejected")
+            };
+            assert_eq!(actual, directory);
+            assert_eq!(kind, WiiloadZipKind::Elf);
+            assert_eq!(extraction.total_bytes(), 9);
+            assert_eq!(
+                extraction.operations(),
+                &[
+                    ExtractionOperation::WriteFile {
+                        path: String::from("boot.elf"),
+                        archive_name: executable,
+                        size: 3
+                    },
+                    ExtractionOperation::WriteFile {
+                        path: String::from("meta.xml"),
+                        archive_name: metadata,
+                        size: 6
+                    },
+                ]
+            );
+            let paths = crate::management::AppInstallPaths::new(&actual).unwrap();
+            assert_eq!(paths.stage.strip_prefix("apps/").unwrap().len(), 254);
+            assert_eq!(paths.backup.strip_prefix("apps/").unwrap().len(), 255);
+        }
+        for directory in ["a".repeat(244), "é".repeat(122)] {
+            let executable = alloc::format!("{directory}/boot.elf");
+            let metadata = alloc::format!("{directory}/meta.xml");
+            let data = zip(&[(&executable, b"elf"), (&metadata, b"<app/>")]);
+            assert_eq!(classify_app(&data), Err(WiiloadZipError::InvalidApp));
+            assert!(classify_received_zip(&data).is_err());
+        }
+    }
+
+    #[test]
     fn recognizes_valid_theme_package_after_app_policy_fails() {
         let xml = b"<theme><description>Water</description></theme>";
         assert!(matches!(

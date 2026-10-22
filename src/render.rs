@@ -2002,6 +2002,67 @@ mod tests {
     }
 
     #[test]
+    fn rendered_menu_labels_and_hit_targets_execute_the_displayed_actions() {
+        use crate::app::{Action, Input};
+        let theme = ThemeMetadata {
+            default_font: crate::metadata::ThemeFont {
+                file: Some(String::from("droid.ttf")),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        for width in [LOGICAL_WIDTH, WIDE_LOGICAL_WIDTH] {
+            for bootmii in [false, true] {
+                let mut expected = vec![
+                    ("Back", Action::None, Screen::Browser),
+                    ("About", Action::None, Screen::About),
+                ];
+                if bootmii {
+                    expected.push(("Launch BootMii", Action::LaunchBootMii, Screen::MainMenu));
+                }
+                expected.extend([
+                    ("Exit to System Menu", Action::Exit, Screen::MainMenu),
+                    ("Shutdown", Action::Shutdown, Screen::MainMenu),
+                ]);
+                #[cfg(not(feature = "legacy-main-menu"))]
+                expected.push(("Restart network", Action::RestartNetwork, Screen::MainMenu));
+                let mut controller = AppController::new();
+                controller.set_bootmii_available(bootmii);
+                controller.handle(Input::Home, &[]);
+                let frame = browser_frame_with_viewport(&controller, &[], Some(&theme), width);
+                let hits: Vec<_> = frame
+                    .hit_targets
+                    .iter()
+                    .filter(|hit| matches!(hit.target, PointerTarget::Menu(_)))
+                    .collect();
+                assert_eq!(hits.len(), expected.len());
+                for (index, (hit, (label, action, screen))) in hits.iter().zip(expected).enumerate()
+                {
+                    assert_eq!(hit.target, PointerTarget::Menu(index));
+                    assert!(
+                        frame.text_runs.iter().any(|run| run.value == label
+                            && run.y >= hit.bounds.y
+                            && run.y < hit.bounds.bottom()),
+                        "missing row label {label}"
+                    );
+                    let target = frame.hit_test(
+                        hit.bounds.x + hit.bounds.width / 2.0,
+                        hit.bounds.y + hit.bounds.height / 2.0,
+                    );
+                    assert_eq!(target, Some(PointerTarget::Menu(index)));
+                    controller.screen = Screen::MainMenu;
+                    assert_eq!(
+                        controller.handle_pointer(target, true, &[]),
+                        action,
+                        "{label}"
+                    );
+                    assert_eq!(controller.screen, screen);
+                }
+            }
+        }
+    }
+
+    #[test]
     fn main_menu_status_text_stays_inside_narrow_and_wide_viewports() {
         let theme = ThemeMetadata {
             default_font: crate::metadata::ThemeFont {
