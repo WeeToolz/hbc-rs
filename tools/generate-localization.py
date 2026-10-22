@@ -91,7 +91,7 @@ def render() -> str:
         lines.extend(["];", ""])
     generated = "\n".join(lines)
     formatted = subprocess.run(
-        ["rustfmt", "--edition", "2021", "--emit", "stdout"],
+        ["rustfmt", "--edition", "2024", "--emit", "stdout"],
         input=generated,
         text=True,
         capture_output=True,
