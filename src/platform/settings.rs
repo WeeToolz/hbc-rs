@@ -81,12 +81,42 @@ pub enum SettingsIoError {
     Codec,
     TitlePathBusy,
     PlaytimeVerificationMismatch,
+    NandRead(super::nand::ReadError),
+    NandReadCleanup {
+        operation: super::nand::ReadError,
+        cleanup: i32,
+    },
 }
 
 impl SettingsIoError {
+    pub(crate) fn from_read(error: super::nand::ReadError) -> Self {
+        use super::nand::{ReadError, ReadFailure};
+        match error {
+            ReadError::Operation(ReadFailure::Backend(code)) => Self::Isfs(code),
+            ReadError::Operation(ReadFailure::InvalidSize) => Self::InvalidFileSize,
+            ReadError::Operation(ReadFailure::Allocation) => Self::Isfs(isfs::ISFS_ENOMEM),
+            ReadError::Close {
+                operation: Some(ReadFailure::Backend(operation)),
+                cleanup,
+            } => Self::IsfsCleanup {
+                operation: Some(operation),
+                cleanup,
+            },
+            ReadError::Close {
+                operation: None,
+                cleanup,
+            } => Self::Isfs(cleanup),
+            other => Self::NandRead(other),
+        }
+    }
+
     #[cfg(any(target_arch = "powerpc", test))]
     pub(crate) fn from_replace(error: super::nand::ReplaceError) -> Self {
         match error {
+            super::nand::ReplaceError::Read(error) => Self::from_read(error),
+            super::nand::ReplaceError::ReadCleanup { operation, cleanup } => {
+                Self::NandReadCleanup { operation, cleanup }
+            }
             super::nand::ReplaceError::Backend(error) => Self::Isfs(error),
             super::nand::ReplaceError::Cleanup { operation, cleanup } => {
                 Self::IsfsCleanup { operation, cleanup }
@@ -272,34 +302,14 @@ fn read_settings_file(path: &CString) -> Result<UserSettings, SettingsIoError> {
         }
         Err(error) => return Err(SettingsIoError::Isfs(error)),
     };
-    let mut stats = AlignedFstats(isfs::Fstats::default());
-    let read_result = (|| {
-        let rc = isfs::get_file_stats(&file, &mut stats.0);
-        if rc < 0 {
-            return Err(SettingsIoError::Isfs(rc));
-        }
-        let size =
-            usize::try_from(stats.0.file_length).map_err(|_| SettingsIoError::InvalidFileSize)?;
-        if size == 0 || size > MAX_SETTINGS_XML_SIZE {
-            return Err(SettingsIoError::InvalidFileSize);
-        }
-
+    let (xml, size) = super::nand::read_open_file(file, 1, MAX_SETTINGS_XML_SIZE, |file, size| {
+        use super::nand::{ReadFailure, ReadFile};
         let mut xml = AlignedXml([0; MAX_SETTINGS_XML_SIZE]);
-        super::nand::read_exact_wii(&file, &mut xml.0[..size]).map_err(SettingsIoError::Isfs)?;
+        file.read_exact(&mut xml.0[..size])
+            .map_err(ReadFailure::Backend)?;
         Ok((xml, size))
-    })();
-    let close_rc = file.close();
-    if close_rc < 0 {
-        return match read_result {
-            Err(SettingsIoError::Isfs(operation)) => Err(SettingsIoError::IsfsCleanup {
-                operation: Some(operation),
-                cleanup: close_rc,
-            }),
-            Err(_) => Err(SettingsIoError::Isfs(close_rc)),
-            Ok(_) => Err(SettingsIoError::Isfs(close_rc)),
-        };
-    }
-    let (xml, size) = read_result?;
+    })
+    .map_err(SettingsIoError::from_read)?;
     decode_settings_xml(&xml.0[..size]).map_err(|_| SettingsIoError::Codec)
 }
 

@@ -472,43 +472,8 @@ pub fn load() -> Result<Option<Vec<u8>>, SettingsIoError> {
         }
         Err(error) => return Err(SettingsIoError::Isfs(error)),
     };
-    let read_result = (|| {
-        #[cfg(feature = "startup-diagnostics")]
-        super::diagnostics::mark("THEME FILE STATS");
-        let mut stats = AlignedStats(isfs::Fstats::default());
-        let rc = isfs::get_file_stats(&file, &mut stats.0);
-        if rc < 0 {
-            return Err(SettingsIoError::Isfs(rc));
-        }
-        let size = stats.0.file_length as usize;
-        if size == 0 || size > MAX_THEME_ARCHIVE_BYTES {
-            return Err(SettingsIoError::InvalidFileSize);
-        }
-
-        #[cfg(feature = "startup-diagnostics")]
-        super::diagnostics::mark("THEME FILE READ");
-        let mut archive = Vec::new();
-        if archive.try_reserve_exact(size).is_err() {
-            return Err(SettingsIoError::InvalidFileSize);
-        }
-        archive.resize(size, 0);
-        super::nand::read_exact_wii(&file, &mut archive).map_err(SettingsIoError::Isfs)?;
-        Ok(archive)
-    })();
-    #[cfg(feature = "startup-diagnostics")]
-    super::diagnostics::mark("THEME FILE CLOSE");
-    let close_rc = file.close();
-    if close_rc < 0 {
-        return match read_result {
-            Err(SettingsIoError::Isfs(operation)) => Err(SettingsIoError::IsfsCleanup {
-                operation: Some(operation),
-                cleanup: close_rc,
-            }),
-            Err(_) => Err(SettingsIoError::Isfs(close_rc)),
-            Ok(_) => Err(SettingsIoError::Isfs(close_rc)),
-        };
-    }
-    let archive = read_result?;
+    let archive = super::nand::read_open_vec(file, 1, MAX_THEME_ARCHIVE_BYTES)
+        .map_err(SettingsIoError::from_read)?;
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("THEME ZIP READY");
     Ok(Some(archive))
@@ -527,9 +492,6 @@ pub fn save(archive: &[u8]) -> Result<(), SettingsIoError> {
 
     super::nand::save_wii(&path, archive)
 }
-
-#[repr(align(32))]
-struct AlignedStats(isfs::Fstats);
 
 fn theme_image_texture(
     package: Option<(&crate::theme::ThemePackage, &[u8])>,

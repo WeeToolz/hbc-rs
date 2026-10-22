@@ -3,12 +3,108 @@
 #[cfg(any(target_arch = "powerpc", test))]
 use alloc::{format, string::String, vec::Vec};
 
+/// Failure during a bounded NAND read, before the file is closed.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ReadFailure {
+    Backend(i32),
+    InvalidSize,
+    Allocation,
+}
+
+/// Keep the operation failure and the close failure when both occur.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ReadError {
+    Operation(ReadFailure),
+    Close {
+        operation: Option<ReadFailure>,
+        cleanup: i32,
+    },
+}
+
+impl From<i32> for ReadError {
+    fn from(code: i32) -> Self {
+        Self::Operation(ReadFailure::Backend(code))
+    }
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+pub(crate) trait ReadFile: Sized {
+    fn size(&self) -> Result<usize, i32>;
+    fn read_exact(&self, output: &mut [u8]) -> Result<(), i32>;
+    fn close(self) -> i32;
+}
+
+/// Size checks and close handling are shared by fixed and allocated buffers.
+#[cfg(any(target_arch = "powerpc", test))]
+pub(crate) fn read_open_file<F: ReadFile, T>(
+    file: F,
+    min_size: usize,
+    max_size: usize,
+    read: impl FnOnce(&F, usize) -> Result<T, ReadFailure>,
+) -> Result<T, ReadError> {
+    let operation = (|| {
+        let size = file.size().map_err(ReadFailure::Backend)?;
+        if !(min_size..=max_size).contains(&size) {
+            return Err(ReadFailure::InvalidSize);
+        }
+        read(&file, size)
+    })();
+    let cleanup = file.close();
+    if cleanup < 0 {
+        return Err(ReadError::Close {
+            operation: operation.err(),
+            cleanup,
+        });
+    }
+    operation.map_err(ReadError::Operation)
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+pub(crate) fn read_open_vec(
+    file: impl ReadFile,
+    min_size: usize,
+    max_size: usize,
+) -> Result<Vec<u8>, ReadError> {
+    read_open_file(file, min_size, max_size, |file, size| {
+        let mut bytes = Vec::new();
+        bytes
+            .try_reserve_exact(size)
+            .map_err(|_| ReadFailure::Allocation)?;
+        bytes.resize(size, 0);
+        file.read_exact(&mut bytes).map_err(ReadFailure::Backend)?;
+        Ok(bytes)
+    })
+}
+
+/// Use an aligned scratch buffer for every request, including short reads.
+#[cfg(any(target_arch = "powerpc", test))]
+fn read_exact_with(
+    output: &mut [u8],
+    mut read: impl FnMut(&mut [u8]) -> Result<usize, i32>,
+    invalid: i32,
+) -> Result<(), i32> {
+    #[repr(align(32))]
+    struct Chunk([u8; 16 * 1024]);
+    let mut chunk = Chunk([0; 16 * 1024]);
+    let mut offset = 0;
+    while offset < output.len() {
+        let requested = (output.len() - offset).min(chunk.0.len());
+        let count = read(&mut chunk.0[..requested])?;
+        if count == 0 || count > requested {
+            return Err(invalid);
+        }
+        output[offset..offset + count].copy_from_slice(&chunk.0[..count]);
+        offset += count;
+    }
+    Ok(())
+}
+
 /// The operations needed to replace a file without deleting its last good copy.
 #[cfg(any(target_arch = "powerpc", test))]
 pub(crate) trait ReplaceBackend {
     fn ensure_directory(&mut self, path: &str) -> Result<(), i32>;
     fn exists(&mut self, path: &str) -> Result<bool, i32>;
-    fn read_bounded(&mut self, path: &str, max_size: usize) -> Result<Option<Vec<u8>>, i32>;
+    fn read_bounded(&mut self, path: &str, max_size: usize) -> Result<Option<Vec<u8>>, ReadError>;
     fn write_new(&mut self, path: &str, bytes: &[u8]) -> Result<(), i32>;
     fn write_new_with_attributes(
         &mut self,
@@ -46,6 +142,11 @@ pub(crate) enum ReplaceError {
     TemporaryMismatch,
     StaleSnapshot,
     InvalidPath,
+    Read(ReadError),
+    ReadCleanup {
+        operation: ReadError,
+        cleanup: i32,
+    },
 }
 
 #[cfg(any(target_arch = "powerpc", test))]
@@ -109,6 +210,13 @@ fn directory_contains_entry(entries: &[u8], count: usize, name: &str) -> Option<
 }
 
 #[cfg(any(target_arch = "powerpc", test))]
+impl From<ReadError> for ReplaceError {
+    fn from(error: ReadError) -> Self {
+        Self::Read(error)
+    }
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
 impl From<i32> for ReplaceError {
     fn from(error: i32) -> Self {
         Self::Backend(error)
@@ -151,7 +259,7 @@ pub(crate) fn replace_file_with_attributes(
         Ok(None) => {
             return Err(cleanup_temporary(backend, &temporary, None));
         }
-        Err(error) => return Err(cleanup_temporary(backend, &temporary, Some(error))),
+        Err(error) => return Err(cleanup_failed_read(backend, &temporary, error)),
     };
     if staged != bytes {
         return Err(cleanup_temporary(backend, &temporary, None));
@@ -174,7 +282,7 @@ pub(crate) fn replace_file_with_attributes(
                 };
             }
             Err(error) => {
-                return Err(cleanup_temporary(backend, &temporary, Some(error)));
+                return Err(cleanup_failed_read(backend, &temporary, error));
             }
         }
     }
@@ -232,7 +340,7 @@ pub(crate) fn write_new_verified_file(
     match backend.read_bounded(path, bytes.len()) {
         Ok(Some(staged)) if staged == bytes => Ok(()),
         Ok(_) => Err(cleanup_temporary(backend, path, None)),
-        Err(error) => Err(cleanup_temporary(backend, path, Some(error))),
+        Err(error) => Err(cleanup_failed_read(backend, path, error)),
     }
 }
 
@@ -272,6 +380,19 @@ fn cleanup_temporary(
         ReplaceError::Backend(operation)
     } else {
         ReplaceError::TemporaryMismatch
+    }
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+fn cleanup_failed_read(
+    backend: &mut impl ReplaceBackend,
+    path: &str,
+    operation: ReadError,
+) -> ReplaceError {
+    match cleanup_temporary(backend, path, None) {
+        ReplaceError::TemporaryMismatch => ReplaceError::Read(operation),
+        ReplaceError::Cleanup { cleanup, .. } => ReplaceError::ReadCleanup { operation, cleanup },
+        _ => unreachable!("cleanup without an operation returns only its cleanup result"),
     }
 }
 
@@ -389,9 +510,9 @@ fn staging_path(path: &str, directory_name: &str) -> Result<String, ReplaceError
 #[cfg(target_arch = "powerpc")]
 mod wii {
     use super::{
-        DirectoryEnsureError, FileAttributes, ReplaceBackend, directory_contains_entry,
-        ensure_directory_with, is_missing_isfs_error, recover_file_for_load, save_file,
-        write_new_verified_file,
+        DirectoryEnsureError, FileAttributes, ReadError, ReadFile, ReplaceBackend,
+        directory_contains_entry, ensure_directory_with, is_missing_isfs_error,
+        recover_file_for_load, save_file, write_new_verified_file,
     };
     use crate::platform::settings::SettingsIoError;
     use alloc::ffi::CString;
@@ -411,6 +532,23 @@ mod wii {
     #[repr(align(32))]
     struct AlignedFstats(isfs::Fstats);
 
+    impl ReadFile for isfs::IsfsFile {
+        fn size(&self) -> Result<usize, i32> {
+            let mut stats = AlignedFstats(isfs::Fstats::default());
+            let result = isfs::get_file_stats(self, &mut stats.0);
+            if result < 0 {
+                return Err(result);
+            }
+            usize::try_from(stats.0.file_length).map_err(|_| isfs::ISFS_EINVAL)
+        }
+        fn read_exact(&self, output: &mut [u8]) -> Result<(), i32> {
+            read_exact_aligned(self, output)
+        }
+        fn close(self) -> i32 {
+            self.close()
+        }
+    }
+
     struct IsfsBackend;
 
     fn report_isfs_failure(operation: &str, path: &core::ffi::CStr, error: i32) {
@@ -429,21 +567,7 @@ mod wii {
     /// therefore make a later read invalid even when the original allocation
     /// was aligned.
     pub(crate) fn read_exact_aligned(file: &isfs::IsfsFile, output: &mut [u8]) -> Result<(), i32> {
-        let mut chunk = AlignedChunk([0; WRITE_CHUNK_SIZE]);
-        let mut offset = 0usize;
-        while offset < output.len() {
-            let requested = (output.len() - offset).min(WRITE_CHUNK_SIZE);
-            match file.read(&mut chunk.0[..requested]) {
-                Ok(0) => return Err(isfs::ISFS_EINVAL),
-                Ok(count) if count <= requested => {
-                    output[offset..offset + count].copy_from_slice(&chunk.0[..count]);
-                    offset += count;
-                }
-                Ok(_) => return Err(isfs::ISFS_EINVAL),
-                Err(error) => return Err(error),
-            }
-        }
-        Ok(())
+        super::read_exact_with(output, |buffer| file.read(buffer), isfs::ISFS_EINVAL)
     }
 
     impl ReplaceBackend for IsfsBackend {
@@ -521,38 +645,20 @@ mod wii {
             directory_contains_entry(&entries.0, returned, name).ok_or(isfs::ISFS_EINVAL)
         }
 
-        fn read_bounded(&mut self, path: &str, max_size: usize) -> Result<Option<Vec<u8>>, i32> {
+        fn read_bounded(
+            &mut self,
+            path: &str,
+            max_size: usize,
+        ) -> Result<Option<Vec<u8>>, ReadError> {
             let path = CString::new(path).map_err(|_| isfs::ISFS_EINVAL)?;
             let file = match isfs::open(&path, isfs::ISFS_OPEN_READ) {
                 Ok(file) => file,
                 Err(error) if is_missing_isfs_error(error, ogc_filesystem::ISFS_ENOENT) => {
                     return Ok(None);
                 }
-                Err(error) => return Err(error),
+                Err(error) => return Err(error.into()),
             };
-            let mut stats = AlignedFstats(isfs::Fstats::default());
-            let read_result = (|| {
-                let result = isfs::get_file_stats(&file, &mut stats.0);
-                if result < 0 {
-                    return Err(result);
-                }
-                let size = usize::try_from(stats.0.file_length).map_err(|_| isfs::ISFS_EINVAL)?;
-                if size > max_size {
-                    return Err(isfs::ISFS_EINVAL);
-                }
-                let mut bytes = Vec::new();
-                bytes
-                    .try_reserve_exact(size)
-                    .map_err(|_| isfs::ISFS_ENOMEM)?;
-                bytes.resize(size, 0);
-                read_exact_aligned(&file, &mut bytes)?;
-                Ok(bytes)
-            })();
-            let close_result = file.close();
-            if close_result < 0 {
-                return Err(close_result);
-            }
-            read_result.map(Some)
+            super::read_open_vec(file, 0, max_size).map(Some)
         }
 
         fn write_new(&mut self, path: &str, bytes: &[u8]) -> Result<(), i32> {
@@ -658,7 +764,7 @@ mod wii {
         let mut backend = IsfsBackend;
         backend
             .read_bounded(path, max_size)
-            .map_err(SettingsIoError::Isfs)
+            .map_err(SettingsIoError::from_read)
     }
 
     pub(crate) fn save(path: &CString, bytes: &[u8]) -> Result<(), SettingsIoError> {
@@ -702,6 +808,230 @@ mod tests {
         collections::{BTreeMap, BTreeSet},
         vec,
     };
+
+    struct ControlledRead<'a> {
+        size: Result<usize, i32>,
+        bytes: &'a [u8],
+        read_error: Option<i32>,
+        close_error: i32,
+        closed: &'a core::cell::Cell<usize>,
+    }
+    impl ReadFile for ControlledRead<'_> {
+        fn size(&self) -> Result<usize, i32> {
+            self.size
+        }
+        fn read_exact(&self, output: &mut [u8]) -> Result<(), i32> {
+            if let Some(error) = self.read_error {
+                return Err(error);
+            }
+            let mut offset = 0;
+            read_exact_with(
+                output,
+                |buffer| {
+                    assert_eq!(buffer.as_ptr() as usize % 32, 0);
+                    let count = buffer.len().min(3).min(self.bytes.len() - offset);
+                    buffer[..count].copy_from_slice(&self.bytes[offset..offset + count]);
+                    offset += count;
+                    Ok(count)
+                },
+                -101,
+            )
+        }
+        fn close(self) -> i32 {
+            self.closed.set(self.closed.get() + 1);
+            self.close_error
+        }
+    }
+
+    #[test]
+    fn bounded_read_returns_real_bytes_after_short_aligned_reads() {
+        let closed = core::cell::Cell::new(0);
+        let file = ControlledRead {
+            size: Ok(7),
+            bytes: b"payload",
+            read_error: None,
+            close_error: 0,
+            closed: &closed,
+        };
+        assert_eq!(read_open_vec(file, 1, 7), Ok(b"payload".to_vec()));
+        assert_eq!(closed.get(), 1);
+    }
+
+    #[test]
+    fn fixed_buffer_reads_share_the_size_and_close_contract() {
+        let closed = core::cell::Cell::new(0);
+        let file = ControlledRead {
+            size: Ok(7),
+            bytes: b"payload",
+            read_error: None,
+            close_error: 0,
+            closed: &closed,
+        };
+        let value = read_open_file(file, 1, 16, |file, size| {
+            let mut bytes = [0; 16];
+            file.read_exact(&mut bytes[..size])
+                .map_err(ReadFailure::Backend)?;
+            Ok((bytes, size))
+        })
+        .unwrap();
+        assert_eq!(&value.0[..value.1], b"payload");
+        assert_eq!(closed.get(), 1);
+        let empty = ControlledRead {
+            size: Ok(0),
+            bytes: b"",
+            read_error: None,
+            close_error: 0,
+            closed: &closed,
+        };
+        assert_eq!(read_open_vec(empty, 0, 16), Ok(vec![]));
+        assert_eq!(closed.get(), 2);
+    }
+
+    #[test]
+    fn aligned_read_rejects_invalid_counts_and_preserves_transport_errors() {
+        assert_eq!(read_exact_with(&mut [0; 1], |_| Ok(2), -101), Err(-101));
+        assert_eq!(read_exact_with(&mut [0; 1], |_| Err(-12), -101), Err(-12));
+        let mut output = vec![0; 16 * 1024 + 3];
+        assert_eq!(
+            read_exact_with(
+                &mut output,
+                |buffer| {
+                    assert_eq!(buffer.as_ptr() as usize % 32, 0);
+                    buffer.fill(0x5a);
+                    Ok(buffer.len())
+                },
+                -101
+            ),
+            Ok(())
+        );
+        assert_eq!(output, vec![0x5a; 16 * 1024 + 3]);
+    }
+
+    #[test]
+    fn bounded_read_returns_size_stats_eof_and_close_failures() {
+        let closed = core::cell::Cell::new(0);
+        for (size, bytes, close, expected) in [
+            (
+                Ok(0),
+                &b""[..],
+                0,
+                ReadError::Operation(ReadFailure::InvalidSize),
+            ),
+            (
+                Ok(8),
+                &b"payload"[..],
+                0,
+                ReadError::Operation(ReadFailure::InvalidSize),
+            ),
+            (
+                Err(-102),
+                &b""[..],
+                0,
+                ReadError::Operation(ReadFailure::Backend(-102)),
+            ),
+            (
+                Ok(7),
+                &b"short"[..],
+                0,
+                ReadError::Operation(ReadFailure::Backend(-101)),
+            ),
+            (
+                Ok(7),
+                &b"payload"[..],
+                -9,
+                ReadError::Close {
+                    operation: None,
+                    cleanup: -9,
+                },
+            ),
+            (
+                Err(-102),
+                &b""[..],
+                -9,
+                ReadError::Close {
+                    operation: Some(ReadFailure::Backend(-102)),
+                    cleanup: -9,
+                },
+            ),
+            (
+                Ok(8),
+                &b""[..],
+                -9,
+                ReadError::Close {
+                    operation: Some(ReadFailure::InvalidSize),
+                    cleanup: -9,
+                },
+            ),
+        ] {
+            let file = ControlledRead {
+                size,
+                bytes,
+                read_error: None,
+                close_error: close,
+                closed: &closed,
+            };
+            assert_eq!(read_open_vec(file, 1, 7), Err(expected));
+        }
+        assert_eq!(closed.get(), 7);
+        let file = ControlledRead {
+            size: Ok(1),
+            bytes: b"x",
+            read_error: Some(-12),
+            close_error: -9,
+            closed: &closed,
+        };
+        assert_eq!(
+            read_open_vec(file, 1, 7),
+            Err(ReadError::Close {
+                operation: Some(ReadFailure::Backend(-12)),
+                cleanup: -9
+            })
+        );
+        assert_eq!(closed.get(), 8);
+    }
+
+    #[test]
+    fn allocation_failure_is_returned_after_close() {
+        let closed = core::cell::Cell::new(0);
+        let file = ControlledRead {
+            size: Ok(usize::MAX),
+            bytes: b"",
+            read_error: None,
+            close_error: -9,
+            closed: &closed,
+        };
+        // This size exceeds Vec capacity and fails at the real allocation boundary.
+        assert_eq!(
+            read_open_vec(file, 0, usize::MAX),
+            Err(ReadError::Close {
+                operation: Some(ReadFailure::Allocation),
+                cleanup: -9
+            })
+        );
+        assert_eq!(closed.get(), 1);
+    }
+
+    #[test]
+    fn cleanup_failure_keeps_the_complete_read_failure() {
+        let path = "_tmp/settings.xml";
+        let mut backend = MemoryBackend {
+            fail_delete_path: Some(path.into()),
+            ..MemoryBackend::default()
+        };
+        backend.files.insert(path.into(), b"data".to_vec());
+        let operation = ReadError::Close {
+            operation: Some(ReadFailure::Backend(-12)),
+            cleanup: -9,
+        };
+        assert_eq!(
+            cleanup_failed_read(&mut backend, path, operation),
+            ReplaceError::ReadCleanup {
+                operation,
+                cleanup: -10
+            }
+        );
+        assert_eq!(backend.files.get(path), Some(&b"data".to_vec()));
+    }
 
     #[test]
     fn isfs_missing_uses_filesystem_error_namespace() {
@@ -951,10 +1281,14 @@ mod tests {
             Ok(self.files.contains_key(path))
         }
 
-        fn read_bounded(&mut self, path: &str, max_size: usize) -> Result<Option<Vec<u8>>, i32> {
+        fn read_bounded(
+            &mut self,
+            path: &str,
+            max_size: usize,
+        ) -> Result<Option<Vec<u8>>, ReadError> {
             match self.files.get(path) {
                 Some(bytes) if bytes.len() <= max_size => Ok(Some(bytes.clone())),
-                Some(_) => Err(-7),
+                Some(_) => Err((-7).into()),
                 None => Ok(None),
             }
         }
