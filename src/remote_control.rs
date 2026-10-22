@@ -91,16 +91,11 @@ pub struct Reply {
 }
 impl Reply {
     fn new(id: u32, command: Option<Command>, state: State, message: &str) -> Self {
-        // Preserve valid UTF-8 within the protocol's bounded response.
-        let mut end = message.len().min(MAX_MESSAGE);
-        while !message.is_char_boundary(end) {
-            end -= 1;
-        }
         Self {
             id,
             command,
             state,
-            message: String::from(&message[..end]),
+            message: crate::metadata::truncate_utf8_bytes(message, MAX_MESSAGE),
         }
     }
     pub fn encode(&self, session: u32) -> Vec<u8> {
@@ -274,6 +269,29 @@ mod tests {
     use super::*;
     const RESTART: [u8; 16] = [72, 66, 67, 67, 1, 1, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0];
     const QUERY: [u8; 16] = [72, 66, 67, 81, 1, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0];
+    #[test]
+    fn encoded_replies_keep_complete_utf8_characters_within_the_byte_limit() {
+        for (message, expected) in [
+            (String::new(), String::new()),
+            ("a".repeat(512), "a".repeat(512)),
+            (alloc::format!("{}é", "a".repeat(511)), "a".repeat(511)),
+            (
+                alloc::format!("{}é!", "a".repeat(510)),
+                alloc::format!("{}é", "a".repeat(510)),
+            ),
+            ("界".repeat(171), "界".repeat(170)),
+        ] {
+            let reply = Reply::new(7, Some(Command::Restart), State::Failed, &message);
+            assert_eq!(reply.message, expected);
+            let encoded = reply.encode(9);
+            assert_eq!(&encoded[20..], expected.as_bytes());
+            assert_eq!(
+                u16::from_be_bytes([encoded[16], encoded[17]]) as usize,
+                expected.len()
+            );
+        }
+    }
+
     #[test]
     fn hardware_submission_does_not_replace_completion_or_hide_read_failure() {
         assert_eq!(observe_eject(0, true), None);
