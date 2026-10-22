@@ -6,11 +6,10 @@
 use alloc::vec::Vec;
 #[cfg(target_arch = "powerpc")]
 use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, Ordering};
-#[cfg(any(target_arch = "powerpc", test))]
 use ogc_controller::{
     Buttons as ControllerButtons, ControllerKind, ControllerSnapshot, ControllerSource,
-    DigitalStickMapper, StickDirectionError, StickDirectionFrame, StickDirectionSample,
-    MAX_CONTROLLERS,
+    DigitalStickMapper, MAX_CONTROLLERS, StickDirectionError, StickDirectionFrame,
+    StickDirectionSample,
 };
 
 use crate::app::Input;
@@ -122,9 +121,7 @@ impl Buttons {
     const PREVIOUS: u16 = 1 << 9;
     const NEXT: u16 = 1 << 10;
     const OPTIONS: u16 = 1 << 11;
-    #[cfg(any(test, target_arch = "powerpc"))]
     const NETWORK_INIT: u16 = 1 << 12;
-    #[cfg(any(test, target_arch = "powerpc"))]
     const SCREENSHOT: u16 = 1 << 13;
 }
 
@@ -301,7 +298,6 @@ fn map_input_masks(
     mapped
 }
 
-#[cfg(any(target_arch = "powerpc", test))]
 fn map_normalized_controller_buttons(kind: ControllerKind, mask: u32, out: &mut Buttons) {
     // These are HBC application defaults for normalized USB and Bluetooth
     // controllers. The C HBC mappings above remain authoritative for PAD and
@@ -520,7 +516,6 @@ fn bit_for(input: Input) -> u16 {
     }
 }
 
-#[cfg(any(target_arch = "powerpc", test))]
 fn inputs(mask: Buttons) -> Vec<Input> {
     [
         Input::Home,
@@ -545,7 +540,6 @@ fn screenshot_chord(pressed: Buttons, held: Buttons) -> bool {
     pressed.0 & Buttons::SCREENSHOT != 0 && held.0 & Buttons::NETWORK_INIT != 0
 }
 
-#[cfg(any(target_arch = "powerpc", test))]
 fn map_screenshot_extension_buttons(mask: u32, extension: Extension, out: &mut Buttons) {
     let (network_init, screenshot) = match extension {
         Extension::Nunchuk => (0x0001 << 16, 0x0002 << 16),
@@ -587,12 +581,19 @@ pub fn initialize(view_width: u16, view_height: u16) -> Result<(), i32> {
     manager.set_bluetooth_startup_hook(Some(report_bluetooth_startup));
     manager.set_bluetooth_event_hook(Some(report_bluetooth_event));
     manager.set_bluetooth_diagnostics_hook(Some(report_bluetooth_diagnostics));
+    #[cfg(feature = "startup-diagnostics")]
+    manager.set_input_scan_hook(Some(diagnostic_scan_mark));
+    #[cfg(feature = "startup-diagnostics")]
+    manager.set_usb_startup_hook(Some(diagnostic_scan_mark));
     manager.init();
     manager.enable_usb_hid();
     POINTER_OWNER.store(-1, Ordering::Release);
     WPAD_VIEW_WIDTH.store(u32::from(view_width), Ordering::Release);
     WPAD_VIEW_HEIGHT.store(u32::from(view_height), Ordering::Release);
     WPAD_STARTED.store(false, Ordering::Release);
+
+    #[cfg(feature = "startup-diagnostics")]
+    wpad_sys::set_bluetooth_poll_hook(Some(diagnostic_scan_mark));
 
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("WPAD INIT");
@@ -633,8 +634,11 @@ pub fn scan() -> Result<InputFrame, InputScanError> {
     // SAFETY: one main-thread scan owns the shared production manager.
     let raw = unsafe { (&mut *core::ptr::addr_of_mut!(CONTROLLER_MANAGER)).scan_with_raw() };
     diagnostic_scan_mark("WPAD SCAN DONE");
+    diagnostic_scan_mark("ERROR REPORT START");
     report_controller_input_error(&raw.snapshot);
+    diagnostic_scan_mark("ERROR REPORT DONE");
 
+    diagnostic_scan_mark("WPAD ERROR START");
     if let Some(error) = raw
         .snapshot
         .errors()
@@ -644,6 +648,7 @@ pub fn scan() -> Result<InputFrame, InputScanError> {
             return Err(InputScanError::Wpad(code));
         }
     }
+    diagnostic_scan_mark("WPAD ERROR DONE");
 
     let mut ir_valid = [false; 4];
     for (channel, sample) in raw.wpad_data.iter().enumerate() {
@@ -731,6 +736,8 @@ pub fn scan() -> Result<InputFrame, InputScanError> {
 fn diagnostic_scan_mark(label: &'static str) {
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark(label);
+    #[cfg(feature = "recovery-scan-validation")]
+    super::diagnostics::hold_for_recovery_scan_validation(label);
     #[cfg(not(feature = "startup-diagnostics"))]
     let _ = label;
 }
@@ -776,7 +783,6 @@ fn select_pointer_owner(ir_valid: &[bool; 4], previous: i32) -> Option<usize> {
     ir_valid.iter().position(|valid| *valid)
 }
 
-#[cfg(any(target_arch = "powerpc", test))]
 fn map_wpad_buttons(extension: Option<Extension>, buttons: u32, out: &mut Buttons) {
     if let Some(extension) = extension {
         map_screenshot_extension_buttons(buttons, extension, out);
@@ -1226,5 +1232,94 @@ mod tests {
                 .count(),
             1
         );
+    }
+}
+
+/// Map a validated network sample with the same bindings as local controllers.
+pub fn remote_frame(command: &crate::remote_input::Command) -> InputFrame {
+    let mut buttons = Buttons::default();
+    match command.kind {
+        0 => buttons.0 = command.buttons as u16,
+        1 => {
+            let mut mask = command.buttons as u16;
+            if command.triggers[0] >= 128 {
+                mask |= 0x40;
+            }
+            if command.triggers[1] >= 128 {
+                mask |= 0x20;
+            }
+            map_pad(mask, &mut buttons);
+        }
+        2 => map_wiimote(command.buttons, &mut buttons),
+        3 => {
+            let mut mask = command.buttons;
+            if command.triggers[0] >= 128 {
+                mask |= 0x2000 << 16;
+            }
+            if command.triggers[1] >= 128 {
+                mask |= 0x0200 << 16;
+            }
+            map_wpad_buttons(Some(Extension::Classic), mask, &mut buttons);
+        }
+        4 => map_wpad_buttons(Some(Extension::Nunchuk), command.buttons, &mut buttons),
+        5 => map_wpad_buttons(Some(Extension::GuitarHero3), command.buttons, &mut buttons),
+        kind => {
+            let kind = match kind {
+                7 => ControllerKind::JoyConLeft,
+                8 => ControllerKind::JoyConRight,
+                9 => ControllerKind::JoyConPair,
+                10 => ControllerKind::SwitchPro,
+                11 => ControllerKind::XboxOne,
+                _ => ControllerKind::GenericUsbHid,
+            };
+            let mut mask = command.buttons;
+            if command.triggers[0] >= 128 {
+                mask |= ControllerButtons::L.bits();
+            }
+            if command.triggers[1] >= 128 {
+                mask |= ControllerButtons::R.bits();
+            }
+            map_normalized_controller_buttons(kind, mask, &mut buttons);
+        }
+    }
+    // HBC scrolls with the left stick. It also gives the Right Joy-Con right
+    // stick the same per-controller directional transitions as local input.
+    let left_scroll = i32::from(command.sticks[1]) / 256;
+    let right_scroll = i32::from(command.sticks[3]) / 256;
+    let deadzone = |axis: i32| {
+        if axis > 10 {
+            axis - 10
+        } else if axis < -10 {
+            axis + 10
+        } else {
+            0
+        }
+    };
+    let mut stick_navigation = Buttons::default();
+    if command.kind == 8 {
+        for (axis, negative, positive) in [
+            (command.sticks[2], Buttons::LEFT, Buttons::RIGHT),
+            (command.sticks[3], Buttons::DOWN, Buttons::UP),
+        ] {
+            if axis <= -8192 {
+                stick_navigation.0 |= negative;
+            }
+            if axis >= 8192 {
+                stick_navigation.0 |= positive;
+            }
+        }
+        buttons.0 |= stick_navigation.0;
+    }
+    InputFrame {
+        held: inputs(buttons),
+        pointer: command.pointer,
+        stick_scroll_pixels: command
+            .scroll
+            .saturating_add(deadzone(left_scroll) as i16)
+            .saturating_add(deadzone(right_scroll) as i16),
+        stick_navigation: inputs(stick_navigation),
+        screenshot_requested: command.screenshot
+            || (buttons.0 & Buttons::SCREENSHOT != 0 && buttons.0 & Buttons::NETWORK_INIT != 0),
+        ..InputFrame::default()
     }
 }

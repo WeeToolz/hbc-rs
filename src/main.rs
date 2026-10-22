@@ -18,6 +18,8 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     // Seed the libogc-rs arena bounds and initialize runtime services before
     // reserving the Rust heap from MEM2 or registering hardware callbacks.
     ogc_system::init();
+    #[cfg(feature = "debugger-usb-gecko")]
+    hbc_rs::platform::lifecycle::initialize_debugger();
     #[cfg(feature = "startup-diagnostics")]
     let msr_after_system_init: u32;
     #[cfg(feature = "startup-diagnostics")]
@@ -86,6 +88,15 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             reset_after_diagnostic_report();
         }
         return -1;
+    }
+    #[cfg(feature = "startup-diagnostics")]
+    if hbc_rs::platform::diagnostics::arm_recovery().is_err() {
+        hbc_rs::platform::diagnostics::mark("RECOVERY WORKER FAILED");
+        return -5;
+    }
+    #[cfg(all(target_arch = "powerpc", feature = "recovery-validation"))]
+    if hbc_rs::platform::diagnostics::hold_for_recovery_validation().is_err() {
+        return -6;
     }
     install_return_stub();
     let wiilaunch_init = ogc_wiilaunch::initialize();
@@ -175,6 +186,9 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     let mut network_check_frames: Option<u16> = None;
     let mut network_indicator_frame = 0u16;
     let mut reported_receiver_status = None;
+    let mut remote_input = hbc_rs::remote_input::RemoteState::default();
+    let mut remote_operation: Option<(u32, u64, hbc_rs::platform::control::Operation)> = None;
+    let mut remote_result: Option<(u32, Result<String, String>)> = None;
     ogc_system::report(format_args!(
         "HBC: startup complete; entering render loop\n"
     ));
@@ -189,6 +203,48 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         let first_frame = !display_ready;
         if let Some(request) = hbc_rs::platform::lifecycle::take_request() {
             hbc_rs::platform::lifecycle::defer_exit(&mut deferred_exit, request);
+        }
+        #[cfg(feature = "debugger-network")]
+        {
+            let screen = startup.runtime().controller().screen;
+            let normal_menu = display_ready
+                && matches!(
+                    screen,
+                    hbc_rs::app::Screen::Browser | hbc_rs::app::Screen::MainMenu
+                );
+            let no_install_pending = pending_zip.is_none()
+                && !startup.received_zip_install_pending()
+                && !matches!(
+                    hbc_rs::platform::wiiload::status(),
+                    hbc_rs::platform::wiiload::ReceiverStatus::Receiving
+                        | hbc_rs::platform::wiiload::ReceiverStatus::PayloadReady
+                );
+            let conditions = libdb_sys::wii_network::PauseConditions {
+                normal_menu,
+                no_exit_pending: deferred_exit.is_none(),
+                no_install_pending,
+                no_storage_operation: !startup.storage_scan_pending()
+                    && !startup.device_probe_pending(),
+                no_remote_operation: remote_operation.is_none(),
+                no_network_transition: !matches!(
+                    screen,
+                    hbc_rs::app::Screen::NetworkSettings
+                        | hbc_rs::app::Screen::NetworkScan
+                        | hbc_rs::app::Screen::NetworkKeyboard
+                ),
+                no_modal_workflow: normal_menu,
+            };
+            let result = hbc_rs::platform::wiiload::COOPERATIVE_CONTROL
+                .service(deferred_exit.is_some(), conditions.is_eligible());
+            if result == libdb_sys::wii_network::MainControlResult::EnteredPause {
+                if let Some(request) = cooperative_pause_loop() {
+                    hbc_rs::platform::lifecycle::defer_exit(&mut deferred_exit, request);
+                }
+            }
+        }
+        #[cfg(feature = "debugger-usb-gecko")]
+        if hbc_rs::platform::lifecycle::take_debugger_break() {
+            libdb_sys::_break();
         }
         if first_frame {
             ogc_system::report(format_args!("HBC: first lifecycle poll complete\n"));
@@ -336,6 +392,10 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         if deferred_exit.is_none() && !startup.storage_scan_pending() {
             if pending_zip.is_none() && !startup.received_zip_install_pending() {
                 if let Some(payload) = hbc_rs::platform::wiiload::take_payload() {
+                    ogc_system::report(format_args!(
+                        "HBC: received payload ready: {} bytes\n",
+                        payload.data.len()
+                    ));
                     if payload.data.starts_with(b"PK\x03\x04") {
                         match hbc_rs::wiiload_zip::classify_received_zip(&payload.data) {
                             Ok(hbc_rs::wiiload_zip::WiiloadZipClassification::App {
@@ -396,9 +456,14 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                                     startup.runtime_mut().show_notice(&notice);
                                 }
                             }
-                            Err(_) => startup
-                                .runtime_mut()
-                                .show_notice("Received data is not a valid Wii application."),
+                            Err(error) => {
+                                ogc_system::report(format_args!(
+                                    "HBC: received executable validation failed: {error:?}\n"
+                                ));
+                                startup.runtime_mut().show_notice(&format!(
+                                    "Received data is not a valid Wii application: {error:?}."
+                                ));
+                            }
                         }
                     }
                 }
@@ -451,6 +516,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         if first_frame {
             ogc_system::report(format_args!("HBC: first controller scan complete\n"));
         }
+        hbc_rs::platform::wiiload::merge_remote_input(&mut remote_input, &mut frame);
         let storage_scan_pending = startup.storage_scan_pending();
         // Device probes own storage in their worker. Menu input stays active;
         // operations that need storage validate worker ownership at the backend.
@@ -670,19 +736,94 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         if !display_ready {
             hbc_rs::platform::diagnostics::mark("GX COPY START");
         }
-        if display_ready && screenshot_requested {
-            let saved = video
-                .capture_efb_rgba()
-                .map_err(|error| format!("frame capture: {error:?}"))
-                .and_then(|image| {
-                    hbc_rs::png::encode_rgba_png(image.width, image.height, &image.pixels)
-                        .map_err(|error| format!("PNG encode: {error:?}"))
+        // Hardware commands run on this thread, after input polling services BT
+        // completions. The socket worker only queues commands and returns status.
+        let control_now = ogc_lwp::sys::now_ticks() / (ogc_lwp::sys::TICKS_PER_SECOND / 1000);
+        if let Some((id, started, operation)) = remote_operation.as_ref() {
+            let result = operation.poll().or_else(|| {
+                (control_now.saturating_sub(*started) >= 60_000).then(|| {
+                    Err(String::from(
+                        "Hardware operation did not complete within 60 seconds",
+                    ))
                 })
-                .and_then(|bytes| {
-                    startup
-                        .save_screenshot_png(&bytes)
-                        .map_err(|error| format!("file save: {error:?}"))
-                });
+            });
+            if let Some(result) = result {
+                remote_result = Some((*id, result));
+                remote_operation = None;
+            }
+        }
+        if let Some((id, result)) = remote_result.as_ref() {
+            if hbc_rs::platform::wiiload::REMOTE_CONTROL.finish(*id, result) {
+                ogc_system::report(format_args!(
+                    "HBC: terminal request {id} result: {result:?}\n"
+                ));
+                remote_result = None;
+            }
+        }
+        if display_ready
+            && remote_operation.is_none()
+            && remote_result.is_none()
+            && !startup.storage_scan_pending()
+            && !startup.device_probe_pending()
+            && !startup.received_zip_install_pending()
+            && !matches!(
+                hbc_rs::platform::wiiload::status(),
+                hbc_rs::wiiload::ReceiverStatus::Receiving
+                    | hbc_rs::wiiload::ReceiverStatus::PayloadReady
+            )
+        {
+            if let Some((id, command)) = hbc_rs::platform::wiiload::REMOTE_CONTROL.take(control_now)
+            {
+                use hbc_rs::remote_control::Command;
+                ogc_system::report(format_args!(
+                    "HBC: terminal request {id} executing {command:?}\n"
+                ));
+                let reset = match command {
+                    Command::Restart => Some(ogc_system::SYS_RESTART),
+                    Command::Reset => Some(ogc_system::SYS_RETURNTOMENU),
+                    Command::PowerOff => Some(ogc_system::SYS_POWEROFF),
+                    _ => None,
+                };
+                if let Some(reset) = reset {
+                    // A successful reset never returns. Never publish completed
+                    // before the hardware has actually changed execution state.
+                    if let Err(mut message) = exit_to_system(&mut startup, reset) {
+                        if hbc_rs::platform::wiiload::status()
+                            == hbc_rs::wiiload::ReceiverStatus::Stopped
+                        {
+                            if let Err(error) = hbc_rs::platform::input::initialize(
+                                startup.logical_width(),
+                                hbc_rs::render::LOGICAL_HEIGHT,
+                            ) {
+                                message.push_str(&format!(" Controller recovery failed: {error}."));
+                            }
+                            if let Err(error) = hbc_rs::platform::wiiload::start() {
+                                message.push_str(&format!(" Receiver recovery failed: {error:?}."));
+                            }
+                        }
+                        startup
+                            .runtime_mut()
+                            .show_notice_with_kind(&message, hbc_rs::app::NoticeKind::Error);
+                        remote_result = Some((id, Err(message)));
+                    }
+                } else {
+                    match hbc_rs::platform::control::Operation::begin(command, &mut startup, &video)
+                    {
+                        Ok(operation) => remote_operation = Some((id, control_now, operation)),
+                        Err(error) => remote_result = Some((id, Err(error))),
+                    }
+                }
+            }
+        }
+        if display_ready && screenshot_requested {
+            // Do not allocate or read back the framebuffer when no storage is
+            // mounted. save_screenshot_png still rechecks storage at save time.
+            let saved = hbc_rs::platform::home_overlay::capture_and_save_screenshot(
+                &video,
+                startup.has_storage(),
+                |bytes| startup.save_screenshot_png(bytes),
+            )
+            .map_err(|error| format!("{error:?}"));
             if let Err(error) = saved {
                 startup.runtime_mut().show_notice_with_kind(
                     &format!("Screenshot failed ({error})."),
@@ -926,6 +1067,40 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 }
                 continue;
             }
+            if action == hbc_rs::app::Action::RestartNetwork {
+                use hbc_rs::platform::wiiload::{self, ReceiverStatus};
+                // Do not interrupt an upload or discard a completed payload.
+                if matches!(
+                    wiiload::status(),
+                    ReceiverStatus::Receiving | ReceiverStatus::PayloadReady
+                ) {
+                    startup.runtime_mut().show_notice_with_kind(
+                        "Cannot restart the network during an application upload.",
+                        hbc_rs::app::NoticeKind::Warning,
+                    );
+                } else {
+                    match wiiload::stop() {
+                        Err(error) => startup.runtime_mut().show_notice_with_kind(
+                            &format!("Could not stop the network receiver: {error:?}."),
+                            hbc_rs::app::NoticeKind::Error,
+                        ),
+                        Ok(()) => match wiiload::start() {
+                            Ok(()) => {
+                                network_check_frames = Some(0);
+                                startup.runtime_mut().show_notice_with_kind(
+                                    "Restarting network. Waiting for an IP address...",
+                                    hbc_rs::app::NoticeKind::Information,
+                                );
+                            }
+                            Err(error) => startup.runtime_mut().show_notice_with_kind(
+                                &format!("Could not restart the network receiver: {error:?}."),
+                                hbc_rs::app::NoticeKind::Error,
+                            ),
+                        },
+                    }
+                }
+                continue;
+            }
             if action == hbc_rs::app::Action::TestNetworkConnection {
                 let saved = startup.runtime().network_config_snapshot().cloned();
                 match startup.runtime().network_config_for_save() {
@@ -1157,8 +1332,47 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     }
 }
 
+#[cfg(all(target_arch = "powerpc", feature = "debugger-network"))]
+fn cooperative_pause_loop() -> Option<hbc_rs::platform::lifecycle::ExitRequest> {
+    loop {
+        if let Some(request) = hbc_rs::platform::lifecycle::take_request() {
+            hbc_rs::platform::wiiload::COOPERATIVE_CONTROL.service(true, false);
+            return Some(request);
+        }
+
+        match hbc_rs::platform::input::scan() {
+            Ok(frame)
+                if frame.pressed.contains(&hbc_rs::app::Input::Home)
+                    && frame.pressed.contains(&hbc_rs::app::Input::Back) =>
+            {
+                hbc_rs::platform::wiiload::COOPERATIVE_CONTROL.local_resume();
+            }
+            Ok(_) => {}
+            Err(error) => ogc_system::report(format_args!(
+                "HBC: paused debugger input scan failed: {error:?}\n"
+            )),
+        }
+
+        hbc_rs::platform::wiiload::COOPERATIVE_CONTROL.service(false, true);
+        if hbc_rs::platform::wiiload::COOPERATIVE_CONTROL.state()
+            != libdb_sys::wii_network::CooperativeState::Paused
+        {
+            return None;
+        }
+        ogc_lwp::sys::sleep_ticks((ogc_lwp::sys::TICKS_PER_SECOND / 1_000).max(1));
+    }
+}
+
 #[cfg(target_arch = "powerpc")]
 fn install_return_stub() {
+    // A DOL launched by HBC must retain that channel's configured return
+    // target. The bundled stub is only needed when no loader stub exists.
+    if ogc_system::sys::sys_hbc_reload_stub_present() {
+        ogc_system::report(format_args!(
+            "HBC: keeping the launching channel's return stub\n"
+        ));
+        return;
+    }
     const RETURN_STUB_ADDRESS: *mut u8 = 0x8000_1800 as *mut u8;
     const RETURN_STUB: &[u8] = include_bytes!("../assets/return_stub.bin");
     if RETURN_STUB.len() > 0x1800 {
@@ -1233,6 +1447,17 @@ fn stop_wpad_services() -> Result<(), WpadShutdownError> {
 }
 
 #[cfg(target_arch = "powerpc")]
+fn prepare_settings_for_exit(
+    startup: &mut hbc_rs::platform::startup::WiiStartup,
+) -> Result<(), hbc_rs::platform::settings::SettingsIoError> {
+    let outcome = startup
+        .runtime_mut()
+        .prepare_settings_for_exit(hbc_rs::platform::settings::save)?;
+    ogc_system::report(format_args!("HBC: exit settings: {outcome:?}\n"));
+    Ok(())
+}
+
+#[cfg(target_arch = "powerpc")]
 fn transfer_executable(
     startup: &mut hbc_rs::platform::startup::WiiStartup,
     bytes: hbc_rs::loader::LaunchSource,
@@ -1252,10 +1477,7 @@ fn transfer_executable(
     ogc_system::report(format_args!(
         "HBC: saving settings before executable launch\n"
     ));
-    if let Err(error) = startup
-        .runtime_mut()
-        .save_settings_if_dirty(hbc_rs::platform::settings::save)
-    {
+    if let Err(error) = prepare_settings_for_exit(startup) {
         return Err(format!(
             "Could not save settings. Application launch stopped: {error:?}."
         ));
@@ -1300,17 +1522,8 @@ fn exit_to_system(
     startup: &mut hbc_rs::platform::startup::WiiStartup,
     reset: u32,
 ) -> Result<(), String> {
-    match startup
-        .runtime_mut()
-        .save_settings_if_dirty(hbc_rs::platform::settings::save)
-    {
-        Ok(_) | Err(hbc_rs::runtime::SettingsSaveError::PreviousLoadFailed) => {}
-        Err(error @ hbc_rs::runtime::SettingsSaveError::Backend(_)) => {
-            return Err(format!(
-                "Could not save settings. System exit stopped: {error:?}."
-            ));
-        }
-    }
+    prepare_settings_for_exit(startup)
+        .map_err(|error| format!("Could not save settings. System exit stopped: {error:?}."))?;
     hbc_rs::platform::lifecycle::run_exit_cleanup(|step| match step {
         hbc_rs::platform::lifecycle::ExitCleanupStep::Storage => startup
             .unmount_storage()
@@ -1334,7 +1547,11 @@ fn exit_to_system(
     })
     .map_err(|(_, error)| error)?;
     hbc_rs::platform::video::shutdown();
-    reset_system(reset)
+    // A reset that returns did not complete. Report it to the terminal caller.
+    unsafe { ogc_system::reset_system(reset as i32, 0, 0) };
+    Err(String::from(
+        "The system reset call returned; reset completion is unconfirmed",
+    ))
 }
 
 #[cfg(target_arch = "powerpc")]
@@ -1348,10 +1565,7 @@ fn reset_system(reset: u32) -> ! {
 #[cfg(target_arch = "powerpc")]
 #[cfg(feature = "startup-diagnostics")]
 fn reset_after_diagnostic_report() -> ! {
-    unsafe { ogc_system::reset_system(ogc_system::SYS_RESTART as i32, 0, 0) };
-    loop {
-        core::hint::spin_loop();
-    }
+    hbc_rs::platform::diagnostics::recover()
 }
 
 #[cfg(target_arch = "powerpc")]

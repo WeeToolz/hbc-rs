@@ -1,6 +1,6 @@
 //! Hardware-independent policy for app and theme archive management.
 
-use crate::archive::{validate_archive_path, ArchivePathError, ZipArchive, ZipEntry};
+use crate::archive::{ArchivePathError, ZipArchive, ZipEntry, validate_archive_path};
 use alloc::{collections::BTreeMap, string::String, vec::Vec};
 
 /// Resource limits for one archive extraction.
@@ -296,7 +296,7 @@ fn add_parent_directories(
         let parent = &path[..parent_end];
         match nodes.get(parent) {
             Some(node) if node.kind == NodeKind::File => {
-                return Err(ManagementError::PathCollision)
+                return Err(ManagementError::PathCollision);
             }
             Some(_) => {}
             None => {

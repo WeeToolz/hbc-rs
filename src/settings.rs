@@ -2,7 +2,7 @@
 
 use alloc::{format, string::String};
 
-use crate::metadata::{parse_settings_xml, truncate_utf8_bytes, UserSettings};
+use crate::metadata::{UserSettings, parse_settings_xml, truncate_utf8_bytes};
 
 pub const SETTINGS_PATH: &str = "settings.xml";
 pub const MAX_SETTINGS_XML_SIZE: usize = 16 * 1024;
@@ -137,7 +137,7 @@ impl SettingsState {
 
 #[cfg(target_arch = "powerpc")]
 pub use crate::platform::settings::{
-    load as load_from_nand, save as save_to_nand, SettingsIoError,
+    SettingsIoError, load as load_from_nand, save as save_to_nand,
 };
 
 #[cfg(test)]

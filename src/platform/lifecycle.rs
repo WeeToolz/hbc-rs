@@ -38,6 +38,84 @@ impl ExitSignal {
 
 static EXIT_SIGNAL: ExitSignal = ExitSignal::new();
 
+#[cfg(all(target_arch = "powerpc", feature = "debugger-usb-gecko"))]
+static DEBUGGER_ARMED: core::sync::atomic::AtomicBool = core::sync::atomic::AtomicBool::new(false);
+#[cfg(all(target_arch = "powerpc", feature = "debugger-usb-gecko"))]
+static DEBUGGER_BREAK: core::sync::atomic::AtomicBool = core::sync::atomic::AtomicBool::new(false);
+
+#[cfg(all(feature = "debugger-usb-gecko", feature = "debugger-network"))]
+compile_error!("Select only one debugger mode: USB Gecko or network");
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum DebuggerMode {
+    #[default]
+    Off,
+    UsbGecko,
+    Network,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg(any(all(target_arch = "powerpc", feature = "debugger-usb-gecko"), test))]
+enum ResetAction {
+    ReturnToMenu,
+    BreakIntoDebugger,
+}
+
+#[cfg(any(all(target_arch = "powerpc", feature = "debugger-usb-gecko"), test))]
+fn reset_action(mode: DebuggerMode, debugger_armed: bool) -> ResetAction {
+    if mode == DebuggerMode::UsbGecko && debugger_armed {
+        ResetAction::BreakIntoDebugger
+    } else {
+        ResetAction::ReturnToMenu
+    }
+}
+
+/// Return the debugger mode selected by Cargo features. No debugger is active
+/// in the normal build.
+pub const fn debugger_mode() -> DebuggerMode {
+    #[cfg(feature = "debugger-usb-gecko")]
+    return DebuggerMode::UsbGecko;
+
+    #[cfg(all(not(feature = "debugger-usb-gecko"), feature = "debugger-network"))]
+    return DebuggerMode::Network;
+
+    #[cfg(not(any(feature = "debugger-usb-gecko", feature = "debugger-network")))]
+    DebuggerMode::Off
+}
+
+/// Start the USB Gecko GDB stub when the adapter is present.
+#[cfg(all(target_arch = "powerpc", feature = "debugger-usb-gecko"))]
+pub fn initialize_debugger() -> bool {
+    const USB_GECKO_CHANNEL: i32 = 1;
+    if ogc_usbgecko::is_gecko_alive(USB_GECKO_CHANNEL) == 0 {
+        ogc_system::report(format_args!(
+            "HBC: debugger not started; no USB Gecko on channel 1\n"
+        ));
+        return false;
+    }
+    libdb_sys::debug_init(libdb_sys::GDBSTUB_DEVICE_USB, USB_GECKO_CHANNEL);
+    DEBUGGER_ARMED.store(true, Ordering::Release);
+    ogc_system::report(format_args!(
+        "HBC: USB Gecko debugger ready; press Wii Reset to attach\n"
+    ));
+    true
+}
+
+#[cfg(not(all(target_arch = "powerpc", feature = "debugger-usb-gecko")))]
+pub fn initialize_debugger() -> bool {
+    false
+}
+
+#[cfg(all(target_arch = "powerpc", feature = "debugger-usb-gecko"))]
+pub fn take_debugger_break() -> bool {
+    DEBUGGER_BREAK.swap(false, Ordering::AcqRel)
+}
+
+#[cfg(not(all(target_arch = "powerpc", feature = "debugger-usb-gecko")))]
+pub fn take_debugger_break() -> bool {
+    false
+}
+
 pub fn defer_exit(pending: &mut Option<ExitRequest>, request: ExitRequest) {
     if *pending != Some(ExitRequest::PowerOff) {
         *pending = Some(request);
@@ -48,11 +126,7 @@ pub fn take_ready_exit(
     pending: &mut Option<ExitRequest>,
     storage_busy: bool,
 ) -> Option<ExitRequest> {
-    if storage_busy {
-        None
-    } else {
-        pending.take()
-    }
+    if storage_busy { None } else { pending.take() }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -95,6 +169,15 @@ pub fn take_request() -> Option<ExitRequest> {
 
 #[cfg(target_arch = "powerpc")]
 unsafe extern "C" fn reset_callback(_irq: u32, _context: *mut core::ffi::c_void) {
+    #[cfg(feature = "debugger-usb-gecko")]
+    {
+        if reset_action(debugger_mode(), DEBUGGER_ARMED.load(Ordering::Acquire))
+            == ResetAction::BreakIntoDebugger
+        {
+            DEBUGGER_BREAK.store(true, Ordering::Release);
+            return;
+        }
+    }
     EXIT_SIGNAL.request_reset();
 }
 
@@ -106,6 +189,40 @@ unsafe extern "C" fn power_callback() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn debugger_mode_matches_the_build_features() {
+        assert_eq!(
+            debugger_mode(),
+            if cfg!(feature = "debugger-usb-gecko") {
+                DebuggerMode::UsbGecko
+            } else if cfg!(feature = "debugger-network") {
+                DebuggerMode::Network
+            } else {
+                DebuggerMode::Off
+            }
+        );
+    }
+
+    #[test]
+    fn reset_returns_to_menu_until_the_selected_debugger_is_armed() {
+        assert_eq!(
+            reset_action(DebuggerMode::Network, false),
+            ResetAction::ReturnToMenu
+        );
+        assert_eq!(
+            reset_action(DebuggerMode::Network, true),
+            ResetAction::ReturnToMenu
+        );
+        assert_eq!(
+            reset_action(DebuggerMode::UsbGecko, true),
+            ResetAction::BreakIntoDebugger
+        );
+        assert_eq!(
+            reset_action(DebuggerMode::Off, true),
+            ResetAction::ReturnToMenu
+        );
+    }
 
     #[test]
     fn exit_waits_for_storage_completion_and_preserves_power_priority() {

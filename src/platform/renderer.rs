@@ -9,8 +9,8 @@ use crate::{
         video::{VideoError, VideoSystem},
     },
     render::{
-        map_rect, ButtonSize, DialogIcon, Frame, FrameCommand, StatusIndicator, ThemeArt,
-        LOGICAL_HEIGHT,
+        ButtonSize, DialogIcon, Frame, FrameCommand, LOGICAL_HEIGHT, StatusIndicator, ThemeArt,
+        map_rect,
     },
 };
 

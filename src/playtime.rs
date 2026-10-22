@@ -32,7 +32,7 @@ pub(crate) fn reset_record_with<E>(
 
 #[cfg(test)]
 mod tests {
-    use super::{record_has_reset_prefix, reset_record_with, ResetError};
+    use super::{ResetError, record_has_reset_prefix, reset_record_with};
     use core::cell::{Cell, RefCell};
 
     #[test]

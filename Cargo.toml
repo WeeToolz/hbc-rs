@@ -6,8 +6,16 @@ publish = false
 
 [features]
 startup-diagnostics = []
+recovery-validation = ["startup-diagnostics"]
+recovery-scan-validation = ["startup-diagnostics"]
+# Diagnostic A/B switch: preserve Reborn code while displaying the prior HOME menu.
+legacy-main-menu = []
+debugger = ["debugger-usb-gecko"]
+debugger-usb-gecko = ["dep:libdb-sys"]
+debugger-network = ["dep:libdb-sys", "libdb-sys/wii-network"]
 
 [dependencies]
+ogc-report-protocol = { path = "../libogc-rs/crates/core/ogc-report-protocol" }
 crc32fast = { version = "1.5.0", default-features = false }
 fontdue = { version = "0.9.4", default-features = false, features = ["hashbrown"] }
 miniz_oxide = { version = "0.8.9", default-features = false, features = ["with-alloc"] }
@@ -15,6 +23,9 @@ libm = { version = "0.2", default-features = false }
 ogc-alloc = { path = "../libogc-rs/crates/core/ogc-alloc" }
 ogc-controller = { path = "../libogc-rs/crates/services/ogc-controller" }
 ogc-ui = { path = "../libogc-rs/crates/services/ogc-ui" }
+
+[dev-dependencies]
+gdb-transport = { path = "../libogc-rs/crates/compatibility/gdb-transport" }
 
 [target.'cfg(target_arch = "powerpc")'.dependencies]
 ogc-core = { path = "../libogc-rs/crates/core/ogc-core" }
@@ -36,6 +47,7 @@ ogc-system = { path = "../libogc-rs/crates/core/ogc-system" }
 ogc-video = { path = "../libogc-rs/crates/hardware/ogc-video" }
 ogc-wd = { path = "../libogc-rs/crates/services/ogc-wd" }
 ogc-usbgecko = { path = "../libogc-rs/crates/services/ogc-usbgecko" }
+libdb-sys = { path = "../libogc-rs/crates/compatibility/libdb-sys", optional = true }
 ogc-usbstorage-sys = { path = "../libogc-rs/crates/services/ogc-usbstorage-sys" }
 ogc-wiilaunch = { path = "../libogc-rs/crates/core/ogc-wiilaunch" }
 wpad-sys = { path = "../libogc-rs/crates/services/wpad-sys" }

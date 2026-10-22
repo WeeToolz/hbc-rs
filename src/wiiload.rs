@@ -5,6 +5,20 @@ use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use miniz_oxide::inflate::decompress_slice_iter_to_slice;
 
 pub const WIILOAD_HEADER_LEN: usize = 16;
+pub const WIILOAD_TCP_PORT: u16 = 4299;
+/// The network-debugger release worker and compressed-upload call chain require
+/// at least 36,320 bytes on PowerPC. Use 64 KiB in that mode, leaving more than
+/// 27 KiB for deeper calls, thread entry, and interrupt frames. The other modes
+/// retain their 32 KiB budget (including miniz's roughly 10.5 KiB decoder).
+pub const WIILOAD_WORKER_STACK_BYTES: usize = if cfg!(feature = "debugger-network") {
+    64 * 1024
+} else {
+    32 * 1024
+};
+const _: () = assert!(
+    WIILOAD_WORKER_STACK_BYTES
+        >= 2 * core::mem::size_of::<miniz_oxide::inflate::core::DecompressorOxide>() + 8 * 1024
+);
 pub const WIILOAD_MIN_VERSION: u16 = 0x0005;
 pub const WIILOAD_MAX_ARGS: usize = 1024;
 /// This matches HBC's launch-memory bound: `0x81330000 - 1 - args - 0x80003400`.
@@ -16,6 +30,48 @@ pub const WIILOAD_CLIENT_TIMEOUT_TICKS: u64 = 120 * 60_750_000;
 /// IOS SO_EAGAIN is 6; network initialization uses POSIX EAGAIN (11).
 pub fn socket_would_block(result: i32) -> bool {
     result == -6
+}
+
+#[cfg_attr(not(any(target_arch = "powerpc", test)), allow(dead_code))]
+pub(crate) fn try_claim_payload(lock: &AtomicBool) -> bool {
+    lock.compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+        .is_ok()
+}
+
+/// A higher-priority consumer must never spin while a producer owns the slot.
+#[cfg_attr(not(any(target_arch = "powerpc", test)), allow(dead_code))]
+pub(crate) fn try_with_payload<R>(lock: &AtomicBool, operation: impl FnOnce() -> R) -> Option<R> {
+    if !try_claim_payload(lock) {
+        return None;
+    }
+    struct Guard<'a>(&'a AtomicBool);
+    impl Drop for Guard<'_> {
+        fn drop(&mut self) {
+            self.0.store(false, Ordering::Release);
+        }
+    }
+    let _guard = Guard(lock);
+    Some(operation())
+}
+
+/// Wait for IOS network initialization without treating a pending DHCP request
+/// as a failure. Cancellation remains available on every status poll.
+#[cfg_attr(not(any(target_arch = "powerpc", test)), allow(dead_code))]
+pub(crate) fn wait_network_initialization(
+    mut status: impl FnMut() -> i32,
+    mut stopped: impl FnMut() -> bool,
+    mut wait: impl FnMut(),
+) -> Option<i32> {
+    loop {
+        if stopped() {
+            return None;
+        }
+        let result = status();
+        if result != -16 {
+            return Some(result);
+        }
+        wait();
+    }
 }
 
 /// Return true when the elapsed time reaches a fixed client-wide deadline.
@@ -236,6 +292,78 @@ pub struct WiiloadPayload {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn payload_consumer_defers_until_the_producer_finishes() {
+        let lock = AtomicBool::new(false);
+        assert!(try_claim_payload(&lock));
+        let mut slot = Some(alloc::vec![0x48, 0x41, 0x58, 0x58]);
+        for _ in 0..120 {
+            assert_eq!(try_with_payload(&lock, || slot.take()), None);
+        }
+        assert_eq!(slot.as_deref(), Some(&[0x48, 0x41, 0x58, 0x58][..]));
+        lock.store(false, Ordering::Release);
+        assert_eq!(
+            try_with_payload(&lock, || slot.take()),
+            Some(Some(alloc::vec![0x48, 0x41, 0x58, 0x58]))
+        );
+        assert!(slot.is_none());
+        assert!(!lock.load(Ordering::Acquire));
+    }
+
+    #[test]
+    fn gecko_indicator_stays_off_without_a_detected_device() {
+        for status in [
+            ReceiverStatus::Starting,
+            ReceiverStatus::Listening,
+            ReceiverStatus::Receiving,
+            ReceiverStatus::PayloadReady,
+            ReceiverStatus::NetworkUnavailable,
+            ReceiverStatus::Stopped,
+        ] {
+            assert!(!indicator_state(status, false).gecko_active);
+        }
+        assert!(indicator_state(ReceiverStatus::Listening, true).gecko_active);
+    }
+
+    #[test]
+    fn network_initialization_can_finish_after_more_than_four_seconds() {
+        let polls = core::cell::Cell::new(0);
+        let waits = core::cell::Cell::new(0);
+        let result = wait_network_initialization(
+            || {
+                let poll = polls.get();
+                polls.set(poll + 1);
+                if poll < 250 { -16 } else { 0 }
+            },
+            || false,
+            || waits.set(waits.get() + 1),
+        );
+        assert_eq!(result, Some(0));
+        assert_eq!(polls.get(), 251);
+        assert_eq!(waits.get(), 250);
+    }
+
+    #[test]
+    fn network_initialization_can_be_cancelled_while_ios_is_busy() {
+        let waits = core::cell::Cell::new(0);
+        let result =
+            wait_network_initialization(|| -16, || waits.get() == 3, || waits.set(waits.get() + 1));
+        assert_eq!(result, None);
+        assert_eq!(waits.get(), 3);
+    }
+
+    #[test]
+    fn network_initialization_preserves_the_final_ios_error() {
+        assert_eq!(
+            wait_network_initialization(
+                || -110,
+                || false,
+                || panic!("terminal error must not wait")
+            ),
+            Some(-110)
+        );
+    }
     use core::sync::atomic::AtomicBool;
 
     #[test]
@@ -274,6 +402,13 @@ mod tests {
         assert_eq!(first_cleanup_failure(&[-9, 0]), Some(-9));
         assert_eq!(first_cleanup_failure(&[0, -11]), Some(-11));
         assert_eq!(first_cleanup_failure(&[-9, -11]), Some(-9));
+    }
+
+    #[test]
+    fn wiiload_and_gdb_use_distinct_tcp_ports() {
+        assert_ne!(WIILOAD_TCP_PORT, gdb_transport::DEFAULT_PORT);
+        assert_eq!(WIILOAD_TCP_PORT, 4299);
+        assert_eq!(gdb_transport::DEFAULT_PORT, 2828);
     }
 
     #[test]

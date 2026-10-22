@@ -3,7 +3,7 @@
 use alloc::{string::String, vec::Vec};
 
 use crate::{
-    catalog::{visible_entries, AppEntry, Filter, SortOrder},
+    catalog::{AppEntry, Filter, SortOrder, visible_entries},
     text_layout::wrap_lines,
 };
 
@@ -115,6 +115,7 @@ pub enum Action {
     LaunchBootMii,
     Exit,
     Shutdown,
+    RestartNetwork,
     PreviousPage,
     NextPage,
     ApplyOptions,
@@ -134,7 +135,13 @@ enum ConfirmationAction {
 }
 
 /// Main menu focus follows the options available on this console.
+#[cfg(not(feature = "legacy-main-menu"))]
+const MENU_ITEMS_WITHOUT_BOOTMII: usize = 5;
+#[cfg(not(feature = "legacy-main-menu"))]
+const MENU_ITEMS_WITH_BOOTMII: usize = 6;
+#[cfg(feature = "legacy-main-menu")]
 const MENU_ITEMS_WITHOUT_BOOTMII: usize = 4;
+#[cfg(feature = "legacy-main-menu")]
 const MENU_ITEMS_WITH_BOOTMII: usize = 5;
 const DEFAULT_BROWSER_ROWS: usize = 5;
 pub const DETAIL_DESCRIPTION_LINE_WIDTH: usize = 76;
@@ -1342,7 +1349,9 @@ impl AppController {
                 2 => Action::Exit,
                 3 if self.bootmii_available => Action::Exit,
                 3 => Action::Shutdown,
-                4 => Action::Shutdown,
+                4 if self.bootmii_available => Action::Shutdown,
+                #[cfg(not(feature = "legacy-main-menu"))]
+                4 | 5 => Action::RestartNetwork,
                 _ => Action::None,
             },
             _ => Action::None,
@@ -1872,9 +1881,11 @@ mod tests {
         assert_eq!(controller.handle(Input::Confirm, &[]), Action::None);
         assert_eq!(controller.screen, Screen::WiiloadConfirm);
         assert!(!controller.wiiload_confirmation_yes());
-        assert!(controller
-            .wiiload_confirmation_text()
-            .contains("without a backup"));
+        assert!(
+            controller
+                .wiiload_confirmation_text()
+                .contains("without a backup")
+        );
 
         assert_eq!(controller.handle(Input::Confirm, &[]), Action::None);
         assert_eq!(controller.screen, Screen::NetworkSettings);
@@ -2540,19 +2551,41 @@ mod tests {
     fn main_menu_hides_and_remaps_bootmii_when_ios_is_unavailable() {
         let mut controller = AppController::new();
         controller.handle(Input::Home, &[]);
-        assert_eq!(controller.menu_item_count(), 4);
+        assert_eq!(
+            controller.menu_item_count(),
+            if cfg!(feature = "legacy-main-menu") {
+                4
+            } else {
+                5
+            }
+        );
         controller.handle(Input::Down, &[]);
         controller.handle(Input::Down, &[]);
         assert_eq!(controller.handle(Input::Confirm, &[]), Action::Exit);
         controller.handle(Input::Down, &[]);
         assert_eq!(controller.handle(Input::Confirm, &[]), Action::Shutdown);
+        #[cfg(not(feature = "legacy-main-menu"))]
+        {
+            controller.handle(Input::Down, &[]);
+            assert_eq!(
+                controller.handle(Input::Confirm, &[]),
+                Action::RestartNetwork
+            );
+        }
 
         let mut available = AppController::new();
         available.set_bootmii_available(true);
         available.handle(Input::Home, &[]);
         available.handle(Input::Down, &[]);
         available.handle(Input::Down, &[]);
-        assert_eq!(available.menu_item_count(), 5);
+        assert_eq!(
+            available.menu_item_count(),
+            if cfg!(feature = "legacy-main-menu") {
+                5
+            } else {
+                6
+            }
+        );
         assert_eq!(available.handle(Input::Confirm, &[]), Action::LaunchBootMii);
     }
 

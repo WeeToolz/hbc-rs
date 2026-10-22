@@ -8,16 +8,16 @@ use core::{
     ffi::c_void,
     mem::MaybeUninit,
     ptr::{addr_of_mut, null_mut},
-    sync::atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicU8, Ordering},
+    sync::atomic::{AtomicBool, AtomicI32, AtomicU8, AtomicU32, Ordering},
 };
 
 use crate::{
-    catalog::{scan_apps, AppEntry, AppKind, CatalogStorage},
-    loader::{build_launch_arguments, parse_dol, parse_elf32_ppc, LoadPlan, ParseError},
+    catalog::{AppEntry, AppKind, CatalogStorage, scan_apps},
+    loader::{LoadPlan, ParseError, build_launch_arguments, parse_dol, parse_elf32_ppc},
     metadata::{ThemeMetadata, UserSettings},
     platform::{
         input, settings,
-        storage::{classify_device_presence, device_scan_order, FatStorage, StorageError, Volume},
+        storage::{FatStorage, StorageError, Volume, classify_device_presence, device_scan_order},
     },
     runtime::AppRuntime,
 };
@@ -142,10 +142,7 @@ impl ZipInstallError {
             Self::Storage(error) => {
                 format!("Could not write the received app files: {error:?}.")
             }
-            Self::StorageCleanup {
-                operation,
-                cleanup,
-            } => format!(
+            Self::StorageCleanup { operation, cleanup } => format!(
                 "Could not write the received app files ({operation:?}); cleanup also failed ({cleanup:?})."
             ),
             Self::StorageRollback {
@@ -560,7 +557,6 @@ pub struct WiiStartup {
     widescreen: bool,
     pending_settings: Option<UserSettings>,
     scan_thread: Option<ogc_lwp::ThreadHandle>,
-    scan_previous_volume: Option<Volume>,
     scan_requested_volume: Option<Volume>,
     storage_presence: super::storage::StoragePresence,
     storage_failure_notice: super::storage::StorageFailureNotice<(Volume, StorageError)>,
@@ -576,7 +572,7 @@ pub struct IconTexture {
 impl WiiStartup {
     /// Start a validated Wiiload app install on a worker, or apply a theme ZIP.
     pub fn start_received_zip(&mut self, bytes: Vec<u8>) -> Result<(), StartupError> {
-        use crate::wiiload_zip::{classify_received_zip, WiiloadZipClassification};
+        use crate::wiiload_zip::{WiiloadZipClassification, classify_received_zip};
         match classify_received_zip(&bytes).map_err(|error| match error {
             crate::wiiload_zip::WiiloadZipError::InvalidTheme(error) => StartupError::Theme(error),
             crate::wiiload_zip::WiiloadZipError::InvalidArchive(error) => {
@@ -709,27 +705,30 @@ impl WiiStartup {
         super::diagnostics::mark("NAND SETTINGS LOAD");
         let default_settings = UserSettings::default();
         let (loaded_settings, settings_error, settings_persistence_enabled) =
-            match crate::settings::load_or_create(
-                default_settings.clone(),
-                settings::load,
-                |error| matches!(error, settings::SettingsIoError::Missing),
-                settings::save,
-            ) {
-                Ok(settings) => (settings, None, true),
-                Err(crate::settings::SettingsInitializationError::Load(error)) => (
-                    default_settings,
-                    Some(alloc::format!(
-                        "Could not load saved settings ({error:?}). HBC will not overwrite them."
-                    )),
-                    false,
-                ),
-                Err(crate::settings::SettingsInitializationError::Save(error)) => (
-                    default_settings,
-                    Some(alloc::format!(
-                        "Could not create initial saved settings ({error:?}). HBC will not overwrite them."
-                    )),
-                    false,
-                ),
+            match settings::persistence_available() {
+                Ok(false) => (default_settings.clone(), None, false),
+                persistence => match crate::settings::load_or_create(
+                    default_settings.clone(),
+                    settings::load,
+                    |error| matches!(error, settings::SettingsIoError::Missing),
+                    settings::save,
+                ) {
+                    Ok(settings) => (settings, None, persistence == Ok(true)),
+                    Err(crate::settings::SettingsInitializationError::Load(error)) => (
+                        default_settings,
+                        Some(alloc::format!(
+                            "Could not load saved settings ({error:?}). HBC will not overwrite them."
+                        )),
+                        false,
+                    ),
+                    Err(crate::settings::SettingsInitializationError::Save(error)) => (
+                        default_settings,
+                        Some(alloc::format!(
+                            "Could not create initial saved settings ({error:?}). HBC will not overwrite them."
+                        )),
+                        false,
+                    ),
+                },
             };
         #[cfg(feature = "startup-diagnostics")]
         super::diagnostics::mark("NAND SETTINGS READY");
@@ -809,7 +808,6 @@ impl WiiStartup {
             widescreen,
             pending_settings: Some(loaded_settings),
             scan_thread: None,
-            scan_previous_volume: None,
             scan_requested_volume: None,
             storage_presence: super::storage::StoragePresence::default(),
             storage_failure_notice: super::storage::StorageFailureNotice::default(),
@@ -952,7 +950,6 @@ impl WiiStartup {
         let result = unsafe { addr_of_mut!(STORAGE_SCAN_RESULT).read().assume_init_read() };
         STORAGE_SCAN_STATE.store(STORAGE_SCAN_IDLE, Ordering::Release);
 
-        let previous_volume = self.scan_previous_volume.take();
         let requested_volume = self.scan_requested_volume.take();
         self.volume = result.volume;
         self.storage = result.storage;
@@ -1001,25 +998,22 @@ impl WiiStartup {
                     .map(|error| (volume, error))
             }) {
                 if self.storage_failure_notice.report(Some((*volume, error))) {
-                    let notice =
-                        match error {
-                            StorageError::UsbMount { probe, .. } => alloc::format!(
+                    let notice = match error {
+                        StorageError::UsbMount { probe, .. } => alloc::format!(
                             "Could not detect USB storage. Error {} at {:?}. Devices found: {}.",
-                            probe.result, probe.stage, probe.candidates,
+                            probe.result,
+                            probe.stage,
+                            probe.candidates,
                         ),
-                            _ => alloc::format!("Could not mount {volume:?} storage ({error:?})."),
-                        };
+                        _ => alloc::format!("Could not mount {volume:?} storage ({error:?})."),
+                    };
                     self.runtime.show_notice(&notice);
                 }
             } else {
                 self.storage_failure_notice.report(None);
-                if previous_volume.is_some() {
-                    self.storage_presence.report_missing(false);
+                if self.storage_presence.report_missing(false) {
                     self.runtime
                         .show_notice("Storage was removed. Connect an SD or USB device.");
-                } else if self.storage_presence.report_missing(false) {
-                    self.runtime
-                        .show_notice("No SD or USB storage device is available.");
                 }
             }
         } else if requested_volume.is_some() && self.volume != requested_volume {
@@ -1171,7 +1165,6 @@ impl WiiStartup {
 
         let previous_volume = self.volume;
         let preference = self.runtime.settings().current().device;
-        self.scan_previous_volume = previous_volume;
         self.start_storage_scan(preference, previous_volume.is_some(), None)?;
         Ok(true)
     }

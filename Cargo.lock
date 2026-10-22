@@ -61,6 +61,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "gdb-transport"
+version = "0.1.0"
+
+[[package]]
 name = "hashbrown"
 version = "0.15.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -77,6 +81,8 @@ version = "0.1.0"
 dependencies = [
  "crc32fast",
  "fontdue",
+ "gdb-transport",
+ "libdb-sys",
  "libm",
  "miniz_oxide",
  "ogc-alloc",
@@ -96,6 +102,7 @@ dependencies = [
  "ogc-irq",
  "ogc-lwp",
  "ogc-network",
+ "ogc-report-protocol",
  "ogc-system",
  "ogc-ui",
  "ogc-usbgecko",
@@ -112,6 +119,20 @@ version = "0.1.0"
 dependencies = [
  "ogc-filesystem-sys",
  "ogc-sysbase",
+]
+
+[[package]]
+name = "libdb-sys"
+version = "0.1.0"
+dependencies = [
+ "gdb-transport",
+ "ogc-cache",
+ "ogc-exi",
+ "ogc-lwp-driver",
+ "ogc-network",
+ "ogc-sys",
+ "ogc-usbgecko",
+ "tuxedo-sys",
 ]
 
 [[package]]
@@ -426,6 +447,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "ogc-report-protocol"
+version = "0.1.0"
+
+[[package]]
 name = "ogc-runtime"
 version = "0.1.0"
 
@@ -486,7 +511,10 @@ dependencies = [
  "ogc-ios-sys",
  "ogc-ipc",
  "ogc-irq",
+ "ogc-lwp-driver",
  "ogc-lwp-sys",
+ "ogc-network",
+ "ogc-report-protocol",
  "ogc-si",
  "ogc-sys",
  "ogc-video-sys",
@@ -608,6 +636,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2df906b07856748fa3f6e0ad0cbaa047052d4a7dd609e231c4f72cee8c36f31"
 dependencies = [
  "core_maths",
+]
+
+[[package]]
+name = "tuxedo-sys"
+version = "0.1.0"
+dependencies = [
+ "ogc-lwp-driver",
 ]
 
 [[package]]

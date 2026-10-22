@@ -9,9 +9,9 @@ use alloc::{format, string::String, vec::Vec};
 
 use crate::{
     app::{
-        AppController, NoticeKind, PointerTarget, Screen, ABOUT_CREDITS, ABOUT_MEMO_LINE_WIDTH,
-        ABOUT_MEMO_VISIBLE_LINES, DETAIL_DESCRIPTION_LINE_WIDTH, DETAIL_DESCRIPTION_VISIBLE_LINES,
-        MESSAGE_MEMO_VISIBLE_LINES,
+        ABOUT_CREDITS, ABOUT_MEMO_LINE_WIDTH, ABOUT_MEMO_VISIBLE_LINES, AppController,
+        DETAIL_DESCRIPTION_LINE_WIDTH, DETAIL_DESCRIPTION_VISIBLE_LINES,
+        MESSAGE_MEMO_VISIBLE_LINES, NoticeKind, PointerTarget, Screen,
     },
     catalog::AppEntry,
     metadata::{Rgba, ThemeMetadata},
@@ -1143,6 +1143,9 @@ pub fn browser_frame_with_language(
             }
         }
         Screen::MainMenu => {
+            // A/B diagnosis of a first-frame regression: isolate only the
+            // ordinary HOME menu layout while preserving the newer overlay code.
+            #[cfg(feature = "legacy-main-menu")]
             let labels: &[&str] = if controller.bootmii_available() {
                 &[
                     tr("Back"),
@@ -1159,7 +1162,27 @@ pub fn browser_frame_with_language(
                     tr("Shutdown"),
                 ]
             };
+            #[cfg(not(feature = "legacy-main-menu"))]
+            let labels: &[&str] = if controller.bootmii_available() {
+                &[
+                    tr("Back"),
+                    tr("About"),
+                    tr("Launch BootMii"),
+                    tr("Exit to System Menu"),
+                    tr("Shutdown"),
+                    tr("Restart network"),
+                ]
+            } else {
+                &[
+                    tr("Back"),
+                    tr("About"),
+                    tr("Exit to System Menu"),
+                    tr("Shutdown"),
+                    tr("Restart network"),
+                ]
+            };
             for (index, label) in labels.iter().enumerate().take(controller.menu_item_count()) {
+                #[cfg(feature = "legacy-main-menu")]
                 let y = 80.0
                     + index as f32
                         * if controller.bootmii_available() {
@@ -1167,6 +1190,8 @@ pub fn browser_frame_with_language(
                         } else {
                             80.0
                         };
+                #[cfg(not(feature = "legacy-main-menu"))]
+                let y = 64.0 + index as f32 * 60.0;
                 let bounds = frame.button(
                     150.0,
                     y,
@@ -2255,14 +2280,18 @@ mod tests {
         let catalog = vec![app("no-icon")];
         let frame = browser_frame(&AppController::new(), &catalog);
 
-        assert!(!frame
-            .commands
-            .iter()
-            .any(|command| matches!(command, FrameCommand::Icon { .. })));
-        assert!(!frame
-            .fills
-            .iter()
-            .any(|fill| fill.bounds == rect(112.0, 72.0, 128.0, 48.0)));
+        assert!(
+            !frame
+                .commands
+                .iter()
+                .any(|command| matches!(command, FrameCommand::Icon { .. }))
+        );
+        assert!(
+            !frame
+                .fills
+                .iter()
+                .any(|fill| fill.bounds == rect(112.0, 72.0, 128.0, 48.0))
+        );
     }
 
     #[test]
@@ -2368,10 +2397,12 @@ mod tests {
                 ..
             } if *bounds == rect(552, 192, 64, 64)
         )));
-        assert!(!first_page
-            .commands
-            .iter()
-            .any(|command| matches!(command, FrameCommand::PageArrow { previous: true, .. })));
+        assert!(
+            !first_page
+                .commands
+                .iter()
+                .any(|command| matches!(command, FrameCommand::PageArrow { previous: true, .. }))
+        );
 
         for _ in 0..5 {
             controller.handle(crate::app::Input::Down, &catalog);
@@ -2537,14 +2568,18 @@ mod tests {
             LOGICAL_WIDTH,
             crate::localization::Language::English,
         );
-        assert!(frame
-            .text_runs
-            .iter()
-            .any(|run| run.value.contains("Water")));
-        assert!(!without_description
-            .text_runs
-            .iter()
-            .any(|run| run.value.contains("Water")));
+        assert!(
+            frame
+                .text_runs
+                .iter()
+                .any(|run| run.value.contains("Water"))
+        );
+        assert!(
+            !without_description
+                .text_runs
+                .iter()
+                .any(|run| run.value.contains("Water"))
+        );
     }
 
     #[test]
@@ -2698,12 +2733,16 @@ mod tests {
                 alpha: 255
             }
         );
-        assert!(progress
-            .iter()
-            .any(|fill| fill.color.red > 1 && fill.color.red < 30));
-        assert!(progress
-            .iter()
-            .any(|fill| fill.color.red > 70 && fill.color.red < 110));
+        assert!(
+            progress
+                .iter()
+                .any(|fill| fill.color.red > 1 && fill.color.red < 30)
+        );
+        assert!(
+            progress
+                .iter()
+                .any(|fill| fill.color.red > 70 && fill.color.red < 110)
+        );
         assert!((progress.iter().map(|fill| fill.bounds.width).sum::<f32>() - 330.0).abs() < 0.01);
         assert_eq!(
             gradient_color(theme.progress_gradient.unwrap(), 1.0),
@@ -2929,9 +2968,11 @@ mod tests {
                 "missing option label {label:?}; rendered {labels:?}"
             );
         }
-        assert!(!labels
-            .iter()
-            .any(|label| { matches!(*label, "Available" | "Unavailable" | "Checking") }));
+        assert!(
+            !labels
+                .iter()
+                .any(|label| { matches!(*label, "Available" | "Unavailable" | "Checking") })
+        );
     }
 
     #[test]
@@ -3060,10 +3101,12 @@ mod tests {
             bounds: rect(328, 127, 10, 10),
             color: MUTED,
         }));
-        assert!((0..4).all(|index| !frame
-            .hit_targets
-            .iter()
-            .any(|target| { target.target == PointerTarget::Option(index) })));
+        assert!((0..4).all(|index| {
+            !frame
+                .hit_targets
+                .iter()
+                .any(|target| target.target == PointerTarget::Option(index))
+        }));
         assert_eq!(frame.hit_test(120.0, 120.0), None);
         assert_eq!(frame.hit_test(120.0, 80.0), None);
     }
@@ -3080,10 +3123,12 @@ mod tests {
             ..ThemeMetadata::default()
         };
         let frame = browser_frame_with_theme(&controller, &[], Some(&theme));
-        assert!(frame
-            .text_runs
-            .iter()
-            .any(|run| run.color == Color::rgb(240, 180, 40)));
+        assert!(
+            frame
+                .text_runs
+                .iter()
+                .any(|run| run.color == Color::rgb(240, 180, 40))
+        );
     }
 
     #[test]
@@ -3128,10 +3173,12 @@ mod tests {
         let second = animation.tick(LOGICAL_WIDTH, 720, None);
         assert_eq!(first.len(), 20);
         assert_eq!(second.len(), 20);
-        assert!(second
-            .iter()
-            .zip(first.iter())
-            .all(|(next, prev)| next.bounds.y < prev.bounds.y || next.bounds.y > 480.0));
+        assert!(
+            second
+                .iter()
+                .zip(first.iter())
+                .all(|(next, prev)| next.bounds.y < prev.bounds.y || next.bounds.y > 480.0)
+        );
         assert!(second.iter().all(|bubble| bubble.texture < 3));
     }
 

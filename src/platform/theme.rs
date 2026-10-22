@@ -4,7 +4,7 @@ use alloc::{string::String, vec::Vec};
 use core::cell::RefCell;
 
 use crate::{
-    platform::settings::{title_data_file_path, SettingsIoError},
+    platform::settings::{SettingsIoError, title_data_file_path},
     theme::MAX_THEME_ARCHIVE_BYTES,
 };
 
@@ -468,7 +468,7 @@ pub fn load() -> Result<Option<Vec<u8>>, SettingsIoError> {
     let file = match isfs::open(&path, isfs::ISFS_OPEN_READ) {
         Ok(file) => file,
         Err(error) if super::nand::is_missing_isfs_error(error, ogc_filesystem::ISFS_ENOENT) => {
-            return Ok(None)
+            return Ok(None);
         }
         Err(error) => return Err(SettingsIoError::Isfs(error)),
     };
@@ -559,12 +559,16 @@ mod tests {
             .iter()
             .map(|face| face.borrow().file.clone())
             .collect();
-        assert!(names
-            .iter()
-            .any(|name| name == crate::font::DEFAULT_REGULAR_FONT_KEY));
-        assert!(names
-            .iter()
-            .any(|name| name == crate::font::DEFAULT_BOLD_FONT_KEY));
+        assert!(
+            names
+                .iter()
+                .any(|name| name == crate::font::DEFAULT_REGULAR_FONT_KEY)
+        );
+        assert!(
+            names
+                .iter()
+                .any(|name| name == crate::font::DEFAULT_BOLD_FONT_KEY)
+        );
     }
 }
 

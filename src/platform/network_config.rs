@@ -3,7 +3,7 @@
 use alloc::ffi::CString;
 use core::{ffi::CStr, mem::MaybeUninit};
 
-use crate::network_config::{self, NetworkConfig, CONFIG_LEN};
+use crate::network_config::{self, CONFIG_LEN, NetworkConfig};
 use crate::platform::{nand, settings::SettingsIoError};
 use ogc_es_sys as es;
 use ogc_fat::{FatError, FatFile};
@@ -77,39 +77,61 @@ pub enum NetworkConfigError {
 pub fn save_error_message(error: NetworkConfigError) -> alloc::string::String {
     use crate::platform::settings::SettingsIoError;
     match error {
-        NetworkConfigError::StorageBackupExists => return alloc::string::String::from(
-            "The network settings backup already exists and could not be replaced. Settings were not written.",
-        ),
-        NetworkConfigError::StorageBackup(fat_error) => return alloc::format!(
-            "Could not create or verify the versioned network settings backup on the selected storage device: {fat_error:?}. Settings were not written."
-        ),
-        NetworkConfigError::StorageBackupAt { stage, error } => return alloc::format!(
-            "The selected storage device failed during network backup {stage:?}: {error:?}. Settings were not written."
-        ),
-        NetworkConfigError::StorageBackupAllocation => return alloc::string::String::from(
-            "Could not allocate memory to verify the network settings backup. Settings were not written.",
-        ),
-        NetworkConfigError::BackupStorageUnavailable => return alloc::string::String::from(
-            "No storage device is mounted for the network settings backup. Settings were not written.",
-        ),
-        NetworkConfigError::BackupUnavailable => return alloc::string::String::from(
-            "No verified recovery backup is available. The Wii network settings were not changed.",
-        ),
-        NetworkConfigError::BackupInvalid => return alloc::string::String::from(
-            "A network settings backup is damaged or belongs to another Wii. The Wii network settings were not changed.",
-        ),
-        NetworkConfigError::RestoreFailed => return alloc::string::String::from(
-            "A verified network settings backup could not be restored. Keep the Wii powered on and retry recovery.",
-        ),
-        NetworkConfigError::VerificationFailed => return alloc::string::String::from(
-            "The restored network settings did not match the verified backup. The recovery copy was retained.",
-        ),
-        NetworkConfigError::DirectWrite(code) => return alloc::format!(
-            "IOS could not write the existing Wii network settings file directly (ISFS {code}). The original file is backed up on the selected storage device."
-        ),
-        NetworkConfigError::DirectWriteAndClose { write, close } => return alloc::format!(
-            "IOS failed while writing the existing Wii network settings file directly (write {write}, close {close}). The original file is backed up on the selected storage device."
-        ),
+        NetworkConfigError::StorageBackupExists => {
+            return alloc::string::String::from(
+                "The network settings backup already exists and could not be replaced. Settings were not written.",
+            );
+        }
+        NetworkConfigError::StorageBackup(fat_error) => {
+            return alloc::format!(
+                "Could not create or verify the versioned network settings backup on the selected storage device: {fat_error:?}. Settings were not written."
+            );
+        }
+        NetworkConfigError::StorageBackupAt { stage, error } => {
+            return alloc::format!(
+                "The selected storage device failed during network backup {stage:?}: {error:?}. Settings were not written."
+            );
+        }
+        NetworkConfigError::StorageBackupAllocation => {
+            return alloc::string::String::from(
+                "Could not allocate memory to verify the network settings backup. Settings were not written.",
+            );
+        }
+        NetworkConfigError::BackupStorageUnavailable => {
+            return alloc::string::String::from(
+                "No storage device is mounted for the network settings backup. Settings were not written.",
+            );
+        }
+        NetworkConfigError::BackupUnavailable => {
+            return alloc::string::String::from(
+                "No verified recovery backup is available. The Wii network settings were not changed.",
+            );
+        }
+        NetworkConfigError::BackupInvalid => {
+            return alloc::string::String::from(
+                "A network settings backup is damaged or belongs to another Wii. The Wii network settings were not changed.",
+            );
+        }
+        NetworkConfigError::RestoreFailed => {
+            return alloc::string::String::from(
+                "A verified network settings backup could not be restored. Keep the Wii powered on and retry recovery.",
+            );
+        }
+        NetworkConfigError::VerificationFailed => {
+            return alloc::string::String::from(
+                "The restored network settings did not match the verified backup. The recovery copy was retained.",
+            );
+        }
+        NetworkConfigError::DirectWrite(code) => {
+            return alloc::format!(
+                "IOS could not write the existing Wii network settings file directly (ISFS {code}). The original file is backed up on the selected storage device."
+            );
+        }
+        NetworkConfigError::DirectWriteAndClose { write, close } => {
+            return alloc::format!(
+                "IOS failed while writing the existing Wii network settings file directly (write {write}, close {close}). The original file is backed up on the selected storage device."
+            );
+        }
         _ => {}
     }
     let isfs_access_denied = match error {
@@ -148,7 +170,9 @@ pub fn save_error_message(error: NetworkConfigError) -> alloc::string::String {
             "IOS denied access to a Wii network settings file (ISFS -102). Details: {error:?}."
         )
     } else if isfs_invalid_argument {
-        alloc::format!("The Wii file system rejected a request (ISFS -101). Details: {error:?}. The password passed local validation.")
+        alloc::format!(
+            "The Wii file system rejected a request (ISFS -101). Details: {error:?}. The password passed local validation."
+        )
     } else {
         alloc::format!("Could not save Wii network settings: {error:?}.")
     }
@@ -530,7 +554,7 @@ fn create_external_original(
                     return Err(NetworkConfigError::StorageBackupAt {
                         stage: StorageBackupStage::RemoveTemporary,
                         error,
-                    })
+                    });
                 }
             }
             if let Err(error) = write_storage_backup(
@@ -546,7 +570,7 @@ fn create_external_original(
                         return Err(NetworkConfigError::StorageBackupAt {
                             stage: StorageBackupStage::RemoveTemporary,
                             error,
-                        })
+                        });
                     }
                 }
             }
@@ -555,13 +579,13 @@ fn create_external_original(
                 Ok(_) | Err(NetworkConfigError::BackupInvalid) => {
                     match ogc_fat::remove_file(&temporary) {
                         Ok(()) | Err(FatError::NotFound) => {
-                            return Err(NetworkConfigError::VerificationFailed)
+                            return Err(NetworkConfigError::VerificationFailed);
                         }
                         Err(error) => {
                             return Err(NetworkConfigError::StorageBackupAt {
                                 stage: StorageBackupStage::RemoveTemporary,
                                 error,
-                            })
+                            });
                         }
                     }
                 }
@@ -680,7 +704,7 @@ fn read_storage_backup(
             return Err(NetworkConfigError::StorageBackupAt {
                 stage: StorageBackupStage::Open,
                 error,
-            })
+            });
         }
     };
     let record_size = CONFIG_LEN + 20;

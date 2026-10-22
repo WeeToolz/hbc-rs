@@ -87,7 +87,7 @@ impl VideoSystem {
         if !unsafe { ogc_gx::finish_frame_and_wait() } {
             return Err(VideoError::GxDrawTimeout);
         }
-        Ok(super::diagnostics::test_square_is_white_rgb(
+        let found = super::diagnostics::test_square_is_white_rgb(
             self.info.width,
             self.efb_height,
             |x, y| {
@@ -95,7 +95,19 @@ impl VideoSystem {
                 unsafe { ogc_gx::peek_argb(x, y, &mut color) };
                 (color.r, color.g, color.b)
             },
-        ))
+        );
+        if !found {
+            let mut color = ogc_gx::GxColor::default();
+            unsafe { ogc_gx::peek_argb(self.info.width / 2, self.efb_height / 2, &mut color) };
+            super::diagnostics::mark(&alloc::format!(
+                "EFB RGB {:02X}{:02X}{:02X}",
+                color.r,
+                color.g,
+                color.b,
+            ));
+            super::diagnostics::hold();
+        }
+        Ok(found)
     }
 
     #[cfg(feature = "startup-diagnostics")]
@@ -427,6 +439,13 @@ pub fn initialize(widescreen: bool) -> Result<VideoSystem, VideoError> {
     // its heap first, so this FIFO cannot overlap Rust allocations.
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("GX FIFO START");
+    // Reborn aborts the previous GX frame before GX_Init. HBC launches this
+    // DOL with the Wii's GX command engine already in use.
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("GX ABORT START");
+    ogc_gx::abort_frame();
+    #[cfg(feature = "startup-diagnostics")]
+    super::diagnostics::mark("GX ABORT COMPLETE");
     let fifo = unsafe { ogc_gx::GxFifo::initialize_default_mem2() }.map_err(VideoError::GxFifo)?;
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark_fp_state("FP AFTER GX FIFO ON", "FP AFTER GX FIFO OFF");

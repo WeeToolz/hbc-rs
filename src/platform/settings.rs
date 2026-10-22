@@ -6,14 +6,14 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 use crate::metadata::UserSettings;
 use crate::settings::{
-    decode_settings_xml, encode_settings_xml, MAX_SETTINGS_XML_SIZE, SETTINGS_PATH,
+    MAX_SETTINGS_XML_SIZE, SETTINGS_PATH, decode_settings_xml, encode_settings_xml,
 };
 
 use ogc_es_sys as es;
 use ogc_filesystem as isfs;
 
 use crate::title_path::{
-    CachedTitleDataDirectory, TitleDataDirectory, TitlePathError, TITLE_DATA_DIR_BUFFER_LEN,
+    CachedTitleDataDirectory, TITLE_DATA_DIR_BUFFER_LEN, TitleDataDirectory, TitlePathError,
 };
 
 static TITLE_DIR_CACHE: CachedTitleDataDirectory = CachedTitleDataDirectory::new();
@@ -156,6 +156,13 @@ fn title_data_directory() -> Result<TitleDataDirectory, SettingsIoError> {
         Err(_) => "TITLE DIR CACHE INVALID",
     });
     result
+}
+
+/// Report whether the running title owns a writable NAND settings directory.
+/// A direct DOL has no installed ES data directory, and its development path is
+/// only a lookup fallback. Do not try to create that system path on NAND.
+pub(crate) fn persistence_available() -> Result<bool, SettingsIoError> {
+    title_data_directory().map(TitleDataDirectory::persistence_available)
 }
 
 pub(crate) fn title_data_file_path(name: &str) -> Result<CString, SettingsIoError> {

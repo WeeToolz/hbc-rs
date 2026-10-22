@@ -6,28 +6,27 @@
 use alloc::vec::Vec;
 use core::cell::UnsafeCell;
 use core::ffi::c_void;
-use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicU8, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU8, AtomicU32, Ordering};
 
 pub use crate::wiiload::ReceiverStatus;
 use crate::wiiload::{
-    client_deadline_expired, indicator_state as map_indicator_state, same_local_subnet_16,
-    socket_would_block, IndicatorState, WiiloadError, WiiloadHeader, WiiloadPayload,
-    WIILOAD_CLIENT_TIMEOUT_TICKS, WIILOAD_HEADER_LEN,
+    IndicatorState, WIILOAD_CLIENT_TIMEOUT_TICKS, WIILOAD_HEADER_LEN, WIILOAD_TCP_PORT,
+    WiiloadError, WiiloadHeader, WiiloadPayload, client_deadline_expired,
+    indicator_state as map_indicator_state, same_local_subnet_16, socket_would_block,
 };
-use ogc_lwp::{sys as lwp_sys, ThreadHandle};
+#[cfg(feature = "debugger-network")]
+use libdb_sys::wii_network::CooperativeControl;
+use ogc_lwp::{ThreadHandle, sys as lwp_sys};
 use ogc_network::sys::{F_GETFL, F_SETFL};
-use ogc_network::{self as network, SockaddrIn, AF_INET, O_NONBLOCK, PF_INET, SOCK_STREAM};
+use ogc_network::{self as network, AF_INET, O_NONBLOCK, PF_INET, SOCK_STREAM, SockaddrIn};
 use ogc_usbgecko as usbgecko;
 
-const WIILOAD_PORT: u16 = 4299;
 const LISTEN_BACKLOG: u32 = 3;
-const THREAD_STACK_SIZE: usize = 8 * 1024;
+const THREAD_STACK_SIZE: usize = crate::wiiload::WIILOAD_WORKER_STACK_BYTES;
 const THREAD_PRIORITY: u8 = 48;
 const NETWORK_INIT_RETRIES: usize = 32;
-const NETWORK_BUSY_POLLS: usize = 200;
 const READ_IDLE_POLLS: usize = 500;
 const POLL_TICKS: u64 = lwp_sys::TICKS_PER_SECOND / 50;
-const EBUSY: i32 = -16;
 const EAGAIN: i32 = -11;
 const ETIMEDOUT: i32 = -110;
 const USBGECKO_CHANNEL: i32 = 1;
@@ -71,11 +70,7 @@ impl Shared {
     }
 
     fn lock_payload(&self) -> PayloadGuard<'_> {
-        while self
-            .payload_lock
-            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
-            .is_err()
-        {
+        while !crate::wiiload::try_claim_payload(&self.payload_lock) {
             core::hint::spin_loop();
         }
         PayloadGuard { shared: self }
@@ -101,6 +96,25 @@ impl Drop for PayloadGuard<'_> {
 }
 
 static SHARED: Shared = Shared::new();
+pub static REMOTE_CONTROL: crate::remote_control::Mailbox = crate::remote_control::Mailbox::new();
+static CONTROL_SESSION: AtomicU32 = AtomicU32::new(0);
+
+static REMOTE_INPUT: crate::remote_input::Mailbox = crate::remote_input::Mailbox::new();
+
+#[cfg(feature = "debugger-network")]
+pub static COOPERATIVE_CONTROL: CooperativeControl = CooperativeControl::new();
+
+pub fn merge_remote_input(
+    state: &mut crate::remote_input::RemoteState,
+    frame: &mut crate::platform::input::InputFrame,
+) {
+    REMOTE_INPUT.consume(state, remote_now_ms(), frame);
+}
+
+fn remote_now_ms() -> u64 {
+    lwp_sys::now_ticks() / (lwp_sys::TICKS_PER_SECOND / 1000)
+}
+
 static STARTED: AtomicBool = AtomicBool::new(false);
 static mut THREAD: lwp_sys::LwpThread = lwp_sys::LWP_THREAD_NULL;
 
@@ -134,6 +148,11 @@ pub fn start() -> Result<(), ReceiverError> {
     {
         return Err(ReceiverError::AlreadyStarted);
     }
+    #[cfg(feature = "debugger-network")]
+    COOPERATIVE_CONTROL.reset_for_worker_start();
+    if CONTROL_SESSION.load(Ordering::Acquire) == 0 {
+        CONTROL_SESSION.store((remote_now_ms() as u32).max(1), Ordering::Release);
+    }
     SHARED.stopped.store(false, Ordering::Release);
     SHARED.set_status(ReceiverStatus::Starting);
     SHARED.gecko_ready.store(false, Ordering::Release);
@@ -152,6 +171,8 @@ pub fn start() -> Result<(), ReceiverError> {
     if result.is_err() {
         SHARED.set_status(ReceiverStatus::Stopped);
         STARTED.store(false, Ordering::Release);
+        #[cfg(feature = "debugger-network")]
+        COOPERATIVE_CONTROL.worker_stopped();
         return Err(ReceiverError::ThreadCreation);
     }
     Ok(())
@@ -214,13 +235,16 @@ pub fn local_ip() -> Option<[u8; 4]> {
 
 /// Take ownership of one completed payload. The worker can publish another after this call.
 pub fn take_payload() -> Option<WiiloadPayload> {
-    let _guard = SHARED.lock_payload();
-    // SAFETY: PayloadGuard provides exclusive access to the Option.
-    let payload = unsafe { (&mut *SHARED.payload.get()).take() };
-    if payload.is_some() && !SHARED.is_stopped() {
-        SHARED.set_status(ReceiverStatus::Listening);
-    }
-    payload
+    // A busy producer runs at lower priority. Return to the frame loop so it
+    // can finish publishing instead of spinning and preventing it from running.
+    crate::wiiload::try_with_payload(&SHARED.payload_lock, || {
+        // SAFETY: try_with_payload holds the same lock as the producer.
+        let payload = unsafe { (&mut *SHARED.payload.get()).take() };
+        if payload.is_some() && !SHARED.is_stopped() {
+            SHARED.set_status(ReceiverStatus::Listening);
+        }
+        payload
+    })?
 }
 
 /// Ask the worker to stop and wait for it to close its listener and network stack.
@@ -245,6 +269,8 @@ unsafe extern "C" fn worker(arg: *mut c_void) -> *mut c_void {
     // SAFETY: start passes the address of the static SHARED value.
     let shared = unsafe { &*arg.cast::<Shared>() };
     let result = worker_main(shared);
+    #[cfg(feature = "debugger-network")]
+    COOPERATIVE_CONTROL.worker_stopped();
     shared.gecko_ready.store(false, Ordering::Release);
     shared.set_status(result);
     core::ptr::null_mut()
@@ -262,22 +288,63 @@ fn worker_main(shared: &Shared) -> ReceiverStatus {
     let listener = match create_listener() {
         Ok(listener) => listener,
         Err(error) => {
+            ogc_system::report(format_args!(
+                "HBC: Wiiload {} failed: {}\n",
+                error.stage, error.code
+            ));
             if let Some(cleanup) = error.cleanup {
                 record_cleanup_error(shared, cleanup);
             }
             return finish_worker(shared, None, ReceiverStatus::ListenerError);
         }
     };
+    #[cfg(feature = "debugger-network")]
+    let mut debugger_diagnostics = libdb_sys::wii_network::ListenerDiagnostics::new();
+    #[cfg(feature = "debugger-network")]
+    let mut debugger_transport =
+        match libdb_sys::wii_network::WiiNetworkTransport::bind_with_control(
+            libdb_sys::wii_network::DEFAULT_PORT,
+            &COOPERATIVE_CONTROL,
+        ) {
+            Ok(transport) => {
+                COOPERATIVE_CONTROL.set_transport_ready(true);
+                debugger_diagnostics.listening();
+                Some(transport)
+            }
+            Err(error) => {
+                COOPERATIVE_CONTROL.set_transport_ready(false);
+                debugger_diagnostics
+                    .startup_failed(libdb_sys::wii_network::diagnostic_failure(&error));
+                None
+            }
+        };
     let local_ip = network::get_host_ip();
-    let _ = usbgecko::flush(USBGECKO_CHANNEL);
-    // The inline poller is ready here. C HBC enables its Gecko icon after the
-    // Gecko receiver worker reports initialized.
-    shared.gecko_ready.store(true, Ordering::Release);
+    let gecko_present = usbgecko::is_gecko_alive(USBGECKO_CHANNEL) != 0;
+    if gecko_present {
+        usbgecko::flush(USBGECKO_CHANNEL);
+    }
+    shared.gecko_ready.store(gecko_present, Ordering::Release);
     shared.set_status(ReceiverStatus::Listening);
     let mut gecko = GeckoReceive::new();
     let mut terminal_status = ReceiverStatus::Stopped;
+    #[cfg(feature = "debugger-network")]
+    let mut debugger_poll_enabled = true;
 
     while !shared.is_stopped() {
+        #[cfg(feature = "debugger-network")]
+        if debugger_poll_enabled && let Some(transport) = debugger_transport.as_mut() {
+            let now_ms = lwp_sys::now_ticks() / (lwp_sys::TICKS_PER_SECOND / 1000);
+            match transport.poll(now_ms) {
+                Ok(_) => {}
+                Err(error) => {
+                    COOPERATIVE_CONTROL.set_transport_ready(false);
+                    debugger_diagnostics
+                        .poll_failed(libdb_sys::wii_network::diagnostic_failure(&error));
+                    close_debugger_transport(shared, transport, &mut debugger_diagnostics);
+                    debugger_poll_enabled = false;
+                }
+            }
+        }
         if has_pending_payload(shared) {
             sleep_poll();
             continue;
@@ -328,8 +395,12 @@ fn worker_main(shared: &Shared) -> ReceiverStatus {
             }
             continue;
         }
-        shared.set_status(ReceiverStatus::Receiving);
-        let received = receive_client(shared, client);
+        let received = receive_client(
+            shared,
+            client,
+            #[cfg(feature = "debugger-network")]
+            &debugger_diagnostics,
+        );
         shared.receive_completed.store(0, Ordering::Release);
         shared.receive_total.store(0, Ordering::Release);
         if let Err(error) = close_socket(client) {
@@ -338,7 +409,8 @@ fn worker_main(shared: &Shared) -> ReceiverStatus {
             break;
         }
         match received {
-            Ok(payload) => {
+            Ok(None) => {}
+            Ok(Some(payload)) => {
                 let _guard = shared.lock_payload();
                 // SAFETY: PayloadGuard provides exclusive access to the slot.
                 let slot = unsafe { &mut *shared.payload.get() };
@@ -355,31 +427,87 @@ fn worker_main(shared: &Shared) -> ReceiverStatus {
             shared.set_status(ReceiverStatus::Listening);
         }
     }
+    #[cfg(feature = "debugger-network")]
+    if let Some(transport) = debugger_transport.as_mut() {
+        close_debugger_transport(shared, transport, &mut debugger_diagnostics);
+    }
     finish_worker(shared, Some(listener), terminal_status)
 }
 
+#[cfg(feature = "debugger-network")]
+fn close_debugger_transport(
+    shared: &Shared,
+    transport: &mut libdb_sys::wii_network::WiiNetworkTransport,
+    diagnostics: &mut libdb_sys::wii_network::ListenerDiagnostics,
+) {
+    match transport.close() {
+        Ok(()) => diagnostics.listener_closed(),
+        Err(error) => {
+            if error.listener.is_none() {
+                diagnostics.listener_closed();
+            }
+            for failure in [error.client, error.listener].into_iter().flatten() {
+                diagnostics.cleanup_failed(libdb_sys::wii_network::failure_from_socket(failure));
+                if let Some(code) = crate::wiiload::first_cleanup_failure(&[
+                    failure.code,
+                    failure.cleanup.unwrap_or(0),
+                ]) {
+                    record_cleanup_error(shared, code);
+                }
+            }
+        }
+    }
+}
+
 struct ListenerCreateError {
+    stage: &'static str,
+    code: i32,
     cleanup: Option<i32>,
 }
 
 fn create_listener() -> Result<i32, ListenerCreateError> {
     let socket = network::socket(PF_INET, SOCK_STREAM, 0);
     if socket < 0 {
-        return Err(ListenerCreateError { cleanup: None });
+        return Err(ListenerCreateError {
+            stage: "socket",
+            code: socket,
+            cleanup: None,
+        });
     }
     let flags = network::fcntl(socket, F_GETFL, 0);
-    if flags < 0 || network::fcntl(socket, F_SETFL, (flags as u32) | O_NONBLOCK) < 0 {
+    if flags < 0 {
         return Err(ListenerCreateError {
+            stage: "get socket flags",
+            code: flags,
+            cleanup: close_socket(socket).err(),
+        });
+    }
+    let set_flags = network::fcntl(socket, F_SETFL, (flags as u32) | O_NONBLOCK);
+    if set_flags < 0 {
+        return Err(ListenerCreateError {
+            stage: "set nonblocking mode",
+            code: set_flags,
             cleanup: close_socket(socket).err(),
         });
     }
     let mut address = SockaddrIn::default();
     address.sin_len = core::mem::size_of::<SockaddrIn>() as u8;
     address.sin_family = AF_INET as u8;
-    address.sin_port = WIILOAD_PORT.to_be();
+    address.sin_port = WIILOAD_TCP_PORT.to_be();
     address.sin_addr.s_addr = network::get_host_ip();
-    if network::bind_addr(socket, &address) < 0 || network::listen(socket, LISTEN_BACKLOG) < 0 {
+    let bind = network::bind_addr(socket, &address);
+    if bind < 0 {
         return Err(ListenerCreateError {
+            stage: "bind",
+            code: bind,
+            cleanup: close_socket(socket).err(),
+        });
+    }
+    let listen = network::listen(socket, LISTEN_BACKLOG);
+    if listen < 0 {
+        return Err(ListenerCreateError {
+            stage: "listen",
+            code: listen,
             cleanup: close_socket(socket).err(),
         });
     }
@@ -388,11 +516,7 @@ fn create_listener() -> Result<i32, ListenerCreateError> {
 
 fn close_socket(socket: i32) -> Result<(), i32> {
     let result = network::close(socket);
-    if result < 0 {
-        Err(result)
-    } else {
-        Ok(())
-    }
+    if result < 0 { Err(result) } else { Ok(()) }
 }
 
 fn finish_worker(shared: &Shared, listener: Option<i32>, status: ReceiverStatus) -> ReceiverStatus {
@@ -417,41 +541,44 @@ fn initialize_network(shared: &Shared) -> bool {
         return false;
     }
 
-    // HBC starts Wiiload with an active IOS network service. When this DOL is
-    // launched through that listener, attach to the existing service instead
-    // of starting NWC24 again. Applications launched from other entry points
-    // can fail this probe and use the normal initialization path below.
-    if network::attach_active() >= 0 {
-        return true;
-    }
-
+    // Match Reborn: start NWC24 before waiting for the socket interface and IP.
+    // attach_active() can spend ten seconds waiting for an IP before the IOS
+    // service has been started. init_async() also reuses an already initialized
+    // stack, including the diagnostic reporter's connection.
+    let started_at = lwp_sys::now_ticks();
     for _ in 0..NETWORK_INIT_RETRIES {
         if shared.is_stopped() {
             return false;
         }
-        // No callback is needed: status polling is bounded below.
+        // No callback is needed. The status wait checks cancellation each poll.
         if unsafe { network::init_async(None, core::ptr::null_mut()) } != 0 {
             sleep_poll();
             continue;
         }
-        let mut busy_polls = 0;
-        loop {
-            if busy_polls == NETWORK_BUSY_POLLS {
+        let Some(result) = crate::wiiload::wait_network_initialization(
+            network::get_status,
+            || shared.is_stopped(),
+            sleep_poll,
+        ) else {
+            return false;
+        };
+        ogc_system::report(format_args!(
+            "HBC: Wiiload IOS network startup result: {result}\n"
+        ));
+        if result != EAGAIN && result != ETIMEDOUT {
+            if result < 0 || shared.is_stopped() {
                 return false;
             }
-            let result = network::get_status();
-            if result == EBUSY {
-                busy_polls += 1;
-                sleep_poll();
-                continue;
-            }
-            if result == EAGAIN || result == ETIMEDOUT {
-                break;
-            }
-            if shared.is_stopped() || result < 0 || network::soc_init() < 0 {
-                return false;
-            }
-            return true;
+            let sockets = network::soc_init();
+            ogc_system::report(format_args!(
+                "HBC: Wiiload socket startup result: {sockets}\n"
+            ));
+            let elapsed_ms =
+                lwp_sys::now_ticks().wrapping_sub(started_at) / (lwp_sys::TICKS_PER_SECOND / 1_000);
+            ogc_system::report(format_args!(
+                "HBC: Wiiload network startup took {elapsed_ms} ms\n"
+            ));
+            return sockets >= 0;
         }
         sleep_poll();
     }
@@ -515,7 +642,9 @@ impl GeckoReceive {
             self.reset(shared);
             return GeckoPoll::Invalid;
         }
-        if usbgecko::is_gecko_alive(USBGECKO_CHANNEL) == 0 {
+        let gecko_present = usbgecko::is_gecko_alive(USBGECKO_CHANNEL) != 0;
+        shared.gecko_ready.store(gecko_present, Ordering::Release);
+        if !gecko_present {
             self.reset(shared);
             return GeckoPoll::Idle;
         }
@@ -638,11 +767,42 @@ impl GeckoReceive {
     }
 }
 
-fn receive_client(shared: &Shared, client: i32) -> Result<WiiloadPayload, ReceiveError> {
+fn receive_client(
+    shared: &Shared,
+    client: i32,
+    #[cfg(feature = "debugger-network")]
+    debugger_diagnostics: &libdb_sys::wii_network::ListenerDiagnostics,
+) -> Result<Option<WiiloadPayload>, ReceiveError> {
     let started_at = ogc_core::powerpc::read_timebase();
     let mut header_bytes = [0; WIILOAD_HEADER_LEN];
     read_exact(shared, client, &mut header_bytes, false, started_at)?;
+    #[cfg(feature = "debugger-network")]
+    if &header_bytes[..4] == b"HBCD" {
+        let reply = debugger_diagnostics.reply(&header_bytes);
+        write_response(shared, client, &reply, started_at)?;
+        return Ok(None);
+    }
+    if matches!(&header_bytes[..4], b"HBCC" | b"HBCQ") {
+        let reply = REMOTE_CONTROL.request(&header_bytes, remote_now_ms());
+        let bytes = reply.encode(CONTROL_SESSION.load(Ordering::Acquire));
+        write_response(shared, client, &bytes, started_at)?;
+        return Ok(None);
+    }
+    if &header_bytes[..4] == b"HBCI" {
+        let mut packet = [0; crate::remote_input::PACKET_LEN];
+        packet[..WIILOAD_HEADER_LEN].copy_from_slice(&header_bytes);
+        read_exact(
+            shared,
+            client,
+            &mut packet[WIILOAD_HEADER_LEN..],
+            false,
+            started_at,
+        )?;
+        receive_remote_input(shared, client, &packet, started_at)?;
+        return Ok(None);
+    }
     let header = WiiloadHeader::decode(&header_bytes).map_err(|_| ReceiveError::Invalid)?;
+    shared.set_status(ReceiverStatus::Receiving);
     let body_len = header.body_len().map_err(|_| ReceiveError::Invalid)?;
     shared.receive_completed.store(0, Ordering::Release);
     shared
@@ -655,9 +815,16 @@ fn receive_client(shared: &Shared, client: i32) -> Result<WiiloadPayload, Receiv
         .map_err(|_| ReceiveError::Memory)?;
     body.resize(body_len, 0);
     read_exact(shared, client, &mut body, true, started_at)?;
-    header.decode_body(&body).map_err(|error| match error {
-        WiiloadError::AllocationFailed => ReceiveError::Memory,
-        _ => ReceiveError::Invalid,
+    ogc_system::report(format_args!(
+        "HBC: Wiiload body received; decoding {} bytes\n",
+        body.len()
+    ));
+    header.decode_body(&body).map(Some).map_err(|error| {
+        ogc_system::report(format_args!("HBC: Wiiload decoding failed: {error:?}\n"));
+        match error {
+            WiiloadError::AllocationFailed => ReceiveError::Memory,
+            _ => ReceiveError::Invalid,
+        }
     })
 }
 
@@ -722,4 +889,66 @@ fn has_pending_payload(shared: &Shared) -> bool {
 
 fn sleep_poll() {
     lwp_sys::sleep_ticks(POLL_TICKS.max(1));
+}
+
+fn receive_remote_input(
+    shared: &Shared,
+    client: i32,
+    packet: &[u8],
+    started_at: u64,
+) -> Result<(), ReceiveError> {
+    let outcome = match crate::remote_input::Command::decode(packet) {
+        Err(error) => error,
+        Ok(command) => match REMOTE_INPUT.submit(command, remote_now_ms()) {
+            Err(error) => error,
+            Ok(()) => {
+                let wait_started = remote_now_ms();
+                loop {
+                    let completion = REMOTE_INPUT.completion();
+                    if completion != crate::remote_input::PENDING {
+                        break completion;
+                    }
+                    if shared.is_stopped() {
+                        break crate::remote_input::STOPPED;
+                    }
+                    if remote_now_ms().saturating_sub(wait_started) >= 2500 {
+                        break crate::remote_input::PENDING;
+                    }
+                    sleep_poll();
+                }
+            }
+        },
+    };
+    let response = [b'H', b'B', b'C', b'I', 1, outcome, 0, 0];
+    write_response(shared, client, &response, started_at)
+}
+
+fn write_response(
+    shared: &Shared,
+    client: i32,
+    response: &[u8],
+    started_at: u64,
+) -> Result<(), ReceiveError> {
+    let mut offset = 0;
+    while offset < response.len() {
+        if shared.is_stopped() {
+            return Err(ReceiveError::Stopped);
+        }
+        if client_deadline_expired(
+            started_at,
+            ogc_core::powerpc::read_timebase(),
+            WIILOAD_CLIENT_TIMEOUT_TICKS,
+        ) {
+            return Err(ReceiveError::Invalid);
+        }
+        let written = network::write_slice(client, &response[offset..]);
+        if written > 0 && written as usize <= response.len() - offset {
+            offset += written as usize;
+        } else if socket_would_block(written) {
+            sleep_poll();
+        } else {
+            return Err(ReceiveError::Invalid);
+        }
+    }
+    Ok(())
 }

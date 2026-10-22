@@ -6,6 +6,7 @@ pub mod allocator;
 pub mod diagnostics;
 #[cfg(any(target_arch = "powerpc", test))]
 mod draw_state;
+pub mod home_overlay;
 pub mod input;
 pub mod lifecycle;
 pub mod nand;
@@ -28,3 +29,6 @@ pub mod theme;
 pub mod video;
 #[cfg(target_arch = "powerpc")]
 pub mod wiiload;
+
+#[cfg(target_arch = "powerpc")]
+pub mod control;

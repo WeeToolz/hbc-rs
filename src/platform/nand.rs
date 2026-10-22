@@ -389,9 +389,9 @@ fn staging_path(path: &str, directory_name: &str) -> Result<String, ReplaceError
 #[cfg(target_arch = "powerpc")]
 mod wii {
     use super::{
-        directory_contains_entry, ensure_directory_with, is_missing_isfs_error,
-        recover_file_for_load, save_file, write_new_verified_file, DirectoryEnsureError,
-        FileAttributes, ReplaceBackend,
+        DirectoryEnsureError, FileAttributes, ReplaceBackend, directory_contains_entry,
+        ensure_directory_with, is_missing_isfs_error, recover_file_for_load, save_file,
+        write_new_verified_file,
     };
     use crate::platform::settings::SettingsIoError;
     use alloc::ffi::CString;
@@ -526,7 +526,7 @@ mod wii {
             let file = match isfs::open(&path, isfs::ISFS_OPEN_READ) {
                 Ok(file) => file,
                 Err(error) if is_missing_isfs_error(error, ogc_filesystem::ISFS_ENOENT) => {
-                    return Ok(None)
+                    return Ok(None);
                 }
                 Err(error) => return Err(error),
             };
@@ -906,12 +906,16 @@ mod tests {
             backend.read_bounded(path, replacement.len()),
             Ok(Some(replacement))
         );
-        assert!(!backend
-            .files
-            .contains_key("/shared2/sys/net/02/_tmp/config.dat"));
-        assert!(!backend
-            .files
-            .contains_key("/shared2/sys/net/02/_bak/config.dat"));
+        assert!(
+            !backend
+                .files
+                .contains_key("/shared2/sys/net/02/_tmp/config.dat")
+        );
+        assert!(
+            !backend
+                .files
+                .contains_key("/shared2/sys/net/02/_bak/config.dat")
+        );
     }
 
     #[derive(Default)]

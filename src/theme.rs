@@ -4,8 +4,8 @@ use alloc::{collections::BTreeSet, string::String, vec::Vec};
 
 use crate::{
     archive::{ZipArchive, ZipError},
-    management::{plan_extraction, ExtractionLimits, ManagementError},
-    metadata::{parse_theme_xml, ThemeMetadata},
+    management::{ExtractionLimits, ManagementError, plan_extraction},
+    metadata::{ThemeMetadata, parse_theme_xml},
 };
 
 pub const MAX_THEME_ARCHIVE_BYTES: usize = 20 * 1024 * 1024;

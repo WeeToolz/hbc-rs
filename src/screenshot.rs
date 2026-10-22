@@ -38,7 +38,7 @@ pub(crate) fn save_png_with<E>(
 
 #[cfg(test)]
 mod tests {
-    use super::{save_png_with, SaveError};
+    use super::{SaveError, save_png_with};
     use alloc::{string::String, vec::Vec};
 
     #[test]

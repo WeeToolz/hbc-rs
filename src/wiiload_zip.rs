@@ -3,8 +3,8 @@
 use alloc::{string::String, vec::Vec};
 
 use crate::{
-    archive::{validate_archive_path, ZipArchive, ZipError},
-    management::{plan_extraction, ExtractionLimits, ExtractionOperation, ExtractionPlan},
+    archive::{ZipArchive, ZipError, validate_archive_path},
+    management::{ExtractionLimits, ExtractionOperation, ExtractionPlan, plan_extraction},
     theme::{ThemePackage, ThemePackageError},
 };
 

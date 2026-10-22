@@ -75,6 +75,10 @@ impl TitleDataDirectory {
         ])
     }
 
+    pub(crate) fn persistence_available(self) -> bool {
+        self.development_parents().is_none()
+    }
+
     pub(crate) fn file_path(self, name: &str) -> Result<CString, TitlePathError> {
         if name.is_empty() || name.contains('/') || name.contains('\\') {
             return Err(TitlePathError::InvalidPath);
@@ -185,8 +189,8 @@ impl CachedTitleDataDirectory {
 #[cfg(test)]
 mod tests {
     use super::{
-        CachedTitleDataDirectory, TitleDataDirectory, TitlePathError, DIRECT_DOL_TITLE_ID,
-        ES_INVALID_ARGUMENT,
+        CachedTitleDataDirectory, DIRECT_DOL_TITLE_ID, ES_INVALID_ARGUMENT, TitleDataDirectory,
+        TitlePathError,
     };
     use core::cell::Cell;
 
@@ -199,6 +203,7 @@ mod tests {
     #[test]
     fn development_directory_prepares_only_its_own_parents() {
         let development = TitleDataDirectory::hbc_development_directory().unwrap();
+        assert!(!development.persistence_available());
         assert_eq!(
             development.development_parents().unwrap()[2],
             c"/title/00010001/48424345/data"
@@ -209,6 +214,7 @@ mod tests {
             TitleDataDirectory::from_es_buffer(bytes)
         })
         .unwrap();
+        assert!(channel.persistence_available());
         assert_eq!(channel.development_parents(), None);
     }
 
@@ -218,6 +224,7 @@ mod tests {
             panic!("direct DOL must not request an ES title data directory")
         })
         .unwrap();
+        assert!(!resolved.persistence_available());
         assert_eq!(
             resolved.file_path("theme.zip").unwrap().as_bytes(),
             b"/title/00010001/48424345/data/theme.zip"

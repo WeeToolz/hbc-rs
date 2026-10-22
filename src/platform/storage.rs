@@ -6,7 +6,7 @@ use alloc::{ffi::CString, string::String, vec::Vec};
 #[cfg(target_arch = "powerpc")]
 use crate::catalog::{CatalogStorage, DirectoryEntry};
 
-/// Report missing storage once until a successful mount changes the state.
+/// Report removal only after storage was available.
 #[cfg(any(test, target_arch = "powerpc"))]
 #[derive(Default)]
 pub(crate) struct StoragePresence {
@@ -16,10 +16,21 @@ pub(crate) struct StoragePresence {
 #[cfg(any(test, target_arch = "powerpc"))]
 impl StoragePresence {
     pub(crate) fn report_missing(&mut self, has_storage: bool) -> bool {
-        let report = !has_storage && self.last_scan_had_storage != Some(false);
+        let report = !has_storage && self.last_scan_had_storage == Some(true);
         self.last_scan_had_storage = Some(has_storage);
         report
     }
+}
+
+/// An empty successful enumeration proves absence. A probe failure does not.
+#[cfg(any(test, target_arch = "powerpc"))]
+fn usb_mount_is_absent<E: PartialEq>(
+    error: E,
+    unavailable: E,
+    enumeration_succeeded: bool,
+    candidates: u32,
+) -> bool {
+    error == unavailable && enumeration_succeeded && candidates == 0
 }
 
 /// Keep retries active, but show the same failure only once until recovery.
@@ -113,7 +124,7 @@ pub fn device_scan_order(preference: i32) -> [Volume; 4] {
 #[cfg(test)]
 mod device_selection_tests {
     use super::{
-        classify_device_presence, device_scan_order, StorageFailureNotice, StoragePresence, Volume,
+        StorageFailureNotice, StoragePresence, Volume, classify_device_presence, device_scan_order,
     };
 
     #[test]
@@ -129,11 +140,21 @@ mod device_selection_tests {
     #[test]
     fn no_storage_notice_is_not_reopened_by_repeated_scans() {
         let mut presence = StoragePresence::default();
-        assert!(presence.report_missing(false));
+        assert!(!presence.report_missing(false));
         assert!(!presence.report_missing(false));
         assert!(!presence.report_missing(false));
         assert!(!presence.report_missing(true));
         assert!(presence.report_missing(false));
+        assert!(!presence.report_missing(false));
+    }
+
+    #[test]
+    fn empty_usb_scan_is_absence_only_when_the_probe_succeeded() {
+        use super::usb_mount_is_absent;
+        assert!(usb_mount_is_absent(-1, -1, true, 0));
+        assert!(!usb_mount_is_absent(-1, -1, false, 0));
+        assert!(!usb_mount_is_absent(-1, -1, true, 1));
+        assert!(!usb_mount_is_absent(-5, -1, true, 0));
     }
 
     #[test]
@@ -224,9 +245,16 @@ impl FatStorage {
         };
         result.map_err(|error| {
             if volume == Volume::Usb {
-                StorageError::UsbMount {
+                let probe = ogc_usbstorage_sys::probe_status();
+                if usb_mount_is_absent(
                     error,
-                    probe: ogc_usbstorage_sys::probe_status(),
+                    ogc_fat::FatError::DeviceUnavailable,
+                    probe.stage == ogc_usbstorage_sys::ProbeStage::Enumerate && probe.result == 0,
+                    probe.candidates,
+                ) {
+                    StorageError::Fat(error)
+                } else {
+                    StorageError::UsbMount { error, probe }
                 }
             } else {
                 StorageError::Fat(error)

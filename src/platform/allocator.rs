@@ -1,7 +1,7 @@
 //! HBC's global allocator backed by the shared `ogc-alloc` MEM2 allocator.
 
 pub use ogc_alloc::{
-    ArenaAllocator, InitError, DEFAULT_MAX_MEM2_HEAP_BYTES, DEFAULT_MEM2_RESERVE_BYTES,
+    ArenaAllocator, DEFAULT_MAX_MEM2_HEAP_BYTES, DEFAULT_MEM2_RESERVE_BYTES, InitError,
 };
 
 #[cfg(target_arch = "powerpc")]

@@ -35,6 +35,14 @@ pub enum SettingsSaveError<E> {
     Backend(E),
 }
 
+/// Result of preparing settings for an application or system exit.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExitSettingsOutcome {
+    Unchanged,
+    Saved,
+    PreservedAfterLoadFailure,
+}
+
 impl AppRuntime {
     pub fn new(catalog: Vec<AppEntry>) -> Self {
         Self {
@@ -172,6 +180,22 @@ impl AppRuntime {
         self.settings
             .save_if_dirty(save)
             .map_err(SettingsSaveError::Backend)
+    }
+
+    /// Preserve unreadable settings without making their save a launch requirement.
+    /// A real backend write failure still prevents departure.
+    pub fn prepare_settings_for_exit<E>(
+        &mut self,
+        save: impl FnOnce(&UserSettings) -> Result<(), E>,
+    ) -> Result<ExitSettingsOutcome, E> {
+        match self.save_settings_if_dirty(save) {
+            Ok(false) => Ok(ExitSettingsOutcome::Unchanged),
+            Ok(true) => Ok(ExitSettingsOutcome::Saved),
+            Err(SettingsSaveError::PreviousLoadFailed) => {
+                Ok(ExitSettingsOutcome::PreservedAfterLoadFailure)
+            }
+            Err(SettingsSaveError::Backend(error)) => Err(error),
+        }
     }
 
     pub fn set_settings_persistence_enabled(&mut self, enabled: bool) {
@@ -584,12 +608,14 @@ mod tests {
         );
         runtime.show_notice_with_kind("NAND write failed", crate::app::NoticeKind::Error);
         for _ in 0..60 {
-            assert!(runtime
-                .update(&InputFrame {
-                    held: vec![Input::Confirm],
-                    ..InputFrame::default()
-                })
-                .is_empty());
+            assert!(
+                runtime
+                    .update(&InputFrame {
+                        held: vec![Input::Confirm],
+                        ..InputFrame::default()
+                    })
+                    .is_empty()
+            );
         }
         assert_eq!(runtime.controller().screen, crate::app::Screen::Notice);
         assert_eq!(runtime.controller().notice(), Some("NAND write failed"));
@@ -769,5 +795,42 @@ mod tests {
         );
         assert!(!save_called);
         assert!(runtime.settings().is_dirty());
+    }
+    #[test]
+    fn exit_preserves_unreadable_settings_without_blocking_launch() {
+        let mut runtime = AppRuntime::default();
+        runtime.set_preferred_device(1);
+        runtime.set_settings_persistence_enabled(false);
+        assert_eq!(
+            runtime.prepare_settings_for_exit(|_| -> Result<(), i32> {
+                panic!("unreadable settings must not be overwritten")
+            }),
+            Ok(ExitSettingsOutcome::PreservedAfterLoadFailure)
+        );
+        assert!(runtime.settings().is_dirty());
+    }
+
+    #[test]
+    fn exit_returns_write_failure_and_retries_dirty_settings() {
+        let mut runtime = AppRuntime::default();
+        runtime.set_preferred_device(1);
+        assert_eq!(runtime.prepare_settings_for_exit(|_| Err(-42)), Err(-42));
+        assert!(runtime.settings().is_dirty());
+        let mut written = None;
+        assert_eq!(
+            runtime.prepare_settings_for_exit(|settings| {
+                written = Some(settings.clone());
+                Ok::<(), i32>(())
+            }),
+            Ok(ExitSettingsOutcome::Saved)
+        );
+        assert_eq!(written.unwrap().device, 1);
+        assert!(!runtime.settings().is_dirty());
+        assert_eq!(
+            runtime.prepare_settings_for_exit(|_| -> Result<(), i32> {
+                panic!("clean settings do not require a write")
+            }),
+            Ok(ExitSettingsOutcome::Unchanged)
+        );
     }
 }

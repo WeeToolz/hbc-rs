@@ -19,21 +19,7 @@ fn paint(words: &mut [u32], width: usize, height: usize, label: &str, failed: bo
     }
     // Even glyph scale keeps each YCbYCr pair in a single solid color.
     for (y, text) in [(56, "HBC RUST STARTUP"), (104, label)] {
-        for (index, character) in text.chars().take(width.saturating_sub(48) / 24).enumerate() {
-            for (row, bits) in crate::render::glyph_rows(character).into_iter().enumerate() {
-                for column in 0..5 {
-                    if bits & (1 << (4 - column)) == 0 {
-                        continue;
-                    }
-                    let x = 24 + index * 24 + column * 4;
-                    for py in y + row * 4..(y + row * 4 + 4).min(height) {
-                        for word_x in x / 2..((x + 4).min(width)) / 2 {
-                            words[py * words_per_row + word_x] = WHITE;
-                        }
-                    }
-                }
-            }
-        }
+        paint_label(words, words_per_row, width, height, y, text);
     }
 }
 
@@ -75,14 +61,15 @@ pub(super) fn paint_scanout_probe(words: &mut [u32], width: usize, height: usize
             words[y * words_per_row + word_x] = WHITE;
         }
     }
-    paint_scanout_label(words, words_per_row, width, height, label);
+    paint_label(words, words_per_row, width, height, 56, label);
 }
 
-fn paint_scanout_label(
+fn paint_label(
     words: &mut [u32],
     words_per_row: usize,
     width: usize,
     height: usize,
+    origin_y: usize,
     label: &str,
 ) {
     for (index, character) in label
@@ -96,7 +83,7 @@ fn paint_scanout_label(
                     continue;
                 }
                 let x = 24 + index * 24 + column * 4;
-                let y = 56 + row * 4;
+                let y = origin_y + row * 4;
                 if y + 4 > height {
                     continue;
                 }
@@ -177,6 +164,36 @@ fn emit_diagnostic_event(label: &str, record: impl FnOnce(&str), send: impl FnOn
     send(label);
 }
 
+fn failed_progress_label(label: &str) -> &'static str {
+    match label {
+        "RECOVERY SCAN HOLD READY" => "RECOVERY SCAN HOLD READY",
+        "REPORT SEND AFTER DEADLINE" => "REPORT SEND FAILED",
+        "PAD SCAN START" => "FAIL PAD SCAN START",
+        "PAD SCAN DONE" => "FAIL PAD SCAN DONE",
+        "WPAD POLL START" => "FAIL WPAD POLL START",
+        "WPAD POLL DONE" => "FAIL WPAD POLL DONE",
+        "ERROR REPORT START" => "FAIL ERR REPORT START",
+        "ERROR REPORT DONE" => "FAIL ERR REPORT DONE",
+        "WPAD ERROR START" => "FAIL WPAD ERR START",
+        "WPAD ERROR DONE" => "FAIL WPAD ERR DONE",
+        "WPAD IPC completion poll starting" => "FAIL WPAD IPC START",
+        "WPAD IPC completion poll completed" => "FAIL WPAD IPC DONE",
+        "WPAD adapter service poll starting" => "FAIL WPAD HOST START",
+        "WPAD adapter service poll completed" => "FAIL WPAD HOST DONE",
+        "USB POLL START" => "FAIL USB POLL START",
+        "USB POLL DONE" => "FAIL USB POLL DONE",
+        "WPAD DATA 0 START" => "FAIL WPAD CH0 START",
+        "WPAD DATA 0 DONE" => "FAIL WPAD CH0 DONE",
+        "WPAD DATA 1 START" => "FAIL WPAD CH1 START",
+        "WPAD DATA 1 DONE" => "FAIL WPAD CH1 DONE",
+        "WPAD DATA 2 START" => "FAIL WPAD CH2 START",
+        "WPAD DATA 2 DONE" => "FAIL WPAD CH2 DONE",
+        "WPAD DATA 3 START" => "FAIL WPAD CH3 START",
+        "WPAD DATA 3 DONE" => "FAIL WPAD CH3 DONE",
+        _ => "REPORT SEND FAILED",
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct ReportIdentity {
     host: [u8; 4],
@@ -187,21 +204,48 @@ struct ReportIdentity {
     restart_after_report: bool,
     warmup_frames: u32,
     sample_frames: u32,
+    recovery_reset_ms: Option<u32>,
 }
 
 const PROGRESS_TEXT_LIMIT: usize = 256;
+const RECOVERY_THREAD_PRIORITY: u8 = 127;
+
+fn recovery_validation_is_armed(thread: usize, stage: usize) -> bool {
+    thread != 0 && stage == 1
+}
+
+fn recovery_scan_validation_is_ready(
+    thread: usize,
+    stage: usize,
+    report_ready: bool,
+    progress_enabled: bool,
+    receiver_active: bool,
+) -> bool {
+    recovery_validation_is_armed(thread, stage)
+        && report_ready
+        && progress_enabled
+        && receiver_active
+}
+
+#[cfg(target_arch = "powerpc")]
+const _: () = assert!(
+    RECOVERY_THREAD_PRIORITY == ogc_lwp::sys::LWP_PRIO_HIGHEST as u8,
+    "recovery thread priority must remain at the LWP scheduler maximum"
+);
 
 fn progress_packet(identity: &ReportIdentity, sequence: u32, text: &str) -> ([u8; 408], usize) {
     let mut packet = [0u8; 408];
     let text_len = text.len().min(PROGRESS_TEXT_LIMIT);
-    packet[..4].copy_from_slice(b"WIP1");
-    packet[4..6].copy_from_slice(&1u16.to_be_bytes());
-    packet[6..8].copy_from_slice(&u16::from(text.len() > text_len).to_be_bytes());
-    packet[8..12].copy_from_slice(&sequence.to_be_bytes());
-    packet[12..16].copy_from_slice(&8u32.to_be_bytes());
-    packet[16..18].copy_from_slice(&u16::from(identity.run_id_len).to_be_bytes());
-    packet[18..20].copy_from_slice(&64u16.to_be_bytes());
-    packet[20..24].copy_from_slice(&(text_len as u32).to_be_bytes());
+    let header = ogc_report_protocol::ProgressHeader {
+        sequence,
+        stage: 8,
+        run_length: u16::from(identity.run_id_len),
+        build_length: 64,
+        text_length: text_len as u32,
+        truncated: text.len() > text_len,
+    }
+    .encode();
+    packet[..24].copy_from_slice(&header);
     let run_end = 24 + usize::from(identity.run_id_len);
     packet[24..run_end].copy_from_slice(&identity.run_id[..usize::from(identity.run_id_len)]);
     let build_end = run_end + 64;
@@ -218,6 +262,7 @@ fn parse_report_identity(args: &[&str]) -> Option<ReportIdentity> {
     let mut restart_after_report = false;
     let mut warmup_frames = 0;
     let mut sample_frames = 1;
+    let mut recovery_reset_ms = None;
     for arg in args {
         if let Some(value) = arg.strip_prefix("--report=") {
             endpoint = Some(value);
@@ -231,9 +276,12 @@ fn parse_report_identity(args: &[&str]) -> Option<ReportIdentity> {
             warmup_frames = value.parse().ok()?;
         } else if let Some(value) = arg.strip_prefix("--sample-frames=") {
             sample_frames = value.parse().ok()?;
+        } else if let Some(value) = arg.strip_prefix("--recovery-reset-ms=") {
+            let milliseconds = ogc_report_protocol::parse_recovery_deadline(value).ok()?;
+            recovery_reset_ms = Some(milliseconds);
         }
     }
-    let (host, port) = parse_report_endpoint(endpoint?)?;
+    let (host, port) = ogc_report_protocol::parse_report_endpoint(endpoint?).ok()?;
     let run_id = run_id?;
     let build_id = build_id?;
     if run_id.is_empty()
@@ -260,21 +308,8 @@ fn parse_report_identity(args: &[&str]) -> Option<ReportIdentity> {
         restart_after_report,
         warmup_frames,
         sample_frames,
+        recovery_reset_ms,
     })
-}
-
-fn parse_report_endpoint(value: &str) -> Option<([u8; 4], u16)> {
-    let (address, port) = value.split_once(':')?;
-    let mut octets = [0; 4];
-    let mut parts = address.split('.');
-    for octet in &mut octets {
-        *octet = parts.next()?.parse().ok()?;
-    }
-    if parts.next().is_some() {
-        return None;
-    }
-    let port = port.parse().ok()?;
-    (port != 0).then_some((octets, port))
 }
 
 pub const fn test_square_origin(width: u16, height: u16) -> Option<(u16, u16)> {
@@ -321,7 +356,7 @@ pub(super) fn test_square_is_white_rgb(
 
 #[cfg(target_arch = "powerpc")]
 mod wii {
-    use super::ReportIdentity;
+    use super::{RECOVERY_THREAD_PRIORITY, ReportIdentity};
     use core::{
         ffi::c_void,
         sync::atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -337,6 +372,156 @@ mod wii {
     static STARTUP_COMPLETE: AtomicBool = AtomicBool::new(false);
     static RUNTIME_STAGES: AtomicUsize = AtomicUsize::new(0);
     static RUNTIME_TRACE_ACTIVE: AtomicBool = AtomicBool::new(false);
+    static RECOVERY_THREAD: AtomicUsize = AtomicUsize::new(0);
+    static RECOVERY_REQUESTED: AtomicBool = AtomicBool::new(false);
+    #[cfg(feature = "recovery-scan-validation")]
+    static RECOVERY_SCAN_HOLD_STARTED: AtomicBool = AtomicBool::new(false);
+    #[cfg(feature = "recovery-scan-validation")]
+    static RECOVERY_SCAN_WAIT_REPORTED: AtomicBool = AtomicBool::new(false);
+    /// Debugger evidence: 0=off, 1=armed, 2=loader return requested.
+    #[unsafe(no_mangle)]
+    pub static HBC_RECOVERY_STAGE: AtomicUsize = AtomicUsize::new(0);
+    #[repr(align(32))]
+    struct RecoveryStack([u8; 32 * 1024]);
+    static mut RECOVERY_STACK: RecoveryStack = RecoveryStack([0; 32 * 1024]);
+
+    /// Start recovery on an independent thread before application initialization.
+    /// IOS calls and device shutdown must not run from an alarm/IRQ callback.
+    pub fn arm_recovery() -> Result<(), i32> {
+        let identity = unsafe { core::ptr::addr_of!(REPORT_IDENTITY).read() };
+        let Some(milliseconds) = identity.recovery_reset_ms else {
+            return Ok(());
+        };
+        let mut thread = 0;
+        // SAFETY: The stack has process lifetime. The argument carries an integer
+        // timeout and is never dereferenced. Use the highest LWP priority;
+        // the worker sleeps between checks so application startup can proceed.
+        let worker = unsafe {
+            ogc_lwp::ThreadHandle::create(
+                &mut thread,
+                Some(recovery_worker),
+                milliseconds as usize as *mut c_void,
+                core::ptr::addr_of_mut!(RECOVERY_STACK.0).cast(),
+                32 * 1024,
+                RECOVERY_THREAD_PRIORITY,
+            )
+        };
+        let worker = worker?;
+        RECOVERY_THREAD.store(worker.raw() as usize, Ordering::Release);
+        HBC_RECOVERY_STAGE.store(1, Ordering::Release);
+        mark("RECOVERY WORKER ARMED");
+        Ok(())
+    }
+
+    /// Deliberately stop main-thread progress after arming the watchdog.
+    /// This entry point is present only in the focused recovery-validation build.
+    pub fn hold_for_recovery_validation() -> Result<(), i32> {
+        if !super::recovery_validation_is_armed(
+            RECOVERY_THREAD.load(Ordering::Acquire),
+            HBC_RECOVERY_STAGE.load(Ordering::Acquire),
+        ) {
+            show("RECOVERY NOT ARMED", true);
+            return Err(-1);
+        }
+        show("RECOVERY TEST HOLD", false);
+        loop {
+            core::hint::spin_loop();
+        }
+    }
+
+    /// Hold the main thread during USB retirement, after HBC reporting and the
+    /// Wiiload worker have started. Wait past the host report
+    /// deadline, retry real progress sends until the closed connection is
+    /// detected, then hold for the watchdog.
+    #[cfg(feature = "recovery-scan-validation")]
+    pub fn hold_for_recovery_scan_validation(label: &'static str) {
+        if label != "USB RETIREMENT START" || RECOVERY_SCAN_HOLD_STARTED.load(Ordering::Acquire) {
+            return;
+        }
+        let receiver_active = matches!(
+            crate::platform::wiiload::status(),
+            crate::platform::wiiload::ReceiverStatus::Starting
+                | crate::platform::wiiload::ReceiverStatus::Listening
+        );
+        if !super::recovery_scan_validation_is_ready(
+            RECOVERY_THREAD.load(Ordering::Acquire),
+            HBC_RECOVERY_STAGE.load(Ordering::Acquire),
+            REPORT_READY.load(Ordering::Acquire),
+            PROGRESS_ENABLED.load(Ordering::Acquire),
+            receiver_active,
+        ) {
+            if !RECOVERY_SCAN_WAIT_REPORTED.swap(true, Ordering::AcqRel) {
+                mark("RECOVERY SCAN WAIT NETWORK");
+            }
+            return;
+        }
+        if RECOVERY_SCAN_HOLD_STARTED
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_err()
+        {
+            return;
+        }
+
+        mark("RECOVERY SCAN HOLD READY");
+        show("RECOVERY SCAN WAIT REPORT", false);
+        let started = ogc_core::powerpc::read_timebase();
+        let clock = ogc_video::timer_clock_hz();
+        const WAIT_FOR_HOST_REPORT_TIMEOUT_US: u64 = 70_000_000;
+        while ogc_video::ticks_to_microseconds(
+            ogc_core::powerpc::read_timebase().wrapping_sub(started),
+            clock,
+        ) < WAIT_FOR_HOST_REPORT_TIMEOUT_US
+        {
+            ogc_lwp::sys::sleep_ticks(clock / 50);
+        }
+        let failure_started = ogc_core::powerpc::read_timebase();
+        const REPORT_FAILURE_WAIT_US: u64 = 10_000_000;
+        while PROGRESS_ENABLED.load(Ordering::Acquire)
+            && ogc_video::ticks_to_microseconds(
+                ogc_core::powerpc::read_timebase().wrapping_sub(failure_started),
+                clock,
+            ) < REPORT_FAILURE_WAIT_US
+        {
+            mark("REPORT SEND AFTER DEADLINE");
+            ogc_lwp::sys::sleep_ticks(clock / 4);
+        }
+        if PROGRESS_ENABLED.load(Ordering::Acquire) {
+            show("REPORT SEND NOT FAILED", true);
+        }
+        loop {
+            ogc_lwp::sys::sleep_ticks(clock / 10);
+        }
+    }
+
+    unsafe extern "C" fn recovery_worker(argument: *mut c_void) -> *mut c_void {
+        let timeout_us = (argument as usize as u64) * 1_000;
+        let started = ogc_core::powerpc::read_timebase();
+        let clock = ogc_video::timer_clock_hz();
+        loop {
+            let elapsed = ogc_video::ticks_to_microseconds(
+                ogc_core::powerpc::read_timebase().wrapping_sub(started),
+                clock,
+            );
+            if RECOVERY_REQUESTED.load(Ordering::Acquire) || elapsed >= timeout_us {
+                // Use the runtime's existing HBC reload-stub exit route. It
+                // owns shutdown and the reset fallback when no stub is present.
+                HBC_RECOVERY_STAGE.store(2, Ordering::Release);
+                show("RECOVERY RETURN TO LOADER", true);
+                ogc_system::exit(0);
+            }
+            ogc_lwp::sys::sleep_ticks(clock / 50);
+        }
+    }
+
+    pub fn recover() -> ! {
+        if RECOVERY_THREAD.load(Ordering::Acquire) != 0 {
+            RECOVERY_REQUESTED.store(true, Ordering::Release);
+            loop {
+                ogc_lwp::sys::sleep_ticks(ogc_video::timer_clock_hz() / 50);
+            }
+        }
+        ogc_system::exit(0)
+    }
 
     /// Call on the main thread after system initialization and before GX setup.
     pub fn initialize(
@@ -390,6 +575,17 @@ mod wii {
             label,
             failed,
         );
+        let network_error = REPORT_LAST_NETWORK_ERROR.load(Ordering::Acquire);
+        if network_error != 0 {
+            super::paint_label(
+                words,
+                (WIDTH.load(Ordering::Relaxed) + 15) / 16 * 8,
+                WIDTH.load(Ordering::Relaxed),
+                HEIGHT.load(Ordering::Relaxed),
+                152,
+                &alloc::format!("NET ERROR {network_error}"),
+            );
+        }
         unsafe {
             core::arch::asm!("sync", options(nostack, preserves_flags));
             ogc_video::set_next_framebuffer(framebuffer as *mut c_void);
@@ -438,7 +634,11 @@ mod wii {
             show(report_error_label(), true);
             hold_for_report_error();
         }
-        report_restart_requested()
+        let restart = report_restart_requested();
+        if restart && RECOVERY_THREAD.load(Ordering::Acquire) != 0 {
+            recover();
+        }
+        restart
     }
 
     pub fn complete() {
@@ -510,7 +710,11 @@ mod wii {
                 show(report_error_label(), true);
                 hold_for_report_error();
             }
-            report_restart_requested()
+            let restart = report_restart_requested();
+            if restart && RECOVERY_THREAD.load(Ordering::Acquire) != 0 {
+                recover();
+            }
+            restart
         } else {
             false
         }
@@ -533,6 +737,8 @@ mod wii {
     static CAPTURE_FAILED: AtomicBool = AtomicBool::new(false);
     static REPORT_READY: AtomicBool = AtomicBool::new(false);
     static REPORT_ERROR: AtomicUsize = AtomicUsize::new(0);
+    static REPORT_LAST_NETWORK_ERROR: core::sync::atomic::AtomicI32 =
+        core::sync::atomic::AtomicI32::new(0);
     static REPORT_NETWORK_READY: AtomicBool = AtomicBool::new(false);
     static PROGRESS_ENABLED: AtomicBool = AtomicBool::new(false);
     static PROGRESS_SEQUENCE: AtomicUsize = AtomicUsize::new(0);
@@ -546,6 +752,7 @@ mod wii {
         restart_after_report: false,
         warmup_frames: 0,
         sample_frames: 1,
+        recovery_reset_ms: None,
     };
     static mut REPORT_START_TICKS: u64 = 0;
     static mut LAST_FRAME_TICKS: u64 = 0;
@@ -819,7 +1026,19 @@ mod wii {
             || {
                 // Prefer the regular libogc startup path. Attach to an active IOS
                 // stack when NWC24 or SO_STARTUP reports that it is already open.
-                network::init() >= 0 || network::attach_active() >= 0
+                let initialized = network::init();
+                if initialized >= 0 {
+                    return true;
+                }
+                let attached = network::attach_active();
+                if attached < 0 {
+                    REPORT_LAST_NETWORK_ERROR.store(attached, Ordering::Release);
+                    record_stage(
+                        &alloc::format!("REPORT NET INIT {initialized} ATTACH {attached}"),
+                        true,
+                    );
+                }
+                attached >= 0
             },
             || {
                 for _ in 0..12 {
@@ -842,6 +1061,9 @@ mod wii {
         }
         let socket = network::socket(network::PF_INET, network::SOCK_STREAM, 0);
         if socket < 0 {
+            REPORT_LAST_NETWORK_ERROR.store(socket, Ordering::Release);
+            show(&alloc::format!("REPORT SOCKET {socket}"), true);
+            hold();
             REPORT_ERROR.store(REPORT_ERROR_SOCKET, Ordering::Release);
             return socket;
         }
@@ -872,9 +1094,20 @@ mod wii {
             },
             sin_zero: [0; 8],
         };
-        if network::connect_addr(socket, &address) != 0 {
+        let connected = network::connect_addr(socket, &address);
+        if connected != 0 {
+            REPORT_LAST_NETWORK_ERROR.store(connected, Ordering::Release);
+            show(&alloc::format!("REPORT CONNECT {connected}"), true);
+            record_stage(
+                &alloc::format!("REPORT LOCAL IP {:08X}", network::get_host_ip()),
+                false,
+            );
+            hold();
             REPORT_ERROR.store(REPORT_ERROR_CONNECT, Ordering::Release);
-            network::close(socket);
+            let closed = network::close(socket);
+            if closed < 0 {
+                record_stage(&alloc::format!("REPORT CLOSE {closed}"), true);
+            }
             return -1;
         }
         socket
@@ -901,7 +1134,7 @@ mod wii {
             {
                 ogc_network::close(socket);
             }
-            show("REPORT PROGRESS SEND FAIL", true);
+            show(super::failed_progress_label(label), true);
         }
     }
 
@@ -920,6 +1153,7 @@ mod wii {
         while !bytes.is_empty() {
             let written = ogc_network::write_slice(socket, bytes);
             if written <= 0 {
+                REPORT_LAST_NETWORK_ERROR.store(written, Ordering::Release);
                 return false;
             }
             bytes = &bytes[written as usize..];
@@ -959,9 +1193,15 @@ pub fn mark_fp_value(msr: u32, enabled: &'static str, disabled: &'static str) {
 
 #[cfg(target_arch = "powerpc")]
 pub use wii::{
-    begin_reporting, begin_runtime_trace, complete, event, fail, hold, initialize, mark,
-    runtime_stage, sample_frame, set_gx_framebuffer_info, startup_checkpoint,
+    arm_recovery, begin_reporting, begin_runtime_trace, complete, event, fail, hold, initialize,
+    mark, recover, runtime_stage, sample_frame, set_gx_framebuffer_info, startup_checkpoint,
 };
+
+#[cfg(all(target_arch = "powerpc", feature = "recovery-validation"))]
+pub use wii::hold_for_recovery_validation;
+
+#[cfg(all(target_arch = "powerpc", feature = "recovery-scan-validation"))]
+pub use wii::hold_for_recovery_scan_validation;
 
 #[cfg(test)]
 mod tests {
@@ -978,6 +1218,61 @@ mod tests {
         );
         assert_eq!(recorded, alloc::vec!["ISFS CreateFile failed rc=-102"]);
         assert_eq!(sent, alloc::vec!["ISFS CreateFile failed rc=-102"]);
+    }
+
+    #[test]
+    fn failed_progress_screen_keeps_the_scan_boundary_in_a_short_label() {
+        assert_eq!(
+            failed_progress_label("PAD SCAN START"),
+            "FAIL PAD SCAN START"
+        );
+        assert_eq!(
+            failed_progress_label("ERROR REPORT START"),
+            "FAIL ERR REPORT START"
+        );
+        assert_eq!(
+            failed_progress_label("WPAD ERROR DONE"),
+            "FAIL WPAD ERR DONE"
+        );
+        assert_eq!(
+            failed_progress_label("WPAD IPC completion poll starting"),
+            "FAIL WPAD IPC START"
+        );
+        assert_eq!(
+            failed_progress_label("WPAD adapter service poll completed"),
+            "FAIL WPAD HOST DONE"
+        );
+        assert_eq!(
+            failed_progress_label("unexpected stage"),
+            "REPORT SEND FAILED"
+        );
+    }
+
+    #[test]
+    fn recovery_thread_priority_exceeds_hbc_worker_priorities() {
+        assert_eq!(RECOVERY_THREAD_PRIORITY, 127);
+        assert!(RECOVERY_THREAD_PRIORITY > 64); // HBC main thread
+        assert!(RECOVERY_THREAD_PRIORITY > 48); // Wiiload receiver
+        assert!(RECOVERY_THREAD_PRIORITY > 62); // storage workers
+    }
+
+    #[test]
+    fn recovery_validation_requires_an_armed_thread_before_stalling() {
+        assert!(recovery_validation_is_armed(7, 1));
+        assert!(!recovery_validation_is_armed(0, 1));
+        for stage in [0, 2, 3] {
+            assert!(!recovery_validation_is_armed(7, stage));
+        }
+    }
+
+    #[test]
+    fn recovery_scan_validation_requires_armed_report_and_receiver_worker() {
+        assert!(recovery_scan_validation_is_ready(7, 1, true, true, true));
+        assert!(!recovery_scan_validation_is_ready(0, 1, true, true, true));
+        assert!(!recovery_scan_validation_is_ready(7, 2, true, true, true));
+        assert!(!recovery_scan_validation_is_ready(7, 1, false, true, true));
+        assert!(!recovery_scan_validation_is_ready(7, 1, true, false, true));
+        assert!(!recovery_scan_validation_is_ready(7, 1, true, true, false));
     }
 
     #[test]
@@ -1139,6 +1434,7 @@ mod tests {
             "--restart-after-probe",
             "--warmup-frames=2",
             "--sample-frames=3",
+            "--recovery-reset-ms=120000",
         ])
         .unwrap();
         assert_eq!(identity.host, [10, 0, 0, 238]);
@@ -1146,6 +1442,7 @@ mod tests {
         assert!(identity.restart_after_report);
         assert_eq!(identity.warmup_frames, 2);
         assert_eq!(identity.sample_frames, 3);
+        assert_eq!(identity.recovery_reset_ms, Some(120_000));
         assert_eq!(
             &identity.run_id[..identity.run_id_len as usize],
             b"1234-5678"
@@ -1153,19 +1450,54 @@ mod tests {
     }
 
     #[test]
+    fn recovery_deadline_is_optional_and_rejects_unsafe_or_invalid_values() {
+        let build = format!("--build-id={}", "a".repeat(64));
+        let base = ["--report=192.168.2.1:4298", "--run-id=recovery", &build];
+        assert_eq!(
+            parse_report_identity(&base).unwrap().recovery_reset_ms,
+            None
+        );
+        for (value, expected) in [
+            ("2000", Some(2_000)),
+            ("120000", Some(120_000)),
+            ("2147483647", Some(i32::MAX as u32)),
+            ("0", None),
+            ("1999", None),
+            ("2147483648", None),
+            ("-1", None),
+            ("bad", None),
+        ] {
+            let option = format!("--recovery-reset-ms={value}");
+            let args = [base[0], base[1], base[2], &option];
+            assert_eq!(
+                parse_report_identity(&args).and_then(|identity| identity.recovery_reset_ms),
+                expected,
+                "deadline {value}"
+            );
+            if expected.is_none() {
+                assert!(parse_report_identity(&args).is_none());
+            }
+        }
+    }
+
+    #[test]
     fn rejects_invalid_wiiload_report_identity() {
-        assert!(parse_report_identity(&[
-            "--report=999.0.0.1:4298",
-            "--run-id=test",
-            &format!("--build-id={}", "a".repeat(64)),
-        ])
-        .is_none());
-        assert!(parse_report_identity(&[
-            "--report=10.0.0.1:0",
-            "--run-id=test",
-            &format!("--build-id={}", "a".repeat(64)),
-        ])
-        .is_none());
+        assert!(
+            parse_report_identity(&[
+                "--report=999.0.0.1:4298",
+                "--run-id=test",
+                &format!("--build-id={}", "a".repeat(64)),
+            ])
+            .is_none()
+        );
+        assert!(
+            parse_report_identity(&[
+                "--report=10.0.0.1:0",
+                "--run-id=test",
+                &format!("--build-id={}", "a".repeat(64)),
+            ])
+            .is_none()
+        );
     }
 
     #[test]
@@ -1206,11 +1538,7 @@ mod tests {
             63
         }));
         assert!(!test_square_is_white(640, 480, |x, y| {
-            if x == 320 && y == 240 {
-                63
-            } else {
-                235
-            }
+            if x == 320 && y == 240 { 63 } else { 235 }
         }));
         assert!(test_square_is_white(640, 480, |_, _| 235));
     }
