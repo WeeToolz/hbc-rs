@@ -9,6 +9,7 @@ import socket
 import struct
 import sys
 import time
+from hbc_transport import recv_exact
 
 COMMANDS = {"restart": 1, "reset": 2, "power-off": 3, "eject": 4, "sync": 5,
             "save": 6, "screenshot": 7, "find-remotes": 8, "disconnect-remotes": 9,
@@ -21,16 +22,6 @@ def packet(command, request_id):
     if not 0 <= request_id <= 0xffffffff or (command and not request_id):
         raise ValueError("request ID is out of range")
     return struct.pack(">4sBBHII", b"HBCC" if command else b"HBCQ", 1, command, 0, request_id, 0)
-
-
-def recv_exact(connection, size):
-    data = bytearray()
-    while len(data) < size:
-        chunk = connection.recv(size - len(data))
-        if not chunk:
-            raise OSError("Connection closed before the complete command reply")
-        data.extend(chunk)
-    return bytes(data)
 
 
 def exchange(host, port, command, request_id, timeout=3):

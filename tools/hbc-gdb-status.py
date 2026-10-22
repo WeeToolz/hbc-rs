@@ -6,6 +6,7 @@ import math
 import socket
 import struct
 import sys
+from hbc_transport import recv_exact
 
 QUERY = b'HBCD\x01' + bytes(11)
 REPLY_LEN = 32
@@ -47,12 +48,7 @@ def query(host, port=4299, timeout=5.0):
     with socket.create_connection((host, port), timeout=timeout) as connection:
         connection.settimeout(timeout)
         connection.sendall(QUERY)
-        reply = bytearray()
-        while len(reply) < REPLY_LEN:
-            block = connection.recv(REPLY_LEN - len(reply))
-            if not block:
-                raise OSError(f'Truncated diagnostic reply: {len(reply)}/32 bytes')
-            reply.extend(block)
+        reply = recv_exact(connection, REPLY_LEN)
     return decode_reply(bytes(reply))
 
 

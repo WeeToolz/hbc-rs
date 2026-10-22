@@ -4,6 +4,7 @@ import argparse
 import socket
 import struct
 import sys
+from hbc_transport import recv_exact
 
 KINDS = {"logical": 0, "gamecube": 1, "wiimote": 2, "classic": 3,
          "nunchuk": 4, "guitar": 5, "generic": 6, "joycon-left": 7,
@@ -71,11 +72,7 @@ def send_packet(host, port, packet, timeout=5):
     with socket.create_connection((host, port), timeout=timeout) as connection:
         connection.settimeout(timeout)
         connection.sendall(packet)
-        reply = bytearray()
-        while len(reply) < 8:
-            chunk = connection.recv(8 - len(reply))
-            if not chunk: raise OSError("connection closed before the complete input reply")
-            reply.extend(chunk)
+        reply = recv_exact(connection, 8)
     if reply[:5] != b"HBCI\x01" or reply[6:] != b"\0\0":
         raise OSError(f"invalid input reply: {reply.hex()}")
     if reply[5] != 0:
