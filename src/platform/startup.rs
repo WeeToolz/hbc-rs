@@ -216,9 +216,12 @@ fn install_received_app(
     storage
         .ensure_directory("apps")
         .map_err(ZipInstallError::Storage)?;
-    let target = alloc::format!("apps/{directory}");
-    let stage = alloc::format!("apps/.{directory}.hbc-stage");
-    let backup = alloc::format!("apps/.{directory}.hbc-backup");
+    let crate::management::AppInstallPaths {
+        target,
+        stage,
+        backup,
+    } = crate::management::AppInstallPaths::new(directory)
+        .map_err(|_| ZipInstallError::Storage(StorageError::InvalidPath))?;
 
     recover_app_install(storage, &target, &stage, &backup, false)?;
     storage
@@ -410,23 +413,17 @@ fn recover_app_install_artifacts(storage: &mut FatStorage) -> Result<(), ZipInst
     };
     let mut directories = BTreeSet::new();
     for entry in entries.into_iter().filter(|entry| entry.is_directory) {
-        let Some(name) = entry.name.strip_prefix('.') else {
-            continue;
-        };
-        let directory = [".hbc-stage", ".hbc-backup"]
-            .into_iter()
-            .find_map(|suffix| name.strip_suffix(suffix));
-        if let Some(directory) = directory {
+        if let Some(directory) = crate::management::AppInstallPaths::artifact_directory(&entry.name)
+        {
             if crate::management::plan_app_deletion(directory).is_ok() {
                 directories.insert(String::from(directory));
             }
         }
     }
     for directory in directories {
-        let target = alloc::format!("apps/{directory}");
-        let stage = alloc::format!("apps/.{directory}.hbc-stage");
-        let backup = alloc::format!("apps/.{directory}.hbc-backup");
-        recover_app_install(storage, &target, &stage, &backup, true)?;
+        let paths = crate::management::AppInstallPaths::new(&directory)
+            .map_err(|_| ZipInstallError::Storage(StorageError::InvalidPath))?;
+        recover_app_install(storage, &paths.target, &paths.stage, &paths.backup, true)?;
     }
     Ok(())
 }

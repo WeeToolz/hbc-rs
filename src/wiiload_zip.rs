@@ -9,7 +9,6 @@ use crate::{
 };
 
 pub const WIILOAD_ZIP_MAX_ENTRIES: usize = 1024;
-const MAX_STAGED_APP_DIRECTORY_BYTES: usize = 243;
 const MAX_FILE_BYTES: u64 = 64 * 1024 * 1024;
 const MAX_TOTAL_BYTES: u64 = 128 * 1024 * 1024;
 
@@ -102,9 +101,8 @@ fn classify_app(data: &[u8]) -> Result<WiiloadZipClassification, WiiloadZipError
         }
     }
     let directory = directory.ok_or(WiiloadZipError::InvalidApp)?;
-    if directory.starts_with('.') || directory.len() > MAX_STAGED_APP_DIRECTORY_BYTES {
-        return Err(WiiloadZipError::InvalidApp);
-    }
+    crate::management::validate_app_install_directory(directory)
+        .map_err(|_| WiiloadZipError::InvalidApp)?;
     let (_, kind) = executable.ok_or(WiiloadZipError::InvalidApp)?;
     let prefix = alloc::format!("{directory}/");
     let mut operations = Vec::new();

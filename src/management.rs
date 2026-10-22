@@ -21,6 +21,52 @@ impl Default for ExtractionLimits {
     }
 }
 
+// Keep the on-disk install format shared by validation and recovery.
+const FAT_COMPONENT_BYTES: usize = 255;
+const INSTALL_STAGE_SUFFIX: &str = ".hbc-stage";
+const INSTALL_BACKUP_SUFFIX: &str = ".hbc-backup";
+const MAX_INSTALL_SUFFIX_BYTES: usize = if INSTALL_STAGE_SUFFIX.len() > INSTALL_BACKUP_SUFFIX.len()
+{
+    INSTALL_STAGE_SUFFIX.len()
+} else {
+    INSTALL_BACKUP_SUFFIX.len()
+};
+const MAX_INSTALL_DIRECTORY_BYTES: usize = FAT_COMPONENT_BYTES - 1 - MAX_INSTALL_SUFFIX_BYTES;
+
+pub(crate) fn validate_app_install_directory(directory: &str) -> Result<(), ArchivePathError> {
+    plan_app_deletion(directory)?;
+    if directory.len() > MAX_INSTALL_DIRECTORY_BYTES {
+        return Err(ArchivePathError::TooLong);
+    }
+    Ok(())
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+pub(crate) struct AppInstallPaths {
+    pub target: String,
+    pub stage: String,
+    pub backup: String,
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+impl AppInstallPaths {
+    pub(crate) fn new(directory: &str) -> Result<Self, ArchivePathError> {
+        validate_app_install_directory(directory)?;
+        Ok(Self {
+            target: alloc::format!("apps/{directory}"),
+            stage: alloc::format!("apps/.{directory}{INSTALL_STAGE_SUFFIX}"),
+            backup: alloc::format!("apps/.{directory}{INSTALL_BACKUP_SUFFIX}"),
+        })
+    }
+
+    pub(crate) fn artifact_directory(name: &str) -> Option<&str> {
+        let name = name.strip_prefix('.')?;
+        [INSTALL_STAGE_SUFFIX, INSTALL_BACKUP_SUFFIX]
+            .into_iter()
+            .find_map(|suffix| name.strip_suffix(suffix))
+    }
+}
+
 /// A filesystem operation required to extract an archive.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ExtractionOperation {
@@ -322,6 +368,28 @@ fn component_depth(path: &str) -> usize {
 mod tests {
     use super::*;
     use crate::archive::ZipEntry;
+
+    #[test]
+    fn install_paths_preserve_disk_names_and_component_bounds() {
+        let paths = AppInstallPaths::new("demo").unwrap();
+        assert_eq!(paths.target, "apps/demo");
+        assert_eq!(paths.stage, "apps/.demo.hbc-stage");
+        assert_eq!(paths.backup, "apps/.demo.hbc-backup");
+        for artifact in [".demo.hbc-stage", ".demo.hbc-backup"] {
+            assert_eq!(AppInstallPaths::artifact_directory(artifact), Some("demo"));
+        }
+        for name in ["demo.hbc-stage", ".demo.hbc-unknown", "demo"] {
+            assert_eq!(AppInstallPaths::artifact_directory(name), None);
+        }
+        assert!(AppInstallPaths::new(&"a".repeat(243)).is_ok());
+        assert!(matches!(
+            AppInstallPaths::new(&"a".repeat(244)),
+            Err(ArchivePathError::TooLong)
+        ));
+        for name in ["", ".hidden", "..", "a/b", "a\\b", "a:"] {
+            assert!(AppInstallPaths::new(name).is_err(), "{name}");
+        }
+    }
 
     fn entry(name: &str, is_directory: bool, size: u32) -> ZipEntry {
         ZipEntry {
