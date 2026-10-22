@@ -42,6 +42,20 @@ impl MemoDrag {
     }
 }
 
+/// Keep partial lines in the memo that received the movement.
+fn memo_scroll_lines(remainder: &mut i16, pixels: i16, line_height: i16) -> i16 {
+    *remainder = remainder.saturating_add(pixels);
+    let lines = *remainder / line_height;
+    *remainder %= line_height;
+    lines
+}
+
+fn shifted_memo_scroll(position: usize, lines: i32, max_scroll: usize) -> usize {
+    position
+        .saturating_add_signed(lines as isize)
+        .min(max_scroll)
+}
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum Screen {
     #[default]
@@ -544,22 +558,14 @@ impl AppController {
         if self.screen != Screen::AppDetails {
             return;
         }
-        self.detail_scroll_pixel_remainder =
-            self.detail_scroll_pixel_remainder.saturating_add(pixels);
         let line_height = self.memo_line_height();
-        let lines = self.detail_scroll_pixel_remainder / line_height;
-        self.detail_scroll_pixel_remainder %= line_height;
-        if lines > 0 {
-            self.detail_description_scroll = self
-                .detail_description_scroll
-                .saturating_sub(lines as usize)
-                .min(self.detail_description_max_scroll);
-        } else if lines < 0 {
-            self.detail_description_scroll = self
-                .detail_description_scroll
-                .saturating_add(lines.unsigned_abs() as usize)
-                .min(self.detail_description_max_scroll);
-        }
+        let lines = memo_scroll_lines(&mut self.detail_scroll_pixel_remainder, pixels, line_height);
+        // Detail input has the opposite sign from notice and confirmation input.
+        self.detail_description_scroll = shifted_memo_scroll(
+            self.detail_description_scroll,
+            -i32::from(lines),
+            self.detail_description_max_scroll,
+        );
     }
 
     pub fn delete_confirmation_yes(&self) -> bool {
@@ -588,40 +594,24 @@ impl AppController {
     }
 
     fn scroll_notice_by_pixels(&mut self, pixels: i16) {
-        self.notice_scroll_pixel_remainder =
-            self.notice_scroll_pixel_remainder.saturating_add(pixels);
         let line_height = self.memo_line_height();
-        let lines = self.notice_scroll_pixel_remainder / line_height;
-        self.notice_scroll_pixel_remainder %= line_height;
-        if lines > 0 {
-            self.notice_scroll = self
-                .notice_scroll
-                .saturating_add(lines.unsigned_abs() as usize)
-                .min(self.notice_scroll_max);
-        } else if lines < 0 {
-            self.notice_scroll = self
-                .notice_scroll
-                .saturating_sub(lines.unsigned_abs() as usize);
-        }
+        let lines = memo_scroll_lines(&mut self.notice_scroll_pixel_remainder, pixels, line_height);
+        self.notice_scroll =
+            shifted_memo_scroll(self.notice_scroll, i32::from(lines), self.notice_scroll_max);
     }
 
     fn scroll_wiiload_confirmation_by_pixels(&mut self, pixels: i16) {
-        self.wiiload_confirmation_scroll_pixel_remainder = self
-            .wiiload_confirmation_scroll_pixel_remainder
-            .saturating_add(pixels);
         let line_height = self.memo_line_height();
-        let lines = self.wiiload_confirmation_scroll_pixel_remainder / line_height;
-        self.wiiload_confirmation_scroll_pixel_remainder %= line_height;
-        if lines > 0 {
-            self.wiiload_confirmation_scroll = self
-                .wiiload_confirmation_scroll
-                .saturating_add(lines as usize)
-                .min(self.wiiload_confirmation_max_scroll);
-        } else if lines < 0 {
-            self.wiiload_confirmation_scroll = self
-                .wiiload_confirmation_scroll
-                .saturating_sub(lines.unsigned_abs() as usize);
-        }
+        let lines = memo_scroll_lines(
+            &mut self.wiiload_confirmation_scroll_pixel_remainder,
+            pixels,
+            line_height,
+        );
+        self.wiiload_confirmation_scroll = shifted_memo_scroll(
+            self.wiiload_confirmation_scroll,
+            i32::from(lines),
+            self.wiiload_confirmation_max_scroll,
+        );
     }
 
     /// Show a message and return to the current screen after dismissal.
@@ -2091,6 +2081,39 @@ mod tests {
         assert_eq!(controller.scroll_active_memo_by_stick(1), Some(Input::Up));
         assert_eq!(controller.detail_description_scroll(), 0);
         assert_eq!(controller.scroll_active_memo_by_stick(1), None);
+    }
+
+    #[test]
+    fn memo_scroll_clamps_and_keeps_partial_lines_on_direction_changes() {
+        for screen in [Screen::AppDetails, Screen::Notice, Screen::WiiloadConfirm] {
+            let mut controller = AppController::new();
+            controller.screen = screen;
+            controller.set_measured_memo(3, 10);
+            for (pixels, expected) in [(6, 0), (6, 1), (-3, 1), (-9, 0), (32767, 3), (-32767, 0)] {
+                controller.scroll_active_memo_by_stick(if screen == Screen::AppDetails {
+                    -pixels
+                } else {
+                    pixels
+                });
+                let actual = match screen {
+                    Screen::AppDetails => controller.detail_description_scroll(),
+                    Screen::Notice => controller.notice_scroll(),
+                    Screen::WiiloadConfirm => controller.wiiload_confirmation_scroll(),
+                    _ => unreachable!(),
+                };
+                assert_eq!(actual, expected, "{screen:?}, pixels {pixels}");
+            }
+            // Widen before reversing the sign of the minimum i16 value.
+            controller.scroll_active_memo_by_stick(i16::MIN);
+            let expected = if screen == Screen::AppDetails { 3 } else { 0 };
+            let actual = match screen {
+                Screen::AppDetails => controller.detail_description_scroll(),
+                Screen::Notice => controller.notice_scroll(),
+                Screen::WiiloadConfirm => controller.wiiload_confirmation_scroll(),
+                _ => unreachable!(),
+            };
+            assert_eq!(actual, expected);
+        }
     }
 
     #[test]
