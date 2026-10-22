@@ -10,6 +10,7 @@ pub mod home_overlay;
 pub mod input;
 pub mod lifecycle;
 pub mod nand;
+pub mod network_restart;
 #[cfg(target_arch = "powerpc")]
 pub mod network_config;
 #[cfg(target_arch = "powerpc")]

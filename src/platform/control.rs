@@ -16,7 +16,7 @@ pub enum Operation {
     Disconnect {
         slots: u32,
     },
-    Network,
+    Network(super::network_restart::ConnectionCheck),
 }
 fn checked(code: i32, operation: &str) -> Result<(), String> {
     if code != 0 {
@@ -77,11 +77,9 @@ impl Operation {
                 }
                 Ok(Self::Disconnect { slots })
             }
-            Command::RestartNetwork => {
-                super::wiiload::stop().map_err(|error| format!("Network stop failed: {error:?}"))?;
-                super::wiiload::start().map_err(|error| format!("Network start failed: {error:?}"))?;
-                Ok(Self::Network)
-            }
+            Command::RestartNetwork => super::network_restart::restart()
+                .map(Self::Network)
+                .map_err(|error| format!("Network restart failed: {error:?}")),
             Command::RestartApp | Command::ReturnToHbc => Err("Unsupported in the HBC browser. A running app must integrate its own control service; HBC cannot control an unrelated DOL after handoff".into()),
             Command::Restart | Command::Reset | Command::PowerOff => Err("System commands require the shared HBC exit path".into()),
         }
@@ -130,22 +128,19 @@ impl Operation {
             Self::Disconnect { slots } => {
                 crate::remote_control::observe_disconnect(*slots, connected_slots())
             }
-            Self::Network => match super::wiiload::status() {
-                crate::wiiload::ReceiverStatus::Listening
-                    if super::wiiload::local_ip().is_some() =>
-                {
-                    Some(Ok(
-                        "Network restarted; HBC is listening with an IP address".into()
-                    ))
-                }
-                crate::wiiload::ReceiverStatus::NetworkUnavailable
-                | crate::wiiload::ReceiverStatus::ListenerError
-                | crate::wiiload::ReceiverStatus::CleanupError => Some(Err(format!(
-                    "Network restart failed: {:?}",
-                    super::wiiload::status()
-                ))),
-                _ => None,
-            },
+            Self::Network(check) => check
+                .poll(
+                    super::wiiload::status(),
+                    super::wiiload::local_ip(),
+                    super::network_restart::now_ms(),
+                )
+                .map(|result| {
+                    result
+                        .map(|_| {
+                            String::from("Network restarted; HBC is listening with an IP address")
+                        })
+                        .map_err(|error| format!("Network restart failed: {error:?}"))
+                }),
         }
     }
 }

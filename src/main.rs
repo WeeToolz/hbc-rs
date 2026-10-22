@@ -183,7 +183,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     let mut pending_zip: Option<Vec<u8>> = None;
     let mut deferred_exit: Option<hbc_rs::platform::lifecycle::ExitRequest> = None;
     let mut wiiload_cleanup_notice_shown = false;
-    let mut network_check_frames: Option<u16> = None;
+    let mut network_check: Option<hbc_rs::platform::network_restart::ConnectionCheck> = None;
     let mut network_indicator_frame = 0u16;
     let mut reported_receiver_status = None;
     let mut remote_input = hbc_rs::remote_input::RemoteState::default();
@@ -291,36 +291,28 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         if first_frame {
             ogc_system::report(format_args!("HBC: first receiver poll complete\n"));
         }
-        if let Some(frames) = network_check_frames.as_mut() {
-            if let Some(address) = hbc_rs::platform::wiiload::local_ip() {
-                network_check_frames = None;
-                startup.runtime_mut().show_notice_with_kind(
-                    &format!(
+        if let Some(result) = network_check.as_ref().and_then(|check| {
+            check.poll(
+                receiver_status,
+                hbc_rs::platform::wiiload::local_ip(),
+                hbc_rs::platform::network_restart::now_ms(),
+            )
+        }) {
+            network_check = None;
+            let (message, kind) = match result {
+                Ok(address) => (
+                    format!(
                         "Network connection succeeded. Wii address: {}.{}.{}.{}. Wiiload is listening.",
                         address[0], address[1], address[2], address[3]
                     ),
                     hbc_rs::app::NoticeKind::Information,
-                );
-            } else if matches!(
-                receiver_status,
-                hbc_rs::platform::wiiload::ReceiverStatus::NetworkUnavailable
-                    | hbc_rs::platform::wiiload::ReceiverStatus::ListenerError
-            ) {
-                network_check_frames = None;
-                startup.runtime_mut().show_notice_with_kind(
-                    &format!("Network connection failed: Wiiload state is {receiver_status:?}."),
+                ),
+                Err(error) => (
+                    format!("Network connection failed: {error:?}."),
                     hbc_rs::app::NoticeKind::Error,
-                );
-            } else {
-                *frames = frames.saturating_add(1);
-                if *frames >= 3_600 {
-                    network_check_frames = None;
-                    startup.runtime_mut().show_notice_with_kind(
-                        "Network connection timed out. Check the saved Wii network profile.",
-                        hbc_rs::app::NoticeKind::Error,
-                    );
-                }
-            }
+                ),
+            };
+            startup.runtime_mut().show_notice_with_kind(&message, kind);
         }
         if receiver_status == hbc_rs::platform::wiiload::ReceiverStatus::CleanupError
             && !wiiload_cleanup_notice_shown
@@ -1022,12 +1014,12 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                                 )
                             };
                             ogc_system::report(format_args!("HBC: network save result: {save:?}\n"));
-                            let restart = hbc_rs::platform::wiiload::start();
+                            let restart = hbc_rs::platform::network_restart::start();
                             match (save, restart) {
-                                (Ok(()), Ok(())) => match hbc_rs::platform::network_config::load(startup.storage_prefix()) {
+                                (Ok(()), Ok(check)) => match hbc_rs::platform::network_config::load(startup.storage_prefix()) {
                                     Ok(saved) => {
                                         startup.runtime_mut().set_network_config(saved);
-                                        network_check_frames = Some(0);
+                                        network_check = Some(check);
                                         startup.runtime_mut().show_notice_with_kind(
                                             "Settings saved. Connecting to the network...",
                                             hbc_rs::app::NoticeKind::Information,
@@ -1041,7 +1033,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                                         );
                                     }
                                 },
-                                (Err(save_error), Ok(())) => startup.runtime_mut().show_notice_with_kind(
+                                (Err(save_error), Ok(_)) => startup.runtime_mut().show_notice_with_kind(
                                     &hbc_rs::platform::network_config::save_error_message(save_error),
                                     hbc_rs::app::NoticeKind::Error,
                                 ),
@@ -1068,36 +1060,18 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 continue;
             }
             if action == hbc_rs::app::Action::RestartNetwork {
-                use hbc_rs::platform::wiiload::{self, ReceiverStatus};
-                // Do not interrupt an upload or discard a completed payload.
-                if matches!(
-                    wiiload::status(),
-                    ReceiverStatus::Receiving | ReceiverStatus::PayloadReady
-                ) {
-                    startup.runtime_mut().show_notice_with_kind(
-                        "Cannot restart the network during an application upload.",
-                        hbc_rs::app::NoticeKind::Warning,
-                    );
-                } else {
-                    match wiiload::stop() {
-                        Err(error) => startup.runtime_mut().show_notice_with_kind(
-                            &format!("Could not stop the network receiver: {error:?}."),
-                            hbc_rs::app::NoticeKind::Error,
-                        ),
-                        Ok(()) => match wiiload::start() {
-                            Ok(()) => {
-                                network_check_frames = Some(0);
-                                startup.runtime_mut().show_notice_with_kind(
-                                    "Restarting network. Waiting for an IP address...",
-                                    hbc_rs::app::NoticeKind::Information,
-                                );
-                            }
-                            Err(error) => startup.runtime_mut().show_notice_with_kind(
-                                &format!("Could not restart the network receiver: {error:?}."),
-                                hbc_rs::app::NoticeKind::Error,
-                            ),
-                        },
+                match hbc_rs::platform::network_restart::restart() {
+                    Ok(check) => {
+                        network_check = Some(check);
+                        startup.runtime_mut().show_notice_with_kind(
+                            "Restarting network. Waiting for an IP address...",
+                            hbc_rs::app::NoticeKind::Information,
+                        );
                     }
+                    Err(error) => startup.runtime_mut().show_notice_with_kind(
+                        &format!("Could not restart the network receiver: {error:?}."),
+                        hbc_rs::app::NoticeKind::Error,
+                    ),
                 }
                 continue;
             }
@@ -1118,26 +1092,16 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                             hbc_rs::app::NoticeKind::Warning,
                         );
                     }
-                    Ok(_) => match hbc_rs::platform::wiiload::stop() {
+                    Ok(_) => match hbc_rs::platform::network_restart::restart() {
+                        Ok(check) => {
+                            network_check = Some(check);
+                            startup.runtime_mut().show_notice_with_kind(
+                                "Testing network. Waiting for an IP address...",
+                                hbc_rs::app::NoticeKind::Information);
+                        }
                         Err(error) => startup.runtime_mut().show_notice_with_kind(
-                            &format!(
-                                "Could not stop Wiiload before testing the connection: {error:?}."
-                            ),
-                            hbc_rs::app::NoticeKind::Error,
-                        ),
-                        Ok(()) => match hbc_rs::platform::wiiload::start() {
-                            Ok(()) => {
-                                network_check_frames = Some(0);
-                                startup.runtime_mut().show_notice_with_kind(
-                                    "Testing the saved network profile for an assigned Wii IP address...",
-                                    hbc_rs::app::NoticeKind::Information,
-                                );
-                            }
-                            Err(error) => startup.runtime_mut().show_notice_with_kind(
-                                &format!("Could not start the network test: {error:?}."),
-                                hbc_rs::app::NoticeKind::Error,
-                            ),
-                        },
+                            &format!("Could not restart Wiiload before testing the connection: {error:?}."),
+                            hbc_rs::app::NoticeKind::Error),
                     },
                 }
                 continue;
