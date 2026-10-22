@@ -438,110 +438,34 @@ mod tests {
         );
     }
 
-    fn zip_with_entries(names: &[&str]) -> Vec<u8> {
-        let mut data = Vec::new();
-        let mut central_records = Vec::new();
-        for name in names {
-            let name_bytes = name.as_bytes();
-            let offset = data.len() as u32;
-            data.extend_from_slice(&0x0403_4b50u32.to_le_bytes());
-            data.extend_from_slice(&20u16.to_le_bytes());
-            data.extend_from_slice(&0u16.to_le_bytes());
-            data.extend_from_slice(&0u16.to_le_bytes());
-            data.extend_from_slice(&0u16.to_le_bytes());
-            data.extend_from_slice(&0u16.to_le_bytes());
-            data.extend_from_slice(&0u32.to_le_bytes());
-            data.extend_from_slice(&0u32.to_le_bytes());
-            data.extend_from_slice(&0u32.to_le_bytes());
-            data.extend_from_slice(&(name_bytes.len() as u16).to_le_bytes());
-            data.extend_from_slice(&0u16.to_le_bytes());
-            data.extend_from_slice(name_bytes);
+    use crate::test_support::zip_with_payload;
 
-            central_records.extend_from_slice(&CENTRAL_DIRECTORY_FILE_HEADER.to_le_bytes());
-            central_records.extend_from_slice(&20u16.to_le_bytes());
-            central_records.extend_from_slice(&20u16.to_le_bytes());
-            central_records.extend_from_slice(&0u16.to_le_bytes());
-            central_records.extend_from_slice(&0u16.to_le_bytes());
-            central_records.extend_from_slice(&0u16.to_le_bytes());
-            central_records.extend_from_slice(&0u16.to_le_bytes());
-            central_records.extend_from_slice(&0u32.to_le_bytes());
-            central_records.extend_from_slice(&0u32.to_le_bytes());
-            central_records.extend_from_slice(&0u32.to_le_bytes());
-            central_records.extend_from_slice(&(name_bytes.len() as u16).to_le_bytes());
-            central_records.extend_from_slice(&0u16.to_le_bytes());
-            central_records.extend_from_slice(&0u16.to_le_bytes());
-            central_records.extend_from_slice(&0u16.to_le_bytes());
-            central_records.extend_from_slice(&0u16.to_le_bytes());
-            central_records.extend_from_slice(&0u32.to_le_bytes());
-            central_records.extend_from_slice(&offset.to_le_bytes());
-            central_records.extend_from_slice(name_bytes);
-        }
-        let directory_offset = data.len() as u32;
-        data.extend_from_slice(&central_records);
-        data.extend_from_slice(&END_OF_CENTRAL_DIRECTORY.to_le_bytes());
-        data.extend_from_slice(&0u16.to_le_bytes());
-        data.extend_from_slice(&0u16.to_le_bytes());
-        data.extend_from_slice(&(names.len() as u16).to_le_bytes());
-        data.extend_from_slice(&(names.len() as u16).to_le_bytes());
-        data.extend_from_slice(&(central_records.len() as u32).to_le_bytes());
-        data.extend_from_slice(&directory_offset.to_le_bytes());
-        data.extend_from_slice(&0u16.to_le_bytes());
-        data
+    fn zip_with_entries(names: &[&str]) -> Vec<u8> {
+        crate::test_support::zip(
+            &names
+                .iter()
+                .map(|&name| (name, &b""[..]))
+                .collect::<Vec<_>>(),
+        )
     }
 
-    fn zip_with_payload(name: &str, payload: &[u8], method: u16, flags: u16) -> Vec<u8> {
-        let name_bytes = name.as_bytes();
-        let compressed = match method {
-            0 => payload.to_vec(),
-            8 => miniz_oxide::deflate::compress_to_vec(payload, 6),
-            _ => unreachable!(),
-        };
-        let crc = crc32fast::hash(payload);
-        let mut data = Vec::new();
-        data.extend_from_slice(&LOCAL_FILE_HEADER.to_le_bytes());
-        data.extend_from_slice(&20u16.to_le_bytes());
-        data.extend_from_slice(&flags.to_le_bytes());
-        data.extend_from_slice(&method.to_le_bytes());
-        data.extend_from_slice(&0u16.to_le_bytes());
-        data.extend_from_slice(&0u16.to_le_bytes());
-        data.extend_from_slice(&crc.to_le_bytes());
-        data.extend_from_slice(&(compressed.len() as u32).to_le_bytes());
-        data.extend_from_slice(&(payload.len() as u32).to_le_bytes());
-        data.extend_from_slice(&(name_bytes.len() as u16).to_le_bytes());
-        data.extend_from_slice(&0u16.to_le_bytes());
-        data.extend_from_slice(name_bytes);
-        data.extend_from_slice(&compressed);
-
-        let directory_offset = data.len() as u32;
-        data.extend_from_slice(&CENTRAL_DIRECTORY_FILE_HEADER.to_le_bytes());
-        data.extend_from_slice(&20u16.to_le_bytes());
-        data.extend_from_slice(&20u16.to_le_bytes());
-        data.extend_from_slice(&flags.to_le_bytes());
-        data.extend_from_slice(&method.to_le_bytes());
-        data.extend_from_slice(&0u16.to_le_bytes());
-        data.extend_from_slice(&0u16.to_le_bytes());
-        data.extend_from_slice(&crc.to_le_bytes());
-        data.extend_from_slice(&(compressed.len() as u32).to_le_bytes());
-        data.extend_from_slice(&(payload.len() as u32).to_le_bytes());
-        data.extend_from_slice(&(name_bytes.len() as u16).to_le_bytes());
-        data.extend_from_slice(&0u16.to_le_bytes());
-        data.extend_from_slice(&0u16.to_le_bytes());
-        data.extend_from_slice(&0u16.to_le_bytes());
-        data.extend_from_slice(&0u16.to_le_bytes());
-        data.extend_from_slice(&0u32.to_le_bytes());
-        data.extend_from_slice(&0u32.to_le_bytes());
-        data.extend_from_slice(name_bytes);
-
-        let directory_size = (data.len() as u32) - directory_offset;
-        data.extend_from_slice(&END_OF_CENTRAL_DIRECTORY.to_le_bytes());
-        data.extend_from_slice(&0u16.to_le_bytes());
-        data.extend_from_slice(&0u16.to_le_bytes());
-        data.extend_from_slice(&1u16.to_le_bytes());
-        data.extend_from_slice(&1u16.to_le_bytes());
-        data.extend_from_slice(&directory_size.to_le_bytes());
-        data.extend_from_slice(&directory_offset.to_le_bytes());
-        data.extend_from_slice(&0u16.to_le_bytes());
-        data
+    #[test]
+    fn independent_stored_zip_has_known_bytes_and_crc() {
+        // Fixed archive from Python zipfile; the shared fixture builder is not used.
+        const ZIP: &[u8] = &[
+            0x50, 0x4b, 0x03, 0x04, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x21, 0x00,
+            0x26, 0x39, 0xf4, 0xcb, 0x09, 0x00, 0x00, 0x00, 0x09, 0x00, 0x00, 0x00, 0x04, 0x00,
+            0x00, 0x00, 0x64, 0x61, 0x74, 0x61, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38,
+            0x39, 0x50, 0x4b, 0x01, 0x02, 0x14, 0x00, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x21, 0x00, 0x26, 0x39, 0xf4, 0xcb, 0x09, 0x00, 0x00, 0x00, 0x09, 0x00, 0x00,
+            0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x64, 0x61, 0x74, 0x61, 0x50, 0x4b, 0x05, 0x06, 0x00,
+            0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x32, 0x00, 0x00, 0x00, 0x2b, 0x00, 0x00,
+            0x00, 0x00, 0x00,
+        ];
+        let archive = ZipArchive::parse(ZIP).unwrap();
+        assert_eq!(archive.entries()[0].crc32, 0xcbf4_3926);
+        assert_eq!(archive.extract(ZIP, "data", 9), Ok(b"123456789".to_vec()));
     }
 
     #[test]

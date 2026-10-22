@@ -186,58 +186,7 @@ mod tests {
     }
     use alloc::format;
 
-    fn zip(files: &[(&str, &[u8])]) -> Vec<u8> {
-        zip_with_flags(files, 0)
-    }
-
-    fn zip_with_flags(files: &[(&str, &[u8])], flags: u16) -> Vec<u8> {
-        let mut output = Vec::new();
-        let mut central = Vec::new();
-        for (name, payload) in files {
-            let offset = output.len() as u32;
-            let name_bytes = name.as_bytes();
-            let size = payload.len() as u32;
-            let crc = crc32fast::hash(payload);
-            output.extend_from_slice(&0x0403_4b50u32.to_le_bytes());
-            output.extend_from_slice(&20u16.to_le_bytes());
-            output.extend_from_slice(&flags.to_le_bytes());
-            output.extend_from_slice(&0u16.to_le_bytes());
-            output.extend_from_slice(&[0; 4]);
-            output.extend_from_slice(&crc.to_le_bytes());
-            output.extend_from_slice(&size.to_le_bytes());
-            output.extend_from_slice(&size.to_le_bytes());
-            output.extend_from_slice(&(name_bytes.len() as u16).to_le_bytes());
-            output.extend_from_slice(&0u16.to_le_bytes());
-            output.extend_from_slice(name_bytes);
-            output.extend_from_slice(payload);
-
-            central.extend_from_slice(&0x0201_4b50u32.to_le_bytes());
-            central.extend_from_slice(&20u16.to_le_bytes());
-            central.extend_from_slice(&20u16.to_le_bytes());
-            central.extend_from_slice(&flags.to_le_bytes());
-            central.extend_from_slice(&0u16.to_le_bytes());
-            central.extend_from_slice(&[0; 4]);
-            central.extend_from_slice(&crc.to_le_bytes());
-            central.extend_from_slice(&size.to_le_bytes());
-            central.extend_from_slice(&size.to_le_bytes());
-            central.extend_from_slice(&(name_bytes.len() as u16).to_le_bytes());
-            central.extend_from_slice(&[0; 6]);
-            central.extend_from_slice(&0u16.to_le_bytes());
-            central.extend_from_slice(&0u32.to_le_bytes());
-            central.extend_from_slice(&offset.to_le_bytes());
-            central.extend_from_slice(name_bytes);
-        }
-        let central_offset = output.len() as u32;
-        output.extend_from_slice(&central);
-        output.extend_from_slice(&0x0605_4b50u32.to_le_bytes());
-        output.extend_from_slice(&[0; 4]);
-        output.extend_from_slice(&(files.len() as u16).to_le_bytes());
-        output.extend_from_slice(&(files.len() as u16).to_le_bytes());
-        output.extend_from_slice(&(central.len() as u32).to_le_bytes());
-        output.extend_from_slice(&central_offset.to_le_bytes());
-        output.extend_from_slice(&0u16.to_le_bytes());
-        output
-    }
+    use crate::test_support::{zip, zip_with_flags};
 
     const THEME_XML: &[u8] = b"<theme><description>Water</description></theme>";
 

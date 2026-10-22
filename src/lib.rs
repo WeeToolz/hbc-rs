@@ -37,3 +37,6 @@ pub mod wiiload;
 pub mod wiiload_zip;
 
 pub mod platform;
+
+#[cfg(test)]
+mod test_support;
