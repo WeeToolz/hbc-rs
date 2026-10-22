@@ -6,7 +6,9 @@
 use alloc::vec::Vec;
 #[cfg(target_arch = "powerpc")]
 use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, Ordering};
-use ogc_controller::{Buttons as ControllerButtons, ControllerKind};
+use ogc_controller::{Buttons as ControllerButtons, ControllerKind, project_stick_directions};
+
+const RIGHT_STICK_THRESHOLD: i16 = 8192;
 #[cfg(any(target_arch = "powerpc", test))]
 use ogc_controller::{
     ControllerSnapshot, ControllerSource, DigitalStickMapper, MAX_CONTROLLERS, StickDirectionError,
@@ -418,7 +420,7 @@ fn map_additional_controllers<const N: usize>(
                 id,
                 x: controller.axes.right_x,
                 y: controller.axes.right_y,
-                threshold: 8192,
+                threshold: RIGHT_STICK_THRESHOLD,
             });
             sample_count += 1;
         }
@@ -965,7 +967,7 @@ mod tests {
             id,
             x: 0,
             y,
-            threshold: 8192,
+            threshold: RIGHT_STICK_THRESHOLD,
         };
         assert!(
             mapper
@@ -1301,17 +1303,15 @@ pub fn remote_frame(command: &crate::remote_input::Command) -> InputFrame {
     let analog_scroll = scroll_pixels(normalized_stick_scroll(kind, axes));
     let mut stick_navigation = Buttons::default();
     if command.kind == 8 {
-        for (axis, negative, positive) in [
-            (command.sticks[2], Buttons::LEFT, Buttons::RIGHT),
-            (command.sticks[3], Buttons::DOWN, Buttons::UP),
-        ] {
-            if axis <= -8192 {
-                stick_navigation.0 |= negative;
-            }
-            if axis >= 8192 {
-                stick_navigation.0 |= positive;
-            }
-        }
+        // The fixed threshold is inside the projection API's valid range.
+        let directions =
+            project_stick_directions(command.sticks[2], command.sticks[3], RIGHT_STICK_THRESHOLD)
+                .expect("valid Right Joy-Con threshold");
+        map_normalized_controller_buttons(
+            ControllerKind::JoyConRight,
+            directions.to_buttons().bits(),
+            &mut stick_navigation,
+        );
         buttons.0 |= stick_navigation.0;
     }
     InputFrame {
@@ -1328,6 +1328,64 @@ pub fn remote_frame(command: &crate::remote_input::Command) -> InputFrame {
 #[cfg(test)]
 mod remote_scroll_tests {
     use super::*;
+
+    #[test]
+    fn remote_and_local_right_sticks_match_at_threshold_edges() {
+        let id = ogc_controller::ControllerId {
+            source: ControllerSource::BluetoothHid(0),
+            generation: 1,
+        };
+        for axis in [0, 1] {
+            for (value, expected) in [
+                (
+                    -8193,
+                    Some(if axis == 0 { Input::Left } else { Input::Down }),
+                ),
+                (-8192, None),
+                (-8191, None),
+                (8191, None),
+                (8192, None),
+                (8193, Some(if axis == 0 { Input::Right } else { Input::Up })),
+            ] {
+                let mut command = crate::remote_input::Command {
+                    kind: 8,
+                    buttons: 0,
+                    duration_ms: 120,
+                    pointer: None,
+                    scroll: 0,
+                    sticks: [0; 4],
+                    triggers: [0; 2],
+                    screenshot: false,
+                };
+                command.sticks[axis + 2] = value;
+                let remote = remote_frame(&command);
+                let expected: Vec<_> = expected.into_iter().collect();
+                assert_eq!(
+                    remote.stick_navigation, expected,
+                    "axis {axis}, value {value}"
+                );
+                assert_eq!(remote.held, expected);
+                let mut mapper = DigitalStickMapper::<1>::new();
+                let mut sample = StickDirectionSample {
+                    id,
+                    x: 0,
+                    y: 0,
+                    threshold: RIGHT_STICK_THRESHOLD,
+                };
+                mapper.map(&[sample]).unwrap();
+                if axis == 0 {
+                    sample.x = value;
+                } else {
+                    sample.y = value;
+                }
+                let frame = mapper.map(&[sample]).unwrap();
+                let mut mapped = MappedInput::default();
+                let navigation = map_stick_direction_frame(&frame, &mut mapped);
+                assert_eq!(inputs(navigation), expected);
+                assert_eq!(inputs(mapped.held), expected);
+            }
+        }
+    }
 
     #[test]
     fn remote_scroll_uses_local_axis_deadzone_and_scale_for_every_kind() {
