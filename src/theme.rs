@@ -1,6 +1,6 @@
 //! Bounded validation and metadata parsing for HBC theme ZIP files.
 
-use alloc::{collections::BTreeSet, string::String, vec::Vec};
+use alloc::{string::String, vec::Vec};
 
 use crate::{
     archive::{ZipArchive, ZipError},
@@ -119,12 +119,8 @@ impl ThemePackage {
             other => ThemePackageError::UnsafeArchive(other),
         })?;
 
-        let mut folded_names = BTreeSet::new();
         let mut theme_xml_name = None;
         for entry in entries {
-            if !folded_names.insert(entry.name.to_ascii_lowercase()) {
-                return Err(ThemePackageError::InvalidEntry);
-            }
             if entry.is_directory || entry.uncompressed_size == 0 {
                 continue;
             }

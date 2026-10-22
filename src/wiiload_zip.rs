@@ -3,7 +3,7 @@
 use alloc::{string::String, vec::Vec};
 
 use crate::{
-    archive::{ZipArchive, ZipError, validate_archive_path},
+    archive::{ZipArchive, ZipError},
     management::{ExtractionLimits, ExtractionOperation, ExtractionPlan, plan_extraction},
     theme::{ThemePackage, ThemePackageError},
 };
@@ -58,16 +58,18 @@ fn classify_app(data: &[u8]) -> Result<WiiloadZipClassification, WiiloadZipError
     if !(2..=WIILOAD_ZIP_MAX_ENTRIES).contains(&entries.len()) {
         return Err(WiiloadZipError::InvalidApp);
     }
+    let full_plan = plan_extraction(
+        &archive,
+        ExtractionLimits {
+            max_entries: WIILOAD_ZIP_MAX_ENTRIES,
+            max_file_bytes: MAX_FILE_BYTES,
+            max_total_bytes: MAX_TOTAL_BYTES,
+        },
+    )
+    .map_err(|_| WiiloadZipError::InvalidApp)?;
     let mut directory: Option<&str> = None;
     let mut executable: Option<(&str, WiiloadZipKind)> = None;
     for entry in entries {
-        validate_archive_path(&entry.name).map_err(|_| WiiloadZipError::InvalidApp)?;
-        if entry.flags & (0x0001 | 0x0040 | 0x2000) != 0
-            || !entry.is_supported_type
-            || !matches!(entry.compression_method, 0 | 8)
-        {
-            return Err(WiiloadZipError::InvalidApp);
-        }
         if entry.uncompressed_size == 0 {
             continue;
         }
@@ -104,15 +106,6 @@ fn classify_app(data: &[u8]) -> Result<WiiloadZipClassification, WiiloadZipError
         return Err(WiiloadZipError::InvalidApp);
     }
     let (_, kind) = executable.ok_or(WiiloadZipError::InvalidApp)?;
-    let full_plan = plan_extraction(
-        &archive,
-        ExtractionLimits {
-            max_entries: WIILOAD_ZIP_MAX_ENTRIES,
-            max_file_bytes: MAX_FILE_BYTES,
-            max_total_bytes: MAX_TOTAL_BYTES,
-        },
-    )
-    .map_err(|_| WiiloadZipError::InvalidApp)?;
     let prefix = alloc::format!("{directory}/");
     let mut operations = Vec::new();
     for operation in full_plan.operations() {
@@ -205,6 +198,25 @@ mod tests {
         output.extend_from_slice(&central_offset.to_le_bytes());
         output.extend_from_slice(&0u16.to_le_bytes());
         output
+    }
+
+    #[test]
+    fn app_plan_rejects_aliases_and_file_directory_collisions() {
+        for files in [
+            vec![("demo/boot.elf", &b"elf"[..]), ("Demo/meta.xml", &b"x"[..])],
+            vec![("demo/boot.elf", &b"elf"[..]), ("demo/data.", &b"x"[..])],
+            vec![
+                ("demo/boot.elf", &b"elf"[..]),
+                ("demo/data", &b"x"[..]),
+                ("demo/data/file", &b"y"[..]),
+            ],
+            vec![
+                ("demo/boot.elf", &b"elf"[..]),
+                ("demo/boot.elf", &b"elf"[..]),
+            ],
+        ] {
+            assert_eq!(classify_app(&zip(&files)), Err(WiiloadZipError::InvalidApp));
+        }
     }
 
     #[test]
