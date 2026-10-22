@@ -371,7 +371,7 @@ mod tests {
         let first = frame(&mailbox, &mut state, 0);
         assert_eq!(first.pointer, Some(PointerPosition { x: 320, y: 240 }));
         assert!(first.pointer_pressed && first.pointer_held && first.screenshot_requested);
-        assert_eq!(first.stick_scroll_pixels, 49);
+        assert_eq!(first.stick_scroll_pixels, 1); // -5 explicit pixels + 6 analog pixels.
         assert!(first.stick_navigation.contains(&Input::Left));
         assert!(first.stick_navigation.contains(&Input::Up));
         for input in [

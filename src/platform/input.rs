@@ -385,7 +385,6 @@ fn is_additional_source(source: ControllerSource) -> bool {
     )
 }
 
-#[cfg(any(target_arch = "powerpc", test))]
 fn normalized_stick_scroll(kind: ControllerKind, axes: ogc_controller::Axes) -> i32 {
     let axis = match kind {
         ControllerKind::JoyConRight => axes.right_y,
@@ -707,7 +706,7 @@ pub fn scan() -> Result<InputFrame, InputScanError> {
             &mut *core::ptr::addr_of_mut!(RIGHT_STICK_MAPPER)
         })?;
     stick_scroll += additional_scroll;
-    stick_scroll /= 8;
+    let stick_scroll = scroll_pixels(stick_scroll);
     if let Some(owner) = owner {
         if let Some(state) = raw.wpad_data[owner]
             .as_ref()
@@ -725,7 +724,7 @@ pub fn scan() -> Result<InputFrame, InputScanError> {
         pointer,
         pointer_pressed,
         pointer_held,
-        stick_scroll_pixels: stick_scroll.clamp(i32::from(i16::MIN), i32::from(i16::MAX)) as i16,
+        stick_scroll_pixels: stick_scroll,
         stick_navigation: inputs(stick_navigation),
         screenshot_requested: screenshot_chord(mapped.down, mapped.held),
     })
@@ -742,7 +741,11 @@ fn diagnostic_scan_mark(label: &'static str) {
     let _ = label;
 }
 
-#[cfg(any(test, target_arch = "powerpc"))]
+/// Convert the sum of HBC stick units to logical pixels once per frame.
+fn scroll_pixels(units: i32) -> i16 {
+    (units / 8).clamp(i32::from(i16::MIN), i32::from(i16::MAX)) as i16
+}
+
 fn deadzone(value: i32) -> i32 {
     if value > 10 {
         value - 10
@@ -1284,17 +1287,17 @@ pub fn remote_frame(command: &crate::remote_input::Command) -> InputFrame {
     }
     // HBC scrolls with the left stick. It also gives the Right Joy-Con right
     // stick the same per-controller directional transitions as local input.
-    let left_scroll = i32::from(command.sticks[1]) / 256;
-    let right_scroll = i32::from(command.sticks[3]) / 256;
-    let deadzone = |axis: i32| {
-        if axis > 10 {
-            axis - 10
-        } else if axis < -10 {
-            axis + 10
-        } else {
-            0
-        }
+    let axes = ogc_controller::Axes {
+        left_y: command.sticks[1],
+        right_y: command.sticks[3],
+        ..ogc_controller::Axes::default()
     };
+    let kind = if command.kind == 8 {
+        ControllerKind::JoyConRight
+    } else {
+        ControllerKind::GenericUsbHid
+    };
+    let analog_scroll = scroll_pixels(normalized_stick_scroll(kind, axes));
     let mut stick_navigation = Buttons::default();
     if command.kind == 8 {
         for (axis, negative, positive) in [
@@ -1313,13 +1316,53 @@ pub fn remote_frame(command: &crate::remote_input::Command) -> InputFrame {
     InputFrame {
         held: inputs(buttons),
         pointer: command.pointer,
-        stick_scroll_pixels: command
-            .scroll
-            .saturating_add(deadzone(left_scroll) as i16)
-            .saturating_add(deadzone(right_scroll) as i16),
+        stick_scroll_pixels: command.scroll.saturating_add(analog_scroll),
         stick_navigation: inputs(stick_navigation),
         screenshot_requested: command.screenshot
             || (buttons.0 & Buttons::SCREENSHOT != 0 && buttons.0 & Buttons::NETWORK_INIT != 0),
         ..InputFrame::default()
+    }
+}
+
+#[cfg(test)]
+mod remote_scroll_tests {
+    use super::*;
+
+    #[test]
+    fn remote_scroll_uses_local_axis_deadzone_and_scale_for_every_kind() {
+        for kind in 0..=11 {
+            let mut command = crate::remote_input::Command {
+                kind,
+                buttons: 0,
+                duration_ms: 120,
+                pointer: None,
+                scroll: 0,
+                sticks: [0, 16384, 0, -16384],
+                triggers: [0; 2],
+                screenshot: false,
+            };
+            assert_eq!(
+                remote_frame(&command).stick_scroll_pixels,
+                if kind == 8 { -6 } else { 6 },
+                "kind {kind}"
+            );
+            command.scroll = 20;
+            assert_eq!(
+                remote_frame(&command).stick_scroll_pixels,
+                if kind == 8 { 14 } else { 26 }
+            );
+            for (axis, expected) in [
+                (2560, 0),
+                (-2560, 0),
+                (4608, 1),
+                (-4608, -1),
+                (32767, 14),
+                (-32767, -14),
+            ] {
+                command.scroll = 0;
+                command.sticks = [0, axis, 0, axis];
+                assert_eq!(remote_frame(&command).stick_scroll_pixels, expected);
+            }
+        }
     }
 }

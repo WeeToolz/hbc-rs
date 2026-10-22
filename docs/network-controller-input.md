@@ -58,6 +58,9 @@ up. HBC scrolls memo text with left-stick Y. The Right Joy-Con right stick also
 uses the local 8192 threshold for directional navigation, in addition to memo
 scrolling from its Y axis. Other normalized right-stick directions do not create
 menu actions; the stick values remain valid in the command.
+Analog scroll uses the local HBC deadzone of 10 after division by 256,
+then divides the result by eight. Only the active Y axis contributes: left Y
+for other kinds and right Y for the Right Joy-Con.
 `--scroll` adds -512 through 512 logical pixels per frame. Analog triggers
 are 0 through 255; 128 or greater presses the mapped L or R button on
 GameCube, Classic, and normalized controller kinds. Pointer coordinates are logical screen coordinates, 0 through 4095.
