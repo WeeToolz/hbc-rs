@@ -185,3 +185,11 @@ After converting the normal Wii ELF to `target/hbc-rs.dol`, run
 The ZIPs contain `apps/hbc-rs` and `apps/hbc-rs-diagnostic`, respectively.
 Both metadata files use the same no-IOS-reload and AHB-access tags as the
 working local C reference package. These are applications, not channel installers.
+
+## Terminal control
+
+The running Rust HBC accepts controller input and direct system commands without
+a DOL upload. Open `tools/hbc-terminal.command` through the signed-in Terminal
+app on this Mac, or use `python3 tools/hbc-control.py --help`.
+See [terminal-control.md](docs/terminal-control.md) for front-button actions,
+controller buttons and axes, result handling, and supported-operation limits.

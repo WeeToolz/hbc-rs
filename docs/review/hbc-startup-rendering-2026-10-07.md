@@ -266,3 +266,120 @@ The diagnostic DOL now sends a WIR2 startup checkpoint after heap setup and repo
 ## Live stage capture extension
 
 Diagnostic HBC now keeps its report socket open after the early snapshot. It sends CPU framebuffer snapshots at major completed startup milestones and GX framebuffer snapshots after the first displayed HBC frame and at each one-time runtime/presentation boundary. Fine-grained PNG parsing progress remains text-only to avoid transferring hundreds of full frames during theme decode. Each actual completed snapshot carries WIR2 flags `0x0006`; final reports retain flags zero. A failed capture is recorded and prevents a later passing runtime report. The host persists each frame and live progress before waiting for the next frame. Its gallery indexes captured images and refreshes automatically. Timeout regression coverage verifies that two distinct saved images and logs survive a later stall. Real Wii streaming remains pending.
+
+
+## 2026-10-18 current build fails when launched from HBC on Wii
+
+The user ran the normal DOL copied to CARROT on 2026-10-18 and reports a
+black screen when launched from HBC. The supplied photo shows a blank light
+screen with no HBC image or diagnostic label. The user confirms that C Reborn
+still displays its menu when launched from HBC on the same Wii.
+
+The normal DOL SHA-256 is
+`32bd946b24ec285008debd689f306639c7a1accde5d7b400917bf8288555329d`
+(2,414,944 bytes). Its CARROT copy was verified before the drive was ejected.
+A direct Dolphin launch of that DOL produced a visible background, bubbles,
+logo, and status icons. This emulator result does not resolve the Wii failure.
+
+The existing `startup-diagnostics` feature was built from the current source.
+The diagnostic DOL SHA-256 is
+`0f757a358666dc29650d5d23be017c9f4fac42130c628b2b761f1872e0edf268`.
+The separate app package is in the ignored
+`target/wii-startup-debug/apps/hbc-rs-diagnostic/` directory. Its metadata
+requests no IOS reload and AHB access, as the normal CARROT package does.
+The matching ELF and build manifest are in `target/wii-startup-debug/`.
+
+An isolated Dolphin run reached `GX XFB HAS IMAGE`. The CPU stage framebuffer
+and GX framebuffer were read through GDB from that build. The GX capture
+shows the HBC scene and the white test square; the stage capture shows
+`GX XFB HAS IMAGE`. Captures are `target/hbc-startup-current.png` and
+`target/hbc-gx-current.png`. The diagnostic has not run on this Wii yet.
+CARROT was absent after its requested eject, so the diagnostic was not copied.
+
+Source comparison also found that Reborn's `gfx_init()` calls
+`GX_AbortFrame()` before `GX_Init()`, while the Rust HBC startup does not call
+`ogc_gx::abort_frame()` before its FIFO setup. This is an open startup-state
+comparison item, not a proven cause. No production rendering change was made
+without a hardware stage trace.
+
+
+### Wiiload hardware run: first GX clear completion timeout
+
+At the user's request, the current diagnostic was sent through the existing
+`run-wii-probe.command`, launched in Terminal. The first attempt stopped
+before upload because the default host IP `10.0.0.238` was no longer assigned.
+The retry used the script's `HOST_IP=10.0.0.139` override and kept the Wii at
+`10.0.0.242`, the recovery settings, and the diagnostic build unchanged.
+
+Run `1792325806-090507000` uploaded the full 2,465,760-byte DOL (1,337,454
+compressed bytes). The received report matched that run and build identity.
+It recorded 40 progress stages, two startup checkpoints, and one failed check:
+`VIDEO OR GX FIFO ERROR`. The final graphics sequence was
+`GX FRAME CONFIG DONE`, `GX CLEAR STATE DONE`, `GX FIRST CLEAR QUEUED`,
+`GX FIRST CLEAR TIMEOUT`. Thus the first GX completion wait fails before
+settings/theme loading and the first HBC scene. This does not yet distinguish
+an unprocessed command stream from a missing PE finish interrupt.
+
+The final report records `probe_passed: false`, zero passes, one failure,
+and `recovery_boot_status: returned_to_hbc`. The upload endpoint went offline
+and returned about 40.5 seconds later. Artifacts, including `result.json`,
+`probe.log`, `progress.jsonl`, raw report, screen data, and checkpoints, are
+under `../libogc-rs/target/wii-runs/1792325806-090507000-10.0.0.242/`.
+
+
+## 2026-10-21 capture, report transport, and automatic recovery
+
+See the workspace `DEVELOPER.md`
+for the capture and Terminal launch procedure. Current Wii and Mac report
+addresses are 192.168.2.3 and 192.168.2.1. The physical baseline reached
+`GX EFB SQUARE FAIL`; the graphics fault remains open. A correct Dolphin
+picture does not prove physical Wii rendering.
+
+The diagnostic now parses the recovery deadline and arms a separate LWP
+worker before networking and GX. It uses the STM reboot operation without
+the normal DSP cleanup path. The alarm-based attempt stalled. Run
+`1792604563-835376000` with SHA-256
+`7d8444fef33658e98bf7ff4f7907e3ee981f11c64262f57286b43f954d3cc5a3`
+returned to the original HBC on capture without user input. Recovery depends
+on interrupts, scheduling, and IOS; this does not prove recovery from all faults.
+
+Wiiload-rs also stopped its report listener when the upload port returned.
+The new application can open that same port before it reports. The listener
+now waits for the report deadline. A real CLI regression covers a delayed
+report after the upload port goes offline and returns. Endpoint recovery
+alone is now labelled `upload_endpoint_returned_unverified`.
+
+The capture exposed a separate network startup fault: signed address bits
+for 192.168.2.3 were reported as an error. The shared network helper has a
+correction and four passing regressions. Run `1792605142-670850000` established the report channel and sent 501
+verified progress records and seven checkpoints. A later send failed with -1.
+This confirms address startup but does not prove a completed HBC startup.
+HBC host tests passed (372). Clippy remains blocked by existing warnings.
+
+
+### Recovery outcome from run `1792605142-670850000`
+
+The host timed out after 240 seconds. It records `upload_endpoint_returned:
+false` and `recovery_boot_status: not_returned`. The capture ran through the
+180-second deadline, then its last Wii frame became stale while capture itself
+remained healthy. The user reported a green power light and no video, and had
+to reset the console manually. This is consistent with the STM reboot request
+starting but not completing; the evidence does not show which IOS or hardware
+step stopped. The recovery worker did not recover this fault. The earlier
+60-second run returned to HBC, which does not verify this later failure path.
+
+
+### Simple HBC return test, 2026-10-21
+
+A small DOL was built in libogc's `ogc-system-probe` package. It calls normal
+system initialization and then `sys_exit_to_loader(0)`. It does not ask IOS to
+reboot or request the System Menu. DOL SHA-256:
+`d17597c2057483599245c6ab4b0de82d3726b3d8ad07bd3911fd2de42aa65624`.
+
+The run used `wiiload-rs send` from signed-in Terminal. The HBC upload endpoint
+passed its readiness check before upload. The upload completed, and the same
+endpoint passed its readiness check after the DOL exited. This is evidence that
+the simple HBC return path works after the user's manual reset. The capture card
+was not enumerated by the Mac, so no visual screen confirmation was available.
+This does not verify the diagnostic watchdog reboot, which failed in the prior
+run and still needs a separate fix.

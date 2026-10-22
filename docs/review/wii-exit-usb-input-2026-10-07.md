@@ -60,3 +60,41 @@ The rebuilt DOL was copied to `/Volumes/CARROT/apps/hbc-rs/boot.dol` and compare
 The user reports that a DOL launch freezes while the HBC image remains visible. The selected application and exact execution stage were not identified. `transfer_executable` stages the image, saves changed settings, unmounts storage, stops disc/network/controller services, then enters the IOS/trampoline handoff. The shared NAND filename fix also corrects the invalid staging names used by the settings-save step. SDK source inspection found the same priority-preemption defect in the short IPC request queue lock as in the previously fixed heap lock; request queue sections now use the shared interrupt-masked lock. Host lock ordering tests pass; final DOL launch on Wii remains pending. See libogc-rs `docs/review/libipc-core.md` for the bounded change and limits.
 
 Final combined DOL: release build passed without warnings; copied to `/Volumes/CARROT/apps/hbc-rs/boot.dol`, flushed, and verified byte for byte. Local and CARROT SHA-256: `f7047b3d75b52ef1e661891a2d3e94f4d2338c36960b3e461c0808b6e4dccca3`. The source audit passed with existing keyboard debt; the SDK completeness audit remains blocked by stale AESND evidence at line 914. Network save, wider keyboard output, and selected-app launch require Wii verification.
+
+
+## 2026-10-21 normal DOL loading freeze
+
+The user reports that the normal HBC-RS DOL stops on the loading screen. The
+reported copied file is 2,446,272 bytes with SHA-256
+`557aec551755afe7a977872d6b35e6e9ed0f9e5af2a66a8b15cba23d89d2085f`. The
+CARROT volume was not mounted in the build workspace, so these file values are
+the user's report and were not read back here.
+
+Source comparison found that the shared development wrapper called `sys_init`
+and then enabled the PowerPC EE and RI bits before application `main`. A normal
+DOL did not enable those bits after `sys_init`. A direct DOL launch can leave
+interrupt delivery disabled. HBC-RS waits for video timing during startup, so
+this can leave the loader screen visible. This is the likely cause; the current
+Wii run did not provide a captured frame or an application report to identify
+the exact stop point.
+
+The shared `ogc-system-sys::sys_init` path now enables EE and RI after runtime
+vectors and the scheduler are set up. The development wrapper uses this same
+path and no longer has a separate MSR update. A focused `ogc-sys` regression
+checks the independent expected EE/RI mask and preservation of other bits. The
+normal PowerPC DOL builds with development mode disabled and contains no
+development entry symbols. Its SHA-256 is
+`c6c927a5031739bc698de5c5945b4c623c5ac2d458372efd654a23bb6df5ed51`; size is
+2,446,304 bytes.
+
+The signed-in Terminal Wiiload readiness check passed at `192.168.2.3:4299`.
+The capture device enumerated as `1c88:003c`, but its capture worker stopped
+before receiving a block and produced no frame. The capture result reports
+`Other error`; a later device info query still found the device connected. No
+DOL was uploaded. The read-only `hbc-control status` query was reset by the Wii.
+This matches stock HBC rejecting that protocol. The successful Wiiload
+readiness check and status reset indicate that stock HBC still handled the
+endpoint, but do not identify the exact DOL stop point. The installed Dolphin
+binary also refused to start because its processor feature check requires NEON.
+Physical boot and the exact stop point remain unverified. Keep this behavior
+hardware-pending.
