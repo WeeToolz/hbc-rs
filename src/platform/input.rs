@@ -6,10 +6,11 @@
 use alloc::vec::Vec;
 #[cfg(target_arch = "powerpc")]
 use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, Ordering};
+use ogc_controller::{Buttons as ControllerButtons, ControllerKind};
+#[cfg(any(target_arch = "powerpc", test))]
 use ogc_controller::{
-    Buttons as ControllerButtons, ControllerKind, ControllerSnapshot, ControllerSource,
-    DigitalStickMapper, MAX_CONTROLLERS, StickDirectionError, StickDirectionFrame,
-    StickDirectionSample,
+    ControllerSnapshot, ControllerSource, DigitalStickMapper, MAX_CONTROLLERS, StickDirectionError,
+    StickDirectionFrame, StickDirectionSample,
 };
 
 use crate::app::Input;
