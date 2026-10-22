@@ -2117,6 +2117,41 @@ mod tests {
     }
 
     #[test]
+    fn memo_remeasurement_clamps_positions_and_bounds_line_heights() {
+        for screen in [Screen::AppDetails, Screen::Notice, Screen::WiiloadConfirm] {
+            let mut controller = AppController::new();
+            controller.screen = screen;
+            let scroll = |controller: &AppController| match screen {
+                Screen::AppDetails => controller.detail_description_scroll(),
+                Screen::Notice => controller.notice_scroll(),
+                Screen::WiiloadConfirm => controller.wiiload_confirmation_scroll(),
+                _ => unreachable!(),
+            };
+            let direction = if screen == Screen::AppDetails { -1 } else { 1 };
+            controller.set_measured_memo(10, 10);
+            controller.scroll_active_memo_by_stick(direction * 60);
+            assert_eq!(scroll(&controller), 6, "{screen:?}");
+
+            // A shorter memo must clamp immediately, before the next input.
+            controller.set_measured_memo(2, 10);
+            assert_eq!(scroll(&controller), 2);
+            controller.set_measured_memo(0, 10);
+            assert_eq!(scroll(&controller), 0);
+            controller.scroll_active_memo_by_stick(direction * 10);
+            assert_eq!(scroll(&controller), 0);
+
+            // A zero height must not divide by zero. Oversized heights must
+            // remain positive when converted to the signed scroll units.
+            controller.set_measured_memo(4, 0);
+            controller.scroll_active_memo_by_stick(direction);
+            assert_eq!(scroll(&controller), 1);
+            controller.set_measured_memo(4, u16::MAX);
+            controller.scroll_active_memo_by_stick(direction * 32767);
+            assert_eq!(scroll(&controller), 2);
+        }
+    }
+
+    #[test]
     fn detail_stick_scroll_accumulates_pixels_into_lines() {
         let mut controller = AppController::new();
         let mut entry = app("a", "A", false);
@@ -2625,6 +2660,39 @@ mod tests {
                 assert_eq!(controller.screen, screen);
             }
         }
+    }
+
+    #[test]
+    fn changing_bootmii_availability_clamps_focus_and_rejects_removed_pointer_rows() {
+        let mut controller = AppController::new();
+        controller.set_bootmii_available(true);
+        controller.handle(Input::Home, &[]);
+        for _ in 0..10 {
+            controller.handle(Input::Down, &[]);
+        }
+        let (last_with_bootmii, last_without_bootmii, final_action) =
+            if cfg!(feature = "legacy-main-menu") {
+                (4, 3, Action::Shutdown)
+            } else {
+                (5, 4, Action::RestartNetwork)
+            };
+        assert_eq!(controller.menu_focus(), last_with_bootmii);
+        controller.set_bootmii_available(false);
+        assert_eq!(controller.menu_focus(), last_without_bootmii);
+        assert_eq!(controller.menu_item_count(), last_without_bootmii + 1);
+        assert_eq!(
+            controller.handle_pointer(Some(PointerTarget::Menu(last_with_bootmii)), true, &[]),
+            Action::None
+        );
+        assert_eq!(controller.menu_focus(), last_without_bootmii);
+        assert_eq!(controller.screen, Screen::MainMenu);
+        controller.handle(Input::Down, &[]);
+        assert_eq!(controller.handle(Input::Confirm, &[]), final_action);
+
+        controller.set_bootmii_available(true);
+        controller.handle(Input::Down, &[]);
+        assert_eq!(controller.menu_focus(), last_with_bootmii);
+        assert_eq!(controller.handle(Input::Confirm, &[]), final_action);
     }
 
     #[test]

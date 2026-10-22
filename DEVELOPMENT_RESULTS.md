@@ -187,3 +187,34 @@ These tests call the production parser, mailbox, renderer, and navigation code.
 No hardware model or replacement backend was added. Real Wii input and recovery
 verification remain open. No hardware operation, Dolphin run, or new PowerPC
 build was performed for this test-only change.
+
+## Menu and memo state-change tests — 2026-10-22
+
+Added two regression tests after reviewing the existing cleanup and integration
+coverage. Production code is unchanged.
+
+- BootMii availability changes while the menu is open: focus clamps when a row
+  disappears, a stale pointer target cannot execute an action, and controller
+  navigation reaches the correct last action after the row returns. The test
+  runs with both normal and legacy menu builds.
+- Memo remeasurement: details, notices, and Wiiload confirmation clamp their
+  positions immediately when the measured scroll limit decreases. A zero limit
+  prevents further scrolling. Zero and maximum unsigned line heights are handled
+  without division by zero or a negative signed height. Returned scroll positions
+  are checked through the production controller API.
+
+| Check | Result |
+| --- | --- |
+| `cargo test --quiet` | 381 passed; no ignored tests |
+| `cargo test --features legacy-main-menu --quiet` | 381 passed; no ignored tests |
+| `cargo test --features startup-diagnostics,debugger-network --quiet` | 402 passed; no ignored tests |
+| `cargo clippy --lib --tests --message-format=short` | Completed; the same seven existing warnings |
+| `python3 tools/parity.py check` | Passed; 39 areas |
+| `python3 tools/generate-localization.py --check` | Passed; all six catalogs |
+| Rustfmt check of `src/app.rs` | Passed |
+| Complete diff whitespace and file-mode review | Passed; no file-mode changes |
+
+The worktree was clean at the start. The existing integration tests in commit
+`6f246bc` were preserved and included in these runs. No hardware operation,
+Dolphin run, or PowerPC build was performed for this test-only change. Real Wii
+input and interrupted-install recovery verification remain open.
