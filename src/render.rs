@@ -1145,43 +1145,7 @@ pub fn browser_frame_with_language(
         Screen::MainMenu => {
             // A/B diagnosis of a first-frame regression: isolate only the
             // ordinary HOME menu layout while preserving the newer overlay code.
-            #[cfg(feature = "legacy-main-menu")]
-            let labels: &[&str] = if controller.bootmii_available() {
-                &[
-                    tr("Back"),
-                    tr("About"),
-                    tr("Launch BootMii"),
-                    tr("Exit to System Menu"),
-                    tr("Shutdown"),
-                ]
-            } else {
-                &[
-                    tr("Back"),
-                    tr("About"),
-                    tr("Exit to System Menu"),
-                    tr("Shutdown"),
-                ]
-            };
-            #[cfg(not(feature = "legacy-main-menu"))]
-            let labels: &[&str] = if controller.bootmii_available() {
-                &[
-                    tr("Back"),
-                    tr("About"),
-                    tr("Launch BootMii"),
-                    tr("Exit to System Menu"),
-                    tr("Shutdown"),
-                    tr("Restart network"),
-                ]
-            } else {
-                &[
-                    tr("Back"),
-                    tr("About"),
-                    tr("Exit to System Menu"),
-                    tr("Shutdown"),
-                    tr("Restart network"),
-                ]
-            };
-            for (index, label) in labels.iter().enumerate().take(controller.menu_item_count()) {
+            for (index, item) in controller.menu_items().enumerate() {
                 #[cfg(feature = "legacy-main-menu")]
                 let y = 80.0
                     + index as f32
@@ -1197,7 +1161,7 @@ pub fn browser_frame_with_language(
                     y,
                     ButtonSize::Large,
                     index == controller.menu_focus(),
-                    label,
+                    tr(item.label()),
                     text_color,
                 );
                 frame.hit_target(PointerTarget::Menu(index), bounds);

@@ -134,15 +134,41 @@ enum ConfirmationAction {
     SaveNetworkConfigWithoutBackup,
 }
 
-/// Main menu focus follows the options available on this console.
-#[cfg(not(feature = "legacy-main-menu"))]
-const MENU_ITEMS_WITHOUT_BOOTMII: usize = 5;
-#[cfg(not(feature = "legacy-main-menu"))]
-const MENU_ITEMS_WITH_BOOTMII: usize = 6;
-#[cfg(feature = "legacy-main-menu")]
-const MENU_ITEMS_WITHOUT_BOOTMII: usize = 4;
-#[cfg(feature = "legacy-main-menu")]
-const MENU_ITEMS_WITH_BOOTMII: usize = 5;
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum MainMenuItem {
+    Back,
+    About,
+    BootMii,
+    Exit,
+    Shutdown,
+    #[cfg(not(feature = "legacy-main-menu"))]
+    RestartNetwork,
+}
+
+impl MainMenuItem {
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            Self::Back => "Back",
+            Self::About => "About",
+            Self::BootMii => "Launch BootMii",
+            Self::Exit => "Exit to System Menu",
+            Self::Shutdown => "Shutdown",
+            #[cfg(not(feature = "legacy-main-menu"))]
+            Self::RestartNetwork => "Restart network",
+        }
+    }
+}
+
+const MAIN_MENU_ITEMS: &[MainMenuItem] = &[
+    MainMenuItem::Back,
+    MainMenuItem::About,
+    MainMenuItem::BootMii,
+    MainMenuItem::Exit,
+    MainMenuItem::Shutdown,
+    #[cfg(not(feature = "legacy-main-menu"))]
+    MainMenuItem::RestartNetwork,
+];
+
 const DEFAULT_BROWSER_ROWS: usize = 5;
 pub const DETAIL_DESCRIPTION_LINE_WIDTH: usize = 76;
 pub const DETAIL_DESCRIPTION_VISIBLE_LINES: usize = 16;
@@ -820,12 +846,16 @@ impl AppController {
         self.device_available = availability.map(Some);
     }
 
+    pub(crate) fn menu_items(&self) -> impl Iterator<Item = MainMenuItem> + use<> {
+        let bootmii_available = self.bootmii_available;
+        MAIN_MENU_ITEMS
+            .iter()
+            .copied()
+            .filter(move |item| *item != MainMenuItem::BootMii || bootmii_available)
+    }
+
     pub fn menu_item_count(&self) -> usize {
-        if self.bootmii_available {
-            MENU_ITEMS_WITH_BOOTMII
-        } else {
-            MENU_ITEMS_WITHOUT_BOOTMII
-        }
+        self.menu_items().count()
     }
 
     /// Keep the selected app identity valid after a catalog refresh.
@@ -1336,22 +1366,20 @@ impl AppController {
                 self.move_menu_focus(true);
                 Action::None
             }
-            Input::Confirm => match self.menu_focus {
-                0 => {
+            Input::Confirm => match self.menu_items().nth(self.menu_focus) {
+                Some(MainMenuItem::Back) => {
                     self.screen = Screen::Browser;
                     Action::None
                 }
-                1 => {
+                Some(MainMenuItem::About) => {
                     self.screen = Screen::About;
                     Action::None
                 }
-                2 if self.bootmii_available => Action::LaunchBootMii,
-                2 => Action::Exit,
-                3 if self.bootmii_available => Action::Exit,
-                3 => Action::Shutdown,
-                4 if self.bootmii_available => Action::Shutdown,
+                Some(MainMenuItem::BootMii) => Action::LaunchBootMii,
+                Some(MainMenuItem::Exit) => Action::Exit,
+                Some(MainMenuItem::Shutdown) => Action::Shutdown,
                 #[cfg(not(feature = "legacy-main-menu"))]
-                4 | 5 => Action::RestartNetwork,
+                Some(MainMenuItem::RestartNetwork) => Action::RestartNetwork,
                 _ => Action::None,
             },
             _ => Action::None,
@@ -2545,6 +2573,35 @@ mod tests {
         controller.set_active_device(Some(0));
         controller.handle(Input::OpenOptions, &[]);
         assert_eq!(controller.pending_device(), 0);
+    }
+
+    #[test]
+    fn menu_labels_and_actions_follow_the_same_sequence() {
+        for bootmii in [false, true] {
+            let mut expected = vec![
+                ("Back", Action::None, Screen::Browser),
+                ("About", Action::None, Screen::About),
+            ];
+            if bootmii {
+                expected.push(("Launch BootMii", Action::LaunchBootMii, Screen::MainMenu));
+            }
+            expected.extend([
+                ("Exit to System Menu", Action::Exit, Screen::MainMenu),
+                ("Shutdown", Action::Shutdown, Screen::MainMenu),
+            ]);
+            #[cfg(not(feature = "legacy-main-menu"))]
+            expected.push(("Restart network", Action::RestartNetwork, Screen::MainMenu));
+            let mut controller = AppController::new();
+            controller.set_bootmii_available(bootmii);
+            assert_eq!(controller.menu_item_count(), expected.len());
+            for (index, (label, action, screen)) in expected.into_iter().enumerate() {
+                assert_eq!(controller.menu_items().nth(index).unwrap().label(), label);
+                controller.screen = Screen::MainMenu;
+                controller.menu_focus = index;
+                assert_eq!(controller.handle(Input::Confirm, &[]), action);
+                assert_eq!(controller.screen, screen);
+            }
+        }
     }
 
     #[test]
