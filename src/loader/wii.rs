@@ -1,6 +1,6 @@
 //! Wii-only code that writes and starts a validated executable image.
 
-use super::{LoadPlan, ParseError, MAX_LAUNCH_ARGUMENT_BYTES, MAX_LOAD_SEGMENTS};
+use super::{LoadPlan, MAX_LAUNCH_ARGUMENT_BYTES, MAX_LOAD_SEGMENTS, ParseError};
 use alloc::vec::Vec;
 use core::ffi::c_void;
 use core::ops::Range;
@@ -446,7 +446,12 @@ pub unsafe fn transfer_control(image: LaunchImage, policy: super::IosLaunchPolic
             }
         }
         if policy.reload {
-            let reload_result = ogc_ios::launch_new_ios(ogc_ios::get_preferred_version());
+            let version = ogc_ios::get_preferred_version();
+            ogc_system::report(format_args!("HBC: launch reloading IOS{version}\n"));
+            let reload_result = ogc_ios::launch_new_ios(version);
+            ogc_system::report(format_args!(
+                "HBC: launch IOS reload result: {reload_result}\n"
+            ));
             if reload_result < 0 {
                 // The HBC runtime is already stopped. Return to System Menu
                 // while the prior IOS is still available instead of starting
@@ -463,7 +468,9 @@ pub unsafe fn transfer_control(image: LaunchImage, policy: super::IosLaunchPolic
                 );
             }
         }
+        ogc_system::report(format_args!("HBC: launch shutting down runtime\n"));
         ogc_system::reset_system(ogc_system::SYS_SHUTDOWN as i32, 0, 0);
+        ogc_system::report(format_args!("HBC: launch runtime shutdown complete\n"));
         ogc_irq::disable(u32::MAX);
         core::arch::asm!(
             "mfmsr 3",

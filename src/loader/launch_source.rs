@@ -143,7 +143,7 @@ fn launch_blob_bounds(arena_low: usize, arena_high: usize, length: usize) -> Opt
 
 #[cfg(test)]
 mod tests {
-    use super::{launch_blob_bounds, LaunchSource, ARENA2_MIN_SLACK};
+    use super::{ARENA2_MIN_SLACK, LaunchSource, launch_blob_bounds};
 
     #[test]
     fn launch_blob_leaves_required_arena_slack_and_aligns_start() {

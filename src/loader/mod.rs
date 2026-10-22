@@ -6,7 +6,9 @@
 use alloc::{string::String, vec::Vec};
 use core::ops::Range;
 
-const DOL_HEADER_SIZE: usize = 0x100;
+// C's dolheader ends after entry_point at 0xe4. The usual padding up to
+// 0x100 is optional and must not be treated as part of the required header.
+const DOL_HEADER_SIZE: usize = 0xe4;
 const ELF_HEADER_SIZE: usize = 52;
 const ELF_PHDR_SIZE: usize = 32;
 const PT_LOAD: u32 = 1;
@@ -45,6 +47,11 @@ pub enum ParseError {
     OutOfBounds,
     AddressOverflow,
     InvalidSegment(&'static str),
+    DolHeaderOverlap {
+        section: usize,
+        offset: u32,
+        size: u32,
+    },
 }
 
 pub const MAX_LAUNCH_ARGUMENT_BYTES: usize = 1024;
@@ -159,7 +166,7 @@ pub fn validate_load_plan(
 mod wii;
 
 #[cfg(target_arch = "powerpc")]
-pub use wii::{stage_launch, transfer_control, LaunchImage};
+pub use wii::{LaunchImage, stage_launch, transfer_control};
 
 mod launch_source;
 pub use launch_source::LaunchSource;
@@ -234,7 +241,11 @@ fn push_dol_segment(
         return Ok(());
     }
     if offset < DOL_HEADER_SIZE as u32 {
-        return Err(ParseError::InvalidSegment("section overlaps DOL header"));
+        return Err(ParseError::DolHeaderOverlap {
+            section: if base == 0 { i } else { i + 7 },
+            offset,
+            size,
+        });
     }
     let end = offset.checked_add(size).ok_or(ParseError::OutOfBounds)?;
     if end as usize > bytes.len() {
@@ -415,6 +426,44 @@ mod tests {
     }
     use alloc::vec;
     #[test]
+    fn accepts_both_compact_and_padded_dol_headers() {
+        for offset in [0xe4usize, 0x100] {
+            let mut dol = vec![0u8; offset + 4];
+            put32(&mut dol, 0, offset as u32);
+            put32(&mut dol, 0x48, 0x8000_4000);
+            put32(&mut dol, 0x90, 4);
+            put32(&mut dol, 0xe0, 0x8000_4000);
+            dol[offset..].copy_from_slice(&[0x4e, 0x80, 0x00, 0x20]);
+            let plan = parse_dol(&dol, Some(0x8000_3400..0x8132_fc00)).unwrap();
+            assert_eq!(plan.entry, 0x8000_4000);
+            assert_eq!(plan.segments.len(), 1);
+            assert_eq!(plan.segments[0].file_range, offset..offset + 4);
+            assert_eq!(
+                &dol[plan.segments[0].file_range.clone()],
+                &[0x4e, 0x80, 0x00, 0x20]
+            );
+        }
+    }
+
+    #[test]
+    fn still_rejects_a_section_inside_the_required_dol_header() {
+        let mut dol = vec![0u8; 0x100];
+        put32(&mut dol, 0, 0xe0);
+        put32(&mut dol, 0x48, 0x8000_4000);
+        put32(&mut dol, 0x90, 4);
+        put32(&mut dol, 0xe0, 0x8000_4000);
+        assert_eq!(
+            parse_dol(&dol, None),
+            Err(ParseError::DolHeaderOverlap {
+                section: 0,
+                offset: 0xe0,
+                size: 4,
+            })
+        );
+        assert_eq!(parse_dol(&dol[..0xe3], None), Err(ParseError::Truncated));
+    }
+
+    #[test]
     fn rejects_short_dol_and_bad_section_ranges() {
         assert_eq!(parse_dol(&[], None), Err(ParseError::Truncated));
         let mut dol = vec![0u8; DOL_HEADER_SIZE];
@@ -452,8 +501,8 @@ mod tests {
     }
     #[test]
     fn parses_dol_section_and_enforces_memory_bounds() {
-        let mut dol = vec![0u8; DOL_HEADER_SIZE + 4];
-        put32(&mut dol, 0, DOL_HEADER_SIZE as u32);
+        let mut dol = vec![0u8; 0x104];
+        put32(&mut dol, 0, 0x100);
         put32(&mut dol, 0x48, 0x8000_3400);
         put32(&mut dol, 0x90, 4);
         put32(&mut dol, 0xe0, 0x8000_3400);
