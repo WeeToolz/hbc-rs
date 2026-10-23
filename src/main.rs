@@ -236,10 +236,10 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             };
             let result = hbc_rs::platform::wiiload::COOPERATIVE_CONTROL
                 .service(deferred_exit.is_some(), conditions.is_eligible());
-            if result == libdb_sys::wii_network::MainControlResult::EnteredPause {
-                if let Some(request) = cooperative_pause_loop() {
-                    hbc_rs::platform::lifecycle::defer_exit(&mut deferred_exit, request);
-                }
+            if result == libdb_sys::wii_network::MainControlResult::EnteredPause
+                && let Some(request) = cooperative_pause_loop()
+            {
+                hbc_rs::platform::lifecycle::defer_exit(&mut deferred_exit, request);
             }
         }
         #[cfg(feature = "debugger-usb-gecko")]
@@ -316,14 +316,13 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         }
         if receiver_status == hbc_rs::platform::wiiload::ReceiverStatus::CleanupError
             && !wiiload_cleanup_notice_shown
+            && let Some(error) = hbc_rs::platform::wiiload::cleanup_error()
         {
-            if let Some(error) = hbc_rs::platform::wiiload::cleanup_error() {
-                startup.runtime_mut().show_notice_with_kind(
-                    &format!("Wiiload cleanup failed ({error})."),
-                    hbc_rs::app::NoticeKind::Error,
-                );
-                wiiload_cleanup_notice_shown = true;
-            }
+            startup.runtime_mut().show_notice_with_kind(
+                &format!("Wiiload cleanup failed ({error})."),
+                hbc_rs::app::NoticeKind::Error,
+            );
+            wiiload_cleanup_notice_shown = true;
         }
         if receiver_status == hbc_rs::platform::wiiload::ReceiverStatus::Receiving {
             if startup.runtime().controller().screen != hbc_rs::app::Screen::WiiloadReceiving {
@@ -381,82 +380,83 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             }
         }
 
-        if deferred_exit.is_none() && !startup.storage_scan_pending() {
-            if pending_zip.is_none() && !startup.received_zip_install_pending() {
-                if let Some(payload) = hbc_rs::platform::wiiload::take_payload() {
-                    ogc_system::report(format_args!(
-                        "HBC: received payload ready: {} bytes\n",
-                        payload.data.len()
-                    ));
-                    if payload.data.starts_with(b"PK\x03\x04") {
-                        match hbc_rs::wiiload_zip::classify_received_zip(&payload.data) {
-                            Ok(hbc_rs::wiiload_zip::WiiloadZipClassification::App {
-                                directory,
-                                extraction,
-                                ..
-                            }) => match startup.received_zip_destination_exists(&directory) {
-                                Ok(overwrite) => {
-                                    let language = hbc_rs::localization::Language::from_console(
-                                        ogc_conf::get_language(),
-                                        startup.runtime().theme(),
-                                    );
-                                    let confirmation = language.received_zip_confirmation(
-                                        &directory,
-                                        extraction.total_bytes(),
-                                        overwrite,
-                                    );
-                                    pending_zip = Some(payload.data);
-                                    startup.runtime_mut().request_wiiload_zip_confirmation();
-                                    startup
-                                        .runtime_mut()
-                                        .set_wiiload_confirmation_text(confirmation);
-                                }
-                                Err(_) => startup
-                                    .runtime_mut()
-                                    .show_notice("Could not check the target storage folder."),
-                            },
-                            Ok(hbc_rs::wiiload_zip::WiiloadZipClassification::Theme { .. }) => {
-                                pending_zip = Some(payload.data);
-                                startup.runtime_mut().request_wiiload_zip_confirmation();
-                            }
-                            Err(_) => startup
+        if deferred_exit.is_none()
+            && !startup.storage_scan_pending()
+            && pending_zip.is_none()
+            && !startup.received_zip_install_pending()
+            && let Some(payload) = hbc_rs::platform::wiiload::take_payload()
+        {
+            ogc_system::report(format_args!(
+                "HBC: received payload ready: {} bytes\n",
+                payload.data.len()
+            ));
+            if payload.data.starts_with(b"PK\x03\x04") {
+                match hbc_rs::wiiload_zip::classify_received_zip(&payload.data) {
+                    Ok(hbc_rs::wiiload_zip::WiiloadZipClassification::App {
+                        directory,
+                        extraction,
+                        ..
+                    }) => match startup.received_zip_destination_exists(&directory) {
+                        Ok(overwrite) => {
+                            let language = hbc_rs::localization::Language::from_console(
+                                ogc_conf::get_language(),
+                                startup.runtime().theme(),
+                            );
+                            let confirmation = language.received_zip_confirmation(
+                                &directory,
+                                extraction.total_bytes(),
+                                overwrite,
+                            );
+                            pending_zip = Some(payload.data);
+                            startup.runtime_mut().request_wiiload_zip_confirmation();
+                            startup
                                 .runtime_mut()
-                                .show_notice("Received ZIP is not a valid app or theme."),
+                                .set_wiiload_confirmation_text(confirmation);
                         }
-                    } else {
-                        let plan = if payload.data.starts_with(b"\x7fELF") {
-                            hbc_rs::loader::parse_elf32_ppc(
-                                &payload.data,
-                                Some(hbc_rs::platform::startup::EXECUTABLE_MEMORY.clone()),
-                            )
-                        } else {
-                            hbc_rs::loader::parse_dol(
-                                &payload.data,
-                                Some(hbc_rs::platform::startup::EXECUTABLE_MEMORY.clone()),
-                            )
-                        };
-                        match plan {
-                            Ok(plan) => {
-                                if let Err(notice) = transfer_executable(
-                                    &mut startup,
-                                    hbc_rs::loader::LaunchSource::from_vec(payload.data),
-                                    plan,
-                                    payload.args,
-                                    false,
-                                    "Could not prepare the received application.",
-                                ) {
-                                    startup.runtime_mut().show_notice(&notice);
-                                }
-                            }
-                            Err(error) => {
-                                ogc_system::report(format_args!(
-                                    "HBC: received executable validation failed: {error:?}\n"
-                                ));
-                                startup.runtime_mut().show_notice(&format!(
-                                    "Received data is not a valid Wii application: {error:?}."
-                                ));
-                            }
+                        Err(_) => startup
+                            .runtime_mut()
+                            .show_notice("Could not check the target storage folder."),
+                    },
+                    Ok(hbc_rs::wiiload_zip::WiiloadZipClassification::Theme { .. }) => {
+                        pending_zip = Some(payload.data);
+                        startup.runtime_mut().request_wiiload_zip_confirmation();
+                    }
+                    Err(_) => startup
+                        .runtime_mut()
+                        .show_notice("Received ZIP is not a valid app or theme."),
+                }
+            } else {
+                let plan = if payload.data.starts_with(b"\x7fELF") {
+                    hbc_rs::loader::parse_elf32_ppc(
+                        &payload.data,
+                        Some(hbc_rs::platform::startup::EXECUTABLE_MEMORY.clone()),
+                    )
+                } else {
+                    hbc_rs::loader::parse_dol(
+                        &payload.data,
+                        Some(hbc_rs::platform::startup::EXECUTABLE_MEMORY.clone()),
+                    )
+                };
+                match plan {
+                    Ok(plan) => {
+                        if let Err(notice) = transfer_executable(
+                            &mut startup,
+                            hbc_rs::loader::LaunchSource::from_vec(payload.data),
+                            plan,
+                            payload.args,
+                            hbc_rs::loader::ios_launch_policy(false),
+                            "Could not prepare the received application.",
+                        ) {
+                            startup.runtime_mut().show_notice(&notice);
                         }
+                    }
+                    Err(error) => {
+                        ogc_system::report(format_args!(
+                            "HBC: received executable validation failed: {error:?}\n"
+                        ));
+                        startup.runtime_mut().show_notice(&format!(
+                            "Received data is not a valid Wii application: {error:?}."
+                        ));
                     }
                 }
             }
@@ -464,16 +464,16 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         frames_since_storage_scan = frames_since_storage_scan.saturating_add(1);
         if frames_since_storage_scan >= 30 && deferred_exit.is_none() {
             frames_since_storage_scan = 0;
-            if startup.runtime().controller().screen == hbc_rs::app::Screen::Options {
-                if let Err(error) = startup.refresh_device_availability() {
-                    ogc_system::report(format_args!(
-                        "HBC: could not start storage availability probe: {error:?}\n"
-                    ));
-                    startup.runtime_mut().show_notice_with_kind(
-                        "Could not refresh storage devices.",
-                        hbc_rs::app::NoticeKind::Error,
-                    );
-                }
+            if startup.runtime().controller().screen == hbc_rs::app::Screen::Options
+                && let Err(error) = startup.refresh_device_availability()
+            {
+                ogc_system::report(format_args!(
+                    "HBC: could not start storage availability probe: {error:?}\n"
+                ));
+                startup.runtime_mut().show_notice_with_kind(
+                    "Could not refresh storage devices.",
+                    hbc_rs::app::NoticeKind::Error,
+                );
             }
             if let Err(error) = startup.refresh_storage() {
                 ogc_system::report(format_args!("HBC: storage refresh failed: {error:?}\n"));
@@ -744,13 +744,13 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 remote_operation = None;
             }
         }
-        if let Some((id, result)) = remote_result.as_ref() {
-            if hbc_rs::platform::wiiload::REMOTE_CONTROL.finish(*id, result) {
-                ogc_system::report(format_args!(
-                    "HBC: terminal request {id} result: {result:?}\n"
-                ));
-                remote_result = None;
-            }
+        if let Some((id, result)) = remote_result.as_ref()
+            && hbc_rs::platform::wiiload::REMOTE_CONTROL.finish(*id, result)
+        {
+            ogc_system::report(format_args!(
+                "HBC: terminal request {id} result: {result:?}\n"
+            ));
+            remote_result = None;
         }
         if display_ready
             && remote_operation.is_none()
@@ -763,47 +763,44 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 hbc_rs::wiiload::ReceiverStatus::Receiving
                     | hbc_rs::wiiload::ReceiverStatus::PayloadReady
             )
+            && let Some((id, command)) = hbc_rs::platform::wiiload::REMOTE_CONTROL.take(control_now)
         {
-            if let Some((id, command)) = hbc_rs::platform::wiiload::REMOTE_CONTROL.take(control_now)
-            {
-                use hbc_rs::remote_control::Command;
-                ogc_system::report(format_args!(
-                    "HBC: terminal request {id} executing {command:?}\n"
-                ));
-                let reset = match command {
-                    Command::Restart => Some(ogc_system::SYS_RESTART),
-                    Command::Reset => Some(ogc_system::SYS_RETURNTOMENU),
-                    Command::PowerOff => Some(ogc_system::SYS_POWEROFF),
-                    _ => None,
-                };
-                if let Some(reset) = reset {
-                    // A successful reset never returns. Never publish completed
-                    // before the hardware has actually changed execution state.
-                    if let Err(mut message) = exit_to_system(&mut startup, reset) {
-                        if hbc_rs::platform::wiiload::status()
-                            == hbc_rs::wiiload::ReceiverStatus::Stopped
-                        {
-                            if let Err(error) = hbc_rs::platform::input::initialize(
-                                startup.logical_width(),
-                                hbc_rs::render::LOGICAL_HEIGHT,
-                            ) {
-                                message.push_str(&format!(" Controller recovery failed: {error}."));
-                            }
-                            if let Err(error) = hbc_rs::platform::wiiload::start() {
-                                message.push_str(&format!(" Receiver recovery failed: {error:?}."));
-                            }
-                        }
-                        startup
-                            .runtime_mut()
-                            .show_notice_with_kind(&message, hbc_rs::app::NoticeKind::Error);
-                        remote_result = Some((id, Err(message)));
-                    }
-                } else {
-                    match hbc_rs::platform::control::Operation::begin(command, &mut startup, &video)
+            use hbc_rs::remote_control::Command;
+            ogc_system::report(format_args!(
+                "HBC: terminal request {id} executing {command:?}\n"
+            ));
+            let reset = match command {
+                Command::Restart => Some(ogc_system::SYS_RESTART),
+                Command::Reset => Some(ogc_system::SYS_RETURNTOMENU),
+                Command::PowerOff => Some(ogc_system::SYS_POWEROFF),
+                _ => None,
+            };
+            if let Some(reset) = reset {
+                // A successful reset never returns. Never publish completed
+                // before the hardware has actually changed execution state.
+                if let Err(mut message) = exit_to_system(&mut startup, reset) {
+                    if hbc_rs::platform::wiiload::status()
+                        == hbc_rs::wiiload::ReceiverStatus::Stopped
                     {
-                        Ok(operation) => remote_operation = Some((id, control_now, operation)),
-                        Err(error) => remote_result = Some((id, Err(error))),
+                        if let Err(error) = hbc_rs::platform::input::initialize(
+                            startup.logical_width(),
+                            hbc_rs::render::LOGICAL_HEIGHT,
+                        ) {
+                            message.push_str(&format!(" Controller recovery failed: {error}."));
+                        }
+                        if let Err(error) = hbc_rs::platform::wiiload::start() {
+                            message.push_str(&format!(" Receiver recovery failed: {error:?}."));
+                        }
                     }
+                    startup
+                        .runtime_mut()
+                        .show_notice_with_kind(&message, hbc_rs::app::NoticeKind::Error);
+                    remote_result = Some((id, Err(message)));
+                }
+            } else {
+                match hbc_rs::platform::control::Operation::begin(command, &mut startup, &video) {
+                    Ok(operation) => remote_operation = Some((id, control_now, operation)),
+                    Err(error) => remote_result = Some((id, Err(error))),
                 }
             }
         }
@@ -963,13 +960,13 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 continue;
             }
             if action == hbc_rs::app::Action::AcceptWiiloadZip {
-                if let Some(bytes) = pending_zip.take() {
-                    if startup.start_received_zip(bytes).is_err() {
-                        startup.runtime_mut().show_notice_with_kind(
-                            "Could not install the app or apply the theme.",
-                            hbc_rs::app::NoticeKind::Error,
-                        );
-                    }
+                if let Some(bytes) = pending_zip.take()
+                    && startup.start_received_zip(bytes).is_err()
+                {
+                    startup.runtime_mut().show_notice_with_kind(
+                        "Could not install the app or apply the theme.",
+                        hbc_rs::app::NoticeKind::Error,
+                    );
                 }
                 continue;
             }
@@ -1206,13 +1203,13 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 ogc_system::report(format_args!(
                     "HBC: selected executable read and validated\n"
                 ));
-                let ahb_access = image.ahb_access;
+                let ios_policy = image.ios_policy;
                 if let Err(notice) = transfer_executable(
                     &mut startup,
                     image.bytes,
                     image.plan,
                     image.arguments,
-                    ahb_access,
+                    ios_policy,
                     "Could not prepare this application to run.",
                 ) {
                     startup
@@ -1462,7 +1459,7 @@ fn transfer_executable(
     bytes: hbc_rs::loader::LaunchSource,
     plan: hbc_rs::loader::LoadPlan,
     arguments: Vec<u8>,
-    ahb_access: bool,
+    ios_policy: hbc_rs::loader::IosLaunchPolicy,
     prepare_error: &str,
 ) -> Result<(), String> {
     ogc_system::report(format_args!("HBC: staging executable in MEM2\n"));
@@ -1485,9 +1482,7 @@ fn transfer_executable(
         .map_err(|error| format!("{error}. Application launch stopped."))?;
     ogc_system::report(format_args!("HBC: transferring executable control\n"));
     hbc_rs::platform::video::shutdown();
-    unsafe {
-        hbc_rs::loader::transfer_control(launch, hbc_rs::loader::ios_launch_policy(ahb_access))
-    }
+    unsafe { hbc_rs::loader::transfer_control(launch, ios_policy) }
 }
 
 #[cfg(target_arch = "powerpc")]

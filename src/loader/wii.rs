@@ -444,15 +444,15 @@ pub unsafe fn transfer_control(image: LaunchImage, policy: super::IosLaunchPolic
         );
         ogc_cache::dc_flush_range(trampoline.cast::<c_void>(), trampoline_len as u32);
         ogc_cache::ic_invalidate_range(trampoline.cast::<c_void>(), trampoline_len as u32);
-        if policy.ahb_access && ogc_es_sys::patch_ahbprot_reset() != 0 {
-            // HBC services are already stopped. Do not start the app without
-            // its requested access; return to the System Menu instead.
-            ogc_system::reset_system(ogc_system::SYS_RETURNTOMENU as i32, 0, 0);
-            loop {
-                core::hint::spin_loop();
-            }
-        }
         if policy.reload {
+            if policy.ahb_access && ogc_es_sys::patch_ahbprot_reset() != 0 {
+                // HBC services are already stopped. Do not start the app without
+                // its requested access; return to the System Menu instead.
+                ogc_system::reset_system(ogc_system::SYS_RETURNTOMENU as i32, 0, 0);
+                loop {
+                    core::hint::spin_loop();
+                }
+            }
             let version = ogc_ios::get_preferred_version();
             ogc_system::report(format_args!("HBC: launch reloading IOS{version}\n"));
             let reload_result = ogc_ios::launch_new_ios(version);
@@ -475,6 +475,10 @@ pub unsafe fn transfer_control(image: LaunchImage, policy: super::IosLaunchPolic
                 );
             }
         }
+        ogc_system::report(format_args!(
+            "HBC: launch IOS policy: reload={}, ahb_access={}\n",
+            policy.reload, policy.ahb_access
+        ));
         ogc_system::report(format_args!("HBC: launch shutting down runtime\n"));
         ogc_system::reset_system(ogc_system::SYS_SHUTDOWN as i32, 0, 0);
         ogc_system::report(format_args!("HBC: launch runtime shutdown complete\n"));

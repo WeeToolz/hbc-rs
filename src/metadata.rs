@@ -26,6 +26,7 @@ pub struct AppMetadata {
     pub release_date: Option<u64>,
     pub arguments: Vec<String>,
     pub ahb_access: bool,
+    pub no_ios_reload: bool,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -92,7 +93,8 @@ pub fn parse_app_xml(xml: &str) -> Result<AppMetadata, String> {
         long_description: app.text("long_description"),
         release_date: app.text("release_date").and_then(|s| parse_date(&s)),
         arguments,
-        ahb_access: app.find("ahb_access").is_some() || app.find("no_ios_reload").is_some(),
+        ahb_access: app.find("ahb_access").is_some(),
+        no_ios_reload: app.find("no_ios_reload").is_some(),
     })
 }
 
@@ -451,7 +453,8 @@ mod tests {
         assert_eq!(m.author.as_deref(), Some("fallback"));
         assert_eq!(m.release_date, Some(20240203112233));
         assert_eq!(m.arguments, ["x", "two < three"]);
-        assert!(m.ahb_access);
+        assert!(!m.ahb_access);
+        assert!(m.no_ios_reload);
     }
     #[test]
     fn parses_settings_update_and_theme_defaults() {

@@ -474,6 +474,26 @@ fn create_listener() -> Result<i32, ListenerCreateError> {
             cleanup: None,
         });
     }
+    // A locally launched app can restart this service while connections from
+    // the launching HBC are still in TIME_WAIT. Reuse that local address;
+    // an active listener must still fail to bind (do not use SO_REUSEPORT).
+    let reuse_address = 1u32;
+    let reuse = unsafe {
+        network::setsockopt(
+            socket,
+            network::SOL_SOCKET,
+            network::SO_REUSEADDR,
+            (&reuse_address as *const u32).cast(),
+            core::mem::size_of_val(&reuse_address) as network::SockLenT,
+        )
+    };
+    if reuse < 0 {
+        return Err(ListenerCreateError {
+            stage: "set address reuse",
+            code: reuse,
+            cleanup: close_socket(socket).err(),
+        });
+    }
     let flags = network::fcntl(socket, F_GETFL, 0);
     if flags < 0 {
         return Err(ListenerCreateError {
@@ -490,11 +510,15 @@ fn create_listener() -> Result<i32, ListenerCreateError> {
             cleanup: close_socket(socket).err(),
         });
     }
-    let mut address = SockaddrIn::default();
-    address.sin_len = core::mem::size_of::<SockaddrIn>() as u8;
-    address.sin_family = AF_INET as u8;
-    address.sin_port = WIILOAD_TCP_PORT.to_be();
-    address.sin_addr.s_addr = network::get_host_ip();
+    let address = SockaddrIn {
+        sin_len: core::mem::size_of::<SockaddrIn>() as u8,
+        sin_family: AF_INET as u8,
+        sin_port: WIILOAD_TCP_PORT.to_be(),
+        sin_addr: network::InAddr {
+            s_addr: network::get_host_ip(),
+        },
+        ..SockaddrIn::default()
+    };
     let bind = network::bind_addr(socket, &address);
     if bind < 0 {
         return Err(ListenerCreateError {

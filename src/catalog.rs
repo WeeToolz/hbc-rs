@@ -337,6 +337,7 @@ mod tests {
                 release_date: date,
                 arguments: vec![],
                 ahb_access: false,
+                no_ios_reload: false,
             }),
         }
     }

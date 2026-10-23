@@ -82,6 +82,14 @@ pub const fn ios_launch_policy(ahb_access: bool) -> IosLaunchPolicy {
     }
 }
 
+/// Reborn keeps the AHB request separate from the request to retain IOS.
+/// Every storage volume uses this same metadata policy.
+pub fn app_ios_launch_policy(metadata: Option<&crate::metadata::AppMetadata>) -> IosLaunchPolicy {
+    let mut policy = ios_launch_policy(metadata.is_some_and(|metadata| metadata.ahb_access));
+    policy.reload = !metadata.is_some_and(|metadata| metadata.no_ios_reload);
+    policy
+}
+
 /// Build the Wii `__argv.commandLine` byte sequence used by HBC.
 ///
 /// The executable path is the first NUL-terminated argument. Metadata values
@@ -425,6 +433,29 @@ fn be32(bytes: &[u8], offset: usize) -> Result<u32, ParseError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn app_metadata_preserves_independent_ios_and_ahb_requests() {
+        for (xml, reload, ahb_access) in [
+            ("<app/>", true, false),
+            ("<app><ahb_access/></app>", true, true),
+            ("<app><no_ios_reload/></app>", false, false),
+            ("<app><ahb_access/><no_ios_reload/></app>", false, true),
+        ] {
+            let metadata = crate::metadata::parse_app_xml(xml).unwrap();
+            assert_eq!(
+                app_ios_launch_policy(Some(&metadata)),
+                IosLaunchPolicy { reload, ahb_access },
+            );
+        }
+        assert_eq!(
+            app_ios_launch_policy(None),
+            IosLaunchPolicy {
+                reload: true,
+                ahb_access: false
+            }
+        );
+    }
 
     #[test]
     fn launch_memory_layout_matches_the_wii_abi() {

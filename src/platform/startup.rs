@@ -415,10 +415,9 @@ fn recover_app_install_artifacts(storage: &mut FatStorage) -> Result<(), ZipInst
     let mut directories = BTreeSet::new();
     for entry in entries.into_iter().filter(|entry| entry.is_directory) {
         if let Some(directory) = crate::management::AppInstallPaths::artifact_directory(&entry.name)
+            && crate::management::plan_app_deletion(directory).is_ok()
         {
-            if crate::management::plan_app_deletion(directory).is_ok() {
-                directories.insert(String::from(directory));
-            }
+            directories.insert(String::from(directory));
         }
     }
     for directory in directories {
@@ -733,10 +732,7 @@ impl WiiStartup {
         let widescreen = view_width > crate::render::LOGICAL_WIDTH;
         #[cfg(feature = "startup-diagnostics")]
         super::diagnostics::mark("NAND THEME LOAD");
-        let theme_archive = match super::theme::load() {
-            Ok(theme) => Ok(theme),
-            Err(error) => Err(error),
-        };
+        let theme_archive = super::theme::load();
         #[cfg(feature = "startup-diagnostics")]
         super::diagnostics::mark("BOOTMII TITLE CHECK");
         let bootmii_available = bootmii_ios_available();
@@ -958,6 +954,11 @@ impl WiiStartup {
         self.runtime.set_widescreen(self.widescreen);
         self.runtime
             .set_active_device(self.volume.map(Volume::settings_index));
+        ogc_system::report(format_args!(
+            "HBC: storage scan applied: volume={:?}, apps={}\n",
+            self.volume,
+            self.runtime.catalog().len(),
+        ));
         self.icon_textures.clear();
         self.attempted_icon_indices.clear();
 
@@ -1240,10 +1241,7 @@ impl WiiStartup {
             bytes,
             plan,
             arguments: launch_arguments,
-            ahb_access: entry
-                .metadata
-                .as_ref()
-                .is_some_and(|metadata| metadata.ahb_access),
+            ios_policy: crate::loader::app_ios_launch_policy(entry.metadata.as_ref()),
         })
     }
 
@@ -1323,10 +1321,8 @@ impl WiiStartup {
         self.icon_textures.clear();
         self.attempted_icon_indices.clear();
         let selected = scan.volume == Some(wanted);
-        if !selected {
-            if let Some(active) = scan.volume {
-                self.runtime.set_preferred_device(active.settings_index());
-            }
+        if !selected && let Some(active) = scan.volume {
+            self.runtime.set_preferred_device(active.settings_index());
         }
         if let Some(error) = scan.scan_error {
             return Err(StartupError::CatalogScan(error));
@@ -1334,8 +1330,8 @@ impl WiiStartup {
         if let Some(error) = scan.recovery_error {
             return Err(StartupError::Recovery(error));
         }
-        if scan.volume.is_none() {
-            if let Some((volume, error)) =
+        if scan.volume.is_none()
+            && let Some((volume, error)) =
                 scan.mount_errors.into_iter().find_map(|(volume, error)| {
                     error
                         .filter(|error| {
@@ -1343,9 +1339,8 @@ impl WiiStartup {
                         })
                         .map(|error| (volume, error))
                 })
-            {
-                return Err(StartupError::StorageMount { volume, error });
-            }
+        {
+            return Err(StartupError::StorageMount { volume, error });
         }
         Ok(selected)
     }
@@ -1392,8 +1387,8 @@ pub struct LaunchImage {
     pub bytes: crate::loader::LaunchSource,
     pub plan: LoadPlan,
     pub arguments: Vec<u8>,
-    /// The app metadata requests access to hardware registers after launch.
-    pub ahb_access: bool,
+    /// IOS reload and hardware access selected from the app metadata.
+    pub ios_policy: crate::loader::IosLaunchPolicy,
 }
 
 pub struct PreparedTheme {
