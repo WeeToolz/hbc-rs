@@ -1,0 +1,11 @@
+COMMAND: cargo clippy --release --bins --target /Volumes/SSD/WiiDev/RustPorts/libogc-rs/targets/powerpc-nintendo-none.json -Z build-std=core,alloc -Z build-std-features=compiler-builtins-mem -Z json-target-spec --all-features -- -D warnings
+    Checking hbc-rs v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/hbc-rs)
+error: Select only one debugger mode: USB Gecko or network
+  --> src/platform/lifecycle.rs:47:1
+   |
+47 | compile_error!("Select only one debugger mode: USB Gecko or network");
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: could not compile `hbc-rs` (lib) due to 1 previous error
+
+exit_code=101

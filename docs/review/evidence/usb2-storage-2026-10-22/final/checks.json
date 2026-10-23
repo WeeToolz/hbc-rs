@@ -1,0 +1,8 @@
+{
+  "host-tests": 0,
+  "clippy-host-default": 0,
+  "clippy-host-network": 0,
+  "clippy-powerpc-default": 0,
+  "clippy-powerpc-network": 0,
+  "python-tests": 0
+}

@@ -1,0 +1,8 @@
+COMMAND: cargo clippy --release --bins --target /Volumes/SSD/WiiDev/RustPorts/hbc-rs/../libogc-rs/targets/powerpc-nintendo-none.json -Z build-std=core,alloc -Z build-std-features=compiler-builtins-mem -Z json-target-spec --features debugger-network -- -D warnings
+    Checking gdb-transport v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/compatibility/gdb-transport)
+    Checking tuxedo-sys v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/compatibility/tuxedo-sys)
+    Checking libdb-sys v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/compatibility/libdb-sys)
+    Checking hbc-rs v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/hbc-rs)
+    Finished `release` profile [optimized] target(s) in 0.94s
+
+exit_code=0

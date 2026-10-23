@@ -1,0 +1,5 @@
+COMMAND: cargo clippy --all-targets --features debugger-network -- -D warnings
+    Checking hbc-rs v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/hbc-rs)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.04s
+
+exit_code=0

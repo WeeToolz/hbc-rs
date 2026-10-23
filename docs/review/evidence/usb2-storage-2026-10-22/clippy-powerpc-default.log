@@ -1,0 +1,81 @@
+COMMAND: cargo clippy --release --bins --target /Volumes/SSD/WiiDev/RustPorts/hbc-rs/../libogc-rs/targets/powerpc-nintendo-none.json -Z build-std=core,alloc -Z build-std-features=compiler-builtins-mem -Z json-target-spec -- -D warnings
+   Compiling compiler_builtins v0.1.160 (/Users/user/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/compiler-builtins/compiler-builtins)
+   Compiling core v0.0.0 (/Users/user/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core)
+   Compiling libm v0.2.16
+   Compiling crc32fast v1.5.2
+   Compiling alloc v0.0.0 (/Users/user/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/alloc)
+    Checking ogc-sys v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/abi/ogc-sys)
+    Checking ogc-runtime v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-runtime)
+    Checking ogc-conf-sys v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-conf-sys)
+    Checking wiiuse-rs v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/wiiuse-rs)
+    Checking ogc-wiilaunch-state v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-wiilaunch-state)
+    Checking ogc-report-protocol v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-report-protocol)
+    Checking ogc-sha v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-sha)
+    Checking ogc-usb-events v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-usb-events)
+    Checking ogc-gu-sys v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/hardware/ogc-gu-sys)
+    Checking ogc-usbstorage-lifecycle v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-usbstorage-lifecycle)
+    Checking foldhash v0.1.5
+    Checking equivalent v1.0.2
+    Checking allocator-api2 v0.2.21
+    Checking adler2 v2.0.1
+    Checking ogc-gx-sys v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/hardware/ogc-gx-sys)
+    Checking cfg-if v1.0.5
+    Checking ogc-ui v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-ui)
+    Checking ogc-irq-sys v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-irq-sys)
+    Checking ogc-core v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-core)
+    Checking ogc-cache v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-cache)
+    Checking ogc-filesystem-sys v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-filesystem-sys)
+    Checking miniz_oxide v0.8.9
+    Checking ogc-irq v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-irq)
+    Checking ogc-alloc v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-alloc)
+    Checking ogc-lwp-driver v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-lwp-driver)
+    Checking ogc-exi-sys v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/hardware/ogc-exi-sys)
+    Checking ogc-dsp-sys v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/hardware/ogc-dsp-sys)
+    Checking hashbrown v0.15.5
+    Checking ogc-dsp v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/hardware/ogc-dsp)
+    Checking ogc-exi v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/hardware/ogc-exi)
+    Checking ogc-lwp-sys v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-lwp-sys)
+    Checking ogc-sysbase v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-sysbase)
+    Checking ogc-usbgecko v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-usbgecko)
+    Checking ogc-lwp v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-lwp)
+    Checking iso9660 v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/media/iso9660)
+    Checking ogc-ipc v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-ipc)
+    Checking core_maths v0.1.1
+    Checking ogc-gu v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/hardware/ogc-gu)
+    Checking ttf-parser v0.25.1
+    Checking ogc-conf v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-conf)
+    Checking ogc-es-sys v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-es-sys)
+    Checking lwip-sys v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/lwip-sys)
+    Checking ogc-stm v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-stm)
+    Checking ogc-bt-sync v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-bt-sync)
+    Checking ogc-usb-sys v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-usb-sys)
+    Checking ogc-wiisd v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-wiisd)
+    Checking ogc-filesystem v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-filesystem)
+    Checking ogc-di v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-di)
+    Checking ogc-video-sys v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/hardware/ogc-video-sys)
+    Checking ogc-network-sys v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-network-sys)
+    Checking ogc-usb v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-usb)
+    Checking ogc-ios-sys v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-ios-sys)
+    Checking ogc-es v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-es)
+    Checking ogc-video v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/hardware/ogc-video)
+    Checking ogc-ios v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-ios)
+    Checking ogc-si-sys v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/hardware/ogc-si-sys)
+    Checking ogc-network v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-network)
+    Checking ogc-wiilaunch v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-wiilaunch)
+    Checking wpad-sys v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/wpad-sys)
+    Checking ogc-si v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/hardware/ogc-si)
+    Checking ogc-system-sys v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-system-sys)
+    Checking fontdue v0.9.4
+    Checking ogc-system v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-system)
+    Checking ogc-usbstorage-sys v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-usbstorage-sys)
+    Checking ogc-wd v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-wd)
+    Checking ogc-input-sys v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-input-sys)
+    Checking ogc-gcsd v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-gcsd)
+    Checking ogc-gx v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/hardware/ogc-gx)
+    Checking ogc-input v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-input)
+    Checking ogc-fat v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-fat)
+    Checking ogc-controller v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-controller)
+    Checking hbc-rs v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/hbc-rs)
+    Finished `release` profile [optimized] target(s) in 8.11s
+
+exit_code=0

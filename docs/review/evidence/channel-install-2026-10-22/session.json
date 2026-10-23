@@ -1,0 +1,23 @@
+{
+  "profile": "/Volumes/SSD/WiiDev/tmp/hbc-rs-installed-channel-0sxc3e1z",
+  "source_nand_unchanged": "/Users/user/Library/Application Support/Dolphin/Wii",
+  "old_hbc": {
+    "title": "000100014c554c5a",
+    "entry": 2147500032,
+    "entry_bytes": "3c608000606340003c809001608400003ca0900160a539a08043000090440000",
+    "boot_sha256": "fad781be84a838d19a2be5d9f5bc37bb2163cc0374672f32d6ffb35d27390726"
+  },
+  "new_title_id": "000100014f484243",
+  "wad": "/Volumes/SSD/WiiDev/RustPorts/hbc-rs/dist/hbc-rs-debug-2026-10-22/hbc-rs-debug-OHBC.wad",
+  "status": "OHBC WAD installed and booted in the separate Dolphin profile; old LULZ title remains installed.",
+  "rust_tmd_matches_wad": true,
+  "rust_boot_content_matches_wad": true,
+  "rust_ticket_matches_wad": true,
+  "old_hbc_still_installed": true,
+  "rust_channel_installed": true,
+  "boot_observed_in_user_screenshot": true,
+  "tools_load_system_menu_disabled_while_channel_running": true,
+  "physical_wii_changed": false,
+  "signature_policy": "legacy fakesign",
+  "certificate_root_trust": "unchecked"
+}

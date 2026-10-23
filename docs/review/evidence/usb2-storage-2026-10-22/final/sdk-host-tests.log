@@ -1,0 +1,180 @@
+COMMAND: cargo test -p gc-wad -p gc-elf -p ogc-report-protocol -p ogc-usbstorage-lifecycle -p xtask
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/gc_elf-e223a8f4d360f9cb)
+
+running 10 tests
+test channel::tests::adds_real_entry_preserves_payload_and_sets_actual_destination ... ok
+test channel::tests::rejects_bad_dol_ranges_entry_and_slots ... ok
+test tests::legacy_bss_matches_c_add_bss_order_and_adjacency_rules ... ok
+test tests::legacy_profile_converts_images_without_nonempty_load_segments ... ok
+test tests::legacy_profile_omits_initialized_data_bss_tail ... ok
+test tests::legacy_profile_uses_physical_addresses_and_64_byte_alignment ... ok
+test tests::libogc_profile_pads_the_final_data_section_for_loader_reads ... ok
+test tests::libogc_profile_pads_the_final_text_section_for_loader_reads ... ok
+test tests::libogc_profile_uses_virtual_addresses_and_32_byte_alignment ... ok
+test tests::rejects_truncated_and_incompatible_images ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/gc_wad-647596fca009f7b7)
+
+running 5 tests
+test tests::corruption_wrong_key_and_truncation_fail ... ok
+test tests::missing_duplicate_and_invalid_metadata_fail ... ok
+test tests::nist_aes_cbc_and_sha1_vectors ... ok
+test tests::retitle_preserves_title_key_and_rejects_system_titles ... ok
+test tests::serialized_wad_checks_independent_sizes_hashes_and_legacy_status ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/main.rs (target/debug/deps/gc_wad-db7f387e14334832)
+
+running 2 tests
+test tests::publication_checks_disk_bytes_and_preserves_existing_outputs ... ok
+test tests::verification_rejects_invalid_and_unsupported_metadata ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/signatures.rs (target/debug/deps/signatures-2405091c13e5e7f8)
+
+running 1 test
+test verifies_openssl_rsa_signature_and_rejects_changed_body_and_signature ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/lib.rs (target/debug/deps/ogc_report_protocol-9ac230c3948e5e24)
+
+running 9 tests
+test tests::application_progress_preserves_stage_and_truncation ... ok
+test tests::deadline_boundaries_are_checked ... ok
+test tests::endpoints_preserve_caller_address_policy_and_reject_malformed_input ... ok
+test tests::final_report_marks_success_only_for_zero_status_without_log_loss ... ok
+test tests::final_report_returns_failure_from_each_transport_write ... ok
+test tests::final_report_writes_exact_sections_and_preserves_application_failure ... ok
+test tests::log_preserves_real_bytes_and_counts_capacity_loss ... ok
+test tests::validates_identity_and_requires_an_enabled_deadline ... ok
+test tests::wire_headers_match_independent_protocol_bytes ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/ogc_usbstorage_lifecycle-bb69440c638570ba)
+
+running 14 tests
+test drives::tests::identical_models_remain_distinct_by_ios_id ... ok
+test drives::tests::removal_during_mount_cannot_be_published_as_ready ... ok
+test drives::tests::removing_or_closing_one_drive_preserves_the_other ... ok
+test tests::close_operations_report_luns_and_run_requested_actions ... ok
+test tests::each_flush_boundary_failure_still_closes_transport ... ok
+test tests::first_flush_failure_is_preserved_when_later_close_also_fails ... ok
+test tests::flush_failure_does_not_prevent_transport_close ... ok
+test tests::flushes_each_mounted_lun_then_closes ... ok
+test tests::handle_without_mounted_luns_still_closes_transport ... ok
+test tests::transport_close_failure_is_returned_after_flushes ... ok
+test transport::tests::reset_preserves_the_first_error ... ok
+test transport::tests::reset_reports_each_failure_and_completes_recovery_in_order ... ok
+test transport::tests::reset_success_requires_all_recovery_steps ... ok
+test transport::tests::suspend_failure_preserves_state_and_allows_retry ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/xtask-45950bb0a8a27f6e)
+
+running 69 tests
+test aesnd_output_evidence_tests::tests::native_pcm_checks_right_then_left_and_every_sample ... ok
+test aesnd_output_evidence_tests::tests::retains_actual_pcm_and_distinguishes_silence ... ok
+test dol_mode::tests::generated_launcher_checks_actual_dol_identity_and_quotes_shell_data ... ok
+test dol_mode::tests::normal_is_default_and_modes_are_explicit_boolean_flags ... ok
+test dolphin::tests::completed_probe_still_fails_when_page_evidence_is_missing ... ok
+test dolphin::tests::completion_requires_valid_capture_and_a_passing_summary ... ok
+test dolphin::tests::copies_a_valid_wii_nand_into_the_isolated_profile ... ok
+test dolphin::tests::locates_dolphin_symbols_in_the_probe_build_directory ... ok
+test dolphin::tests::parses_pass_and_fail_summaries ... ok
+test dolphin::tests::refuses_to_overwrite_or_copy_inside_the_nand_source ... ok
+test dolphin::tests::rejects_a_nand_without_system_menu_content ... ok
+test dolphin::tests::rejects_incomplete_or_trailing_summary_data ... ok
+test dolphin::tests::resolves_boot_stage_from_big_endian_powerpc_elf_symbols ... ok
+test dolphin::tests::selects_named_probes_in_requested_order ... ok
+test dolphin::tests::timeout_status_takes_priority_over_missing_page_captures ... ok
+test dolphin::tests::white_framebuffer_pixels_are_not_gdb_error_packets ... ok
+test dsp_mailbox_tests::tests::read_preserves_message_and_acknowledges_low_half ... ok
+test dsp_mailbox_tests::tests::shutdown_consumes_pending_message_before_mailbox_becomes_empty ... ok
+test host_tests::tests::every_standalone_test_suite_is_selected ... ok
+test host_tests::tests::role_manifest_selects_all_host_test_packages ... ok
+test inventory::tests::accepts_target_gated_unit_tests_as_evidence_sources ... ok
+test inventory::tests::api_call_outside_named_test_is_not_evidence ... ok
+test inventory::tests::api_name_in_comment_or_string_is_not_evidence ... ok
+test inventory::tests::constant_success_is_source_derived_fake_success ... ok
+test inventory::tests::discarded_result_is_source_review_not_fake_success ... ok
+test inventory::tests::duplicate_evidence_function_names_are_rejected ... ok
+test inventory::tests::evidence_classification_must_match_declaration ... ok
+test inventory::tests::hardware_classification_rejects_host_test_evidence ... ok
+test inventory::tests::host_evidence_requires_a_test_function ... ok
+test inventory::tests::ignored_argument_is_source_derived_stub ... ok
+test inventory::tests::public_function_scan_ignores_braces_and_comment_markers_in_raw_strings ... ok
+test inventory::tests::public_function_scan_keeps_existing_production_methods_visible ... ok
+test inventory::tests::target_forwarding_ignores_unreachable_host_fallback ... ok
+test inventory::tests::underscore_argument_is_intentionally_ignored ... ok
+test inventory::tests::valid_forwarding_function_has_no_source_finding ... ok
+test inventory::tests::valid_qualified_api_call_in_named_test_is_accepted ... ok
+test network_startup_tests::tests::active_attach_accepts_signed_unicast_addresses_without_restarting_ios ... ok
+test network_startup_tests::tests::dhcp_can_assign_192_168_after_zero_host_ids ... ok
+test network_startup_tests::tests::negative_startup_and_query_errors_remain_failures ... ok
+test network_startup_tests::tests::zero_address_still_times_out_with_the_existing_retry_bound ... ok
+test probe_artifact_tests::bluetooth_probe_is_in_the_dol_output_list ... ok
+test probe_artifact_tests::hid_descriptor_probe_is_built_as_a_dol ... ok
+test probe_artifact_tests::libmad_probe_is_built_as_a_dol ... ok
+test probe_artifact_tests::libmad_rs_decode_probe_is_built_as_a_dol ... ok
+test probe_artifact_tests::mad_decode_probe_is_built_as_a_dol ... ok
+test probe_artifact_tests::modes_preserve_the_dol_output_sets ... ok
+test probe_artifact_tests::modes_select_the_expected_features_and_output_directories ... ok
+test probe_artifact_tests::modplay_probe_is_built_as_a_dol ... ok
+test probe_artifact_tests::physical_audio_and_usb_probes_are_built_as_dols ... ok
+test probe_artifact_tests::probe_builds_isolate_packages_with_different_startup_providers ... ok
+test probe_artifact_tests::usbstorage_capacity_probe_is_built_as_a_dol ... ok
+test probe_artifact_tests::wii_remote_stability_probe_is_in_the_dol_output_list ... ok
+test probe_framebuffer_copy_tests::tests::snapshot_preserves_pixel_pairs_and_source ... ok
+test probe_framebuffer_selection_tests::tests::displayed_xfb_must_match_vi_and_console_targets ... ok
+test probe_report_send_tests::tests::does_not_retry_other_network_errors ... ok
+test probe_report_send_tests::tests::empty_payload_does_not_touch_the_socket ... ok
+test probe_report_send_tests::tests::operation_failure_after_partial_write_is_returned ... ok
+test probe_report_send_tests::tests::partial_writes_and_retries_preserve_exact_bytes ... ok
+test probe_report_send_tests::tests::retries_ios_timeout_and_returns_the_first_success ... ok
+test probe_report_send_tests::tests::retry_does_not_restart_the_original_deadline ... ok
+test probe_report_send_tests::tests::stops_after_three_ios_timeouts_and_preserves_the_error ... ok
+test probe_report_send_tests::tests::wire_flags_distinguish_streaming_pages_from_final_reports ... ok
+test probe_report_send_tests::tests::zero_and_oversized_completion_counts_are_errors ... ok
+test usbgecko_command_tests::tests::command_waits_once_and_returns_the_device_reply ... ok
+test usbgecko_command_tests::tests::transfer_and_cleanup_failures_are_not_success ... ok
+test wad_parity::tests::rejects_bad_ledger_references_states_duplicates_followup_and_stale_report ... ok
+test workspace::tests::detects_direct_non_powerpc_guard ... ok
+test workspace::tests::detects_host_guard_with_test_exception ... ok
+test workspace::tests::rejects_target_checks_without_compile_error ... ok
+
+test result: ok. 69 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+   Doc-tests gc_elf
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests gc_wad
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests ogc_report_protocol
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests ogc_usbstorage_lifecycle
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+exit_code=0

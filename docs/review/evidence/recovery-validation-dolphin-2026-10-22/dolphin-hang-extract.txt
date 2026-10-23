@@ -1,0 +1,62 @@
+Date/Time:        2026-10-22 22:14:36.885 -0400
+End time:         2026-10-22 22:16:23.777 -0400
+OS Version:       macOS 27.0.1 (Build 26A434)
+Architecture:     arm64e
+Report Version:   73
+Incident Identifier: C909963C-7444-4E54-928B-6DE278A82B7B
+
+Data Source:      Stackshots
+Shared Cache:     C284A291-B68B-3D0D-A1A0-3F866F87EFDC slid base address 0x19bf68000 (System Primary)
+Shared Cache:     7898DD48-6D8C-339E-BCD3-1FE6FBA0B485 slid base address 0x18587c000 (DriverKit)
+Shared Cache:     C284A291-B68B-3D0D-A1A0-3F866F87EFDC slid base address 0x190b04000
+Shared Cache:     C284A291-B68B-3D0D-A1A0-3F866F87EFDC slid base address 0x18782c000
+
+Command:          Dolphin
+Path:             /Applications/Dolphin.app/Contents/MacOS/Dolphin
+Identifier:       org.dolphin-emu.dolphin
+Version:          2609a (2609.1)
+Team ID:          97835T4369
+Is First Party:   No
+Beta Identifier:  C63D038C-A9DE-5D73-B179-825F7A741CB0
+Architecture:     arm64
+Parent:           launchd [1]
+PID:              60570
+Time Since Fork:  937s
+
+Event:            hang
+Duration:         106.89s
+Duration Sampled: 4.10s (process was unresponsive for 103 seconds before sampling)
+Steps:            41 (100ms sampling interval)
+
+Hardware model:   Mac16,10
+Active cpus:      10
+Memory size:      24 GB
+HW page size:     16384
+VM page size:     16384
+Shared cache residency: 18.18% (1220.91 MB / 6717.50 MB)
+
+Time Since Boot:  79345s
+Time Awake Since Boot: 79345s
+Time Since Wake:  n/a (machine hasn't slept)
+
+Fan speed:        1000 rpm
+Total CPU Time:   5.543s (12.2G cycles, 16.9G instructions, 0.72c/i, 2.21GHz avg)
+Advisory levels:  Battery -> 2, User -> 2, ThermalPressure -> 0, Combined -> 2
+Free disk space:  48.84 GB/228.27 GB, low space threshold 3072 MB
+Vnodes Available: 70.92% (186642/263168)
+Models:           none
+
+Preferred User Language: en-US, en
+Country Code:     US
+Keyboards:        U.S., ABC
+OS Cryptex File Extents: 552
+--- CPU-GPU thread ---
+  Thread 0x1c9807    Thread name "CPU-GPU thread"    41 samples (1-41)    priority 31 (base 31)    last ran 159.725s ago
+  <process frontmost, thread QoS default (requested default), process unclamped, jetsam priority 100 (requested 100, assertion 0), process memory limit 0MB, process received importance donation from WindowServer [438], process received importance donation from MenuBarAgent [674], IO tier 0>
+  41  ??? [0x16af2ea70] 1-41
+    41  bool std::__1::__libcpp_thread_poll_with_backoff[abi:nqn210106]<void std::__1::__atomic_wait_unless[abi:nqn210106]<std::__1::atomic<long>, std::__1::__atomic_semaphore_base::acquire[abi:nqn210106]()::'lambda'(long&)>(std::__1::atomic<long> const&, std::__1::memory_order, std::__1::__atomic_semaphore_base::acquire[abi:nqn210106]()::'lambda'(long&)&&)::'lambda'(), std::__1::__atomic_wait_backoff_impl<std::__1::atomic<long>, std::__1::__atomic_semaphore_base::acquire[abi:nqn210106]()::'lambda'(long&)>&>(std::__1::atomic<long>&&, std::__1::__atomic_semaphore_base::acquire[abi:nqn210106]()::'lambda'(long&)&&, std::__1::chrono::duration<long long, std::__1::ratio<1l, 1000000000l>>) + 156 (Dolphin + 1267680) [0x1051197e0] 1-41
+      41  __ulock_wait + 8 (libsystem_kernel.dylib + 10996) [0x19c7b2af4] 1-41
+       *41  ??? (kernel.release.t8132 + 6730580) [0xfffffe000c297354] 1-41
+
+  Thread 0x1c9815    Thread name "Savestate Worker"    41 samples (1-41)    priority 31 (base 31)    last ran 838.573s ago
+  <process frontmost, thread QoS default (requested default), process unclamped, jetsam priority 100 (requested 100, assertion 0), process memory limit 0MB, process received importance donation from WindowServer [438], process received importance donation from MenuBarAgent [674], IO tier 0>

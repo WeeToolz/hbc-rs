@@ -1,0 +1,1 @@
+PASS: Rust and Reborn WAD bytes match (3096896 bytes; SHA-256 157c9609a72c3d7535e0c6f6aaf5947d31cd94da7a59b9e7a2811aa0209a755e)

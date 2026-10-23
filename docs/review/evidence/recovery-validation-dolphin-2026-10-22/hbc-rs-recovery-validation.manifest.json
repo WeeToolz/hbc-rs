@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "package": "hbc-rs",
+  "target_kind": "--bin",
+  "target": "hbc-rs",
+  "target_triple": "powerpc-nintendo-none",
+  "profile": "release",
+  "features": [
+    "recovery-validation"
+  ],
+  "standard_library": "core,alloc",
+  "dol_bytes": 2497312,
+  "dol_sha256": "e928937a845b3890864831adcff316a55662b4f0a187ebafd9715b1c7b3a6e9b",
+  "development": false,
+  "elf_path": "/Volumes/SSD/WiiDev/Devtools/libogc-rs/target/xtask/custom-dol-build/powerpc-nintendo-none/release/hbc-rs",
+  "source_revision": "6ebac95edd34b3599feb6d0d45275edd6acc5bf7",
+  "source_changes": "M .gitignore\n M Cargo.lock\n M Cargo.toml\n M DEVELOPMENT_RESULTS.md\n M assets/return_stub.bin\n M src/lib.rs\n M tools/test_dev_recovery_dolphin.py\n M tools/test_network_gdb_reset_dolphin.py\n?? assets/return_stub.elf\n?? assets/return_stub.manifest.json\n?? docs/debug-channel-wad.md\n?? docs/review/evidence/channel-install-2026-10-22/\n?? docs/review/evidence/channel-wad-2026-10-22-r2/\n?? docs/review/evidence/channel-wad-2026-10-22/\n?? docs/review/evidence/latest-normal-launch-2026-10-22/\n?? docs/review/evidence/normal-launch-2026-10-22/\n?? src/acceptance.rs\n?? src/acceptance_child.S\n?? src/bin/\n?? tools/dev_report_receiver.py\n?? tools/dolphin_test_support.py\n?? tools/package_debug_wad.py\n?? tools/return_stub.py\n?? tools/test_channel_wad_dolphin.py\n?? tools/test_dev_recovery_suite.py\n?? tools/test_dev_report_receiver.py\n?? tools/test_production_acceptance_dolphin.py\n?? tools/test_return_stub.py",
+  "sdk_revision": "e716e77aa5b5ada0f2b7bb9fc66c697de15cff5d",
+  "sdk_changes": "M Cargo.toml\n M config/implementation-evidence.csv\n M config/static-review-scope.csv\n M crates/core/ogc-report-protocol/src/lib.rs\n M crates/core/ogc-system-sys/Cargo.toml\n M crates/core/ogc-system-sys/src/dev.rs\n M crates/core/ogc-system-sys/src/lib.rs\n M crates/tools/gc-elf/src/lib.rs\n M docs/generated/implementation-inventory.csv\n M docs/generated/implementation-status.md\n M docs/review/libgc-elf.md\n M probes/ogc-system-probe/src/dev_wrapper_probe/main.rs\n M probes/ui-input-probe-tests/Cargo.lock\n M xtask/src/main.rs\n?? config/wad-parity.csv\n?? crates/core/ogc-system-sys/src/dev_stub.rs\n?? crates/tools/gc-elf/src/channel-entry.S\n?? crates/tools/gc-elf/src/channel-entry.bin\n?? crates/tools/gc-elf/src/channel.rs\n?? crates/tools/gc-wad/\n?? docs/generated/wad-parity.md\n?? docs/review/libgc-wad.md\n?? probes/ogc-system-probe/src/dev_wrapper_probe/screen_scale.rs\n?? probes/ogc-system-probe/src/dev_wrapper_probe/stub_entry.rs\n?? xtask/src/wad_parity.rs"
+}

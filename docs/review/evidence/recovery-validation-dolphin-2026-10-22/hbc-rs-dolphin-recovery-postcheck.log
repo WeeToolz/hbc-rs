@@ -1,0 +1,3 @@
+--- post-recovery readiness ---
+{"checks":[{"detail":"can bind 192.168.1.52:4298","name":"report_listener","passed":true},{"detail":"cannot reach 192.168.1.52:4299 within 20s: Connection refused (os error 61)","name":"wii_upload_endpoint","passed":false}],"error":{"category":"readiness_error","suggested_action":"Resolve failed checks before upload."},"host_ip":"192.168.1.52","report_port":4298,"schema_version":1,"status":"not_ready","wii_ip":"192.168.1.52"}
+POSTCHECK_STATUS=3

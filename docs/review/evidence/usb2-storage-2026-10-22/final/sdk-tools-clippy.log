@@ -1,0 +1,4 @@
+COMMAND: cargo clippy -p gc-wad -p gc-elf -p xtask --all-targets -- -D warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.14s
+
+exit_code=0

@@ -1,0 +1,18 @@
+{
+  "host_tests": {
+    "gc_wad_and_gc_elf": 18,
+    "wad_ledger_validator": 1,
+    "failed": 0,
+    "ignored": 0
+  },
+  "clippy": "pass with warnings denied",
+  "source_structure": "pass; three existing keyboard queue debt notes",
+  "crate_roles": "pass",
+  "dependency_direction": "pass",
+  "inventory": "current (3293 entries)",
+  "wad_parity": "pass",
+  "channel_entry_asset": "source rebuild matches binary",
+  "review_status": "FAIL: existing ledger entries missing for gdb-transport and ogc-report-protocol",
+  "runtime_completeness": "FAIL: 2371 disallowed API implementations outside new host WAD tool",
+  "physical_wii": "not run"
+}

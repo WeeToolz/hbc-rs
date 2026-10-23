@@ -1,0 +1,28 @@
+{
+  "success": false,
+  "wad_sha256": "99d928b0fbabf7737cc55b0282f5173509d1c781ead30942b3f5317732d20370",
+  "elf_sha256": "d1cc70e9b1b7939ddc1aba245d0d4a8baabefe49e8f1dd625a5d9348d359a803",
+  "physical_wii_tested": false,
+  "milestones": [
+    {
+      "symbol": "_start",
+      "address": "80004000"
+    },
+    {
+      "symbol": "main",
+      "address": "80007cac"
+    }
+  ],
+  "installed_hbc": {
+    "title": "000100014f484243",
+    "entry": 2147500032,
+    "entry_bytes": "480000245f617267000000000000000000000000000000000000000000000000",
+    "boot_sha256": "5d3f61d8e7e4304461d361b269b93777de4fb08c03683413cc85b8310fd4f610"
+  },
+  "priiloader_autoboot": "HBC",
+  "initial_stop": "T0f40:00000000;01:00000000;",
+  "return_stub_sha256": "eb68c89ed80dbf2ba3091cf19300edad94212b2fc38ccbd09f7e7f0fb5b82728",
+  "caller_stub_present": true,
+  "error": "Priiloader did not make HBC Wiiload ready: [Errno 61] Connection refused",
+  "dolphin_exit_code": 0
+}

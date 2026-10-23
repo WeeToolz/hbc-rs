@@ -1,0 +1,26 @@
+COMMAND: python3 -m unittest discover -s tools -p test_*.py
+....................request=282803988 operation=1
+Request delivery is unconfirmed; querying its result without resending
+running: running
+failed: failed
+request=3714480879 operation=1
+running: running
+..request=1274022681 operation=1
+queued: queued
+HBC answered in a new session after the restart request. The physical console boot sequence was not observed.
+request=2304605385 operation=3
+queued: queued
+.request=1908034242 operation=1
+queued: queued
+running: running
+failed: failed
+request=3605111152 operation=6
+queued: queued
+completed: completed
+........................
+----------------------------------------------------------------------
+Ran 47 tests in 0.040s
+
+OK
+
+exit_code=0

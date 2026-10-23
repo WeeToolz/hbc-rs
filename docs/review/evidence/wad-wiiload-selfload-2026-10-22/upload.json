@@ -1,0 +1,16 @@
+{
+  "completed_unix_ms": 1792723906295,
+  "compressed": true,
+  "destination": "tcp:192.168.1.52",
+  "elapsed_ms": 3,
+  "error": null,
+  "host_written_bytes": 1330134,
+  "input": "/Volumes/SSD/WiiDev/RustPorts/hbc-rs/dist/hbc-rs-debug-2026-10-22-rebuild/hbc-rs-debug.dol",
+  "input_bytes": 2454208,
+  "input_sha256": "47904a3c3718641644bc5fe9002197a59ed7ae71c7b4c5400d0519670e999ca5",
+  "port": 4299,
+  "result": "host_write_complete",
+  "schema_version": 1,
+  "status": "written",
+  "transfer_bytes": 1330100
+}

@@ -1,5 +1,34 @@
 # Development results
 
+## Independent USB volumes and DRY review — 2026-10-23
+
+The shared SDK now owns two independent USB drive contexts. HBC adds `usb2:`
+at saved device index 4 and uses one catalog and DOL launch path for all volumes.
+No fixed physical port mapping is claimed. Failed close retains device ownership;
+removal and cleanup affect only the selected drive.
+
+All six supplied DRY findings are addressed. Network persistence tests now use
+the production transaction engines; a shared recovery accumulator owns precedence.
+Network work shares receiver stop and restart ordering, both capture tools use
+one checked debugger parser, rectangle validity has one owner, and startup uses
+the parser's theme archive size limit. Host coverage includes real failure
+boundaries and retained recovery bytes.
+
+Clippy passes for default and network host/PowerPC configurations and for both
+valid diagnostic/acceptance debugger configurations with warnings denied.
+The intentionally invalid all-features combination is rejected because network
+and USB Gecko debugger modes are mutually exclusive. That guard was preserved.
+
+The final host/Python, SDK, and Dolphin results and artifact identities are in
+[USB and DRY evidence](docs/review/evidence/usb2-storage-2026-10-22/README.md).
+The detailed [source review](docs/review/usb2-storage-and-dry-2026-10-23.md)
+records the six fixes and remaining hardware checks.
+
+Fresh Dolphin HID probes pass descriptor checks (8/8) and backend checks (7/7).
+They do not prove physical HID reports or actual HID enumeration. Physical
+SD/USB, simultaneous two-media operation, live HID input with both drives, and
+return-stub recovery remain pending. No physical Wii or original NAND was changed.
+
 ## Reborn storage loading and Clippy — 2026-10-22
 
 - All four Clippy configurations pass with warnings denied: host default,
@@ -42,6 +71,61 @@ findings. Full evidence and scope limits:
 
 Physical Wii launch/return, SD/USB launch, and BootMii runtime remain untested
 by this change. No physical fix is claimed. Existing worktree edits are kept.
+
+## Dolphin WAD to Wiiload DOL launch — 2026-10-22
+
+The normal debug WAD became ready on TCP 4299 in 2.111 seconds from Dolphin
+process launch. Its read-only HBC command response reported session 1028.
+The matching 2,454,208-byte HBC-RS DOL was then sent through Wiiload once.
+The sender completed in 0.129 seconds. A new HBC instance answered with session
+3990 at 2.102 seconds from sender start, or 1.973 seconds after sender completion.
+The log proves transfer of executable control, IOS58 reload, a second startup,
+and the child Wiiload listener. Screenshots show HBC before and after upload.
+Evidence: `docs/review/evidence/wad-wiiload-selfload-2026-10-22/`.
+
+This confirms that the packaged HBC-RS can load its matching DOL through Wiiload
+in Dolphin. The previously stated general DOL-load failure does not apply to
+this tested path and artifact. This run does not test other DOLs, physical Wii
+launch, or return-stub execution. It used a disposable NAND copy and stopped
+cleanly. Startup had a 180-second allowance for each stage; readiness required
+a valid protocol response, and a new HBC session was required after upload.
+
+Screenshot capture now searches Dolphin's title subdirectories and gives
+images unique filenames. The nested-directory regression test passes. Python
+syntax validation and saved launch-log checks pass. Correction: title
+`000000010000003a` in the earlier logs is IOS58, not the System Menu. Those
+entries do not prove Priiloader return. The earlier 30/120-second recovery
+waits began at test resume, before the recovery deadline; they were not full
+post-return HBC startup allowances.
+
+## Debug channel WAD — 2026-10-22
+
+Prepared `dist/hbc-rs-debug-2026-10-22/hbc-rs-debug-OHBC.wad` with the native Rust `gc-wad` tool in libogc-rs. Size: 3,096,896 bytes. SHA-256: `157c9609a72c3d7535e0c6f6aaf5947d31cd94da7a59b9e7a2811aa0209a755e`. The package contains the matching DOL and source-debug ELF. See `docs/debug-channel-wad.md` and the package manifest for inputs, build command, source state, hashes, and limits.
+
+The independent Reborn packer produced exactly the same WAD bytes. Rust decryption verified both content SHA-1 records. The metadata is legacy fakesigned, with root trust unchecked. The package uses the existing OHBC title ID and IOS58.
+
+Dolphin initially failed its Qt CPU feature check inside the sandbox. It ran with the required execution permission. A new NAND copy under WiiDev/tmp was used for each run. The test reached `_start`, `main`, and the first render call. HBC preserved the caller's pre-existing STUBHAXX bytes. It did not install the bundled stub in that run. The emulator process stopped cleanly and the temporary NAND copy was removed. Evidence: `docs/review/evidence/channel-wad-2026-10-22-r2/`.
+
+Host validation: 18 gc-wad/gc-elf tests passed, with no ignored tests. Clippy passed with warnings denied. The WAD ledger validator test passed. The ledger's source and evidence references and generated report are current. Source-structure, crate-role, dependency-direction, and inventory checks passed. Three existing keyboard queue audit-debt notes remain visible.
+
+Repository-wide checks still fail: review-status reports missing entries for gdb-transport and ogc-report-protocol; runtime completeness reports 2,371 disallowed API implementations. These are outside the new host WAD tool. No audit requirement was suppressed. The new gc-elf channel API needs independent review, and gc-wad remains marked review_incomplete.
+
+No physical Wii was modified. Physical channel boot, Priiloader dispatch, and the physical return failure remain open. The corrected bundled stub remains a confirmed prior fix; this packaging task does not establish a physical return fix. The WAD's network listener and cooperative control were not exercised in this WAD run. The physical real-mode vector path is also unverified.
+
+
+## Dolphin channel install — 2026-10-22
+
+The user opened the prepared Dolphin profile and showed the HBC screen. Its OHBC title is installed under `000100014f484243`. The installed ticket, TMD, and boot content match the WAD's decrypted payload; content hashes also pass. Dolphin can therefore boot the packaged HBC as a channel in this profile. The older LULZ title `000100014c554c5a` remains installed. The displayed `Load Wii System Menu 4.3U` item is disabled while Dolphin runs the channel; the System Menu TMD is present in this profile. The original Dolphin NAND was not changed. Details: `docs/review/evidence/channel-install-2026-10-22/session.json`.
+
+This confirms Dolphin channel import and launch. It does not verify Priiloader dispatch or physical return on a Wii. The WAD is legacy fakesigned. Dolphin's successful boot does not show that a retail IOS accepts its metadata signatures.
+
+## Dolphin recovery-validation failure — 2026-10-22
+
+The focused `recovery-validation` DOL (2,497,312 bytes; SHA-256 `e928937a845b3890864831adcff316a55662b4f0a187ebafd9715b1c7b3a6e9b`) passed Wiiload readiness at `192.168.1.52`, uploaded successfully, and reached the visible `RECOVERY TEST HOLD`. It did not return to the HBC loader after its 30-second deadline. The post-test readiness check found port 4299 refusing connections.
+
+The user supplied a macOS hang report for Dolphin 2609a (PID 60570), unresponsive for about 103 seconds. The UI main thread waited in `CPU::CPUManager::SetStepping(bool)` and the CPU-GPU thread was waiting on an atomic semaphore, with its last scheduled time about 160 seconds earlier. This supports a Dolphin emulation/UI hang during guest recovery. It does not identify the exact guest instruction or prove the specific reset stage that blocked.
+
+Source tracing shows the recovery worker calls `ogc_system::exit(0)`. When the reload stub is present, `sys_exit_to_loader` calls `sys_reset_system(SYS_SHUTDOWN, 0, 0)` before jumping to `0x80001800`. The hang report has no guest reset-stage trace. Exact cause is unconfirmed; recovery remains failed and open. Do not repeat the upload until instrumentation or a reviewed route change can distinguish the guest reset stages. No physical Wii or NAND was modified. Evidence: `docs/review/evidence/recovery-validation-dolphin-2026-10-22/`.
 
 ## DRY cleanup — 2026-10-22
 

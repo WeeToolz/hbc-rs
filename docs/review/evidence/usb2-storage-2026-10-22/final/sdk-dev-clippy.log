@@ -1,0 +1,17 @@
+warning: missing `[lints]` to inherit `[workspace.lints]`
+  --> /Volumes/SSD/WiiDev/Devtools/libmad-rs/crates/libmad-rs/Cargo.toml
+   = note: `cargo::missing_lints_inheritance` is set to `warn` by default
+help: to inherit `workspace.lints, add:
+   |
+ 9 ~ path = "src/lib.rs"
+10 + [lints]
+11 + workspace = true
+   |
+help: to clarify your intent to not inherit, add:
+   |
+ 9 ~ path = "src/lib.rs"
+10 + [lints]
+   |
+warning: `libmad-rs` (manifest) generated 1 warning
+    Checking ogc-system-sys v0.1.0 (/Volumes/SSD/WiiDev/Devtools/libogc-rs/crates/core/ogc-system-sys)
+    Finished `release` profile [optimized] target(s) in 0.23s

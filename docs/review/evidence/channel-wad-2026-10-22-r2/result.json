@@ -1,0 +1,24 @@
+{
+  "success": true,
+  "wad_sha256": "157c9609a72c3d7535e0c6f6aaf5947d31cd94da7a59b9e7a2811aa0209a755e",
+  "elf_sha256": "1940b919220a0c9ecb37a8232e3e0d460a6a93ce390939dc6f1926b05eb2b150",
+  "physical_wii_tested": false,
+  "milestones": [
+    {
+      "symbol": "_start",
+      "address": "80004000"
+    },
+    {
+      "symbol": "main",
+      "address": "80006744"
+    },
+    {
+      "symbol": "hbc_rs::platform::renderer::draw_frame",
+      "address": "8007f874"
+    }
+  ],
+  "initial_stop": "T0f40:00000000;01:00000000;",
+  "return_stub_sha256": "eb68c89ed80dbf2ba3091cf19300edad94212b2fc38ccbd09f7e7f0fb5b82728",
+  "caller_stub_present": true,
+  "dolphin_exit_code": 0
+}

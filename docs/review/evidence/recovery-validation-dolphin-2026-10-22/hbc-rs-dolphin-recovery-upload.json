@@ -1,0 +1,16 @@
+{
+  "completed_unix_ms": 1792721587486,
+  "compressed": true,
+  "destination": "tcp:192.168.1.52",
+  "elapsed_ms": 5,
+  "error": null,
+  "host_written_bytes": 1355876,
+  "input": "/Volumes/SSD/WiiDev/tmp/hbc-rs-recovery-validation.dol",
+  "input_bytes": 2497312,
+  "input_sha256": "e928937a845b3890864831adcff316a55662b4f0a187ebafd9715b1c7b3a6e9b",
+  "port": 4299,
+  "result": "host_write_complete",
+  "schema_version": 1,
+  "status": "written",
+  "transfer_bytes": 1355658
+}

@@ -1,0 +1,4 @@
+tracked audit debt: crates/compatibility/wiikeyboard-sys/src/lib.rs:266 [production-side in-memory device queue] This FIFO carries events delivered by the production USB callback to get_event and stdin; it is not a simulated keyboard backend. (owner thread-current/root; remove by Independent USB event-path audit)
+tracked audit debt: crates/compatibility/wiikeyboard-sys/src/lib.rs:270 [production-side in-memory device queue] This FIFO carries events delivered by the production USB callback to get_event and stdin; it is not a simulated keyboard backend. (owner thread-current/root; remove by Independent USB event-path audit)
+tracked audit debt: crates/compatibility/wiikeyboard-sys/src/lib.rs:275 [production-side in-memory device queue] This FIFO carries events delivered by the production USB callback to get_event and stdin; it is not a simulated keyboard backend. (owner thread-current/root; remove by Independent USB event-path audit)
+source-structure audit passed

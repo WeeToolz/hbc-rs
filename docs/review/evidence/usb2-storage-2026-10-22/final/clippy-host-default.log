@@ -1,0 +1,7 @@
+COMMAND: cargo clippy --all-targets -- -D warnings
+    Checking ogc-bt-sync v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-bt-sync)
+    Checking ogc-controller v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-controller)
+    Checking hbc-rs v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/hbc-rs)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.47s
+
+exit_code=0

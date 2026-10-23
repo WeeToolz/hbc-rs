@@ -1,0 +1,30 @@
+{
+  "dol": "/Volumes/SSD/WiiDev/Devtools/reports/evidence/2026-10-22-dev-large-text/dev-large-text.dol",
+  "sha256": "d3eb281901a8772ac97c3e77c603038505f2c55b6ebb3492b0bbe382bb0c17fb",
+  "launch": "Dolphin -e DOL; no app arguments",
+  "first_stop": "T0f40:80004000;01:8004d4bc;",
+  "events": [
+    {
+      "symbol": "dev_begin",
+      "pc": "0x8000b060",
+      "stop": "T0540:8000b060;01:817fffd0;",
+      "argc": 0,
+      "argv": [],
+      "entry_stage": 0,
+      "entry_result": 2147483648
+    },
+    {
+      "symbol": "sys_exit_to_loader",
+      "pc": "0x800074e4",
+      "stop": "T0540:800074e4;01:817fffc0;",
+      "r3_status": "FFFFFFEA",
+      "entry_stage": 2,
+      "entry_result": 4294967274
+    }
+  ],
+  "reached_main": false,
+  "reached_loader_exit": true,
+  "result": "normal launch rejected the development entry before application main",
+  "log": "/Volumes/SSD/WiiDev/RustPorts/hbc-rs/docs/review/evidence/normal-launch-2026-10-22/dolphin-console.log",
+  "profile": "/Volumes/SSD/WiiDev/RustPorts/hbc-rs/docs/review/evidence/normal-launch-2026-10-22/normal-dol-launch-ctts1ss3"
+}

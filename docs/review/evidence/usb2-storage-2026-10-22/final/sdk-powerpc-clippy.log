@@ -1,0 +1,39 @@
+COMMAND: cargo clippy -p ogc-usbstorage-sys -p ogc-fat --release --target targets/powerpc-nintendo-none.json -Z build-std=core,alloc -Z build-std-features=compiler-builtins-mem -Z json-target-spec -- -D warnings
+warning: missing `[lints]` to inherit `[workspace.lints]`
+  --> /Volumes/SSD/WiiDev/Devtools/libmad-rs/crates/libmad-rs/Cargo.toml
+   = note: `cargo::missing_lints_inheritance` is set to `warn` by default
+help: to inherit `workspace.lints, add:
+   |
+ 9 ~ path = "src/lib.rs"
+10 + [lints]
+11 + workspace = true
+   |
+help: to clarify your intent to not inherit, add:
+   |
+ 9 ~ path = "src/lib.rs"
+10 + [lints]
+   |
+warning: `libmad-rs` (manifest) generated 1 warning
+    Checking ogc-es-sys v0.1.0 (/Volumes/SSD/WiiDev/Devtools/libogc-rs/crates/core/ogc-es-sys)
+    Checking lwip-sys v0.1.0 (/Volumes/SSD/WiiDev/Devtools/libogc-rs/crates/services/lwip-sys)
+    Checking ogc-bt-sync v0.1.0 (/Volumes/SSD/WiiDev/Devtools/libogc-rs/crates/services/ogc-bt-sync)
+    Checking ogc-usb-sys v0.1.0 (/Volumes/SSD/WiiDev/Devtools/libogc-rs/crates/services/ogc-usb-sys)
+    Checking ogc-wiisd v0.1.0 (/Volumes/SSD/WiiDev/Devtools/libogc-rs/crates/services/ogc-wiisd)
+    Checking ogc-video-sys v0.1.0 (/Volumes/SSD/WiiDev/Devtools/libogc-rs/crates/hardware/ogc-video-sys)
+    Checking ogc-network-sys v0.1.0 (/Volumes/SSD/WiiDev/Devtools/libogc-rs/crates/services/ogc-network-sys)
+    Checking ogc-video v0.1.0 (/Volumes/SSD/WiiDev/Devtools/libogc-rs/crates/hardware/ogc-video)
+    Checking ogc-es v0.1.0 (/Volumes/SSD/WiiDev/Devtools/libogc-rs/crates/core/ogc-es)
+    Checking ogc-ios-sys v0.1.0 (/Volumes/SSD/WiiDev/Devtools/libogc-rs/crates/core/ogc-ios-sys)
+    Checking ogc-si-sys v0.1.0 (/Volumes/SSD/WiiDev/Devtools/libogc-rs/crates/hardware/ogc-si-sys)
+    Checking wpad-sys v0.1.0 (/Volumes/SSD/WiiDev/Devtools/libogc-rs/crates/services/wpad-sys)
+    Checking ogc-wiilaunch v0.1.0 (/Volumes/SSD/WiiDev/Devtools/libogc-rs/crates/core/ogc-wiilaunch)
+    Checking ogc-network v0.1.0 (/Volumes/SSD/WiiDev/Devtools/libogc-rs/crates/services/ogc-network)
+    Checking ogc-si v0.1.0 (/Volumes/SSD/WiiDev/Devtools/libogc-rs/crates/hardware/ogc-si)
+    Checking ogc-system-sys v0.1.0 (/Volumes/SSD/WiiDev/Devtools/libogc-rs/crates/core/ogc-system-sys)
+    Checking ogc-system v0.1.0 (/Volumes/SSD/WiiDev/Devtools/libogc-rs/crates/core/ogc-system)
+    Checking ogc-usbstorage-sys v0.1.0 (/Volumes/SSD/WiiDev/Devtools/libogc-rs/crates/services/ogc-usbstorage-sys)
+    Checking ogc-gcsd v0.1.0 (/Volumes/SSD/WiiDev/Devtools/libogc-rs/crates/services/ogc-gcsd)
+    Checking ogc-fat v0.1.0 (/Volumes/SSD/WiiDev/Devtools/libogc-rs/crates/services/ogc-fat)
+    Finished `release` profile [optimized] target(s) in 1.20s
+
+exit_code=0

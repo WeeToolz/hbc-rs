@@ -1,0 +1,12 @@
+{
+  "parent_startup_complete": true,
+  "transfer_control": true,
+  "child_startup_complete": true,
+  "child_listener_listening": true,
+  "new_hbc_session": true,
+  "screenshots_reviewed": [
+    "dolphin-20261022-225146.png",
+    "dolphin-20261022-225149.png"
+  ],
+  "seconds_from_sender_completion_to_new_session": 1.973
+}
