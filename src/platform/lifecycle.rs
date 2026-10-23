@@ -144,14 +144,39 @@ const EXIT_CLEANUP_ORDER: [ExitCleanupStep; 4] = [
     ExitCleanupStep::Controllers,
 ];
 
-/// Run shared shutdown work in order and stop when a required step fails.
-pub fn run_exit_cleanup<E>(
+const APPLICATION_CLEANUP_ORDER: [ExitCleanupStep; 4] = [
+    ExitCleanupStep::Storage,
+    ExitCleanupStep::Disc,
+    ExitCleanupStep::NetworkReceiver,
+    ExitCleanupStep::Controllers,
+];
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Handoff {
+    Application,
+    SystemExit,
+}
+
+/// Stop services in the route's existing order, returning the first failure.
+pub fn run_handoff_cleanup<E>(
+    handoff: Handoff,
     mut cleanup: impl FnMut(ExitCleanupStep) -> Result<(), E>,
 ) -> Result<(), (ExitCleanupStep, E)> {
-    for step in EXIT_CLEANUP_ORDER {
+    let order = match handoff {
+        Handoff::Application => APPLICATION_CLEANUP_ORDER,
+        Handoff::SystemExit => EXIT_CLEANUP_ORDER,
+    };
+    for step in order {
         cleanup(step).map_err(|error| (step, error))?;
     }
     Ok(())
+}
+
+/// Preserve the system-exit API for callers that do not launch applications.
+pub fn run_exit_cleanup<E>(
+    cleanup: impl FnMut(ExitCleanupStep) -> Result<(), E>,
+) -> Result<(), (ExitCleanupStep, E)> {
+    run_handoff_cleanup(Handoff::SystemExit, cleanup)
 }
 
 #[cfg(target_arch = "powerpc")]
@@ -255,6 +280,64 @@ mod tests {
                 ExitCleanupStep::Controllers,
             ]
         );
+    }
+
+    #[test]
+    fn application_cleanup_preserves_the_launch_order() {
+        let mut events = alloc::vec::Vec::new();
+        let result = run_handoff_cleanup(Handoff::Application, |step| {
+            events.push(step);
+            Ok::<(), ()>(())
+        });
+        assert_eq!(result, Ok(()));
+        assert_eq!(
+            events,
+            [
+                ExitCleanupStep::Storage,
+                ExitCleanupStep::Disc,
+                ExitCleanupStep::NetworkReceiver,
+                ExitCleanupStep::Controllers,
+            ]
+        );
+    }
+
+    #[test]
+    fn each_handoff_returns_each_backend_failure_without_running_later_steps() {
+        let routes = [
+            (
+                Handoff::Application,
+                [
+                    ExitCleanupStep::Storage,
+                    ExitCleanupStep::Disc,
+                    ExitCleanupStep::NetworkReceiver,
+                    ExitCleanupStep::Controllers,
+                ],
+            ),
+            (
+                Handoff::SystemExit,
+                [
+                    ExitCleanupStep::Disc,
+                    ExitCleanupStep::NetworkReceiver,
+                    ExitCleanupStep::Storage,
+                    ExitCleanupStep::Controllers,
+                ],
+            ),
+        ];
+        for (handoff, expected_order) in routes {
+            for (index, failed_step) in expected_order.iter().copied().enumerate() {
+                let mut events = alloc::vec::Vec::new();
+                let result = run_handoff_cleanup(handoff, |step| {
+                    events.push(step);
+                    if step == failed_step {
+                        Err(-37)
+                    } else {
+                        Ok(())
+                    }
+                });
+                assert_eq!(result, Err((failed_step, -37)));
+                assert_eq!(events, expected_order[..=index]);
+            }
+        }
     }
 
     #[test]

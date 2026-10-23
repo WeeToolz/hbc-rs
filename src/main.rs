@@ -1249,30 +1249,12 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                         );
                         continue;
                     }
-                    if startup.unmount_storage().is_err() {
+                    if let Err(error) = prepare_services_for_handoff(
+                        &mut startup,
+                        hbc_rs::platform::lifecycle::Handoff::Application,
+                    ) {
                         startup.runtime_mut().show_notice_with_kind(
-                            "Could not stop storage. BootMii launch stopped.",
-                            hbc_rs::app::NoticeKind::Error,
-                        );
-                        continue;
-                    }
-                    if shutdown_disc_services().is_err() {
-                        startup.runtime_mut().show_notice_with_kind(
-                            "Could not stop disc services. BootMii launch stopped.",
-                            hbc_rs::app::NoticeKind::Error,
-                        );
-                        continue;
-                    }
-                    if hbc_rs::platform::wiiload::stop().is_err() {
-                        startup.runtime_mut().show_notice_with_kind(
-                            "Could not stop the network receiver. BootMii launch stopped.",
-                            hbc_rs::app::NoticeKind::Error,
-                        );
-                        continue;
-                    }
-                    if stop_wpad_services().is_err() {
-                        startup.runtime_mut().show_notice_with_kind(
-                            "Could not finish Wii Remote shutdown. BootMii launch stopped.",
+                            &format!("{error}. BootMii launch stopped."),
                             hbc_rs::app::NoticeKind::Error,
                         );
                         continue;
@@ -1422,6 +1404,59 @@ fn prepare_settings_for_exit(
 }
 
 #[cfg(target_arch = "powerpc")]
+#[derive(Debug)]
+enum HandoffCleanupError {
+    Storage(hbc_rs::platform::startup::StartupError),
+    Disc(i32),
+    Network(hbc_rs::platform::wiiload::ReceiverError),
+    Controllers(WpadShutdownError),
+}
+
+#[cfg(target_arch = "powerpc")]
+impl core::fmt::Display for HandoffCleanupError {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Storage(error) => write!(formatter, "Could not stop storage ({error:?})"),
+            Self::Disc(error) => write!(formatter, "Could not stop disc services ({error})"),
+            Self::Network(error) => {
+                write!(formatter, "Could not stop the network receiver ({error:?})")
+            }
+            Self::Controllers(error) => {
+                write!(formatter, "Could not finish Wii Remote shutdown ({error})")
+            }
+        }
+    }
+}
+
+#[cfg(target_arch = "powerpc")]
+fn prepare_services_for_handoff(
+    startup: &mut hbc_rs::platform::startup::WiiStartup,
+    handoff: hbc_rs::platform::lifecycle::Handoff,
+) -> Result<(), HandoffCleanupError> {
+    use hbc_rs::platform::lifecycle::{ExitCleanupStep, run_handoff_cleanup};
+    run_handoff_cleanup(handoff, |step| {
+        ogc_system::report(format_args!("HBC: {handoff:?} cleanup: {step:?}\n"));
+        match step {
+            ExitCleanupStep::Storage => startup
+                .unmount_storage()
+                .map_err(HandoffCleanupError::Storage),
+            ExitCleanupStep::Disc => shutdown_disc_services().map_err(HandoffCleanupError::Disc),
+            ExitCleanupStep::NetworkReceiver => {
+                hbc_rs::platform::wiiload::stop().map_err(HandoffCleanupError::Network)
+            }
+            ExitCleanupStep::Controllers => stop_wpad_services().map_err(|error| {
+                ogc_system::report(format_args!(
+                    "HBC: controller cleanup for {handoff:?} failed: {error}; Bluetooth: {:?}\n",
+                    wpad_sys::bluetooth_diagnostics(),
+                ));
+                HandoffCleanupError::Controllers(error)
+            }),
+        }
+    })
+    .map_err(|(_, error)| error)
+}
+
+#[cfg(target_arch = "powerpc")]
 fn transfer_executable(
     startup: &mut hbc_rs::platform::startup::WiiStartup,
     bytes: hbc_rs::loader::LaunchSource,
@@ -1446,34 +1481,8 @@ fn transfer_executable(
             "Could not save settings. Application launch stopped: {error:?}."
         ));
     }
-    ogc_system::report(format_args!(
-        "HBC: unmounting storage before executable launch\n"
-    ));
-    if let Err(error) = startup.unmount_storage() {
-        return Err(format!(
-            "Could not stop storage. Application launch stopped: {error:?}."
-        ));
-    }
-    ogc_system::report(format_args!(
-        "HBC: closing disc service before executable launch\n"
-    ));
-    shutdown_disc_services().map_err(|error| {
-        format!("Could not stop disc services. Application launch stopped ({error}).")
-    })?;
-    ogc_system::report(format_args!(
-        "HBC: stopping receiver before executable launch\n"
-    ));
-    hbc_rs::platform::wiiload::stop().map_err(|error| {
-        format!("Could not stop the network receiver. Application launch stopped: {error:?}.")
-    })?;
-    ogc_system::report(format_args!(
-        "HBC: stopping Bluetooth before executable launch\n"
-    ));
-    if let Err(error) = stop_wpad_services() {
-        return Err(format!(
-            "Could not finish Wii Remote shutdown. Application launch stopped: {error}."
-        ));
-    }
+    prepare_services_for_handoff(startup, hbc_rs::platform::lifecycle::Handoff::Application)
+        .map_err(|error| format!("{error}. Application launch stopped."))?;
     ogc_system::report(format_args!("HBC: transferring executable control\n"));
     hbc_rs::platform::video::shutdown();
     unsafe {
@@ -1488,28 +1497,8 @@ fn exit_to_system(
 ) -> Result<(), String> {
     prepare_settings_for_exit(startup)
         .map_err(|error| format!("Could not save settings. System exit stopped: {error:?}."))?;
-    hbc_rs::platform::lifecycle::run_exit_cleanup(|step| match step {
-        hbc_rs::platform::lifecycle::ExitCleanupStep::Storage => startup
-            .unmount_storage()
-            .map_err(|error| format!("Could not stop storage. System exit stopped: {error:?}.")),
-        hbc_rs::platform::lifecycle::ExitCleanupStep::Disc => shutdown_disc_services()
-            .map_err(|error| format!("Could not stop disc services. System exit stopped ({error}).")),
-        hbc_rs::platform::lifecycle::ExitCleanupStep::NetworkReceiver => {
-            hbc_rs::platform::wiiload::stop().map_err(|error| {
-                format!("Could not stop the network receiver. System exit stopped: {error:?}.")
-            })
-        }
-        hbc_rs::platform::lifecycle::ExitCleanupStep::Controllers => {
-            stop_wpad_services().map_err(|error| {
-                ogc_system::report(format_args!(
-                    "HBC: controller cleanup before system reset failed: {error}; Bluetooth: {:?}\n",
-                    wpad_sys::bluetooth_diagnostics(),
-                ));
-                format!("Could not finish Wii Remote shutdown. System exit stopped: {error}.")
-            })
-        }
-    })
-    .map_err(|(_, error)| error)?;
+    prepare_services_for_handoff(startup, hbc_rs::platform::lifecycle::Handoff::SystemExit)
+        .map_err(|error| format!("{error}. System exit stopped."))?;
     hbc_rs::platform::video::shutdown();
     // A reset that returns did not complete. Report it to the terminal caller.
     unsafe { ogc_system::reset_system(reset as i32, 0, 0) };
