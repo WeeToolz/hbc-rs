@@ -40,3 +40,6 @@ pub mod platform;
 
 #[cfg(test)]
 mod test_support;
+
+#[cfg(all(target_arch = "powerpc", feature = "emulator-acceptance"))]
+pub mod acceptance;

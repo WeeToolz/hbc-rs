@@ -3,8 +3,15 @@ name = "hbc-rs"
 version = "0.1.0"
 edition = "2024"
 publish = false
+default-run = "hbc-rs"
+
+[[bin]]
+name = "emulator-acceptance"
+path = "src/bin/emulator_acceptance.rs"
+required-features = ["emulator-acceptance"]
 
 [features]
+emulator-acceptance = []
 startup-diagnostics = []
 recovery-validation = ["startup-diagnostics"]
 recovery-scan-validation = ["startup-diagnostics"]

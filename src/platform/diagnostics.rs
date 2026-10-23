@@ -214,6 +214,7 @@ fn recovery_validation_is_armed(thread: usize, stage: usize) -> bool {
     thread != 0 && stage == 1
 }
 
+#[cfg(any(test, feature = "recovery-scan-validation"))]
 fn recovery_scan_validation_is_ready(
     thread: usize,
     stage: usize,
@@ -389,6 +390,9 @@ mod wii {
     /// IOS calls and device shutdown must not run from an alarm/IRQ callback.
     pub fn arm_recovery() -> Result<(), i32> {
         let identity = unsafe { core::ptr::addr_of!(REPORT_IDENTITY).read() };
+        #[cfg(feature = "recovery-validation")]
+        let milliseconds = identity.recovery_reset_ms.unwrap_or(30_000);
+        #[cfg(not(feature = "recovery-validation"))]
         let Some(milliseconds) = identity.recovery_reset_ms else {
             return Ok(());
         };
@@ -503,11 +507,27 @@ mod wii {
                 clock,
             );
             if RECOVERY_REQUESTED.load(Ordering::Acquire) || elapsed >= timeout_us {
-                // Use the runtime's existing HBC reload-stub exit route. It
-                // owns shutdown and the reset fallback when no stub is present.
                 HBC_RECOVERY_STAGE.store(2, Ordering::Release);
-                show("RECOVERY RETURN TO LOADER", true);
-                ogc_system::exit(0);
+                #[cfg(feature = "recovery-validation")]
+                {
+                    // Priiloader owns this test NAND's System Menu entry and
+                    // is configured to relaunch HBC. Exercise that recovery
+                    // chain while the direct HBC-stub route remains under test.
+                    show("RECOVERY RETURN VIA PRIILOADER", true);
+                    unsafe {
+                        ogc_system::reset_system(ogc_system::SYS_RETURNTOMENU as i32, 0, 0);
+                    }
+                    show("SYSTEM MENU RETURN FAILED", true);
+                    loop {
+                        ogc_lwp::sys::sleep_ticks(clock / 20);
+                    }
+                }
+                #[cfg(not(feature = "recovery-validation"))]
+                {
+                    // Normal recovery uses the HBC reload-stub exit route.
+                    show("RECOVERY RETURN TO LOADER", true);
+                    ogc_system::exit(0);
+                }
             }
             ogc_lwp::sys::sleep_ticks(clock / 50);
         }
@@ -524,7 +544,12 @@ mod wii {
     }
 
     /// Call on the main thread after system initialization and before GX setup.
-    pub fn initialize(
+    ///
+    /// # Safety
+    /// `argv` must be null or point to the runtime's valid `argc` argument
+    /// pointers. Non-null arguments must be NUL-terminated and remain valid
+    /// for this call.
+    pub unsafe fn initialize(
         argc: i32,
         argv: *mut *mut u8,
     ) -> Result<(), crate::platform::video::VideoError> {
@@ -579,7 +604,7 @@ mod wii {
         if network_error != 0 {
             super::paint_label(
                 words,
-                (WIDTH.load(Ordering::Relaxed) + 15) / 16 * 8,
+                WIDTH.load(Ordering::Relaxed).div_ceil(16) * 8,
                 WIDTH.load(Ordering::Relaxed),
                 HEIGHT.load(Ordering::Relaxed),
                 152,
@@ -791,7 +816,7 @@ mod wii {
         if argc <= 0 || argv.is_null() {
             return;
         }
-        let mut args = [&""[..]; 64];
+        let mut args = [""; 64];
         let mut arg_count = 0;
         for index in 0..(argc as usize).min(args.len()) {
             let arg = unsafe { *argv.add(index) };

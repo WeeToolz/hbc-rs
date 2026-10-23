@@ -1,0 +1,46 @@
+{
+  "sha256": "04e983c708c0b972692f82b08fc5c24c73d7a2cdcff058ef8432486644e0ddf5",
+  "size": 5216,
+  "elf_sha256": "0b311c50a2bd72b84983e88bbea77974101650ab1b86a4ade2bfd215c814703a",
+  "symbols": {
+    "_start": 2147489792,
+    "startup": 2147489808,
+    "real": 2147489864,
+    "virtual": 2147490184,
+    "_main": 2147493648,
+    "__sbss_start": 2147504128,
+    "__bss_end": 2147537984
+  },
+  "real_destination": 6216,
+  "source_revision": "90025e8fe503795f5246392e044e010527879cc6",
+  "source_changes": " M tests/test_wiibench.py\n M tools/wii-bench/wiibench.py\n",
+  "source_sha256": {
+    "channel/channelapp/stub/asm.h": "7916b01529aef70260719bfcc7cb3b0f0b87346690c05da8e9c8c3ef1200cd3d",
+    "channel/channelapp/stub/cache.h": "908b82a5346189feebccca86304282da5c9895fb038f3af04e9adf9661737d84",
+    "channel/channelapp/stub/cache_asm.S": "cfc7968ce3194c8866a7ec8432d468b1488cc77c27c3fd8f59c8d167ff2aed51",
+    "channel/channelapp/stub/crt0.S": "3c365ad9f22dfd4119a6af728820dd28a9f4d611bd1a20aafdfead93525ec161",
+    "channel/channelapp/stub/ios.c": "7a0c2877a43346aee895edc08f5b22d17457521a95dfdb977501a3e87b399472",
+    "channel/channelapp/stub/ios.h": "acf12289a0b2134eaa4783a19c434a355c527f2fee5934d24eb3b2e54f2d6b27",
+    "channel/channelapp/stub/processor.h": "0f54964864f3f88389a830a067e58d2544fcd20d7bef597fee9c8b77f1734ce3",
+    "channel/channelapp/stub/stub.c": "de286cfb9e904143c60ffc01557f930060671f5ce28525ade4e30b20a998fc1a",
+    "channel/channelapp/stub/stub_debug.c": "e7af1ace1e8d7723ed565be192c5ee2e878823d97d263a83a819e187f0d62ccc",
+    "channel/channelapp/stub/stub_debug.h": "e544590b359f6a155b567a2751aa6c0b0a18a6cc7d3e904377a1232f095d92c9",
+    "channel/channelapp/stub/system.c": "171f93213c272946f133a79dc4c7076c41b7b003354916ea1b499975362098f6",
+    "channel/channelapp/stub/system.h": "c95c69e62f8fb5508b27ecf7dd2c20d1a30edff1db4a4df65144604143ed06f6",
+    "channel/channelapp/stub/system_asm.S": "4be3b7400a26977731b668d90e4f668f978bb877d82a1f4e7de2fa73d05ca784",
+    "channel/channelapp/stub/usb.c": "9c8af81ffb5b3d1e30501185d4c458b687bda1841043a609634bcd6603d71200",
+    "channel/channelapp/stub/usb.h": "0a57016bb2e11438d8cd2c7559b09bbb5b4d71e081f733f0f24fcfaae3ad86f2",
+    "channel/channelapp/Makefile": "81506b20afc92bc998dcdde821fcda42d9bec96554775e11c3c46bc76fc86942",
+    "channel/channelapp/config.h": "27e6ba4dd0891c523b1214ce3ceaa997473e9ce76aaf58a898321289483cfb2c",
+    "channel/channelapp/title_id.h": "cfb6c6a020034e5963e0677d90a284a529a7ae2f0b539cdf428b1ea8a0010bd6"
+  },
+  "build_command": [
+    "make",
+    "-B",
+    "-C",
+    "/Volumes/SSD/WiiDev/C-sources/hbc-reborn/channel/channelapp",
+    "stub.bin"
+  ],
+  "compiler": "powerpc-eabi-gcc (devkitPPC) 16.1.0",
+  "linker": "GNU ld (GNU Binutils) 2.46.0.20260210"
+}

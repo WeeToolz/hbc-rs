@@ -455,6 +455,10 @@ name = "ogc-runtime"
 version = "0.1.0"
 
 [[package]]
+name = "ogc-sha"
+version = "0.1.0"
+
+[[package]]
 name = "ogc-si"
 version = "0.1.0"
 dependencies = [
@@ -515,6 +519,7 @@ dependencies = [
  "ogc-lwp-sys",
  "ogc-network",
  "ogc-report-protocol",
+ "ogc-sha",
  "ogc-si",
  "ogc-sys",
  "ogc-video-sys",

@@ -21,6 +21,7 @@ import time
 from test_network_gdb_recovery_dolphin import arm, connect, paused, ready, check_diagnostics, check_wiiload
 from test_network_gdb_dolphin import status
 from test_remote_input_dolphin import own_processes
+from dolphin_test_support import write_dolphin_config
 
 WORKSPACE = Path('/Volumes/SSD/WiiDev')
 ROOT = Path(__file__).resolve().parents[1]
@@ -74,7 +75,7 @@ def main():
         shutil.copytree(nand, profile / 'Wii')
         config = profile / 'Config'
         config.mkdir()
-        (config / 'Dolphin.ini').write_text(
+        write_dolphin_config(config,
             '[Core]\nWiiSDCard=False\nCPUThread=False\n'
             '[Interface]\nConfirmStop=False\nUsePanicHandlers=False\n'
             '[Input]\nBackgroundInput=True\n'
