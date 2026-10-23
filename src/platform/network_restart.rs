@@ -11,6 +11,27 @@ pub enum RestartError<E> {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StopError<E> {
+    UploadPending,
+    Stop(E),
+}
+
+impl<E> From<StopError<E>> for RestartError<E> {
+    fn from(error: StopError<E>) -> Self {
+        match error {
+            StopError::UploadPending => Self::UploadPending,
+            StopError::Stop(error) => Self::Stop(error),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct StopWorkRestartResult<W, S, EWork, EStart> {
+    pub work: Result<W, EWork>,
+    pub restart: Result<S, EStart>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ConnectionError {
     Receiver(ReceiverStatus),
     Timeout,
@@ -56,14 +77,41 @@ fn restart_with<E>(
     stop: impl FnOnce() -> Result<(), E>,
     start: impl FnOnce() -> Result<(), E>,
 ) -> Result<(), RestartError<E>> {
+    stop_for_work(status, stop).map_err(RestartError::from)?;
+    start().map_err(RestartError::Start)
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+fn stop_for_work<E>(
+    status: ReceiverStatus,
+    stop: impl FnOnce() -> Result<(), E>,
+) -> Result<(), StopError<E>> {
     if matches!(
         status,
         ReceiverStatus::Receiving | ReceiverStatus::PayloadReady
     ) {
-        return Err(RestartError::UploadPending);
+        return Err(StopError::UploadPending);
     }
-    stop().map_err(RestartError::Stop)?;
-    start().map_err(RestartError::Start)
+    stop().map_err(StopError::Stop)
+}
+
+/// Stop the receiver, run work that needs the network stack stopped, then
+/// attempt to start the receiver again. The work and start results stay
+/// separate so callers can report both failures.
+#[cfg(any(target_arch = "powerpc", test))]
+pub fn stop_work_restart<W, S, EStop, EWork, EStart>(
+    status: ReceiverStatus,
+    stop: impl FnOnce() -> Result<(), EStop>,
+    work: impl FnOnce() -> Result<W, EWork>,
+    start: impl FnOnce() -> Result<S, EStart>,
+) -> Result<StopWorkRestartResult<W, S, EWork, EStart>, StopError<EStop>> {
+    stop_for_work(status, stop)?;
+    let work_result = work();
+    let start_result = start();
+    Ok(StopWorkRestartResult {
+        work: work_result,
+        restart: start_result,
+    })
 }
 
 #[cfg(target_arch = "powerpc")]
@@ -136,6 +184,103 @@ mod tests {
                 }
             );
         }
+    }
+
+    #[test]
+    fn stopped_receiver_operation_preserves_all_results_and_order() {
+        let calls = RefCell::new(alloc::vec::Vec::new());
+        let stop_failed = stop_work_restart(
+            ReceiverStatus::Listening,
+            || {
+                calls.borrow_mut().push("stop");
+                Err::<(), _>(-1)
+            },
+            || {
+                calls.borrow_mut().push("work");
+                Ok::<_, i32>(())
+            },
+            || {
+                calls.borrow_mut().push("start");
+                Ok::<_, i32>(())
+            },
+        );
+        assert_eq!(stop_failed, Err(StopError::Stop(-1)));
+        assert_eq!(*calls.borrow(), alloc::vec!["stop"]);
+
+        calls.borrow_mut().clear();
+        let work_failed = stop_work_restart(
+            ReceiverStatus::Listening,
+            || {
+                calls.borrow_mut().push("stop");
+                Ok::<_, i32>(())
+            },
+            || {
+                calls.borrow_mut().push("work");
+                Err::<(), _>(-2)
+            },
+            || {
+                calls.borrow_mut().push("start");
+                Ok::<_, i32>(())
+            },
+        );
+        assert_eq!(
+            work_failed,
+            Ok(StopWorkRestartResult {
+                work: Err(-2),
+                restart: Ok(())
+            })
+        );
+        assert_eq!(*calls.borrow(), alloc::vec!["stop", "work", "start"]);
+
+        calls.borrow_mut().clear();
+        let restart_failed = stop_work_restart(
+            ReceiverStatus::Listening,
+            || {
+                calls.borrow_mut().push("stop");
+                Ok::<_, i32>(())
+            },
+            || {
+                calls.borrow_mut().push("work");
+                Ok::<_, i32>(17)
+            },
+            || {
+                calls.borrow_mut().push("start");
+                Err::<(), _>(-3)
+            },
+        );
+        assert_eq!(
+            restart_failed,
+            Ok(StopWorkRestartResult {
+                work: Ok(17),
+                restart: Err(-3)
+            })
+        );
+        assert_eq!(*calls.borrow(), alloc::vec!["stop", "work", "start"]);
+
+        calls.borrow_mut().clear();
+        let both_failed = stop_work_restart(
+            ReceiverStatus::Listening,
+            || {
+                calls.borrow_mut().push("stop");
+                Ok::<_, i32>(())
+            },
+            || {
+                calls.borrow_mut().push("work");
+                Err::<(), _>(-4)
+            },
+            || {
+                calls.borrow_mut().push("start");
+                Err::<(), _>(-5)
+            },
+        );
+        assert_eq!(
+            both_failed,
+            Ok(StopWorkRestartResult {
+                work: Err(-4),
+                restart: Err(-5)
+            })
+        );
+        assert_eq!(*calls.borrow(), alloc::vec!["stop", "work", "start"]);
     }
 
     #[test]

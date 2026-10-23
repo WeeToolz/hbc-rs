@@ -90,18 +90,6 @@ pub(crate) fn decode_external_backup(record: &[u8], device_id: u32, kind: u8) ->
 }
 
 #[derive(Debug, Eq, PartialEq)]
-#[cfg(test)]
-pub(crate) enum ConfigCommitError<E> {
-    BackupWrite(E),
-    BackupRead(E),
-    BackupMismatch,
-    PrimaryWrite(E),
-    PrimaryRead(E),
-    PrimaryMismatch,
-    BackupCleanup(E),
-}
-
-#[derive(Debug, Eq, PartialEq)]
 #[cfg(any(target_arch = "powerpc", test))]
 pub(crate) enum ConfigSaveError<E> {
     OriginalBackup(E),
@@ -209,102 +197,6 @@ where
     }
 }
 
-#[cfg(test)]
-pub(crate) fn commit_config<E>(
-    original: &[u8],
-    replacement: &[u8],
-    write_backup: impl FnMut(&[u8]) -> Result<(), E>,
-    read_backup: impl FnMut() -> Result<Option<alloc::vec::Vec<u8>>, E>,
-    write_primary: impl FnMut(&[u8]) -> Result<(), E>,
-    read_primary: impl FnMut() -> Result<Option<alloc::vec::Vec<u8>>, E>,
-    mut remove_backup: impl FnMut() -> Result<(), E>,
-) -> Result<(), ConfigCommitError<E>> {
-    commit_direct_config(
-        original,
-        replacement,
-        write_backup,
-        read_backup,
-        |bytes| bytes == original,
-        write_primary,
-        read_primary,
-    )?;
-    remove_backup().map_err(ConfigCommitError::BackupCleanup)
-}
-
-/// Write an existing primary file only after an independent backup is verified.
-/// Keep the backup for recovery from a failed or interrupted direct write.
-#[cfg(test)]
-pub(crate) fn commit_direct_config<E>(
-    original: &[u8],
-    replacement: &[u8],
-    mut write_backup: impl FnMut(&[u8]) -> Result<(), E>,
-    mut read_backup: impl FnMut() -> Result<Option<alloc::vec::Vec<u8>>, E>,
-    valid_backup: impl Fn(&[u8]) -> bool,
-    mut write_primary: impl FnMut(&[u8]) -> Result<(), E>,
-    mut read_primary: impl FnMut() -> Result<Option<alloc::vec::Vec<u8>>, E>,
-) -> Result<(), ConfigCommitError<E>> {
-    // Preserve the first recovery image across later saves. An existing image
-    // may differ from the current NAND contents after an earlier successful save.
-    match read_backup().map_err(ConfigCommitError::BackupRead)? {
-        Some(bytes) if valid_backup(&bytes) => {}
-        Some(_) => return Err(ConfigCommitError::BackupMismatch),
-        None => {
-            write_backup(original).map_err(ConfigCommitError::BackupWrite)?;
-            match read_backup().map_err(ConfigCommitError::BackupRead)? {
-                Some(bytes) if bytes == original && valid_backup(&bytes) => {}
-                _ => return Err(ConfigCommitError::BackupMismatch),
-            }
-        }
-    }
-    // Recheck the retained backup immediately before the irreversible NAND write.
-    match read_backup().map_err(ConfigCommitError::BackupRead)? {
-        Some(bytes) if valid_backup(&bytes) => {}
-        _ => return Err(ConfigCommitError::BackupMismatch),
-    }
-    write_primary(replacement).map_err(ConfigCommitError::PrimaryWrite)?;
-    match read_primary().map_err(ConfigCommitError::PrimaryRead)? {
-        Some(bytes) if bytes == replacement => {}
-        _ => return Err(ConfigCommitError::PrimaryMismatch),
-    }
-    Ok(())
-}
-
-/// Commit a replacement when the caller has already created and verified a
-/// recovery file in application-owned storage.
-#[cfg(test)]
-pub(crate) fn commit_with_existing_backup<E>(
-    original: &[u8],
-    replacement: &[u8],
-    mut read_backup: impl FnMut() -> Result<Option<alloc::vec::Vec<u8>>, E>,
-    valid_backup: impl Fn(&[u8]) -> bool,
-    mut write_primary: impl FnMut(&[u8]) -> Result<(), E>,
-    mut read_primary: impl FnMut() -> Result<Option<alloc::vec::Vec<u8>>, E>,
-) -> Result<(), ConfigCommitError<E>> {
-    match read_backup().map_err(ConfigCommitError::BackupRead)? {
-        Some(bytes) if valid_backup(&bytes) => {}
-        Some(_) | None => return Err(ConfigCommitError::BackupMismatch),
-    }
-    match read_primary().map_err(ConfigCommitError::PrimaryRead)? {
-        Some(bytes) if bytes == original => {}
-        _ => return Err(ConfigCommitError::BackupMismatch),
-    }
-    write_primary(replacement).map_err(ConfigCommitError::PrimaryWrite)?;
-    match read_primary().map_err(ConfigCommitError::PrimaryRead)? {
-        Some(bytes) if bytes == replacement => Ok(()),
-        _ => Err(ConfigCommitError::PrimaryMismatch),
-    }
-}
-
-#[derive(Debug, Eq, PartialEq)]
-#[cfg(test)]
-pub(crate) enum ConfigRecoverError<E> {
-    InvalidBackup,
-    Restore(E),
-    Verify(E),
-    Mismatch,
-    Cleanup(E),
-}
-
 #[derive(Debug, Eq, PartialEq)]
 #[cfg(any(target_arch = "powerpc", test))]
 pub(crate) enum RetainedBackupRecoveryError<E> {
@@ -339,36 +231,6 @@ pub(crate) fn recover_from_retained_backup<E>(
         Some(bytes) if bytes == backup && is_valid(&bytes) => Ok(true),
         _ => Err(RetainedBackupRecoveryError::Mismatch),
     }
-}
-
-#[cfg(test)]
-pub(crate) fn recover_config<E>(
-    backup: Option<alloc::vec::Vec<u8>>,
-    is_valid: impl Fn(&[u8]) -> bool,
-    mut write_primary: impl FnMut(&[u8]) -> Result<(), E>,
-    mut read_primary: impl FnMut() -> Result<Option<alloc::vec::Vec<u8>>, E>,
-    mut remove_backup: impl FnMut() -> Result<(), E>,
-) -> Result<(), ConfigRecoverError<E>> {
-    let Some(original) = backup else {
-        return Ok(());
-    };
-    if !is_valid(&original) {
-        return Err(ConfigRecoverError::InvalidBackup);
-    }
-    // A valid primary means the save completed and only backup cleanup was
-    // interrupted. Keep the committed settings and remove the stale backup.
-    if read_primary()
-        .map_err(ConfigRecoverError::Verify)?
-        .is_some_and(|bytes| is_valid(&bytes))
-    {
-        return remove_backup().map_err(ConfigRecoverError::Cleanup);
-    }
-    write_primary(&original).map_err(ConfigRecoverError::Restore)?;
-    match read_primary().map_err(ConfigRecoverError::Verify)? {
-        Some(bytes) if bytes == original => {}
-        _ => return Err(ConfigRecoverError::Mismatch),
-    }
-    remove_backup().map_err(ConfigRecoverError::Cleanup)
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -810,193 +672,6 @@ mod transaction_tests {
     use alloc::{vec, vec::Vec};
     use core::cell::RefCell;
 
-    #[derive(Default)]
-    struct Files {
-        primary: Option<Vec<u8>>,
-        backup: Option<Vec<u8>>,
-    }
-
-    #[test]
-    fn commit_verifies_the_new_persisted_bytes_before_removing_backup() {
-        let original = vec![1; CONFIG_LEN];
-        let replacement = vec![2; CONFIG_LEN];
-        let files = RefCell::new(Files {
-            primary: Some(original.clone()),
-            backup: None,
-        });
-
-        let result = commit_config(
-            &original,
-            &replacement,
-            |bytes| {
-                files.borrow_mut().backup = Some(bytes.to_vec());
-                Ok::<_, i32>(())
-            },
-            || Ok(files.borrow().backup.clone()),
-            |bytes| {
-                files.borrow_mut().primary = Some(bytes.to_vec());
-                Ok(())
-            },
-            || Ok(files.borrow().primary.clone()),
-            || {
-                files.borrow_mut().backup = None;
-                Ok(())
-            },
-        );
-
-        assert_eq!(result, Ok(()));
-        let persisted = files.borrow();
-        assert_eq!(persisted.primary.as_deref(), Some(replacement.as_slice()));
-        assert_eq!(persisted.backup, None);
-    }
-
-    #[test]
-    fn interrupted_commit_keeps_backup_and_recovery_restores_the_old_bytes() {
-        let original = vec![3; CONFIG_LEN];
-        let replacement = vec![4; CONFIG_LEN];
-        let files = RefCell::new(Files {
-            primary: Some(original.clone()),
-            backup: None,
-        });
-
-        let result = commit_config(
-            &original,
-            &replacement,
-            |bytes| {
-                files.borrow_mut().backup = Some(bytes.to_vec());
-                Ok::<_, i32>(())
-            },
-            || Ok(files.borrow().backup.clone()),
-            |bytes| {
-                files.borrow_mut().primary = Some(bytes[..128].to_vec());
-                Err(-5)
-            },
-            || Ok(files.borrow().primary.clone()),
-            || {
-                files.borrow_mut().backup = None;
-                Ok(())
-            },
-        );
-        assert_eq!(result, Err(ConfigCommitError::PrimaryWrite(-5)));
-        assert_eq!(files.borrow().backup.as_deref(), Some(original.as_slice()));
-
-        let backup = files.borrow().backup.clone();
-        let recovered = recover_config(
-            backup,
-            |bytes| bytes.len() == CONFIG_LEN && bytes == original,
-            |bytes| {
-                files.borrow_mut().primary = Some(bytes.to_vec());
-                Ok::<_, i32>(())
-            },
-            || Ok(files.borrow().primary.clone()),
-            || {
-                files.borrow_mut().backup = None;
-                Ok(())
-            },
-        );
-
-        assert_eq!(recovered, Ok(()));
-        assert_eq!(files.borrow().primary.as_deref(), Some(original.as_slice()));
-        assert_eq!(files.borrow().backup, None);
-    }
-
-    #[test]
-    fn direct_commit_keeps_verified_external_backup() {
-        let original = vec![3; CONFIG_LEN];
-        let replacement = vec![4; CONFIG_LEN];
-        let files = RefCell::new(Files {
-            primary: Some(original.clone()),
-            backup: None,
-        });
-        let result = commit_direct_config(
-            &original,
-            &replacement,
-            |bytes| {
-                files.borrow_mut().backup = Some(bytes.to_vec());
-                Ok::<_, i32>(())
-            },
-            || Ok(files.borrow().backup.clone()),
-            |bytes| bytes.len() == CONFIG_LEN,
-            |bytes| {
-                files.borrow_mut().primary = Some(bytes.to_vec());
-                Ok(())
-            },
-            || Ok(files.borrow().primary.clone()),
-        );
-        assert_eq!(result, Ok(()));
-        let persisted = files.borrow();
-        assert_eq!(persisted.primary.as_deref(), Some(replacement.as_slice()));
-        assert_eq!(persisted.backup.as_deref(), Some(original.as_slice()));
-    }
-
-    #[test]
-    fn existing_application_backup_is_verified_before_primary_commit() {
-        let backup = vec![7; CONFIG_LEN];
-        let replacement = vec![8; CONFIG_LEN];
-        let primary = RefCell::new(Some(vec![7; CONFIG_LEN]));
-        let result = commit_with_existing_backup::<i32>(
-            &backup,
-            &replacement,
-            || Ok(Some(backup.clone())),
-            |bytes| bytes == backup,
-            |bytes| {
-                *primary.borrow_mut() = Some(bytes.to_vec());
-                Ok::<_, i32>(())
-            },
-            || Ok(primary.borrow().clone()),
-        );
-        assert_eq!(result, Ok(()));
-        assert_eq!(primary.borrow().as_deref(), Some(replacement.as_slice()));
-    }
-
-    #[test]
-    fn existing_application_backup_must_be_valid_before_primary_commit() {
-        let primary = RefCell::new(Some(vec![7; CONFIG_LEN]));
-        let result = commit_with_existing_backup::<i32>(
-            &[7; CONFIG_LEN],
-            &[8; CONFIG_LEN],
-            || Ok(Some(vec![0; CONFIG_LEN])),
-            |_| false,
-            |_| panic!("invalid backup must not change the primary"),
-            || Ok(primary.borrow().clone()),
-        );
-        assert_eq!(result, Err(ConfigCommitError::BackupMismatch));
-        assert_eq!(
-            primary.borrow().as_deref(),
-            Some(vec![7; CONFIG_LEN].as_slice())
-        );
-    }
-
-    #[test]
-    fn recovery_keeps_valid_committed_primary_and_removes_stale_transaction_backup() {
-        let original = vec![9; CONFIG_LEN];
-        let replacement = vec![10; CONFIG_LEN];
-        let files = RefCell::new(Files {
-            primary: Some(replacement.clone()),
-            backup: Some(original.clone()),
-        });
-        let backup = files.borrow().backup.clone();
-        let result = recover_config(
-            backup,
-            |bytes| bytes.len() == CONFIG_LEN,
-            |bytes| {
-                files.borrow_mut().primary = Some(bytes.to_vec());
-                Ok::<_, i32>(())
-            },
-            || Ok(files.borrow().primary.clone()),
-            || {
-                files.borrow_mut().backup = None;
-                Ok(())
-            },
-        );
-        assert_eq!(result, Ok(()));
-        assert_eq!(
-            files.borrow().primary.as_deref(),
-            Some(replacement.as_slice())
-        );
-        assert_eq!(files.borrow().backup, None);
-    }
-
     #[test]
     fn retained_backup_is_not_used_when_primary_is_valid() {
         let backup = vec![11; CONFIG_LEN];
@@ -1052,6 +727,276 @@ mod transaction_tests {
     }
 
     #[test]
+    fn failed_production_save_keeps_current_backup_for_retained_recovery() {
+        let original = vec![0x23; CONFIG_LEN];
+        let replacement = vec![0x24; CONFIG_LEN];
+        let primary = RefCell::new(Some(original.clone()));
+        let current_backup = RefCell::new(None::<Vec<u8>>);
+        let operations = RefCell::new(Vec::new());
+
+        let saved = save_with_recovery_backups(
+            &original,
+            &replacement,
+            |bytes| bytes.len() == CONFIG_LEN,
+            RecoveryBackupOps {
+                verify_original_backup: || {
+                    operations.borrow_mut().push("verify original");
+                    Ok::<_, i32>(())
+                },
+                write_current_backup: |bytes: &[u8]| {
+                    operations.borrow_mut().push("write current backup");
+                    *current_backup.borrow_mut() = Some(bytes.to_vec());
+                    Ok(())
+                },
+                read_current_backup: || {
+                    operations.borrow_mut().push("read current backup");
+                    Ok(current_backup.borrow().clone())
+                },
+                read_primary: || {
+                    operations.borrow_mut().push("read primary");
+                    Ok(primary.borrow().clone())
+                },
+                write_primary: |bytes: &[u8]| {
+                    operations.borrow_mut().push("write primary");
+                    *primary.borrow_mut() = Some(bytes[..128].to_vec());
+                    Err(-5)
+                },
+            },
+        );
+        assert_eq!(saved, Err(ConfigSaveError::PrimaryWrite(-5)));
+        assert_eq!(
+            operations.into_inner(),
+            [
+                "verify original",
+                "write current backup",
+                "read current backup",
+                "read primary",
+                "write primary",
+            ]
+        );
+        assert_eq!(
+            current_backup.borrow().as_deref(),
+            Some(original.as_slice())
+        );
+        assert_eq!(
+            primary.borrow().as_deref(),
+            Some(vec![0x24; 128].as_slice())
+        );
+
+        let backup = current_backup.borrow().clone();
+        let recovered = recover_from_retained_backup(
+            backup,
+            |bytes| bytes.len() == CONFIG_LEN,
+            |bytes| {
+                *primary.borrow_mut() = Some(bytes.to_vec());
+                Ok::<_, i32>(())
+            },
+            || Ok(primary.borrow().clone()),
+        );
+        assert_eq!(recovered, Ok(true));
+        assert_eq!(primary.borrow().as_deref(), Some(original.as_slice()));
+        assert_eq!(
+            current_backup.borrow().as_deref(),
+            Some(original.as_slice())
+        );
+    }
+
+    #[test]
+    fn production_save_returns_errors_and_stops_at_each_backup_and_primary_boundary() {
+        fn run(failure: &'static str) -> (Result<(), ConfigSaveError<i32>>, Vec<&'static str>) {
+            let current = vec![0x35; CONFIG_LEN];
+            let replacement = vec![0x36; CONFIG_LEN];
+            let trace = RefCell::new(Vec::new());
+            let current_backup = RefCell::new(None::<Vec<u8>>);
+            let primary = RefCell::new(Some(current.clone()));
+            let primary_reads = core::cell::Cell::new(0);
+            let result = save_with_recovery_backups(
+                &current,
+                &replacement,
+                |bytes| bytes.len() == CONFIG_LEN,
+                RecoveryBackupOps {
+                    verify_original_backup: || {
+                        trace.borrow_mut().push("original");
+                        if failure == "original" {
+                            Err(-10)
+                        } else {
+                            Ok(())
+                        }
+                    },
+                    write_current_backup: |bytes: &[u8]| {
+                        trace.borrow_mut().push("backup write");
+                        if failure == "backup write" {
+                            return Err(-11);
+                        }
+                        *current_backup.borrow_mut() = Some(bytes.to_vec());
+                        Ok(())
+                    },
+                    read_current_backup: || {
+                        trace.borrow_mut().push("backup readback");
+                        match failure {
+                            "backup readback error" => Err(-12),
+                            "backup mismatch" => Ok(Some(vec![0x37; CONFIG_LEN])),
+                            _ => Ok(current_backup.borrow().clone()),
+                        }
+                    },
+                    read_primary: || {
+                        let read = primary_reads.get();
+                        primary_reads.set(read + 1);
+                        trace.borrow_mut().push(if read == 0 {
+                            "primary read"
+                        } else {
+                            "primary verify"
+                        });
+                        match (failure, read) {
+                            ("primary read error", 0) => Err(-13),
+                            ("primary verify read error", 1) => Err(-14),
+                            ("primary mismatch", 1) => Ok(Some(vec![0x38; CONFIG_LEN])),
+                            _ => Ok(primary.borrow().clone()),
+                        }
+                    },
+                    write_primary: |bytes: &[u8]| {
+                        trace.borrow_mut().push("primary write");
+                        if failure == "primary write" {
+                            return Err(-15);
+                        }
+                        *primary.borrow_mut() = Some(bytes.to_vec());
+                        Ok(())
+                    },
+                },
+            );
+            (result, trace.into_inner())
+        }
+
+        let cases = [
+            (
+                "original",
+                ConfigSaveError::OriginalBackup(-10),
+                &["original"][..],
+            ),
+            (
+                "backup write",
+                ConfigSaveError::CurrentBackupWrite(-11),
+                &["original", "backup write"][..],
+            ),
+            (
+                "backup readback error",
+                ConfigSaveError::CurrentBackupRead(-12),
+                &["original", "backup write", "backup readback"][..],
+            ),
+            (
+                "backup mismatch",
+                ConfigSaveError::CurrentBackupInvalid,
+                &["original", "backup write", "backup readback"][..],
+            ),
+            (
+                "primary read error",
+                ConfigSaveError::PrimaryRead(-13),
+                &[
+                    "original",
+                    "backup write",
+                    "backup readback",
+                    "primary read",
+                ][..],
+            ),
+            (
+                "primary write",
+                ConfigSaveError::PrimaryWrite(-15),
+                &[
+                    "original",
+                    "backup write",
+                    "backup readback",
+                    "primary read",
+                    "primary write",
+                ][..],
+            ),
+            (
+                "primary verify read error",
+                ConfigSaveError::PrimaryVerificationRead(-14),
+                &[
+                    "original",
+                    "backup write",
+                    "backup readback",
+                    "primary read",
+                    "primary write",
+                    "primary verify",
+                ][..],
+            ),
+            (
+                "primary mismatch",
+                ConfigSaveError::PrimaryVerificationFailed,
+                &[
+                    "original",
+                    "backup write",
+                    "backup readback",
+                    "primary read",
+                    "primary write",
+                    "primary verify",
+                ][..],
+            ),
+        ];
+        for (failure, expected_error, expected_trace) in cases {
+            let (result, trace) = run(failure);
+            assert_eq!(result, Err(expected_error), "failure at {failure}");
+            assert_eq!(trace, expected_trace, "operation order for {failure}");
+        }
+    }
+
+    #[test]
+    fn retained_recovery_returns_write_and_verification_failures_and_accepts_no_backup() {
+        let original = vec![0x45; CONFIG_LEN];
+        let invalid_primary = Some(vec![0x46; 17]);
+        assert_eq!(
+            recover_from_retained_backup::<i32>(
+                None,
+                |_| true,
+                |_| panic!("no backup"),
+                || panic!("no backup")
+            ),
+            Ok(false)
+        );
+
+        let restore = recover_from_retained_backup::<i32>(
+            Some(original.clone()),
+            |bytes| bytes.len() == CONFIG_LEN,
+            |_| Err(-21),
+            || Ok(invalid_primary.clone()),
+        );
+        assert_eq!(restore, Err(RetainedBackupRecoveryError::Restore(-21)));
+
+        let mut verify_reads = 0;
+        let verify_read = recover_from_retained_backup::<i32>(
+            Some(original.clone()),
+            |bytes| bytes.len() == CONFIG_LEN,
+            |_| Ok(()),
+            || {
+                verify_reads += 1;
+                if verify_reads == 1 {
+                    Ok(invalid_primary.clone())
+                } else {
+                    Err(-22)
+                }
+            },
+        );
+        assert_eq!(verify_read, Err(RetainedBackupRecoveryError::Verify(-22)));
+
+        let mut reads = 0;
+        let mismatch = recover_from_retained_backup::<i32>(
+            Some(original),
+            |bytes| bytes.len() == CONFIG_LEN,
+            |_| Ok(()),
+            || {
+                reads += 1;
+                Ok(if reads == 1 {
+                    invalid_primary.clone()
+                } else {
+                    Some(vec![0x47; CONFIG_LEN])
+                })
+            },
+        );
+        assert_eq!(mismatch, Err(RetainedBackupRecoveryError::Mismatch));
+    }
+
+    #[test]
     fn retained_backup_rejects_invalid_copy_without_writing_primary() {
         let primary = RefCell::new(Some(vec![0; 16]));
         let result = recover_from_retained_backup::<i32>(
@@ -1062,42 +1007,6 @@ mod transaction_tests {
         );
         assert_eq!(result, Err(RetainedBackupRecoveryError::InvalidBackup));
         assert_eq!(primary.borrow().as_deref(), Some(vec![0; 16].as_slice()));
-    }
-
-    #[test]
-    fn direct_commit_reuses_original_backup_on_repeated_saves() {
-        let original = vec![3; CONFIG_LEN];
-        let first = vec![4; CONFIG_LEN];
-        let second = vec![5; CONFIG_LEN];
-        let files = RefCell::new(Files {
-            primary: Some(original.clone()),
-            backup: None,
-        });
-        for (before, after) in [(&original, &first), (&first, &second)] {
-            let result = commit_direct_config(
-                before,
-                after,
-                |bytes| {
-                    assert!(
-                        files.borrow().backup.is_none(),
-                        "must never replace original backup"
-                    );
-                    files.borrow_mut().backup = Some(bytes.to_vec());
-                    Ok::<_, i32>(())
-                },
-                || Ok(files.borrow().backup.clone()),
-                |bytes| bytes == original,
-                |bytes| {
-                    files.borrow_mut().primary = Some(bytes.to_vec());
-                    Ok(())
-                },
-                || Ok(files.borrow().primary.clone()),
-            );
-            assert_eq!(result, Ok(()));
-        }
-        let saved = files.borrow();
-        assert_eq!(saved.primary.as_deref(), Some(second.as_slice()));
-        assert_eq!(saved.backup.as_deref(), Some(original.as_slice()));
     }
 
     #[test]
@@ -1258,52 +1167,6 @@ mod transaction_tests {
             Some(expected.as_slice())
         );
     }
-
-    #[test]
-    fn direct_commit_rejects_existing_invalid_backup_without_writing() {
-        let original = vec![3; CONFIG_LEN];
-        let result = commit_direct_config(
-            &original,
-            &[4; CONFIG_LEN],
-            |_| panic!("must not replace an existing backup"),
-            || Ok::<_, i32>(Some(vec![0; CONFIG_LEN])),
-            |bytes| bytes == original,
-            |_| panic!("must not write NAND"),
-            || panic!("must not read NAND"),
-        );
-        assert_eq!(result, Err(ConfigCommitError::BackupMismatch));
-    }
-
-    #[test]
-    fn direct_commit_rejects_bad_external_backup_before_primary_write() {
-        let original = vec![3; CONFIG_LEN];
-        let replacement = vec![4; CONFIG_LEN];
-        let result = commit_direct_config(
-            &original,
-            &replacement,
-            |_| Ok::<_, i32>(()),
-            || Ok(Some(vec![0; CONFIG_LEN])),
-            |bytes| bytes == original,
-            |_| panic!("primary must not change without a verified backup"),
-            || panic!("primary must not be read without a verified backup"),
-        );
-        assert_eq!(result, Err(ConfigCommitError::BackupMismatch));
-    }
-
-    #[test]
-    fn recovery_rejects_a_corrupt_backup_without_touching_primary() {
-        let original = vec![5; CONFIG_LEN];
-        let primary = RefCell::new(Some(original.clone()));
-        let recovered = recover_config::<i32>(
-            Some(vec![6; 17]),
-            |_| false,
-            |_| panic!("invalid backup must not be written"),
-            || panic!("invalid backup must not be read back"),
-            || panic!("invalid backup must remain for diagnosis"),
-        );
-        assert_eq!(recovered, Err(ConfigRecoverError::InvalidBackup));
-        assert_eq!(primary.borrow().as_deref(), Some(original.as_slice()));
-    }
 }
 
 fn is_hex(text: &[u8]) -> bool {
@@ -1342,5 +1205,79 @@ impl WifiConfigMut<'_> {
         self.bytes[WIFI_KEY_OFFSET..WIFI_KEY_OFFSET + key.len()].copy_from_slice(key);
         self.bytes[WIFI_KEY_LEN_OFFSET] = key.len() as u8;
         true
+    }
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) struct RecoveryOutcomes {
+    invalid_backup: bool,
+    restore_failure: bool,
+    verification_failure: bool,
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum RecoveryFailure {
+    InvalidBackup,
+    RestoreFailure,
+    VerificationFailure,
+    Unavailable,
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+impl RecoveryOutcomes {
+    pub(crate) fn record(&mut self, result: Result<bool, RecoveryFailure>) -> bool {
+        match result {
+            Ok(recovered) => recovered,
+            Err(RecoveryFailure::Unavailable) => false,
+            Err(RecoveryFailure::InvalidBackup) => {
+                self.invalid_backup = true;
+                false
+            }
+            Err(RecoveryFailure::RestoreFailure) => {
+                self.restore_failure = true;
+                false
+            }
+            Err(RecoveryFailure::VerificationFailure) => {
+                self.verification_failure = true;
+                false
+            }
+        }
+    }
+
+    pub(crate) fn error(self) -> RecoveryFailure {
+        if self.restore_failure {
+            RecoveryFailure::RestoreFailure
+        } else if self.verification_failure {
+            RecoveryFailure::VerificationFailure
+        } else if self.invalid_backup {
+            RecoveryFailure::InvalidBackup
+        } else {
+            RecoveryFailure::Unavailable
+        }
+    }
+}
+
+#[cfg(test)]
+mod recovery_outcome_tests {
+    use super::*;
+
+    #[test]
+    fn recovery_result_uses_shared_precedence_and_success() {
+        let mut outcomes = RecoveryOutcomes::default();
+        outcomes.record(Err(RecoveryFailure::InvalidBackup));
+        outcomes.record(Err(RecoveryFailure::VerificationFailure));
+        assert_eq!(outcomes.error(), RecoveryFailure::VerificationFailure);
+
+        outcomes.record(Err(RecoveryFailure::RestoreFailure));
+        assert_eq!(outcomes.error(), RecoveryFailure::RestoreFailure);
+
+        assert!(outcomes.record(Ok(true)));
+        assert!(!outcomes.record(Ok(false)));
+        assert_eq!(
+            RecoveryOutcomes::default().error(),
+            RecoveryFailure::Unavailable
+        );
     }
 }

@@ -14,6 +14,8 @@ const BACKUP_FILE_NAME: &str = "netcfg.dat";
 const CURRENT_BACKUP_FILE_NAME: &str = "netcur.dat";
 const ISFS_EACCES: i32 = -102;
 
+use crate::network_config::{RecoveryFailure, RecoveryOutcomes};
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum StorageBackupStage {
     Open,
@@ -747,9 +749,7 @@ fn recover_invalid_config(
         return Ok(());
     }
 
-    let mut saw_invalid_backup = false;
-    let mut saw_restore_failure = false;
-    let mut saw_verification_failure = false;
+    let mut outcomes = RecoveryOutcomes::default();
     for name in [CURRENT_BACKUP_FILE_NAME, BACKUP_FILE_NAME] {
         let backup = match crate::platform::settings::title_data_file_path(name) {
             Ok(backup) => backup,
@@ -763,7 +763,7 @@ fn recover_invalid_config(
         let bytes = match nand::read_file_wii(&backup, CONFIG_LEN) {
             Ok(bytes) => bytes,
             Err(SettingsIoError::InvalidFileSize) => {
-                saw_invalid_backup = true;
+                outcomes.record(Err(RecoveryFailure::InvalidBackup));
                 continue;
             }
             Err(error) => {
@@ -776,12 +776,14 @@ fn recover_invalid_config(
         match try_restore_backup(path, bytes) {
             Ok(true) => return Ok(()),
             Ok(false) => {}
-            Err(NetworkConfigError::BackupInvalid) => saw_invalid_backup = true,
-            Err(NetworkConfigError::RestoreFailed) => saw_restore_failure = true,
-            Err(NetworkConfigError::VerificationFailed) => saw_verification_failure = true,
-            Err(error) => ogc_system::report(format_args!(
-                "HBC: local network recovery attempt failed ({error:?})\n"
-            )),
+            Err(error) => match recovery_attempt(error) {
+                Some(attempt) => {
+                    outcomes.record(Err(attempt));
+                }
+                None => ogc_system::report(format_args!(
+                    "HBC: local network recovery attempt failed ({error:?})\n"
+                )),
+            },
         }
     }
 
@@ -814,7 +816,7 @@ fn recover_invalid_config(
                         let bytes = match read_storage_backup(&backup_path, device_id, kind) {
                             Ok(bytes) => bytes,
                             Err(NetworkConfigError::BackupInvalid) => {
-                                saw_invalid_backup = true;
+                                outcomes.record(Err(RecoveryFailure::InvalidBackup));
                                 continue;
                             }
                             Err(error) => {
@@ -827,14 +829,14 @@ fn recover_invalid_config(
                         match try_restore_backup(path, bytes) {
                             Ok(true) => return Ok(()),
                             Ok(false) => {}
-                            Err(NetworkConfigError::BackupInvalid) => saw_invalid_backup = true,
-                            Err(NetworkConfigError::RestoreFailed) => saw_restore_failure = true,
-                            Err(NetworkConfigError::VerificationFailed) => {
-                                saw_verification_failure = true
-                            }
-                            Err(error) => ogc_system::report(format_args!(
-                                "HBC: removable network recovery attempt failed ({error:?})\n"
-                            )),
+                            Err(error) => match recovery_attempt(error) {
+                                Some(attempt) => {
+                                    outcomes.record(Err(attempt));
+                                }
+                                None => ogc_system::report(format_args!(
+                                    "HBC: removable network recovery attempt failed ({error:?})\n"
+                                )),
+                            },
                         }
                     }
                 }
@@ -845,14 +847,20 @@ fn recover_invalid_config(
         }
     }
 
-    if saw_restore_failure {
-        Err(NetworkConfigError::RestoreFailed)
-    } else if saw_verification_failure {
-        Err(NetworkConfigError::VerificationFailed)
-    } else if saw_invalid_backup {
-        Err(NetworkConfigError::BackupInvalid)
-    } else {
-        Err(NetworkConfigError::BackupUnavailable)
+    Err(match outcomes.error() {
+        RecoveryFailure::RestoreFailure => NetworkConfigError::RestoreFailed,
+        RecoveryFailure::VerificationFailure => NetworkConfigError::VerificationFailed,
+        RecoveryFailure::InvalidBackup => NetworkConfigError::BackupInvalid,
+        RecoveryFailure::Unavailable => NetworkConfigError::BackupUnavailable,
+    })
+}
+
+fn recovery_attempt(error: NetworkConfigError) -> Option<RecoveryFailure> {
+    match error {
+        NetworkConfigError::BackupInvalid => Some(RecoveryFailure::InvalidBackup),
+        NetworkConfigError::RestoreFailed => Some(RecoveryFailure::RestoreFailure),
+        NetworkConfigError::VerificationFailed => Some(RecoveryFailure::VerificationFailure),
+        _ => None,
     }
 }
 

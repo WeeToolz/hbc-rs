@@ -12,9 +12,11 @@ fn main() {
     // platform port. This binary currently provides the package entry point.
 }
 
+/// # Safety
+/// The Wii runtime must supply a valid argc/argv vector for the whole entry call.
 #[cfg(target_arch = "powerpc")]
 #[unsafe(no_mangle)]
-pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
+pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     // Seed the libogc-rs arena bounds and initialize runtime services before
     // reserving the Rust heap from MEM2 or registering hardware callbacks.
     ogc_system::init();
@@ -31,7 +33,8 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         );
     }
     #[cfg(feature = "startup-diagnostics")]
-    if hbc_rs::platform::diagnostics::initialize(_argc, _argv).is_err() {
+    // SAFETY: The entry contract supplies the runtime's live argument vector.
+    if unsafe { hbc_rs::platform::diagnostics::initialize(_argc, _argv) }.is_err() {
         if hbc_rs::platform::diagnostics::fail("CPU VIDEO INIT ERROR") {
             reset_after_diagnostic_report();
         }
@@ -646,11 +649,10 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         if let Err(error) = draw_result {
             ogc_system::report(format_args!("HBC: frame rendering failed: {error:?}\n"));
             #[cfg(feature = "startup-diagnostics")]
-            if hbc_rs::platform::diagnostics::fail("GX RENDER ERROR") {
-                if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
+            if hbc_rs::platform::diagnostics::fail("GX RENDER ERROR")
+                && let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
                     hbc_rs::platform::diagnostics::fail(&message);
                 }
-            }
             return -3;
         }
         if first_frame {
@@ -662,11 +664,10 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             let Some((square_x, square_y)) =
                 hbc_rs::platform::diagnostics::test_square_origin(info.width, info.height)
             else {
-                if hbc_rs::platform::diagnostics::fail("GX TEST RECT BOUNDS") {
-                    if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
+                if hbc_rs::platform::diagnostics::fail("GX TEST RECT BOUNDS")
+                    && let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
                         hbc_rs::platform::diagnostics::fail(&message);
                     }
-                }
                 loop {
                     hbc_rs::platform::diagnostics::hold();
                 }
@@ -688,11 +689,10 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             }
             .is_err()
             {
-                if hbc_rs::platform::diagnostics::fail("GX TEST RECT ERROR") {
-                    if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
+                if hbc_rs::platform::diagnostics::fail("GX TEST RECT ERROR")
+                    && let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
                         hbc_rs::platform::diagnostics::fail(&message);
                     }
-                }
                 loop {
                     hbc_rs::platform::diagnostics::hold();
                 }
@@ -710,12 +710,11 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                     found
                 }
                 Err(_) => {
-                    if hbc_rs::platform::diagnostics::fail("GX EFB READBACK TIMEOUT") {
-                        if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART)
+                    if hbc_rs::platform::diagnostics::fail("GX EFB READBACK TIMEOUT")
+                        && let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART)
                         {
                             hbc_rs::platform::diagnostics::fail(&message);
                         }
-                    }
                     loop {
                         hbc_rs::platform::diagnostics::hold();
                     }
@@ -833,11 +832,10 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                     hbc_rs::platform::video::VideoError::ViRetraceTimeout => "VI IRQ COUNT STALLED",
                     _ => "GX DRAW DONE TIMEOUT",
                 };
-                if hbc_rs::platform::diagnostics::fail(message) {
-                    if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
+                if hbc_rs::platform::diagnostics::fail(message)
+                    && let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
                         hbc_rs::platform::diagnostics::fail(&message);
                     }
-                }
             }
             return -4;
         }
@@ -868,12 +866,11 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                     }
                 }
                 if !video.framebuffer_has_test_square() {
-                    if hbc_rs::platform::diagnostics::fail("GX TEST SQUARE MISSING") {
-                        if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART)
+                    if hbc_rs::platform::diagnostics::fail("GX TEST SQUARE MISSING")
+                        && let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART)
                         {
                             hbc_rs::platform::diagnostics::fail(&message);
                         }
-                    }
                     // Replace the failed GX image with a CPU-written control pattern.
                     // This separates VI scanout from GX drawing and copy behavior.
                     let label = if first_efb_square {
@@ -901,11 +898,10 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         }
         #[cfg(feature = "startup-diagnostics")]
         if !ogc_video::wait_vsync_timeout_us(1_000_000) {
-            if hbc_rs::platform::diagnostics::fail("VI FRAME RETRACE TIMEOUT") {
-                if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
+            if hbc_rs::platform::diagnostics::fail("VI FRAME RETRACE TIMEOUT")
+                && let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
                     hbc_rs::platform::diagnostics::fail(&message);
                 }
-            }
             loop {
                 hbc_rs::platform::diagnostics::hold();
             }
@@ -925,11 +921,10 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         #[cfg(feature = "startup-diagnostics")]
         hbc_rs::platform::diagnostics::runtime_stage(512, "RUNTIME WORKER SLICE DONE");
         #[cfg(feature = "startup-diagnostics")]
-        if hbc_rs::platform::diagnostics::sample_frame() {
-            if let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
+        if hbc_rs::platform::diagnostics::sample_frame()
+            && let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
                 hbc_rs::platform::diagnostics::fail(&message);
             }
-        }
         #[cfg(feature = "startup-diagnostics")]
         hbc_rs::platform::diagnostics::runtime_stage(1024, "RUNTIME REPORT SAMPLE DONE");
 
@@ -992,27 +987,46 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 let expected = startup.runtime().network_config_snapshot().cloned();
                 let prepared = startup.runtime().network_config_for_save();
                 match (expected, prepared) {
-                    (Some(expected), Ok(config)) => match hbc_rs::platform::wiiload::stop() {
-                        Err(error) => startup.runtime_mut().show_notice_with_kind(
+                    (Some(expected), Ok(config)) => {
+                        let (save, restart) =
+                            match hbc_rs::platform::network_restart::stop_work_restart(
+                                hbc_rs::platform::wiiload::status(),
+                                hbc_rs::platform::wiiload::stop,
+                                || {
+                                    if make_backup {
+                                        hbc_rs::platform::network_config::save(
+                                            &config,
+                                            &expected,
+                                            startup.storage_prefix(),
+                                        )
+                                    } else {
+                                        hbc_rs::platform::network_config::save_without_backup(
+                                            &config, &expected,
+                                        )
+                                    }
+                                },
+                                hbc_rs::platform::network_restart::start,
+                            ) {
+                                Ok(results) => (results.work, results.restart),
+                                Err(
+                                    hbc_rs::platform::network_restart::StopError::UploadPending,
+                                ) => {
+                                    startup.runtime_mut().show_notice_with_kind(
+                                    "Could not stop Wiiload; network settings were not saved: an upload is pending.",
+                                    hbc_rs::app::NoticeKind::Error,
+                                );
+                                    continue;
+                                }
+                                Err(hbc_rs::platform::network_restart::StopError::Stop(error)) => {
+                                    startup.runtime_mut().show_notice_with_kind(
                             &format!("Could not stop Wiiload; network settings were not saved: {error:?}."),
                             hbc_rs::app::NoticeKind::Error,
-                        ),
-                        Ok(()) => {
-                            let save = if make_backup {
-                                hbc_rs::platform::network_config::save(
-                                    &config,
-                                    &expected,
-                                    startup.storage_prefix(),
-                                )
-                            } else {
-                                hbc_rs::platform::network_config::save_without_backup(
-                                    &config,
-                                    &expected,
-                                )
+                                );
+                                    continue;
+                                }
                             };
-                            ogc_system::report(format_args!("HBC: network save result: {save:?}\n"));
-                            let restart = hbc_rs::platform::network_restart::start();
-                            match (save, restart) {
+                        ogc_system::report(format_args!("HBC: network save result: {save:?}\n"));
+                        match (save, restart) {
                                 (Ok(()), Ok(check)) => match hbc_rs::platform::network_config::load(startup.storage_prefix()) {
                                     Ok(saved) => {
                                         startup.runtime_mut().set_network_config(saved);
@@ -1043,8 +1057,7 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                                     hbc_rs::app::NoticeKind::Error,
                                 ),
                             }
-                        }
-                    },
+                    }
                     (_, Err(error)) => startup.runtime_mut().show_notice_with_kind(
                         &format!("WiFi settings are invalid: {error:?}."),
                         hbc_rs::app::NoticeKind::Error,
@@ -1104,16 +1117,28 @@ pub extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 continue;
             }
             if action == hbc_rs::app::Action::ScanNetworks {
-                let stopped = hbc_rs::platform::wiiload::stop();
-                if let Err(error) = stopped {
-                    startup.runtime_mut().show_notice_with_kind(
-                        &format!("Could not stop Wiiload before scanning: {error:?}."),
-                        hbc_rs::app::NoticeKind::Error,
-                    );
-                    continue;
-                }
-                let scan = hbc_rs::platform::network_scan::scan();
-                let restart = hbc_rs::platform::wiiload::start();
+                let (scan, restart) = match hbc_rs::platform::network_restart::stop_work_restart(
+                    hbc_rs::platform::wiiload::status(),
+                    hbc_rs::platform::wiiload::stop,
+                    hbc_rs::platform::network_scan::scan,
+                    || hbc_rs::platform::wiiload::start().map(|_| ()),
+                ) {
+                    Ok(results) => (results.work, results.restart),
+                    Err(hbc_rs::platform::network_restart::StopError::UploadPending) => {
+                        startup.runtime_mut().show_notice_with_kind(
+                            "Could not stop Wiiload before scanning: an upload is pending.",
+                            hbc_rs::app::NoticeKind::Error,
+                        );
+                        continue;
+                    }
+                    Err(hbc_rs::platform::network_restart::StopError::Stop(error)) => {
+                        startup.runtime_mut().show_notice_with_kind(
+                            &format!("Could not stop Wiiload before scanning: {error:?}."),
+                            hbc_rs::app::NoticeKind::Error,
+                        );
+                        continue;
+                    }
+                };
                 match (scan, restart) {
                     (Ok(networks), Ok(())) => startup.runtime_mut().set_scanned_networks(networks),
                     (Ok(networks), Err(error)) => {
