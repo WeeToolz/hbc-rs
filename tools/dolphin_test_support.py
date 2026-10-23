@@ -58,36 +58,69 @@ class Debugger:
         self.socket = connection
         self.names = names
         self.buffer = bytearray()
+        self.stop_replies = []
 
     def packet(self, seconds=10):
         deadline = time.monotonic() + seconds
-        while time.monotonic() < deadline:
-            start = self.buffer.find(b'$')
-            end = self.buffer.find(b'#', start + 1) if start >= 0 else -1
-            if end >= 0 and len(self.buffer) >= end + 3:
-                payload = bytes(self.buffer[start + 1:end])
-                checksum = int(bytes(self.buffer[end + 1:end + 3]), 16)
-                del self.buffer[:end + 3]
-                if sum(payload) & 255 != checksum:
-                    raise RuntimeError('Invalid emulator debugger checksum')
-                self.socket.sendall(b'+')
-                return payload.decode('ascii')
-            try:
-                data = self.socket.recv(65536)
-            except socket.timeout:
-                continue
-            if not data:
-                raise RuntimeError('Emulator debugger closed')
-            self.buffer.extend(data)
-        raise TimeoutError('Emulator debugger response timed out')
+        previous_timeout = self.socket.gettimeout()
+        try:
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise TimeoutError('Emulator debugger response timed out')
+                start = self.buffer.find(b'$')
+                end = self.buffer.find(b'#', start + 1) if start >= 0 else -1
+                if end >= 0 and len(self.buffer) >= end + 3:
+                    payload = bytes(self.buffer[start + 1:end])
+                    try:
+                        checksum = int(bytes(self.buffer[end + 1:end + 3]), 16)
+                    except ValueError as error:
+                        raise RuntimeError('Invalid emulator debugger checksum') from error
+                    del self.buffer[:end + 3]
+                    if sum(payload) & 255 != checksum:
+                        raise RuntimeError('Invalid emulator debugger checksum')
+                    self.socket.sendall(b'+')
+                    return payload.decode('ascii')
+                self.socket.settimeout(remaining)
+                try:
+                    data = self.socket.recv(65536)
+                except socket.timeout:
+                    continue
+                if not data:
+                    raise RuntimeError('Emulator debugger closed')
+                self.buffer.extend(data)
+        finally:
+            self.socket.settimeout(previous_timeout)
 
     def send(self, value):
         data = value.encode('ascii')
         self.socket.sendall(b'$' + data + b'#' + f'{sum(data) & 255:02x}'.encode('ascii'))
 
+    @staticmethod
+    def _is_stop_reply(reply):
+        return reply.startswith(('T', 'S'))
+
     def command(self, value):
         self.send(value)
-        return self.packet()
+        reply = self.packet()
+        if value == '?':
+            return reply
+        while self._is_stop_reply(reply):
+            self.stop_replies.append(reply)
+            reply = self.packet()
+        return reply
+
+    def stopped(self, seconds=10):
+        if self.stop_replies:
+            return self.stop_replies.pop(0)
+        deadline = time.monotonic() + seconds
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError('Emulator debugger stop reply timed out')
+            reply = self.packet(remaining)
+            if self._is_stop_reply(reply):
+                return reply
 
     def write(self, address, data):
         reply = self.command(f'M{address:x},{len(data):x}:' + data.hex())
@@ -114,7 +147,7 @@ class Debugger:
             raise RuntimeError(f'Emulator breakpoint rejected: {reply}')
 
     def stopped_at(self, address, seconds=10):
-        reply = self.packet(seconds)
+        reply = self.stopped(seconds)
         if f'40:{address:08x};' not in reply:
             raise RuntimeError(f'Unexpected emulator stop: {reply}; expected {address:08x}')
         return reply

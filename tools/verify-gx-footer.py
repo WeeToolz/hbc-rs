@@ -17,6 +17,7 @@ import zlib
 root = Path(__file__).resolve().parents[1]
 from dolphin_capture_config import configure_capture_profile
 from xfb_capture import summarize_yuyv_luma
+from dolphin_test_support import Debugger
 parser = argparse.ArgumentParser(description='Capture production HBC notice, footer, menu, and Options paths in Dolphin.')
 parser.add_argument('--label', default='fixed')
 parser.add_argument('--dol', type=Path, default=root / 'target/hbc-rs.dol')
@@ -54,39 +55,7 @@ log_path = output / 'dolphin.log'
 log = log_path.open('w')
 proc = subprocess.Popen([str(args.dolphin), '-b', '-u', str(profile), '-e', str(dol), '-C', 'Dolphin.General.GDBPort=55268'], stdout=log, stderr=log)
 sock = None
-buffer = bytearray()
-
-def packet(timeout=20):
-    sock.settimeout(timeout)
-    while True:
-        start = buffer.find(b'$')
-        end = buffer.find(b'#', start + 1) if start >= 0 else -1
-        if end >= 0 and len(buffer) >= end + 3:
-            raw = bytes(buffer[start + 1:end])
-            checksum = int(bytes(buffer[end + 1:end + 3]), 16)
-            del buffer[:end + 3]
-            if sum(raw) & 255 != checksum:
-                raise RuntimeError('invalid GDB checksum')
-            sock.sendall(b'+')
-            return raw.decode('ascii')
-        data = sock.recv(65536)
-        if not data:
-            raise RuntimeError('Dolphin closed GDB connection; exit=' + str(proc.poll()))
-        buffer.extend(data)
-
-def command(payload):
-    raw = payload.encode('ascii')
-    sock.sendall(b'$' + raw + b'#' + f'{sum(raw) & 255:02x}'.encode())
-    while True:
-        reply = packet()
-        if payload == '?' or (reply and not reply.startswith(('T', 'S'))):
-            return reply
-
-def memory(address, count):
-    reply = command(f'm{address:x},{count:x}')
-    if len(reply) != count * 2:
-        raise RuntimeError('bad memory reply: ' + reply[:100])
-    return bytes.fromhex(reply)
+debugger = None
 
 def button(name, pressed):
     if name in ("UP", "DOWN", "LEFT", "RIGHT"):
@@ -96,23 +65,21 @@ def button(name, pressed):
         raise RuntimeError('incomplete Dolphin controller command')
 
 def run(seconds):
-    sock.sendall(b'$c#63')
+    debugger.send('c')
     time.sleep(seconds)
     sock.sendall(b'\x03')
-    stop = packet()
-    while not stop.startswith(('T', 'S')):
-        stop = packet()
+    stop = debugger.stopped()
     print('stop', stop, flush=True)
     return stop
 
 def capture(name):
     global capture_failure
-    pointer = int.from_bytes(memory(xfb_symbol, 4), 'big')
+    pointer = int.from_bytes(debugger.memory(xfb_symbol, 4), 'big')
     if not 0x80000000 <= pointer < 0x94000000:
         raise RuntimeError('invalid XFB pointer')
     address = (pointer & 0x3fffffff) | 0x80000000
     length = 640 * 480 * 2
-    xfb = b''.join(memory(address + offset, min(4096, length - offset)) for offset in range(0, length, 4096))
+    xfb = b''.join(debugger.memory(address + offset, min(4096, length - offset)) for offset in range(0, length, 4096))
     (output / (name + '.xfb')).write_bytes(xfb)
     try:
         summary = summarize_yuyv_luma(xfb, 640, 480)
@@ -151,7 +118,9 @@ try:
             time.sleep(.1)
     if sock is None:
         raise RuntimeError('Dolphin GDB port did not open')
-    print('initial', command('?'), flush=True)
+    sock.settimeout(20)
+    debugger = Debugger(sock, {})
+    print('initial', debugger.command('?'), flush=True)
     run(12)
     capture('notice')
     button('A', True)
