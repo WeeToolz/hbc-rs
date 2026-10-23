@@ -216,9 +216,10 @@ mod tests {
             glyph.pixel_size
         );
         assert_eq!(face.cached_glyph_count(), 2);
-        assert!(face
-            .horizontal_kern('A', 'V', 18)
-            .is_none_or(|adjustment| adjustment.is_finite()));
+        assert!(
+            face.horizontal_kern('A', 'V', 18)
+                .is_none_or(|adjustment| adjustment.is_finite())
+        );
     }
 
     #[test]

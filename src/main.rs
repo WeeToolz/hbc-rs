@@ -5,6 +5,8 @@ extern crate alloc;
 
 #[cfg(target_arch = "powerpc")]
 use alloc::{format, string::String, vec::Vec};
+#[cfg(target_arch = "powerpc")]
+use core::fmt::Write as _;
 
 #[cfg(not(target_arch = "powerpc"))]
 fn main() {
@@ -187,6 +189,8 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     let mut deferred_exit: Option<hbc_rs::platform::lifecycle::ExitRequest> = None;
     let mut wiiload_cleanup_notice_shown = false;
     let mut network_check: Option<hbc_rs::platform::network_restart::ConnectionCheck> = None;
+    let mut network_scan_receiver_recovery_pending = false;
+    let mut bubble_target_reported = false;
     let mut network_indicator_frame = 0u16;
     let mut reported_receiver_status = None;
     let mut remote_input = hbc_rs::remote_input::RemoteState::default();
@@ -274,6 +278,14 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             ogc_system::report(format_args!("HBC: first device poll complete\n"));
         }
         let receiver_status = hbc_rs::platform::wiiload::status();
+        if network_scan_receiver_recovery_pending
+            && receiver_status != hbc_rs::wiiload::ReceiverStatus::Starting
+        {
+            ogc_system::report(format_args!(
+                "HBC_UI_EVENT v=1 name=network_scan_receiver_recovery state={receiver_status:?}\n"
+            ));
+            network_scan_receiver_recovery_pending = false;
+        }
         if reported_receiver_status != Some(receiver_status) {
             #[cfg(feature = "startup-diagnostics")]
             hbc_rs::platform::diagnostics::event(&format!(
@@ -518,6 +530,7 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         let pointer = frame.pointer;
         let pointer_pressed = frame.pointer_pressed;
         let pointer_held = frame.pointer_held;
+        let sort_order_before_frame = startup.runtime().settings().current().sort_order;
         let language = hbc_rs::localization::Language::from_console(
             ogc_conf::get_language(),
             startup.runtime().theme(),
@@ -531,6 +544,9 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         );
         let pointer_target = pointer
             .and_then(|position| hit_frame.hit_test(f32::from(position.x), f32::from(position.y)));
+        if pointer_pressed {
+            report_pointer_press(pointer, pointer_target);
+        }
         let screenshot_requested = frame.screenshot_requested;
         let actions = startup.runtime_mut().update_frame_with_pointer(
             &mut frame,
@@ -547,6 +563,7 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         hbc_rs::platform::diagnostics::runtime_stage(32, "RUNTIME INPUT UPDATE DONE");
         if actions.contains(&hbc_rs::app::Action::DeleteSelected) {
             background_animation.pop_all();
+            report_bubble_pop_count(background_animation.take_pop_count());
         }
         #[cfg(feature = "startup-diagnostics")]
         if !display_ready {
@@ -618,11 +635,16 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             let now_minutes = ogc_system::time() / 60;
             bubble_minute_cycle = ((now_minutes % 1440 + 1200) % 1440) as u16;
         }
-        scene.set_background_bubbles(&background_animation.tick(
+        let bubbles = background_animation.tick(
             view_width,
             bubble_minute_cycle,
             pointer.map(|point| (f32::from(point.x), f32::from(point.y))),
-        ));
+        );
+        if !bubble_target_reported {
+            bubble_target_reported = report_bubble_target(&bubbles, view_width);
+        }
+        report_bubble_pop_count(background_animation.take_pop_count());
+        scene.set_background_bubbles(&bubbles);
         if let Some(pointer) = pointer {
             scene.pointer_cursor(f32::from(pointer.x), f32::from(pointer.y), pointer_held);
         }
@@ -650,9 +672,10 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             ogc_system::report(format_args!("HBC: frame rendering failed: {error:?}\n"));
             #[cfg(feature = "startup-diagnostics")]
             if hbc_rs::platform::diagnostics::fail("GX RENDER ERROR")
-                && let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
-                    hbc_rs::platform::diagnostics::fail(&message);
-                }
+                && let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART)
+            {
+                hbc_rs::platform::diagnostics::fail(&message);
+            }
             return -3;
         }
         if first_frame {
@@ -665,9 +688,10 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 hbc_rs::platform::diagnostics::test_square_origin(info.width, info.height)
             else {
                 if hbc_rs::platform::diagnostics::fail("GX TEST RECT BOUNDS")
-                    && let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
-                        hbc_rs::platform::diagnostics::fail(&message);
-                    }
+                    && let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART)
+                {
+                    hbc_rs::platform::diagnostics::fail(&message);
+                }
                 loop {
                     hbc_rs::platform::diagnostics::hold();
                 }
@@ -690,9 +714,10 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             .is_err()
             {
                 if hbc_rs::platform::diagnostics::fail("GX TEST RECT ERROR")
-                    && let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
-                        hbc_rs::platform::diagnostics::fail(&message);
-                    }
+                    && let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART)
+                {
+                    hbc_rs::platform::diagnostics::fail(&message);
+                }
                 loop {
                     hbc_rs::platform::diagnostics::hold();
                 }
@@ -712,9 +737,9 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 Err(_) => {
                     if hbc_rs::platform::diagnostics::fail("GX EFB READBACK TIMEOUT")
                         && let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART)
-                        {
-                            hbc_rs::platform::diagnostics::fail(&message);
-                        }
+                    {
+                        hbc_rs::platform::diagnostics::fail(&message);
+                    }
                     loop {
                         hbc_rs::platform::diagnostics::hold();
                     }
@@ -833,9 +858,10 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                     _ => "GX DRAW DONE TIMEOUT",
                 };
                 if hbc_rs::platform::diagnostics::fail(message)
-                    && let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
-                        hbc_rs::platform::diagnostics::fail(&message);
-                    }
+                    && let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART)
+                {
+                    hbc_rs::platform::diagnostics::fail(&message);
+                }
             }
             return -4;
         }
@@ -868,9 +894,9 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 if !video.framebuffer_has_test_square() {
                     if hbc_rs::platform::diagnostics::fail("GX TEST SQUARE MISSING")
                         && let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART)
-                        {
-                            hbc_rs::platform::diagnostics::fail(&message);
-                        }
+                    {
+                        hbc_rs::platform::diagnostics::fail(&message);
+                    }
                     // Replace the failed GX image with a CPU-written control pattern.
                     // This separates VI scanout from GX drawing and copy behavior.
                     let label = if first_efb_square {
@@ -899,9 +925,10 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         #[cfg(feature = "startup-diagnostics")]
         if !ogc_video::wait_vsync_timeout_us(1_000_000) {
             if hbc_rs::platform::diagnostics::fail("VI FRAME RETRACE TIMEOUT")
-                && let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
-                    hbc_rs::platform::diagnostics::fail(&message);
-                }
+                && let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART)
+            {
+                hbc_rs::platform::diagnostics::fail(&message);
+            }
             loop {
                 hbc_rs::platform::diagnostics::hold();
             }
@@ -922,9 +949,10 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         hbc_rs::platform::diagnostics::runtime_stage(512, "RUNTIME WORKER SLICE DONE");
         #[cfg(feature = "startup-diagnostics")]
         if hbc_rs::platform::diagnostics::sample_frame()
-            && let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART) {
-                hbc_rs::platform::diagnostics::fail(&message);
-            }
+            && let Err(message) = exit_to_system(&mut startup, ogc_system::SYS_RESTART)
+        {
+            hbc_rs::platform::diagnostics::fail(&message);
+        }
         #[cfg(feature = "startup-diagnostics")]
         hbc_rs::platform::diagnostics::runtime_stage(1024, "RUNTIME REPORT SAMPLE DONE");
 
@@ -1125,6 +1153,9 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 ) {
                     Ok(results) => (results.work, results.restart),
                     Err(hbc_rs::platform::network_restart::StopError::UploadPending) => {
+                        ogc_system::report(format_args!(
+                            "HBC_UI_EVENT v=1 name=network_scan_complete status=blocked reason=upload_pending restart=not_attempted ui=notice\n"
+                        ));
                         startup.runtime_mut().show_notice_with_kind(
                             "Could not stop Wiiload before scanning: an upload is pending.",
                             hbc_rs::app::NoticeKind::Error,
@@ -1132,6 +1163,9 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                         continue;
                     }
                     Err(hbc_rs::platform::network_restart::StopError::Stop(error)) => {
+                        ogc_system::report(format_args!(
+                            "HBC_UI_EVENT v=1 name=network_scan_complete status=blocked reason=stop_error restart=not_attempted ui=notice\n"
+                        ));
                         startup.runtime_mut().show_notice_with_kind(
                             &format!("Could not stop Wiiload before scanning: {error:?}."),
                             hbc_rs::app::NoticeKind::Error,
@@ -1140,18 +1174,35 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                     }
                 };
                 match (scan, restart) {
-                    (Ok(networks), Ok(())) => startup.runtime_mut().set_scanned_networks(networks),
+                    (Ok(networks), Ok(())) => {
+                        let count = networks.len;
+                        startup.runtime_mut().set_scanned_networks(networks);
+                        network_scan_receiver_recovery_pending = true;
+                        ogc_system::report(format_args!(
+                            "HBC_UI_EVENT v=1 name=network_scan_complete status=ok count={count} restart=ok ui=results\n"
+                        ));
+                    }
                     (Ok(networks), Err(error)) => {
+                        let count = networks.len;
                         startup.runtime_mut().set_scanned_networks(networks);
                         startup.runtime_mut().show_notice_with_kind(
                             &format!("Scan finished, but Wiiload could not restart: {error:?}."),
                             hbc_rs::app::NoticeKind::Warning,
                         );
+                        ogc_system::report(format_args!(
+                            "HBC_UI_EVENT v=1 name=network_scan_complete status=ok count={count} restart=error ui=notice\n"
+                        ));
                     }
-                    (Err(error), Ok(())) => startup.runtime_mut().show_notice_with_kind(
-                        &hbc_rs::platform::network_scan::ScanError::user_message(error),
-                        hbc_rs::app::NoticeKind::Error,
-                    ),
+                    (Err(error), Ok(())) => {
+                        startup.runtime_mut().show_notice_with_kind(
+                            &hbc_rs::platform::network_scan::ScanError::user_message(error),
+                            hbc_rs::app::NoticeKind::Error,
+                        );
+                        network_scan_receiver_recovery_pending = true;
+                        ogc_system::report(format_args!(
+                            "HBC_UI_EVENT v=1 name=network_scan_complete status=error restart=ok ui=notice\n"
+                        ));
+                    }
                     (Err(error), Err(restart_error)) => {
                         startup.runtime_mut().show_notice_with_kind(
                             &format!(
@@ -1159,7 +1210,11 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                                 hbc_rs::platform::network_scan::ScanError::user_message(error)
                             ),
                             hbc_rs::app::NoticeKind::Error,
-                        )
+                        );
+                        network_scan_receiver_recovery_pending = true;
+                        ogc_system::report(format_args!(
+                            "HBC_UI_EVENT v=1 name=network_scan_complete status=error restart=error ui=notice\n"
+                        ));
                     }
                 }
                 continue;
@@ -1195,6 +1250,7 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                         .runtime_mut()
                         .show_notice_with_kind(&notice, hbc_rs::app::NoticeKind::Error);
                 }
+                report_sort_if_changed(sort_order_before_frame, startup.runtime());
                 continue;
             }
             if action == hbc_rs::app::Action::ApplyTheme {
@@ -1298,6 +1354,104 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             }
         }
     }
+}
+
+#[cfg(target_arch = "powerpc")]
+fn report_pointer_press(
+    position: Option<hbc_rs::platform::input::PointerPosition>,
+    target: Option<hbc_rs::app::PointerTarget>,
+) {
+    let (target_name, index) = match target {
+        Some(hbc_rs::app::PointerTarget::App(index)) => ("app", index as i32),
+        Some(hbc_rs::app::PointerTarget::Page { forward: false }) => ("page_previous", -1),
+        Some(hbc_rs::app::PointerTarget::Page { forward: true }) => ("page_next", -1),
+        Some(hbc_rs::app::PointerTarget::Menu(index)) => ("menu", index as i32),
+        Some(hbc_rs::app::PointerTarget::Detail(index)) => ("detail", index as i32),
+        Some(hbc_rs::app::PointerTarget::DetailMemo) => ("detail_memo", -1),
+        Some(hbc_rs::app::PointerTarget::NoticeMemo) => ("notice_memo", -1),
+        Some(hbc_rs::app::PointerTarget::WiiloadMemo) => ("wiiload_memo", -1),
+        Some(hbc_rs::app::PointerTarget::DeleteChoice { yes: false }) => ("delete_no", -1),
+        Some(hbc_rs::app::PointerTarget::DeleteChoice { yes: true }) => ("delete_yes", -1),
+        Some(hbc_rs::app::PointerTarget::WiiloadChoice { yes: false }) => ("wiiload_no", -1),
+        Some(hbc_rs::app::PointerTarget::WiiloadChoice { yes: true }) => ("wiiload_yes", -1),
+        Some(hbc_rs::app::PointerTarget::Option(index)) => ("option", index as i32),
+        Some(hbc_rs::app::PointerTarget::NetworkOption(index)) => ("network_option", index as i32),
+        Some(hbc_rs::app::PointerTarget::KeyboardKey(index)) => ("keyboard_key", index as i32),
+        Some(hbc_rs::app::PointerTarget::NoticeConfirm) => ("notice_confirm", -1),
+        None => ("none", -1),
+    };
+    match position {
+        Some(position) => ogc_system::report(format_args!(
+            "HBC_UI_EVENT v=1 name=pointer_press valid=1 x={} y={} target={target_name} index={index}\n",
+            position.x, position.y
+        )),
+        None => ogc_system::report(format_args!(
+            "HBC_UI_EVENT v=1 name=pointer_press valid=0 x=none y=none target={target_name} index={index}\n"
+        )),
+    }
+}
+
+#[cfg(target_arch = "powerpc")]
+fn report_bubble_pop_count(count: usize) {
+    if count != 0 {
+        ogc_system::report(format_args!(
+            "HBC_UI_EVENT v=1 name=bubble_pop count={count}\n"
+        ));
+    }
+}
+
+#[cfg(target_arch = "powerpc")]
+fn report_bubble_target(bubbles: &[hbc_rs::render::BackgroundBubble], width: u16) -> bool {
+    let Some(bubble) = bubbles.iter().find(|bubble| {
+        let bounds = bubble.bounds;
+        bounds.is_valid()
+            && bounds.x + bounds.width / 2.0 >= 0.0
+            && bounds.x + bounds.width / 2.0 < f32::from(width)
+            && bounds.y + bounds.height / 2.0 >= 0.0
+            && bounds.y + bounds.height / 2.0 < 480.0
+    }) else {
+        return false;
+    };
+    let bounds = bubble.bounds;
+    let x = libm::roundf(bounds.x + bounds.width / 2.0) as i32;
+    let y = libm::roundf(bounds.y + bounds.height / 2.0) as i32;
+    ogc_system::report(format_args!(
+        "HBC_UI_EVENT v=1 name=bubble_target x={x} y={y}\n"
+    ));
+    true
+}
+
+#[cfg(target_arch = "powerpc")]
+fn report_sort_if_changed(previous_order: i32, runtime: &hbc_rs::runtime::AppRuntime) {
+    let settings = runtime.settings().current();
+    if settings.sort_order == previous_order {
+        return;
+    }
+    let key = if settings.sort_order == 1 {
+        "date"
+    } else {
+        "name"
+    };
+    let visible = runtime.controller().visible_apps(runtime.catalog());
+    let mut titles_hex = String::new();
+    for (index, app) in visible.iter().enumerate() {
+        if index != 0 {
+            titles_hex.push(',');
+        }
+        let title = app
+            .metadata
+            .as_ref()
+            .and_then(|metadata| metadata.name.as_deref())
+            .unwrap_or(app.directory.as_str());
+        for byte in title.as_bytes() {
+            write!(&mut titles_hex, "{byte:02x}")
+                .expect("writing a title byte to String cannot fail");
+        }
+    }
+    ogc_system::report(format_args!(
+        "HBC_UI_EVENT v=1 name=sort_changed key={key} count={} titles_hex={titles_hex}\n",
+        visible.len()
+    ));
 }
 
 #[cfg(all(target_arch = "powerpc", feature = "debugger-network"))]

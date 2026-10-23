@@ -177,13 +177,8 @@ pub fn visible_entries(entries: &[AppEntry], filter: Filter, sort: SortOrder) ->
 
 fn compare(a: &AppEntry, b: &AppEntry, sort: SortOrder) -> Ordering {
     match sort {
-        SortOrder::Name => match (&a.metadata, &b.metadata) {
-            (Some(ma), Some(mb)) => cmp_optional_text(ma.name.as_deref(), mb.name.as_deref())
-                .then_with(|| cmp_text(&a.directory, &b.directory)),
-            (Some(_), None) => Ordering::Less,
-            (None, Some(_)) => Ordering::Greater,
-            (None, None) => cmp_text(&a.directory, &b.directory),
-        },
+        SortOrder::Name => cmp_text(display_name(a), display_name(b))
+            .then_with(|| cmp_text(&a.directory, &b.directory)),
         SortOrder::ReleaseDate => match (&a.metadata, &b.metadata) {
             (Some(ma), Some(mb)) => mb
                 .release_date
@@ -195,6 +190,14 @@ fn compare(a: &AppEntry, b: &AppEntry, sort: SortOrder) -> Ordering {
             (None, None) => cmp_text(&a.directory, &b.directory),
         },
     }
+}
+
+fn display_name(entry: &AppEntry) -> &str {
+    entry
+        .metadata
+        .as_ref()
+        .and_then(|metadata| metadata.name.as_deref())
+        .unwrap_or(&entry.directory)
 }
 
 fn cmp_optional_text(a: Option<&str>, b: Option<&str>) -> Ordering {
@@ -367,7 +370,32 @@ mod tests {
                 .iter()
                 .map(|e| e.directory.as_str())
                 .collect::<Vec<_>>(),
-            ["a", "z", "b"]
+            ["a", "b", "z"]
+        );
+    }
+
+    #[test]
+    fn name_sort_uses_the_visible_directory_fallback() {
+        let mut unnamed_metadata = app("Zulu", None, None, false);
+        unnamed_metadata.metadata = Some(AppMetadata {
+            name: None,
+            author: None,
+            version: None,
+            short_description: None,
+            long_description: None,
+            release_date: None,
+            arguments: vec![],
+            ahb_access: false,
+            no_ios_reload: false,
+        });
+        let entries = [unnamed_metadata, app("Alpha", Some("Beta"), None, false)];
+
+        assert_eq!(
+            visible_entries(&entries, Filter::All, SortOrder::Name)
+                .iter()
+                .map(|entry| entry.directory.as_str())
+                .collect::<Vec<_>>(),
+            ["Alpha", "Zulu"]
         );
     }
 

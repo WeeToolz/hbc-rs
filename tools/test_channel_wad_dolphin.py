@@ -65,7 +65,7 @@ def validate_storage_launch_log(text, no_ios_reload):
     return checks
 
 
-def self_load(args, result, profile, hotkey_fd, process, started):
+def self_load(args, result, profile, hotkey_fd, ui_remote_fd, process, started):
     """Measure startup and the real Wiiload or SD application launch path."""
     spec = importlib.util.spec_from_file_location('hbc_control', Path(__file__).with_name('hbc-control.py'))
     control = importlib.util.module_from_spec(spec)
@@ -107,6 +107,19 @@ def self_load(args, result, profile, hotkey_fd, process, started):
         raise TimeoutError(f'{stage} did not produce the required HBC session')
 
     first_session = wait_ready('wad_startup', started)
+    if args.ui_acceptance:
+        ui_test = importlib.util.spec_from_file_location(
+            'hbc_ui_dolphin', Path(__file__).with_name('test_hbc_ui_dolphin.py'))
+        ui = importlib.util.module_from_spec(ui_test)
+        ui_test.loader.exec_module(ui)
+        ui.run_acceptance(args, result, profile, ui_remote_fd, process, screenshot)
+        required_screens = {
+            'wad_startup-ready', 'ui-bubble-pop', 'ui-date-sort', 'ui-name-sort',
+            'ui-network-settings', 'ui-network-scan-error',
+        }
+        if not required_screens.issubset({shot['stage'] for shot in result['screenshots']}):
+            raise RuntimeError('The UI acceptance run is missing a required screenshot')
+        return
     if args.storage_dol:
         # Wait for the real FAT mount and catalog scan before driving the UI.
         log_path = profile / 'Logs/dolphin.log'
@@ -142,6 +155,16 @@ def self_load(args, result, profile, hotkey_fd, process, started):
         result['ios_reloaded'] = result['launch_log_checks']['actual_ios58_launches_after_handoff'] != 0
         result['launch_source'] = 'sd:/apps/selfload/boot.dol'
         required_screens = {'wad_startup-ready', 'sd-app-details', 'dol_startup_from_sd-ready'}
+        if args.capture_options:
+            deadline = time.monotonic() + args.startup_timeout
+            while log_path.read_text(errors='replace').count('HBC: storage scan applied: volume=Some(Sd), apps=1') < 2:
+                if time.monotonic() >= deadline or process.poll() is not None:
+                    raise TimeoutError('Child SD scan did not finish before Options capture')
+                time.sleep(0.25)
+            button('1')
+            time.sleep(3)
+            screenshot('child-storage-options')
+            required_screens.add('child-storage-options')
         if not required_screens.issubset({shot['stage'] for shot in result['screenshots']}):
             raise RuntimeError('The SD launch is missing a required screenshot')
         return
@@ -187,6 +210,10 @@ def main():
                         help='Measure normal WAD startup, then upload its matching DOL through Wiiload')
     parser.add_argument('--storage-dol', type=Path,
                         help='Put the matching DOL on an emulated SD card and launch it through the browser')
+    parser.add_argument('--ui-acceptance', action='store_true',
+                        help='Test the real emulated Wii Remote, sorting, bubbles and network scan UI')
+    parser.add_argument('--capture-options', action='store_true',
+                        help='Capture live storage status after the SD child starts')
     parser.add_argument('--no-ios-reload', action='store_true',
                         help='Add no_ios_reload to the SD app metadata')
     parser.add_argument('--sender', type=Path,
@@ -199,6 +226,10 @@ def main():
         parser.error('Network tests require --host')
     if (args.priiloader_recovery and normal_launch) or (args.self_load_dol and args.storage_dol):
         parser.error('Recovery validation and normal self-load are separate tests')
+    if args.capture_options and not args.storage_dol:
+        parser.error('--capture-options requires --storage-dol')
+    if args.ui_acceptance and not args.storage_dol:
+        parser.error('--ui-acceptance requires --storage-dol')
     if args.no_ios_reload and not args.storage_dol:
         parser.error('--no-ios-reload requires --storage-dol')
     if not 10 <= args.startup_timeout <= 600:
@@ -228,6 +259,7 @@ def main():
     process = None
     connection = None
     hotkey_fd = None
+    ui_remote_fd = None
     source_nand = (args.nand.resolve(strict=True) if args.nand else
                    Path.home() / 'Library/Application Support/Dolphin/Wii')
     if not source_nand.is_dir():
@@ -269,11 +301,20 @@ def main():
             settings['Core']['WiiSDCardEnableFolderSync'] = 'True'
             with (config / 'Dolphin.ini').open('w') as target:
                 settings.write(target)
-            app = profile / 'Load/WiiSDSync/apps/selfload'
-            app.mkdir(parents=True)
-            shutil.copyfile(args.storage_dol, app / 'boot.dol')
-            flags = '<no_ios_reload/>' if args.no_ios_reload else ''
-            (app / 'meta.xml').write_text(f'<app><name>HBC-RS SD launch test</name>{flags}</app>')
+            if args.ui_acceptance:
+                ui_test = importlib.util.spec_from_file_location(
+                    'hbc_ui_dolphin', Path(__file__).with_name('test_hbc_ui_dolphin.py'))
+                ui = importlib.util.module_from_spec(ui_test)
+                ui_test.loader.exec_module(ui)
+                result['ui_fixture'] = ui.make_sd_fixture(profile)
+                ui.set_initial_sort(profile)
+                ui_remote_fd = ui.configure_profile(profile, config / 'Dolphin.ini')
+            else:
+                app = profile / 'Load/WiiSDSync/apps/selfload'
+                app.mkdir(parents=True)
+                shutil.copyfile(args.storage_dol, app / 'boot.dol')
+                flags = '<no_ios_reload/>' if args.no_ios_reload else ''
+                (app / 'meta.xml').write_text(f'<app><name>HBC-RS SD launch test</name>{flags}</app>')
         if network_test:
             (config / 'Hotkeys.ini').write_text(
                 '[Hotkeys]\nDevice = Pipe/0/priiloader-return\n'
@@ -283,7 +324,7 @@ def main():
                 '[Logs]\nOSREPORT=True\nCORE=True\nBOOT=True\n'
                 'PI=True\nIOS_STM=True\nIOS_ES=True\nCI=True\nIOS_NET=True\n')
             pipes = profile / 'Pipes'
-            pipes.mkdir()
+            pipes.mkdir(exist_ok=True)
             pipe = pipes / 'priiloader-return'
             os.mkfifo(pipe, 0o600)
             hotkey_fd = os.open(pipe, os.O_RDWR | os.O_NONBLOCK)
@@ -294,7 +335,8 @@ def main():
                     process = subprocess.Popen(['/Applications/Dolphin.app/Contents/MacOS/Dolphin',
                                                 '-b', '-u', str(profile), '-e', str(args.wad.resolve())],
                                                stdout=log, stderr=log)
-                    self_load(args, result, profile, hotkey_fd, process, started)
+                    self_load(args, result, profile, hotkey_fd, ui_remote_fd,
+                              process, started)
                     result['success'] = True
                 else:
                     port = 55287
@@ -368,6 +410,8 @@ def main():
                         result['screenshot_error'] = str(error)
                 if hotkey_fd is not None:
                     os.close(hotkey_fd)
+                if ui_remote_fd is not None:
+                    os.close(ui_remote_fd)
                 if connection is not None:
                     connection.close()
                 if process is not None:

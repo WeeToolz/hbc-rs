@@ -153,6 +153,7 @@ pub struct BackgroundBubble {
 pub struct BackgroundAnimation {
     bubbles: Vec<BackgroundBubbleState>,
     particles: Vec<BackgroundParticle>,
+    last_pop_count: usize,
     seed: u32,
     update_calls: u16,
     desired_count: usize,
@@ -182,6 +183,7 @@ impl BackgroundAnimation {
         let mut state = Self {
             bubbles: Vec::new(),
             particles: Vec::new(),
+            last_pop_count: 0,
             seed: seed.max(1),
             update_calls: 1,
             desired_count: bubble_count_for_minute(minute_cycle),
@@ -230,6 +232,7 @@ impl BackgroundAnimation {
         minute_cycle: u16,
         pointer: Option<(f32, f32)>,
     ) -> Vec<BackgroundBubble> {
+        self.last_pop_count = 0;
         if self.update_calls >= 600 {
             self.update_calls = 0;
             self.desired_count = bubble_count_for_minute(minute_cycle);
@@ -307,6 +310,11 @@ impl BackgroundAnimation {
         }
     }
 
+    /// Take the number of real bubble pop transitions from the last update.
+    pub fn take_pop_count(&mut self) -> usize {
+        core::mem::take(&mut self.last_pop_count)
+    }
+
     fn contains(&self, index: usize, x: f32, y: f32, radius_scale: f32) -> bool {
         contains_state(&self.bubbles[index], x, y, radius_scale)
     }
@@ -314,6 +322,7 @@ impl BackgroundAnimation {
     fn pop(&mut self, index: usize) {
         let bubble = self.bubbles[index];
         self.bubbles[index].popped = true;
+        self.last_pop_count += 1;
         let count = 5 + (self.random() * 5.0) as usize;
         for _ in 0..count {
             let angle = self.random() * core::f32::consts::TAU;
@@ -360,9 +369,10 @@ fn bubble_count_for_minute(minute: u16) -> usize {
 }
 
 fn contains_state(bubble: &BackgroundBubbleState, x: f32, y: f32, radius_scale: f32) -> bool {
-    let radius = 64.0 * bubble.size / 2.0 * radius_scale;
-    let cx = bubble.x + libm::roundf(bubble.sway * libm::sinf(bubble.phase)) + 32.0;
-    let cy = bubble.y - 32.0;
+    let size = 64.0 * bubble.size;
+    let radius = size / 2.0 * radius_scale;
+    let cx = bubble.x + libm::roundf(bubble.sway * libm::sinf(bubble.phase)) + size / 2.0;
+    let cy = bubble.y - size / 2.0;
     (x - cx).abs() < radius && (y - cy).abs() < radius
 }
 
@@ -3259,10 +3269,13 @@ mod tests {
     fn pointer_and_pop_all_create_bubble_fragments() {
         let mut animation = BackgroundAnimation::new(LOGICAL_WIDTH, 23, 720);
         let bubble = animation.tick(LOGICAL_WIDTH, 720, None)[0];
-        let size = bubble.bounds.width;
-        let pointer = (bubble.bounds.x + 32.0, bubble.bounds.y + size - 32.0);
+        let pointer = (
+            bubble.bounds.x + bubble.bounds.width / 2.0,
+            bubble.bounds.y + bubble.bounds.height / 2.0,
+        );
         let fragments = animation.tick(LOGICAL_WIDTH, 720, Some(pointer));
         assert!(animation.bubbles[0].popped);
+        assert_eq!(animation.take_pop_count(), 1);
         assert!(!animation.particles.is_empty());
         assert!(fragments.len() > 4);
         assert!(fragments.len() < 30);
