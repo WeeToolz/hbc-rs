@@ -75,7 +75,17 @@ pub enum Volume {
     Usb,
     CardA,
     CardB,
+    Usb2,
 }
+
+pub const VOLUMES: [Volume; 5] = [
+    Volume::Sd,
+    Volume::Usb,
+    Volume::CardA,
+    Volume::CardB,
+    Volume::Usb2,
+];
+pub const DEVICE_COUNT: usize = VOLUMES.len();
 
 impl Volume {
     pub fn from_settings_index(index: i32) -> Option<Self> {
@@ -84,6 +94,7 @@ impl Volume {
             1 => Some(Self::Usb),
             2 => Some(Self::CardA),
             3 => Some(Self::CardB),
+            4 => Some(Self::Usb2),
             _ => None,
         }
     }
@@ -94,6 +105,7 @@ impl Volume {
             Self::Usb => 1,
             Self::CardA => 2,
             Self::CardB => 3,
+            Self::Usb2 => 4,
         }
     }
 
@@ -103,14 +115,15 @@ impl Volume {
             Self::Usb => c"usb",
             Self::CardA => c"carda",
             Self::CardB => c"cardb",
+            Self::Usb2 => c"usb2",
         }
     }
 }
 
-pub fn device_scan_order(preference: i32) -> [Volume; 4] {
-    let volumes = [Volume::Sd, Volume::Usb, Volume::CardA, Volume::CardB];
+pub fn device_scan_order(preference: i32) -> [Volume; DEVICE_COUNT] {
+    let volumes = VOLUMES;
     let preferred = Volume::from_settings_index(preference).unwrap_or(Volume::Sd);
-    let mut order = [preferred; 4];
+    let mut order = [preferred; DEVICE_COUNT];
     let mut next = 1;
     for volume in volumes {
         if volume != preferred {
@@ -124,7 +137,8 @@ pub fn device_scan_order(preference: i32) -> [Volume; 4] {
 #[cfg(test)]
 mod device_selection_tests {
     use super::{
-        StorageFailureNotice, StoragePresence, Volume, classify_device_presence, device_scan_order,
+        StorageFailureNotice, StoragePresence, VOLUMES, Volume, classify_device_presence,
+        device_scan_order,
     };
 
     #[test]
@@ -177,25 +191,58 @@ mod device_selection_tests {
     }
 
     #[test]
-    fn settings_indices_cover_all_four_storage_devices() {
-        let volumes = [Volume::Sd, Volume::Usb, Volume::CardA, Volume::CardB];
+    fn settings_indices_keep_old_devices_and_append_second_usb() {
+        let volumes = VOLUMES;
         for (index, volume) in volumes.into_iter().enumerate() {
             assert_eq!(Volume::from_settings_index(index as i32), Some(volume));
             assert_eq!(volume.settings_index(), index as i32);
         }
         assert_eq!(Volume::from_settings_index(-1), None);
-        assert_eq!(Volume::from_settings_index(4), None);
+        assert_eq!(Volume::from_settings_index(5), None);
+    }
+
+    #[test]
+    fn second_usb_has_its_own_name_and_preference_without_duplicate_slots() {
+        assert_eq!(Volume::Usb.mount_name(), c"usb");
+        assert_eq!(Volume::Usb2.mount_name(), c"usb2");
+        assert_eq!(Volume::Usb2.settings_index(), 4);
+        let order = device_scan_order(4);
+        assert_eq!(
+            order,
+            [
+                Volume::Usb2,
+                Volume::Sd,
+                Volume::Usb,
+                Volume::CardA,
+                Volume::CardB
+            ]
+        );
+        for volume in VOLUMES {
+            assert_eq!(order.iter().filter(|entry| **entry == volume).count(), 1);
+        }
     }
 
     #[test]
     fn preferred_storage_is_scanned_before_the_other_devices() {
         assert_eq!(
             device_scan_order(2),
-            [Volume::CardA, Volume::Sd, Volume::Usb, Volume::CardB]
+            [
+                Volume::CardA,
+                Volume::Sd,
+                Volume::Usb,
+                Volume::CardB,
+                Volume::Usb2
+            ]
         );
         assert_eq!(
             device_scan_order(3),
-            [Volume::CardB, Volume::Sd, Volume::Usb, Volume::CardA]
+            [
+                Volume::CardB,
+                Volume::Sd,
+                Volume::Usb,
+                Volume::CardA,
+                Volume::Usb2
+            ]
         );
     }
 }
@@ -240,11 +287,21 @@ impl FatStorage {
         let (prefix, result) = match volume {
             Volume::Sd => ("sd:", ogc_fat::mount_sd()),
             Volume::Usb => ("usb:", ogc_fat::mount_usb()),
+            Volume::Usb2 => (
+                "usb2:",
+                ogc_fat::mount(
+                    ogc_fat::MountSource::Usb2,
+                    ogc_fat::MountOptions {
+                        mount_name: c"usb2",
+                        read_only: false,
+                    },
+                ),
+            ),
             Volume::CardA => ("carda:", ogc_fat::mount_card_a()),
             Volume::CardB => ("cardb:", ogc_fat::mount_card_b()),
         };
         result.map_err(|error| {
-            if volume == Volume::Usb {
+            if matches!(volume, Volume::Usb | Volume::Usb2) {
                 let probe = ogc_usbstorage_sys::probe_status();
                 if usb_mount_is_absent(
                     error,

@@ -50,6 +50,15 @@ pub struct Rect {
 }
 
 impl Rect {
+    /// Valid drawing inputs have finite coordinates and positive finite size.
+    pub fn is_valid(self) -> bool {
+        [self.x, self.y, self.width, self.height]
+            .iter()
+            .all(|value| value.is_finite())
+            && self.width > 0.0
+            && self.height > 0.0
+    }
+
     pub fn right(self) -> f32 {
         self.x + self.width
     }
@@ -59,23 +68,7 @@ impl Rect {
 
     /// Return the visible intersection. Empty or non-finite rectangles vanish.
     pub fn intersect(self, other: Self) -> Option<Self> {
-        if ![
-            self.x,
-            self.y,
-            self.width,
-            self.height,
-            other.x,
-            other.y,
-            other.width,
-            other.height,
-        ]
-        .iter()
-        .all(|v| v.is_finite())
-            || self.width <= 0.0
-            || self.height <= 0.0
-            || other.width <= 0.0
-            || other.height <= 0.0
-        {
+        if !self.is_valid() || !other.is_valid() {
             return None;
         }
         let x = self.x.max(other.x);
@@ -653,12 +646,7 @@ impl Frame {
 
 impl Frame {
     fn app_card(&mut self, bounds: Rect, grid: bool, focused: bool) {
-        if ![bounds.x, bounds.y, bounds.width, bounds.height]
-            .iter()
-            .all(|value| value.is_finite())
-            || bounds.width <= 0.0
-            || bounds.height <= 0.0
-        {
+        if !bounds.is_valid() {
             return;
         }
         let color = if focused { ACCENT } else { ROW };
@@ -671,12 +659,7 @@ impl Frame {
     }
 
     fn page_arrow(&mut self, bounds: Rect, previous: bool, focused: bool) {
-        if ![bounds.x, bounds.y, bounds.width, bounds.height]
-            .iter()
-            .all(|value| value.is_finite())
-            || bounds.width <= 0.0
-            || bounds.height <= 0.0
-        {
+        if !bounds.is_valid() {
             return;
         }
         self.commands.push(FrameCommand::PageArrow {
@@ -691,12 +674,7 @@ impl Frame {
     }
 
     fn theme_art(&mut self, bounds: Rect, art: ThemeArt, focused: bool) {
-        if ![bounds.x, bounds.y, bounds.width, bounds.height]
-            .iter()
-            .all(|value| value.is_finite())
-            || bounds.width <= 0.0
-            || bounds.height <= 0.0
-        {
+        if !bounds.is_valid() {
             return;
         }
         let color = if matches!(art, ThemeArt::Cursor { .. }) {
@@ -791,13 +769,7 @@ impl Frame {
     }
 
     fn fill(&mut self, bounds: Rect, color: Color) {
-        if bounds.width.is_finite()
-            && bounds.height.is_finite()
-            && bounds.x.is_finite()
-            && bounds.y.is_finite()
-            && bounds.width > 0.0
-            && bounds.height > 0.0
-        {
+        if bounds.is_valid() {
             let index = self.fills.len();
             self.fills.push(FillRect { bounds, color });
             self.commands.push(FrameCommand::Fill(index));
@@ -805,12 +777,7 @@ impl Frame {
     }
 
     fn icon(&mut self, catalog_index: usize, bounds: Rect) {
-        if ![bounds.x, bounds.y, bounds.width, bounds.height]
-            .iter()
-            .all(|value| value.is_finite())
-            || bounds.width <= 0.0
-            || bounds.height <= 0.0
-        {
+        if !bounds.is_valid() {
             return;
         }
         self.commands.push(FrameCommand::Icon {
@@ -1247,10 +1214,11 @@ pub fn browser_frame_with_language(
             frame.set_text_style(theme_text_style(theme, "label", text_color));
             frame.text(92.0, 80.0, tr("Device:"), 1.0, text_color, 32);
             for (index, (x, y, label)) in [
-                (112.0, 108.0, tr("Internal SD Slot")),
-                (328.0, 108.0, tr("USB device")),
-                (112.0, 172.0, tr("SDGecko Slot A")),
-                (328.0, 172.0, tr("SDGecko Slot B")),
+                (112.0, 96.0, tr("Internal SD Slot")),
+                (328.0, 96.0, tr("USB device")),
+                (112.0, 140.0, tr("SDGecko Slot A")),
+                (328.0, 140.0, tr("SDGecko Slot B")),
+                (112.0, 184.0, tr("USB device 2")),
             ]
             .into_iter()
             .enumerate()
@@ -1964,6 +1932,63 @@ fn rect(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn drawing_paths_share_rectangle_validity() {
+        let valid = Rect {
+            x: -10.0,
+            y: 0.0,
+            width: 12.0,
+            height: 8.0,
+        };
+        assert!(valid.is_valid());
+        for invalid in [
+            Rect {
+                x: f32::NAN,
+                ..valid
+            },
+            Rect {
+                y: f32::INFINITY,
+                ..valid
+            },
+            Rect {
+                width: f32::INFINITY,
+                ..valid
+            },
+            Rect {
+                height: f32::NAN,
+                ..valid
+            },
+            Rect {
+                width: 0.0,
+                ..valid
+            },
+            Rect {
+                height: -1.0,
+                ..valid
+            },
+        ] {
+            assert!(!invalid.is_valid());
+            assert_eq!(valid.intersect(invalid), None);
+            assert_eq!(invalid.intersect(valid), None);
+            let mut frame = Frame::default();
+            frame.app_card(valid, false, false);
+            frame.page_arrow(valid, true, false);
+            frame.theme_art(valid, ThemeArt::Dialog, false);
+            frame.fill(valid, ACCENT);
+            frame.icon(0, valid);
+            let commands = frame.commands.len();
+            let fills = frame.fills.len();
+            assert_eq!(commands, 5);
+            frame.app_card(invalid, false, false);
+            frame.page_arrow(invalid, true, false);
+            frame.theme_art(invalid, ThemeArt::Dialog, false);
+            frame.fill(invalid, ACCENT);
+            frame.icon(0, invalid);
+            assert_eq!(frame.commands.len(), commands);
+            assert_eq!(frame.fills.len(), fills);
+        }
+    }
+
     use super::*;
 
     #[test]
@@ -2964,7 +2989,7 @@ mod tests {
     fn options_device_labels_do_not_overlap_with_availability_text() {
         let mut controller = AppController::new();
         controller.screen = Screen::Options;
-        controller.set_device_availability([false; 4]);
+        controller.set_device_availability([false; crate::platform::storage::DEVICE_COUNT]);
         let theme = ThemeMetadata {
             default_font: crate::metadata::ThemeFont {
                 file: Some(String::from("droid.ttf")),
@@ -3079,7 +3104,7 @@ mod tests {
     #[test]
     fn options_device_statuses_are_lights_and_only_actions_are_buttons() {
         let mut controller = AppController::new();
-        controller.set_device_availability([true, false, true, false]);
+        controller.set_device_availability([true, false, true, false, false]);
         controller.handle(crate::app::Input::OpenOptions, &[]);
         let frame = browser_frame(&controller, &[]);
         assert!(frame.commands.iter().any(|command| matches!(
@@ -3105,10 +3130,11 @@ mod tests {
                     if *bounds == rect(224, 310, 200, 28)
         )));
         for device_bounds in [
-            rect(112, 108, 200, 48),
-            rect(328, 108, 200, 48),
-            rect(112, 172, 200, 48),
-            rect(328, 172, 200, 48),
+            rect(112, 96, 200, 48),
+            rect(328, 96, 200, 48),
+            rect(112, 140, 200, 48),
+            rect(328, 140, 200, 48),
+            rect(112, 184, 200, 48),
         ] {
             assert!(!frame.commands.iter().any(|command| matches!(
                 command,
@@ -3117,11 +3143,11 @@ mod tests {
             )));
         }
         assert!(frame.fills.contains(&FillRect {
-            bounds: rect(112, 127, 10, 10),
+            bounds: rect(112, 115, 10, 10),
             color: ACCENT,
         }));
         assert!(frame.fills.contains(&FillRect {
-            bounds: rect(328, 127, 10, 10),
+            bounds: rect(328, 115, 10, 10),
             color: MUTED,
         }));
         assert!((0..4).all(|index| {
@@ -3129,6 +3155,16 @@ mod tests {
                 .hit_targets
                 .iter()
                 .any(|target| target.target == PointerTarget::Option(index))
+        }));
+        assert!(
+            frame
+                .text_runs
+                .iter()
+                .any(|run| run.value == "USB device 2")
+        );
+        assert!(frame.fills.contains(&FillRect {
+            bounds: rect(112, 203, 10, 10),
+            color: MUTED
         }));
         assert_eq!(frame.hit_test(120.0, 120.0), None);
         assert_eq!(frame.hit_test(120.0, 80.0), None);

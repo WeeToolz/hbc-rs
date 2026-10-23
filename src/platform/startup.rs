@@ -24,7 +24,7 @@ use crate::{
 
 /// HBC reserves this address range for loading an application executable.
 const EXECUTABLE_SIZE_LIMIT: u64 = (EXECUTABLE_MEMORY.end - EXECUTABLE_MEMORY.start - 1) as u64;
-const THEME_SIZE_LIMIT: u64 = 20 * 1024 * 1024;
+const THEME_SIZE_LIMIT: u64 = crate::theme::MAX_THEME_ARCHIVE_BYTES as u64;
 const BOOTMII_TITLE_ID: u64 = 0x0000_0001_0000_00fe;
 const STORAGE_SCAN_STACK_SIZE: usize = 16 * 1024;
 // Keep storage work below the application main thread. The Rust LWP scheduler
@@ -41,6 +41,7 @@ const STORAGE_STAGE_MOUNT_SD: u8 = 2;
 const STORAGE_STAGE_MOUNT_USB: u8 = 3;
 const STORAGE_STAGE_MOUNT_CARDA: u8 = 4;
 const STORAGE_STAGE_MOUNT_CARDB: u8 = 5;
+const STORAGE_STAGE_MOUNT_USB2: u8 = 9;
 const STORAGE_STAGE_RECOVER: u8 = 6;
 const STORAGE_STAGE_SCAN_APPS: u8 = 7;
 const STORAGE_STAGE_FINISH: u8 = 8;
@@ -59,7 +60,7 @@ struct StorageScanResult {
     storage: Option<FatStorage>,
     catalog: Vec<AppEntry>,
     scan_error: Option<crate::catalog::ScanError<StorageError>>,
-    mount_errors: [(Volume, Option<StorageError>); 4],
+    mount_errors: [(Volume, Option<StorageError>); super::storage::DEVICE_COUNT],
     recovery_error: Option<ZipInstallError>,
     shutdown_error: Option<ogc_fat::FatError>,
 }
@@ -69,13 +70,13 @@ struct MountScanResult {
     storage: Option<FatStorage>,
     catalog: Vec<AppEntry>,
     scan_error: Option<crate::catalog::ScanError<StorageError>>,
-    mount_errors: [(Volume, Option<StorageError>); 4],
+    mount_errors: [(Volume, Option<StorageError>); super::storage::DEVICE_COUNT],
     recovery_error: Option<ZipInstallError>,
 }
 
 #[derive(Clone, Copy)]
 struct DeviceProbeResult {
-    availability: [bool; 4],
+    availability: [bool; super::storage::DEVICE_COUNT],
     error: Option<ogc_fat::FatError>,
 }
 
@@ -471,6 +472,7 @@ fn probe_one_device(volume: Volume) -> Result<bool, ogc_fat::FatError> {
     let source = match volume {
         Volume::Sd => ogc_fat::MountSource::Sd,
         Volume::Usb => ogc_fat::MountSource::Usb,
+        Volume::Usb2 => ogc_fat::MountSource::Usb2,
         Volume::CardA => ogc_fat::MountSource::CardA,
         Volume::CardB => ogc_fat::MountSource::CardB,
     };
@@ -483,12 +485,7 @@ fn probe_one_device(volume: Volume) -> Result<bool, ogc_fat::FatError> {
 
 unsafe extern "C" fn device_probe_entry(_argument: *mut c_void) -> *mut c_void {
     DEVICE_PROBE_STATE.store(DEVICE_PROBE_RUNNING, Ordering::Release);
-    let probes = [
-        probe_one_device(Volume::Sd),
-        probe_one_device(Volume::Usb),
-        probe_one_device(Volume::CardA),
-        probe_one_device(Volume::CardB),
-    ];
+    let probes = super::storage::VOLUMES.map(probe_one_device);
     let availability =
         crate::app::device_availability_snapshot(probes.map(|result| matches!(result, Ok(true))));
     let error = probes.into_iter().find_map(Result::err);
@@ -881,6 +878,7 @@ impl WiiStartup {
             STORAGE_STAGE_MOUNT_USB => "Mounting USB...",
             STORAGE_STAGE_MOUNT_CARDA => "Mounting Card A...",
             STORAGE_STAGE_MOUNT_CARDB => "Mounting Card B...",
+            STORAGE_STAGE_MOUNT_USB2 => "Mounting USB 2...",
             STORAGE_STAGE_RECOVER => "Checking app install state...",
             STORAGE_STAGE_SCAN_APPS => "Scanning apps...",
             STORAGE_STAGE_FINISH => "Finishing storage scan...",
@@ -1421,6 +1419,7 @@ fn mount_preferred_volume(preference: i32) -> MountScanResult {
         let mount_stage = match volume {
             Volume::Sd => STORAGE_STAGE_MOUNT_SD,
             Volume::Usb => STORAGE_STAGE_MOUNT_USB,
+            Volume::Usb2 => STORAGE_STAGE_MOUNT_USB2,
             Volume::CardA => STORAGE_STAGE_MOUNT_CARDA,
             Volume::CardB => STORAGE_STAGE_MOUNT_CARDB,
         };

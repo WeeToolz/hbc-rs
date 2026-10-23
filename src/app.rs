@@ -238,9 +238,11 @@ impl PageNavigation {
     }
 }
 
-/// Build the four-device status snapshot from live media-presence probes.
+/// Build the storage device status snapshot from live media-presence probes.
 /// A mounted filesystem does not prove that its media is still present.
-pub fn device_availability_snapshot(detected: [bool; 4]) -> [bool; 4] {
+pub fn device_availability_snapshot(
+    detected: [bool; crate::platform::storage::DEVICE_COUNT],
+) -> [bool; crate::platform::storage::DEVICE_COUNT] {
     detected
 }
 
@@ -287,7 +289,7 @@ pub struct AppController {
     bootmii_available: bool,
     preferred_device: i32,
     active_device: Option<i32>,
-    device_available: [Option<bool>; 4],
+    device_available: [Option<bool>; crate::platform::storage::DEVICE_COUNT],
     pending_device: i32,
     pending_sort: SortOrder,
     options_focus: usize,
@@ -832,7 +834,10 @@ impl AppController {
         self.device_available.get(device).copied().flatten()
     }
 
-    pub fn set_device_availability(&mut self, availability: [bool; 4]) {
+    pub fn set_device_availability(
+        &mut self,
+        availability: [bool; crate::platform::storage::DEVICE_COUNT],
+    ) {
         self.device_available = availability.map(Some);
     }
 
@@ -1328,8 +1333,15 @@ impl AppController {
             }
             Input::OpenOptions => {
                 self.pending_device = match self.active_device {
-                    Some(device @ (0..=3)) => device,
-                    _ => self.preferred_device.clamp(0, 3),
+                    Some(device)
+                        if crate::platform::storage::Volume::from_settings_index(device)
+                            .is_some() =>
+                    {
+                        device
+                    }
+                    _ => self
+                        .preferred_device
+                        .clamp(0, crate::platform::storage::DEVICE_COUNT as i32 - 1),
                 };
                 self.pending_sort = self.sort;
                 self.options_focus = 7;
@@ -2898,7 +2910,7 @@ mod tests {
     #[test]
     fn options_skip_unavailable_devices_and_network_is_controller_selectable() {
         let mut controller = AppController::new();
-        controller.set_device_availability([false; 4]);
+        controller.set_device_availability([false; crate::platform::storage::DEVICE_COUNT]);
         controller.handle(Input::OpenOptions, &[]);
         assert_eq!(controller.options_focus(), 7);
         controller.handle(Input::Right, &[]);
@@ -2918,11 +2930,22 @@ mod tests {
     }
 
     #[test]
+    fn options_keep_the_active_second_usb_volume() {
+        let mut controller = AppController::new();
+        controller.set_active_device(Some(4));
+        controller.set_device_availability([false, false, false, false, true]);
+        controller.handle(Input::OpenOptions, &[]);
+        assert_eq!(controller.pending_device(), 4);
+        assert_eq!(controller.device_available(4), Some(true));
+    }
+
+    #[test]
     fn removed_active_usb_is_not_selectable_from_stale_mount_state() {
         let mut controller = AppController::new();
         controller.set_active_device(Some(1));
-        controller
-            .set_device_availability(device_availability_snapshot([true, false, false, false]));
+        controller.set_device_availability(device_availability_snapshot([
+            true, false, false, false, false,
+        ]));
         controller.handle(Input::OpenOptions, &[]);
         assert!(!controller.option_enabled(1));
         controller.handle(Input::Up, &[]);
@@ -2932,7 +2955,7 @@ mod tests {
     #[test]
     fn detected_devices_remain_status_only_while_controller_skips_them() {
         let mut controller = AppController::new();
-        controller.set_device_availability([true; 4]);
+        controller.set_device_availability([true; crate::platform::storage::DEVICE_COUNT]);
         controller.handle(Input::OpenOptions, &[]);
         for index in 0..4 {
             assert!(!controller.option_enabled(index));

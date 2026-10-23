@@ -156,7 +156,10 @@ impl AppRuntime {
         self.controller.set_active_device(device);
     }
 
-    pub fn set_device_availability(&mut self, availability: [bool; 4]) {
+    pub fn set_device_availability(
+        &mut self,
+        availability: [bool; crate::platform::storage::DEVICE_COUNT],
+    ) {
         self.controller.set_device_availability(availability);
     }
 
@@ -739,7 +742,7 @@ mod tests {
             sort_order: 0,
             ..UserSettings::default()
         });
-        runtime.set_device_availability([true, true, false, false]);
+        runtime.set_device_availability([true, true, false, false, false]);
         runtime.update(&InputFrame {
             pressed: vec![Input::OpenOptions],
             ..InputFrame::default()
