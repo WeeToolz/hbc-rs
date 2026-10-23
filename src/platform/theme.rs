@@ -388,13 +388,12 @@ fn load_theme_fonts(
         paths.push(file.clone());
     }
     for (_, font) in &package.metadata.fonts {
-        if let Some(file) = font.file.as_ref() {
-            if !paths
+        if let Some(file) = font.file.as_ref()
+            && !paths
                 .iter()
                 .any(|existing| existing.eq_ignore_ascii_case(file))
-            {
-                paths.push(file.clone());
-            }
+        {
+            paths.push(file.clone());
         }
     }
     for path in paths {

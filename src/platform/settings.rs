@@ -295,7 +295,7 @@ pub fn load() -> Result<UserSettings, SettingsIoError> {
 }
 
 fn read_settings_file(path: &CString) -> Result<UserSettings, SettingsIoError> {
-    let file = match isfs::open(&path, isfs::ISFS_OPEN_READ) {
+    let file = match isfs::open(path, isfs::ISFS_OPEN_READ) {
         Ok(file) => file,
         Err(error) if super::nand::is_missing_isfs_error(error, ogc_filesystem::ISFS_ENOENT) => {
             return Err(SettingsIoError::Missing);

@@ -645,10 +645,9 @@ pub fn scan() -> Result<InputFrame, InputScanError> {
         .snapshot
         .errors()
         .find(|error| error.operation == "WPAD poll")
+        && let ogc_controller::InputFailure::Source(code) = error.failure
     {
-        if let ogc_controller::InputFailure::Source(code) = error.failure {
-            return Err(InputScanError::Wpad(code));
-        }
+        return Err(InputScanError::Wpad(code));
     }
     diagnostic_scan_mark("WPAD ERROR DONE");
 
@@ -710,14 +709,13 @@ pub fn scan() -> Result<InputFrame, InputScanError> {
         })?;
     stick_scroll += additional_scroll;
     let stick_scroll = scroll_pixels(stick_scroll);
-    if let Some(owner) = owner {
-        if let Some(state) = raw.wpad_data[owner]
+    if let Some(owner) = owner
+        && let Some(state) = raw.wpad_data[owner]
             .as_ref()
             .filter(|state| state.err == wpad::WPAD_ERR_NONE && state.data_present != 0)
-        {
-            pointer = logical_pointer_position(state.ir.x, state.ir.y);
-            pointer_pressed = pointer_confirm_pressed(true, mapped.down);
-        }
+    {
+        pointer = logical_pointer_position(state.ir.x, state.ir.y);
+        pointer_pressed = pointer_confirm_pressed(true, mapped.down);
     }
     let pointer_held = pointer_confirm_held(owner.is_some(), mapped.held);
     Ok(InputFrame {

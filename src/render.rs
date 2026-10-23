@@ -1099,13 +1099,12 @@ pub fn browser_frame_with_language(
                     );
                 }
                 let icon_bounds = rect(x + 8.0, y + 8.0, 128.0, 48.0);
-                if app.has_icon {
-                    if let Some(catalog_index) = catalog
+                if app.has_icon
+                    && let Some(catalog_index) = catalog
                         .iter()
                         .position(|entry| entry.directory == app.directory)
-                    {
-                        frame.icon(catalog_index, icon_bounds);
-                    }
+                {
+                    frame.icon(catalog_index, icon_bounds);
                 }
                 // The GX renderer submits text after all artwork. Catalog
                 // labels would otherwise cover a modal dialog drawn later.
@@ -1530,13 +1529,12 @@ pub fn browser_frame_with_language(
                     text_color,
                     max_chars,
                 );
-                if app.has_icon {
-                    if let Some(catalog_index) = catalog
+                if app.has_icon
+                    && let Some(catalog_index) = catalog
                         .iter()
                         .position(|entry| entry.directory == app.directory)
-                    {
-                        frame.icon(catalog_index, rect(92, 92, 128, 48));
-                    }
+                {
+                    frame.icon(catalog_index, rect(92, 92, 128, 48));
                 }
                 if let Some(version) = app
                     .metadata

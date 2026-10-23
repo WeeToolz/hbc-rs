@@ -135,10 +135,8 @@ pub fn commit_staged_directory<E>(
         rename(target, backup).map_err(DirectoryCommitError::Install)?;
     }
     if let Err(install) = rename(stage, target) {
-        if had_previous {
-            if let Err(restore) = rename(backup, target) {
-                return Err(DirectoryCommitError::Restore { install, restore });
-            }
+        if had_previous && let Err(restore) = rename(backup, target) {
+            return Err(DirectoryCommitError::Restore { install, restore });
         }
         return Err(DirectoryCommitError::Install(install));
     }

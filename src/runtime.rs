@@ -278,13 +278,14 @@ impl AppRuntime {
             .iter()
             .copied()
             .find(|input| is_repeatable(*input));
-        if !screen_changed && self.page_repeat.sample(held, pressed) {
-            if let Some(input) = held.filter(|input| !frame.pressed.contains(input)) {
-                let screen = self.controller.screen;
-                push_action(&mut actions, self.controller.handle(input, &self.catalog));
-                if self.controller.screen != screen {
-                    self.page_repeat.reset();
-                }
+        if !screen_changed
+            && self.page_repeat.sample(held, pressed)
+            && let Some(input) = held.filter(|input| !frame.pressed.contains(input))
+        {
+            let screen = self.controller.screen;
+            push_action(&mut actions, self.controller.handle(input, &self.catalog));
+            if self.controller.screen != screen {
+                self.page_repeat.reset();
             }
         }
         self.sync_settings();

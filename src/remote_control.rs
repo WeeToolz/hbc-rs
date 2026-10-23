@@ -61,23 +61,35 @@ pub struct Request {
     pub id: u32,
     pub command: Option<Command>,
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DecodeError {
+    InvalidHeader,
+    InvalidCommand,
+    MissingRequestId,
+}
+
 impl Request {
-    pub fn decode(bytes: &[u8]) -> Result<Self, ()> {
+    pub fn decode(bytes: &[u8]) -> Result<Self, DecodeError> {
         if bytes.len() != HEADER_LEN
             || bytes[4] != 1
             || bytes[6..8] != [0; 2]
             || bytes[12..16] != [0; 4]
         {
-            return Err(());
+            return Err(DecodeError::InvalidHeader);
         }
         let command = match &bytes[..4] {
-            b"HBCC" => Some(Command::try_from(bytes[5])?),
+            b"HBCC" => Some(Command::try_from(bytes[5]).map_err(|_| DecodeError::InvalidCommand)?),
             b"HBCQ" if bytes[5] == 0 => None,
-            _ => return Err(()),
+            _ => return Err(DecodeError::InvalidCommand),
         };
-        let id = u32::from_be_bytes(bytes[8..12].try_into().map_err(|_| ())?);
+        let id = u32::from_be_bytes(
+            bytes[8..12]
+                .try_into()
+                .map_err(|_| DecodeError::InvalidHeader)?,
+        );
         if id == 0 && command.is_some() {
-            return Err(());
+            return Err(DecodeError::MissingRequestId);
         }
         Ok(Self { id, command })
     }
@@ -159,7 +171,7 @@ impl Mailbox {
     pub fn request(&self, bytes: &[u8], now_ms: u64) -> Reply {
         let request = match Request::decode(bytes) {
             Ok(request) => request,
-            Err(()) => return Reply::new(0, None, State::Invalid, "Invalid command packet"),
+            Err(_) => return Reply::new(0, None, State::Invalid, "Invalid command packet"),
         };
         self.access(|slot| {
             if let Some(job) = slot.as_mut() {
@@ -326,7 +338,12 @@ mod tests {
         for (offset, value) in [(4, 2), (5, 255), (6, 1), (12, 1)] {
             let mut bad = RESTART;
             bad[offset] = value;
-            assert_eq!(Request::decode(&bad), Err(()));
+            let expected = if offset == 5 {
+                DecodeError::InvalidCommand
+            } else {
+                DecodeError::InvalidHeader
+            };
+            assert_eq!(Request::decode(&bad), Err(expected));
         }
         assert!(Request::decode(&RESTART[..15]).is_err());
         assert_eq!(
@@ -334,6 +351,21 @@ mod tests {
             b"HBCC\x01\x03\x01\x00\x00\x00\x00\x07\x00\x00\x00\x09\x00\x06\x00\x00IOS -6"
         );
     }
+    #[test]
+    fn command_requires_identity_but_status_query_accepts_zero() {
+        assert_eq!(
+            Request::decode(b"HBCC\x01\x01\0\0\0\0\0\0\0\0\0\0"),
+            Err(DecodeError::MissingRequestId),
+        );
+        assert_eq!(
+            Request::decode(b"HBCQ\x01\0\0\0\0\0\0\0\0\0\0\0"),
+            Ok(Request {
+                id: 0,
+                command: None
+            }),
+        );
+    }
+
     #[test]
     fn submission_is_not_completion_and_duplicate_does_not_run_twice() {
         let mailbox = Mailbox::new();

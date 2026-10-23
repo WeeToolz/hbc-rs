@@ -402,23 +402,23 @@ impl AppHomeOverlay {
                 self.page == Page::Strip && i == self.selected,
             );
         }
-        if self.page != Page::Strip {
-            if let Ok((x, y)) = self.popup_geometry(width, height) {
-                let title = match self.page {
-                    Page::Dev => "DEV",
-                    Page::Exit => "Exit",
-                    Page::WiiMote => "WiiMote",
-                    Page::Strip => "",
-                };
-                text.draw_text(title, x + 12, y + 5, false);
-                for index in 0..self.count() {
-                    text.draw_text(
-                        self.item_label(index),
-                        x + 16,
-                        y + 31 + index * 27,
-                        index == self.selected && self.enabled(index),
-                    );
-                }
+        if self.page != Page::Strip
+            && let Ok((x, y)) = self.popup_geometry(width, height)
+        {
+            let title = match self.page {
+                Page::Dev => "DEV",
+                Page::Exit => "Exit",
+                Page::WiiMote => "WiiMote",
+                Page::Strip => "",
+            };
+            text.draw_text(title, x + 12, y + 5, false);
+            for index in 0..self.count() {
+                text.draw_text(
+                    self.item_label(index),
+                    x + 16,
+                    y + 31 + index * 27,
+                    index == self.selected && self.enabled(index),
+                );
             }
         }
     }

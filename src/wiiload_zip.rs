@@ -93,10 +93,10 @@ fn classify_app(data: &[u8]) -> Result<WiiloadZipClassification, WiiloadZipError
             } else {
                 None
             };
-            if let Some(kind) = kind {
-                if executable.replace((entry.name.as_str(), kind)).is_some() {
-                    return Err(WiiloadZipError::InvalidApp);
-                }
+            if let Some(kind) = kind
+                && executable.replace((entry.name.as_str(), kind)).is_some()
+            {
+                return Err(WiiloadZipError::InvalidApp);
             }
         }
     }

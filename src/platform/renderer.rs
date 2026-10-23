@@ -66,19 +66,19 @@ pub unsafe fn draw_frame(
 ) -> Result<(), VideoError> {
     video.begin_frame();
     let info = video.info();
-    if let Some(background_fill) = frame.fills.first() {
-        if let Some(bounds) = map_rect(
+    if let Some(background_fill) = frame.fills.first()
+        && let Some(bounds) = map_rect(
             background_fill.bounds,
             frame.logical_width(),
             LOGICAL_HEIGHT,
             info.width,
             info.height,
-        ) {
-            unsafe { draw_solid_fill(video, bounds, *background_fill)? };
-        }
+        )
+    {
+        unsafe { draw_solid_fill(video, bounds, *background_fill)? };
     }
-    if let Some(background) = theme.background.as_ref() {
-        if let Some(bounds) = map_rect(
+    if let Some(background) = theme.background.as_ref()
+        && let Some(bounds) = map_rect(
             crate::render::Rect {
                 x: f32::from(
                     frame
@@ -93,10 +93,10 @@ pub unsafe fn draw_frame(
             LOGICAL_HEIGHT,
             info.width,
             info.height,
-        ) {
-            unsafe {
-                video.draw_texture(background, bounds.x, bounds.y, bounds.width, bounds.height)?;
-            }
+        )
+    {
+        unsafe {
+            video.draw_texture(background, bounds.x, bounds.y, bounds.width, bounds.height)?;
         }
     }
     for command in &frame.commands {
@@ -117,8 +117,8 @@ pub unsafe fn draw_frame(
             }
         }
     }
-    if let Some(logo) = theme.logo.as_ref() {
-        if let Some(bounds) = map_rect(
+    if let Some(logo) = theme.logo.as_ref()
+        && let Some(bounds) = map_rect(
             crate::render::Rect {
                 x: 0.0,
                 y: 416.0,
@@ -129,10 +129,10 @@ pub unsafe fn draw_frame(
             LOGICAL_HEIGHT,
             info.width,
             info.height,
-        ) {
-            unsafe {
-                video.draw_texture(logo, bounds.x, bounds.y, bounds.width, bounds.height)?;
-            }
+        )
+    {
+        unsafe {
+            video.draw_texture(logo, bounds.x, bounds.y, bounds.width, bounds.height)?;
         }
     }
     for command in &frame.commands {

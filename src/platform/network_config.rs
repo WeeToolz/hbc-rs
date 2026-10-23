@@ -867,10 +867,7 @@ fn try_restore_backup(
     {
         return Err(NetworkConfigError::BackupInvalid);
     }
-    match recover_from_backup(path, backup) {
-        Ok(restored) => Ok(restored),
-        Err(error) => Err(error),
-    }
+    recover_from_backup(path, backup)
 }
 
 #[cfg(target_arch = "powerpc")]

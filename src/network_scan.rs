@@ -131,7 +131,7 @@ fn parse_security_ie(data: &[u8], is_rsn: bool) -> Option<NetworkSecurity> {
     let suites = data.get(offset..offset.checked_add(suites_len)?)?;
     let mut has_tkip = false;
     let mut has_aes = false;
-    for suite in suites.chunks_exact(4) {
+    for suite in suites.as_chunks::<4>().0 {
         if suite[..3] != [0x00, 0x0f, 0xac] && suite[..3] != [0x00, 0x50, 0xf2] {
             continue;
         }

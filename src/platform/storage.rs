@@ -285,10 +285,7 @@ impl FatStorage {
         let path = self.full_path(path)?;
         let mut directory = ogc_fat::FatDirectory::open(&path).map_err(StorageError::Fat)?;
         let mut entries = Vec::new();
-        loop {
-            let Some(entry) = directory.next_entry().map_err(StorageError::Fat)? else {
-                break;
-            };
+        while let Some(entry) = directory.next_entry().map_err(StorageError::Fat)? {
             if entries.len() == MAX_RECOVERY_DIRECTORY_ENTRIES {
                 return Err(StorageError::DirectoryEntryLimit);
             }
@@ -543,10 +540,7 @@ impl FatStorage {
         let full = self.full_path(path)?;
         let mut directory = ogc_fat::FatDirectory::open(&full).map_err(StorageError::Fat)?;
         let mut children = alloc::vec::Vec::new();
-        loop {
-            let Some(entry) = directory.next_entry().map_err(StorageError::Fat)? else {
-                break;
-            };
+        while let Some(entry) = directory.next_entry().map_err(StorageError::Fat)? {
             let name = alloc::string::String::from_utf8_lossy(&entry.name).into_owned();
             if name == "." || name == ".." {
                 continue;

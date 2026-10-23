@@ -174,7 +174,7 @@ impl GxRgba8Texture {
         blocks
             .try_reserve_exact(tiled.len() / GX_TEXTURE_BLOCK_SIZE)
             .map_err(|_| PngError::AllocationFailed)?;
-        for bytes in tiled.chunks_exact(GX_TEXTURE_BLOCK_SIZE) {
+        for bytes in tiled.as_chunks::<GX_TEXTURE_BLOCK_SIZE>().0 {
             let mut block = [0; GX_TEXTURE_BLOCK_SIZE];
             block.copy_from_slice(bytes);
             blocks.push(GxTextureBlock(block));
@@ -970,7 +970,9 @@ mod tests {
         let gray = decode_png(&png(4, 1, 2, 0, 0, &[0, 0b00_01_10_11]), rgba_limits(4, 1)).unwrap();
         assert_eq!(
             gray.pixels,
-            [0, 0, 0, 255, 85, 85, 85, 255, 170, 170, 170, 255, 255, 255, 255, 255]
+            [
+                0, 0, 0, 255, 85, 85, 85, 255, 170, 170, 170, 255, 255, 255, 255, 255
+            ]
         );
 
         let raw = [0, 0b00_01_10_00];
@@ -1124,10 +1126,12 @@ mod tests {
         assert!(tiled[..192].iter().all(|byte| *byte == 0));
         assert_eq!(&tiled[192..196], &[4, 1, 0, 0]);
         assert_eq!(&tiled[224..228], &[2, 3, 0, 0]);
-        assert!(tiled[196..224]
-            .iter()
-            .chain(&tiled[228..])
-            .all(|byte| *byte == 0));
+        assert!(
+            tiled[196..224]
+                .iter()
+                .chain(&tiled[228..])
+                .all(|byte| *byte == 0)
+        );
     }
 
     #[test]
