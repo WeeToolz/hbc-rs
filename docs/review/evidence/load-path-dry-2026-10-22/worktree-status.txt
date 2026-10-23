@@ -1,0 +1,39 @@
+ M .gitignore
+ M Cargo.lock
+ M Cargo.toml
+ M DEVELOPMENT_RESULTS.md
+ M assets/return_stub.bin
+ M src/lib.rs
+ M src/loader/mod.rs
+ M src/loader/wii.rs
+ M src/main.rs
+ M src/platform/diagnostics.rs
+ M src/platform/lifecycle.rs
+ M src/platform/startup.rs
+ M tools/test_dev_recovery_dolphin.py
+ M tools/test_network_gdb_reset_dolphin.py
+?? assets/return_stub.elf
+?? assets/return_stub.manifest.json
+?? docs/debug-channel-wad.md
+?? docs/review/evidence/channel-install-2026-10-22/
+?? docs/review/evidence/channel-wad-2026-10-22-r2/
+?? docs/review/evidence/channel-wad-2026-10-22/
+?? docs/review/evidence/latest-normal-launch-2026-10-22/
+?? docs/review/evidence/normal-launch-2026-10-22/
+?? docs/review/evidence/priiloader-return-dolphin-2026-10-22-r2/
+?? docs/review/evidence/priiloader-return-dolphin-2026-10-22/
+?? docs/review/evidence/recovery-validation-dolphin-2026-10-22/
+?? docs/review/evidence/wad-wiiload-selfload-2026-10-22/
+?? src/acceptance.rs
+?? src/acceptance_child.S
+?? src/bin/
+?? tools/dev_report_receiver.py
+?? tools/dolphin_test_support.py
+?? tools/package_debug_wad.py
+?? tools/return_stub.py
+?? tools/test_channel_wad_capture.py
+?? tools/test_channel_wad_dolphin.py
+?? tools/test_dev_recovery_suite.py
+?? tools/test_dev_report_receiver.py
+?? tools/test_production_acceptance_dolphin.py
+?? tools/test_return_stub.py

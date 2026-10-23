@@ -1,0 +1,143 @@
+    Checking hbc-rs v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/hbc-rs)
+error: this `if` statement can be collapsed
+   --> src/home_overlay_app.rs:405:9
+    |
+405 | /         if self.page != Page::Strip {
+406 | |             if let Ok((x, y)) = self.popup_geometry(width, height) {
+407 | |                 let title = match self.page {
+408 | |                     Page::Dev => "DEV",
+...   |
+423 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#collapsible_if
+    = note: `-D clippy::collapsible-if` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+    |
+405 ~         if self.page != Page::Strip
+406 ~             && let Ok((x, y)) = self.popup_geometry(width, height) {
+407 |                 let title = match self.page {
+...
+421 |                 }
+422 ~             }
+    |
+
+error: this `if` statement can be collapsed
+   --> src/management.rs:138:9
+    |
+138 | /         if had_previous {
+139 | |             if let Err(restore) = rename(backup, target) {
+140 | |                 return Err(DirectoryCommitError::Restore { install, restore });
+141 | |             }
+142 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+138 ~         if had_previous
+139 ~             && let Err(restore) = rename(backup, target) {
+140 |                 return Err(DirectoryCommitError::Restore { install, restore });
+141 ~             }
+    |
+
+error: this returns a `Result<_, ()>`
+  --> src/remote_control.rs:65:5
+   |
+65 |     pub fn decode(bytes: &[u8]) -> Result<Self, ()> {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: use a custom `Error` type instead
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#result_unit_err
+   = note: `-D clippy::result-unit-err` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::result_unit_err)]`
+
+error: this `if` statement can be collapsed
+    --> src/render.rs:1102:17
+     |
+1102 | /                 if app.has_icon {
+1103 | |                     if let Some(catalog_index) = catalog
+1104 | |                         .iter()
+1105 | |                         .position(|entry| entry.directory == app.directory)
+...    |
+1109 | |                 }
+     | |_________________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#collapsible_if
+help: collapse nested if block
+     |
+1102 ~                 if app.has_icon
+1103 ~                     && let Some(catalog_index) = catalog
+1104 |                         .iter()
+ ...
+1107 |                         frame.icon(catalog_index, icon_bounds);
+1108 ~                     }
+     |
+
+error: this `if` statement can be collapsed
+    --> src/render.rs:1533:17
+     |
+1533 | /                 if app.has_icon {
+1534 | |                     if let Some(catalog_index) = catalog
+1535 | |                         .iter()
+1536 | |                         .position(|entry| entry.directory == app.directory)
+...    |
+1540 | |                 }
+     | |_________________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#collapsible_if
+help: collapse nested if block
+     |
+1533 ~                 if app.has_icon
+1534 ~                     && let Some(catalog_index) = catalog
+1535 |                         .iter()
+ ...
+1538 |                         frame.icon(catalog_index, rect(92, 92, 128, 48));
+1539 ~                     }
+     |
+
+error: this `if` statement can be collapsed
+   --> src/runtime.rs:281:9
+    |
+281 | /         if !screen_changed && self.page_repeat.sample(held, pressed) {
+282 | |             if let Some(input) = held.filter(|input| !frame.pressed.contains(input)) {
+283 | |                 let screen = self.controller.screen;
+284 | |                 push_action(&mut actions, self.controller.handle(input, &self.catalog));
+...   |
+289 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+281 ~         if !screen_changed && self.page_repeat.sample(held, pressed)
+282 ~             && let Some(input) = held.filter(|input| !frame.pressed.contains(input)) {
+283 |                 let screen = self.controller.screen;
+...
+287 |                 }
+288 ~             }
+    |
+
+error: this `if` statement can be collapsed
+   --> src/wiiload_zip.rs:96:13
+    |
+ 96 | /             if let Some(kind) = kind {
+ 97 | |                 if executable.replace((entry.name.as_str(), kind)).is_some() {
+ 98 | |                     return Err(WiiloadZipError::InvalidApp);
+ 99 | |                 }
+100 | |             }
+    | |_____________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+ 96 ~             if let Some(kind) = kind
+ 97 ~                 && executable.replace((entry.name.as_str(), kind)).is_some() {
+ 98 |                     return Err(WiiloadZipError::InvalidApp);
+ 99 ~                 }
+    |
+
+error: could not compile `hbc-rs` (lib) due to 7 previous errors
+
+exit_code=101

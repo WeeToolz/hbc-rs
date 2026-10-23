@@ -1,0 +1,166 @@
+{
+  "success": true,
+  "wad_sha256": "0f5287e96ecaa34e2f578cf2b56031b6ec658e24a4986b4f6bbcd08918eb7737",
+  "elf_sha256": "e788bc24d64d5d384db4be2ef60f8058e5dc45c1a385ffb04d10d7f0cec26755",
+  "physical_wii_tested": false,
+  "milestones": [],
+  "dol_sha256": "e7f6f3300aaec8d1e1c839efd4568c0b45ce5eb18bb8e69b502d8fff530f2f43",
+  "build_manifest": {
+    "format": 1,
+    "title_id": "000100014f484243",
+    "channel": "OHBC",
+    "ios": 58,
+    "signature_policy": "legacy-fakesign",
+    "certificate_root_trust": "unchecked",
+    "debug_profile": "release with debug=2",
+    "features": [
+      "debugger-network"
+    ],
+    "feature_evidence": "ELF source debug sections and WiiNetworkTransport symbol checked by packager",
+    "hbc_revision": "6ebac95edd34b3599feb6d0d45275edd6acc5bf7",
+    "hbc_changes": [
+      " M .gitignore",
+      " M Cargo.lock",
+      " M Cargo.toml",
+      " M DEVELOPMENT_RESULTS.md",
+      " M assets/return_stub.bin",
+      " M src/lib.rs",
+      " M src/loader/mod.rs",
+      " M src/loader/wii.rs",
+      " M src/main.rs",
+      " M src/platform/diagnostics.rs",
+      " M src/platform/lifecycle.rs",
+      " M src/platform/startup.rs",
+      " M tools/test_dev_recovery_dolphin.py",
+      " M tools/test_network_gdb_reset_dolphin.py",
+      "?? assets/return_stub.elf",
+      "?? assets/return_stub.manifest.json",
+      "?? docs/debug-channel-wad.md",
+      "?? docs/review/evidence/channel-install-2026-10-22/",
+      "?? docs/review/evidence/channel-wad-2026-10-22-r2/",
+      "?? docs/review/evidence/channel-wad-2026-10-22/",
+      "?? docs/review/evidence/latest-normal-launch-2026-10-22/",
+      "?? docs/review/evidence/load-path-dry-2026-10-22/",
+      "?? docs/review/evidence/normal-launch-2026-10-22/",
+      "?? docs/review/evidence/priiloader-return-dolphin-2026-10-22-r2/",
+      "?? docs/review/evidence/priiloader-return-dolphin-2026-10-22/",
+      "?? docs/review/evidence/recovery-validation-dolphin-2026-10-22/",
+      "?? docs/review/evidence/wad-wiiload-selfload-2026-10-22/",
+      "?? src/acceptance.rs",
+      "?? src/acceptance_child.S",
+      "?? src/bin/",
+      "?? tools/dev_report_receiver.py",
+      "?? tools/dolphin_test_support.py",
+      "?? tools/package_debug_wad.py",
+      "?? tools/return_stub.py",
+      "?? tools/test_channel_wad_capture.py",
+      "?? tools/test_channel_wad_dolphin.py",
+      "?? tools/test_dev_recovery_suite.py",
+      "?? tools/test_dev_report_receiver.py",
+      "?? tools/test_production_acceptance_dolphin.py",
+      "?? tools/test_return_stub.py"
+    ],
+    "libogc_revision": "e716e77aa5b5ada0f2b7bb9fc66c697de15cff5d",
+    "libogc_changes": [
+      " M Cargo.toml",
+      " M config/implementation-evidence.csv",
+      " M config/static-review-scope.csv",
+      " M crates/core/ogc-report-protocol/src/lib.rs",
+      " M crates/core/ogc-system-sys/Cargo.toml",
+      " M crates/core/ogc-system-sys/src/dev.rs",
+      " M crates/core/ogc-system-sys/src/lib.rs",
+      " M crates/tools/gc-elf/src/lib.rs",
+      " M docs/generated/implementation-inventory.csv",
+      " M docs/generated/implementation-status.md",
+      " M docs/review/libgc-elf.md",
+      " M probes/ogc-system-probe/src/dev_wrapper_probe/main.rs",
+      " M probes/ui-input-probe-tests/Cargo.lock",
+      " M xtask/src/main.rs",
+      "?? config/wad-parity.csv",
+      "?? crates/core/ogc-system-sys/src/dev_stub.rs",
+      "?? crates/tools/gc-elf/src/channel-entry.S",
+      "?? crates/tools/gc-elf/src/channel-entry.bin",
+      "?? crates/tools/gc-elf/src/channel.rs",
+      "?? crates/tools/gc-wad/",
+      "?? docs/generated/wad-parity.md",
+      "?? docs/review/libgc-wad.md",
+      "?? probes/ogc-system-probe/src/dev_wrapper_probe/screen_scale.rs",
+      "?? probes/ogc-system-probe/src/dev_wrapper_probe/stub_entry.rs",
+      "?? xtask/src/wad_parity.rs"
+    ],
+    "files": {
+      "hbc-rs-debug.elf": {
+        "size": 26932116,
+        "sha256": "e788bc24d64d5d384db4be2ef60f8058e5dc45c1a385ffb04d10d7f0cec26755"
+      },
+      "hbc-rs-debug.dol": {
+        "size": 2454336,
+        "sha256": "e7f6f3300aaec8d1e1c839efd4568c0b45ce5eb18bb8e69b502d8fff530f2f43"
+      },
+      "hbc-rs-debug-channel.dol": {
+        "size": 2454656,
+        "sha256": "cac0c8704be11f18bd8db5e2a5c0fac4efbf3fd9cf791016f0da88ac7e3490b5"
+      },
+      "hbc-rs-debug-OHBC.wad": {
+        "size": 3097024,
+        "sha256": "0f5287e96ecaa34e2f578cf2b56031b6ec658e24a4986b4f6bbcd08918eb7737"
+      }
+    },
+    "return_stub": {
+      "size": 5216,
+      "sha256": "04e983c708c0b972692f82b08fc5c24c73d7a2cdcff058ef8432486644e0ddf5"
+    },
+    "physical_wii_tested": false,
+    "limitations": [
+      "No physical return fix is claimed",
+      "No private-key signing or EC verification",
+      "No certificate root trust check",
+      "No automatic recovery qualification",
+      "Installation would use the existing OHBC title ID"
+    ]
+  },
+  "screenshots": [
+    {
+      "stage": "wad_startup-ready",
+      "path": "docs/review/evidence/load-path-dry-2026-10-22/dolphin/dolphin-20261022-230620-4010821583.png",
+      "seconds_since_launch": 2.857
+    },
+    {
+      "stage": "dol_startup_after_upload-ready",
+      "path": "docs/review/evidence/load-path-dry-2026-10-22/dolphin/dolphin-20261022-230623-6854454708.png",
+      "seconds_since_launch": 5.701
+    }
+  ],
+  "wad_startup": {
+    "seconds": 2.083,
+    "reply": {
+      "state": "unknown",
+      "operation": 0,
+      "id": 0,
+      "session": 1028,
+      "message": "No retained result for this request"
+    }
+  },
+  "upload_started_seconds_since_launch": 2.857,
+  "sender_exit_code": 0,
+  "upload_seconds": 0.13,
+  "upload_completed_seconds_since_launch": 2.988,
+  "dol_startup_after_upload": {
+    "seconds": 2.07,
+    "reply": {
+      "state": "unknown",
+      "operation": 0,
+      "id": 0,
+      "session": 3956,
+      "message": "No retained result for this request"
+    }
+  },
+  "launch_log_checks": {
+    "parent_startup_complete": true,
+    "transfer_control": true,
+    "child_startup_complete": true,
+    "child_listener_listening": true
+  },
+  "screenshot": "docs/review/evidence/load-path-dry-2026-10-22/dolphin/dolphin-20261022-230624-7631228125.png",
+  "dolphin_exit_code": 0
+}

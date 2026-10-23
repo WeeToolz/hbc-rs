@@ -1,5 +1,25 @@
 # Development results
 
+## Loader and cleanup DRY refactor — 2026-10-22
+
+The loader now owns the executable, argument, and runtime-clear boundaries.
+Startup and the PowerPC trampoline consume the shared definitions. Application
+launch, BootMii, and system exit use one service cleanup adapter with typed
+backend errors. Existing shutdown orders and public APIs are preserved.
+
+All 385 host library tests pass. The PowerPC build passes, and its 524-byte
+trampoline is byte-for-byte identical to the previous tested build. The normal
+WAD and matching Wiiload DOL pass the Dolphin regression: 2.083 seconds to WAD
+readiness, then 2.070 seconds from upload start to a new HBC session. Screenshots
+and runtime logs confirm both instances. Formatting, parity-ledger validation,
+and the SDK source audit pass. Clippy still fails on seven existing findings
+outside the changed files. SDK completeness still fails on 2,371 existing
+findings. Full evidence and scope limits:
+`docs/review/evidence/load-path-dry-2026-10-22/README.md`.
+
+Physical Wii launch/return, SD/USB launch, and BootMii runtime remain untested
+by this change. No physical fix is claimed. Existing worktree edits are kept.
+
 ## DRY cleanup — 2026-10-22
 
 The six approved cleanup items are implemented. Existing worktree changes were
