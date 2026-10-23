@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/Volumes/SSD/WiiDev/RustPorts/hbc-rs/tools/test_channel_wad_dolphin.py", line 382, in <module>
+    raise SystemExit(main())
+  File "/Volumes/SSD/WiiDev/RustPorts/hbc-rs/tools/test_channel_wad_dolphin.py", line 236, in main
+    check.bind((args.host, 4299))
+OSError: [Errno 48] Address already in use

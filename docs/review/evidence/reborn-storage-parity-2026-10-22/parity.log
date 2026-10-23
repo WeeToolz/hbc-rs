@@ -1,0 +1,4 @@
+COMMAND: python3 tools/parity.py check
+parity ledger and report are current (41 areas)
+
+exit_code=0

@@ -1,0 +1,5 @@
+COMMAND: cargo clippy --release --bin hbc-rs --target /Volumes/SSD/WiiDev/RustPorts/libogc-rs/targets/powerpc-nintendo-none.json -Z build-std=core,alloc -Z build-std-features=compiler-builtins-mem -Z json-target-spec -- -D warnings
+    Checking hbc-rs v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/hbc-rs)
+    Finished `release` profile [optimized] target(s) in 0.83s
+
+exit_code=0

@@ -1,5 +1,28 @@
 # Development results
 
+## Reborn storage loading and Clippy — 2026-10-22
+
+- All four Clippy configurations pass with warnings denied: host default,
+  host network debugger, PowerPC default, and PowerPC network debugger.
+  No lint was suppressed. All 387 host tests pass; none are ignored.
+- Reborn metadata keeps `ahb_access` and `no_ios_reload` separate. The shared
+  storage launch policy now preserves both flags. Tests cover all four pairs.
+- A real Dolphin SD launch exposed a child listener bind failure. Checked
+  `SO_REUSEADDR` setup fixes the restart without enabling port sharing.
+- Scripted Dolphin launches read the DOL from the emulated SD card. The final
+  default and no-reload cases both start a new HBC session. Load-to-ready times
+  are 15.225 s and 14.923 s. Actual IOS58 launch counts are one and zero.
+- The existing parity ledger now has 41 validated contracts and references the
+  authoritative Reborn source. Two Python regression tests pass.
+- USB port 0 and port 1 were not runtime-tested. Reborn's two independent USB
+  drive contexts and `usb2:` volume remain open parity work. Physical SD,
+  USB, AHB-enabled launch, and return-stub recovery remain unverified.
+- The SDK source audit passes. Its completeness audit retains 2,371 existing
+  findings; no SDK source or audit rule was changed.
+
+Evidence: [checks, screenshots, logs, and limits](docs/review/evidence/reborn-storage-parity-2026-10-22/README.md).
+Source comparison: [Reborn storage loading](docs/review/reborn-storage-loading-2026-10-22.md).
+
 ## Loader and cleanup DRY refactor — 2026-10-22
 
 The loader now owns the executable, argument, and runtime-clear boundaries.

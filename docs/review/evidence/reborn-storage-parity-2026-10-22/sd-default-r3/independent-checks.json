@@ -1,0 +1,8 @@
+{
+  "actual_ios58_launches_after_handoff": 1,
+  "expected_ios58_launches": 1,
+  "new_session": true,
+  "required_screenshots_present": true,
+  "selected_executable_validated": true,
+  "child_started": true
+}

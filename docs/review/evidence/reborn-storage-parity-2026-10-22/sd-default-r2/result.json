@@ -1,0 +1,185 @@
+{
+  "success": true,
+  "wad_sha256": "eb942674a8f6ca51ec65f24251a311fdf8084148f5e1b244b80371472ff3f446",
+  "elf_sha256": "55f3d364e2e19aa6662cdb34cbf0294c56dff902a176a776199f20f08f1c5f28",
+  "physical_wii_tested": false,
+  "milestones": [],
+  "dol_sha256": "fed5ded45c90e3136a7ee519f4803a37faefebb25960c8f3b5a7e28b77d9cbe5",
+  "build_manifest": {
+    "format": 1,
+    "title_id": "000100014f484243",
+    "channel": "OHBC",
+    "ios": 58,
+    "signature_policy": "legacy-fakesign",
+    "certificate_root_trust": "unchecked",
+    "debug_profile": "release with debug=2",
+    "features": [
+      "debugger-network"
+    ],
+    "feature_evidence": "ELF source debug sections and WiiNetworkTransport symbol checked by packager",
+    "hbc_revision": "0031ff448af4a8b1e703121046ede826ea238ae7",
+    "hbc_changes": [
+      " M .gitignore",
+      " M Cargo.lock",
+      " M Cargo.toml",
+      " M DEVELOPMENT_RESULTS.md",
+      " M assets/return_stub.bin",
+      " M src/catalog.rs",
+      " M src/home_overlay_app.rs",
+      " M src/lib.rs",
+      " M src/loader/mod.rs",
+      " M src/loader/wii.rs",
+      " M src/main.rs",
+      " M src/management.rs",
+      " M src/metadata.rs",
+      " M src/platform/diagnostics.rs",
+      " M src/platform/startup.rs",
+      " M src/platform/wiiload.rs",
+      " M src/remote_control.rs",
+      " M src/render.rs",
+      " M src/runtime.rs",
+      " M src/wiiload_zip.rs",
+      " M tools/parity.py",
+      " M tools/test_dev_recovery_dolphin.py",
+      " M tools/test_network_gdb_reset_dolphin.py",
+      "?? assets/return_stub.elf",
+      "?? assets/return_stub.manifest.json",
+      "?? docs/debug-channel-wad.md",
+      "?? docs/review/evidence/channel-install-2026-10-22/",
+      "?? docs/review/evidence/channel-wad-2026-10-22-r2/",
+      "?? docs/review/evidence/channel-wad-2026-10-22/",
+      "?? docs/review/evidence/latest-normal-launch-2026-10-22/",
+      "?? docs/review/evidence/normal-launch-2026-10-22/",
+      "?? docs/review/evidence/priiloader-return-dolphin-2026-10-22-r2/",
+      "?? docs/review/evidence/priiloader-return-dolphin-2026-10-22/",
+      "?? docs/review/evidence/reborn-storage-parity-2026-10-22/",
+      "?? docs/review/evidence/recovery-validation-dolphin-2026-10-22/",
+      "?? docs/review/evidence/wad-wiiload-selfload-2026-10-22/",
+      "?? src/acceptance.rs",
+      "?? src/acceptance_child.S",
+      "?? src/bin/",
+      "?? tools/dev_report_receiver.py",
+      "?? tools/dolphin_test_support.py",
+      "?? tools/package_debug_wad.py",
+      "?? tools/return_stub.py",
+      "?? tools/test_channel_wad_capture.py",
+      "?? tools/test_channel_wad_dolphin.py",
+      "?? tools/test_dev_recovery_suite.py",
+      "?? tools/test_dev_report_receiver.py",
+      "?? tools/test_parity.py",
+      "?? tools/test_production_acceptance_dolphin.py",
+      "?? tools/test_return_stub.py"
+    ],
+    "libogc_revision": "e716e77aa5b5ada0f2b7bb9fc66c697de15cff5d",
+    "libogc_changes": [
+      " M Cargo.toml",
+      " M config/implementation-evidence.csv",
+      " M config/static-review-scope.csv",
+      " M crates/core/ogc-report-protocol/src/lib.rs",
+      " M crates/core/ogc-system-sys/Cargo.toml",
+      " M crates/core/ogc-system-sys/src/dev.rs",
+      " M crates/core/ogc-system-sys/src/lib.rs",
+      " M crates/tools/gc-elf/src/lib.rs",
+      " M docs/generated/implementation-inventory.csv",
+      " M docs/generated/implementation-status.md",
+      " M docs/review/libgc-elf.md",
+      " M probes/ogc-system-probe/src/dev_wrapper_probe/main.rs",
+      " M probes/ui-input-probe-tests/Cargo.lock",
+      " M xtask/src/main.rs",
+      "?? config/wad-parity.csv",
+      "?? crates/core/ogc-system-sys/src/dev_stub.rs",
+      "?? crates/tools/gc-elf/src/channel-entry.S",
+      "?? crates/tools/gc-elf/src/channel-entry.bin",
+      "?? crates/tools/gc-elf/src/channel.rs",
+      "?? crates/tools/gc-wad/",
+      "?? docs/generated/wad-parity.md",
+      "?? docs/review/libgc-wad.md",
+      "?? probes/ogc-system-probe/src/dev_wrapper_probe/screen_scale.rs",
+      "?? probes/ogc-system-probe/src/dev_wrapper_probe/stub_entry.rs",
+      "?? xtask/src/wad_parity.rs"
+    ],
+    "files": {
+      "hbc-rs-debug.elf": {
+        "size": 26931632,
+        "sha256": "55f3d364e2e19aa6662cdb34cbf0294c56dff902a176a776199f20f08f1c5f28"
+      },
+      "hbc-rs-debug.dol": {
+        "size": 2455616,
+        "sha256": "fed5ded45c90e3136a7ee519f4803a37faefebb25960c8f3b5a7e28b77d9cbe5"
+      },
+      "hbc-rs-debug-channel.dol": {
+        "size": 2455936,
+        "sha256": "b413e2898cca31fa663dec104d8616ca9d40cd45031413f28d3b2fa8ace1c53e"
+      },
+      "hbc-rs-debug-OHBC.wad": {
+        "size": 3098304,
+        "sha256": "eb942674a8f6ca51ec65f24251a311fdf8084148f5e1b244b80371472ff3f446"
+      }
+    },
+    "return_stub": {
+      "size": 5216,
+      "sha256": "04e983c708c0b972692f82b08fc5c24c73d7a2cdcff058ef8432486644e0ddf5"
+    },
+    "physical_wii_tested": false,
+    "limitations": [
+      "No physical return fix is claimed",
+      "No private-key signing or EC verification",
+      "No certificate root trust check",
+      "No automatic recovery qualification",
+      "Installation would use the existing OHBC title ID"
+    ]
+  },
+  "screenshots": [
+    {
+      "stage": "wad_startup-ready",
+      "path": "docs/review/evidence/reborn-storage-parity-2026-10-22/sd-default-r2/dolphin-20261022-232325-5045529125.png",
+      "seconds_since_launch": 3.892
+    },
+    {
+      "stage": "sd-app-details",
+      "path": "docs/review/evidence/reborn-storage-parity-2026-10-22/sd-default-r2/dolphin-20261022-232326-6353137791.png",
+      "seconds_since_launch": 5.2
+    },
+    {
+      "stage": "dol_startup_from_sd-waiting",
+      "path": "docs/review/evidence/reborn-storage-parity-2026-10-22/sd-default-r2/dolphin-20261022-232341-21342037125.png",
+      "seconds_since_launch": 20.188
+    },
+    {
+      "stage": "dol_startup_from_sd-ready",
+      "path": "docs/review/evidence/reborn-storage-parity-2026-10-22/sd-default-r2/dolphin-20261022-232342-22385111666.png",
+      "seconds_since_launch": 21.231
+    }
+  ],
+  "wad_startup": {
+    "seconds": 3.117,
+    "reply": {
+      "state": "unknown",
+      "operation": 0,
+      "id": 0,
+      "session": 1028,
+      "message": "No retained result for this request"
+    }
+  },
+  "launch_input_reply_error": "HBC did not apply the input release",
+  "dol_startup_from_sd": {
+    "seconds": 15.26,
+    "reply": {
+      "state": "unknown",
+      "operation": 0,
+      "id": 0,
+      "session": 17937,
+      "message": "No retained result for this request"
+    }
+  },
+  "launch_log_checks": {
+    "parent_startup_complete": true,
+    "transfer_control": true,
+    "child_startup_complete": true,
+    "child_listener_listening": true
+  },
+  "ios_reloaded": true,
+  "launch_source": "sd:/apps/selfload/boot.dol",
+  "screenshot": "docs/review/evidence/reborn-storage-parity-2026-10-22/sd-default-r2/dolphin-20261022-232343-23156656291.png",
+  "dolphin_exit_code": 0
+}
