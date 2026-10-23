@@ -1,6 +1,9 @@
 //! Wii-only code that writes and starts a validated executable image.
 
-use super::{LoadPlan, MAX_LAUNCH_ARGUMENT_BYTES, MAX_LOAD_SEGMENTS, ParseError};
+use super::{
+    EXECUTABLE_MEMORY, LAUNCH_ARGUMENT_ADDRESS, LoadPlan, MAX_LAUNCH_ARGUMENT_BYTES,
+    MAX_LOAD_SEGMENTS, ParseError, RUNTIME_CLEAR_END, RUNTIME_CLEAR_START,
+};
 use alloc::vec::Vec;
 use core::ffi::c_void;
 use core::ops::Range;
@@ -8,7 +11,6 @@ use core::ptr;
 
 const MEM2_START: usize = 0x9000_0000;
 const MEM2_END: usize = 0x9400_0000;
-const LAUNCH_ARGUMENT_ADDRESS: u32 = 0x8132_fc00;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -138,8 +140,8 @@ __hbc_launch_trampoline_start:
     beq .Lclear_runtime
     lwz 6,20(3)
     lwz 8,24(3)
-    lis 7,0x8132
-    ori 7,7,0xfc00
+    lis 7,{argument_hi}
+    ori 7,7,{argument_lo}
     .Lcopy_arguments:
     cmpwi 8,0
     beq .Lflush_arguments_setup
@@ -150,8 +152,8 @@ __hbc_launch_trampoline_start:
     addi 8,8,-1
     b .Lcopy_arguments
     .Lflush_arguments_setup:
-    lis 7,0x8132
-    ori 7,7,0xfc00
+    lis 7,{argument_hi}
+    ori 7,7,{argument_lo}
     lwz 8,24(3)
     add 8,7,8
     addi 8,8,31
@@ -167,8 +169,8 @@ __hbc_launch_trampoline_start:
     lis 9,0x5f61
     ori 9,9,0x7267
     stw 9,8(5)
-    lis 9,0x8132
-    ori 9,9,0xfc00
+    lis 9,{argument_hi}
+    ori 9,9,{argument_lo}
     stw 9,12(5)
     lwz 8,24(3)
     stw 8,16(5)
@@ -190,15 +192,15 @@ __hbc_launch_trampoline_start:
 
     .Lclear_runtime:
     li 0,0
-    lis 12,0x8133
-    lis 11,0x8180
+    lis 12,{runtime_start_hi}
+    lis 11,{runtime_end_hi}
     .Lclear_runtime_loop:
     stw 0,0(12)
     addi 12,12,4
     cmplw 12,11
     blt .Lclear_runtime_loop
-    lis 12,0x8133
-    lis 11,0x8180
+    lis 12,{runtime_start_hi}
+    lis 11,{runtime_end_hi}
     .Lflush_cleared_runtime:
     dcbf 0,12
     addi 12,12,32
@@ -211,7 +213,11 @@ __hbc_launch_trampoline_start:
     bctr
     .globl __hbc_launch_trampoline_end
 __hbc_launch_trampoline_end:
-    "#
+    "#,
+    argument_hi = const LAUNCH_ARGUMENT_ADDRESS >> 16,
+    argument_lo = const LAUNCH_ARGUMENT_ADDRESS & 0xffff,
+    runtime_start_hi = const RUNTIME_CLEAR_START >> 16,
+    runtime_end_hi = const RUNTIME_CLEAR_END >> 16,
 );
 
 unsafe extern "C" {
@@ -243,7 +249,8 @@ pub fn stage_launch(
     if plan.segments.len() > MAX_LOAD_SEGMENTS {
         return Err(ParseError::InvalidFormat("too many executable segments"));
     }
-    if allowed_memory.start < 0x8000_3400 || allowed_memory.end > LAUNCH_ARGUMENT_ADDRESS {
+    if allowed_memory.start < EXECUTABLE_MEMORY.start || allowed_memory.end > EXECUTABLE_MEMORY.end
+    {
         return Err(ParseError::InvalidSegment(
             "launch range is outside HBC's reserved executable area",
         ));
@@ -290,7 +297,7 @@ pub fn stage_launch(
         && entry & 3 == 0
         && argv_record_is_loaded
         && (LAUNCH_ARGUMENT_ADDRESS < allowed_memory.end
-            || arguments.len() > 0x8133_0000usize.saturating_sub(LAUNCH_ARGUMENT_ADDRESS as usize))
+            || arguments.len() > (RUNTIME_CLEAR_START - LAUNCH_ARGUMENT_ADDRESS) as usize)
     {
         return Err(ParseError::InvalidFormat(
             "launch arguments overlap the executable range",

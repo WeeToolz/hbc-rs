@@ -23,7 +23,7 @@ use crate::{
 };
 
 /// HBC reserves this address range for loading an application executable.
-const EXECUTABLE_SIZE_LIMIT: u64 = (0x8133_0000 - 1 - 1024) - 0x8000_3400;
+const EXECUTABLE_SIZE_LIMIT: u64 = (EXECUTABLE_MEMORY.end - EXECUTABLE_MEMORY.start - 1) as u64;
 const THEME_SIZE_LIMIT: u64 = 20 * 1024 * 1024;
 const BOOTMII_TITLE_ID: u64 = 0x0000_0001_0000_00fe;
 const STORAGE_SCAN_STACK_SIZE: usize = 16 * 1024;
@@ -51,7 +51,8 @@ const ZIP_INSTALL_READY: u8 = 3;
 const DEVICE_PROBE_IDLE: u8 = 0;
 const DEVICE_PROBE_RUNNING: u8 = 1;
 const DEVICE_PROBE_READY: u8 = 2;
-pub const EXECUTABLE_MEMORY: core::ops::Range<u32> = 0x8000_3400..0x8132_fc00;
+// Preserve the startup API while the loader owns the memory layout.
+pub use crate::loader::EXECUTABLE_MEMORY;
 
 struct StorageScanResult {
     volume: Option<Volume>,

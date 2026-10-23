@@ -56,6 +56,18 @@ pub enum ParseError {
 
 pub const MAX_LAUNCH_ARGUMENT_BYTES: usize = 1024;
 
+/// Application sections must stay below the reserved launch argument buffer.
+pub const EXECUTABLE_MEMORY: Range<u32> = 0x8000_3400..LAUNCH_ARGUMENT_ADDRESS;
+pub(crate) const LAUNCH_ARGUMENT_ADDRESS: u32 = 0x8132_fc00;
+pub(crate) const RUNTIME_CLEAR_START: u32 = 0x8133_0000;
+pub(crate) const RUNTIME_CLEAR_END: u32 = 0x8180_0000;
+
+const _: () =
+    assert!(RUNTIME_CLEAR_START - LAUNCH_ARGUMENT_ADDRESS == MAX_LAUNCH_ARGUMENT_BYTES as u32);
+const _: () = assert!(RUNTIME_CLEAR_START < RUNTIME_CLEAR_END);
+// The trampoline loads these boundaries with a single lis instruction.
+const _: () = assert!(RUNTIME_CLEAR_START & 0xffff == 0 && RUNTIME_CLEAR_END & 0xffff == 0);
+
 /// Select whether to reload the preferred IOS before starting an app.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct IosLaunchPolicy {
@@ -413,6 +425,46 @@ fn be32(bytes: &[u8], offset: usize) -> Result<u32, ParseError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn launch_memory_layout_matches_the_wii_abi() {
+        assert_eq!(EXECUTABLE_MEMORY, 0x8000_3400..0x8132_fc00);
+        assert_eq!(LAUNCH_ARGUMENT_ADDRESS, 0x8132_fc00);
+        assert_eq!(MAX_LAUNCH_ARGUMENT_BYTES, 1024);
+        assert_eq!(RUNTIME_CLEAR_START, 0x8133_0000);
+        assert_eq!(RUNTIME_CLEAR_END, 0x8180_0000);
+    }
+
+    #[test]
+    fn executable_bounds_accept_edges_and_reject_reserved_memory() {
+        let mut dol = vec![0u8; 0x104];
+        put32(&mut dol, 0, 0x100);
+        put32(&mut dol, 0x90, 4);
+        dol[0x100..].copy_from_slice(&[0x4e, 0x80, 0x00, 0x20]);
+        for (address, valid) in [
+            (0x8000_3400, true),
+            (0x8132_fbfc, true),
+            (0x8000_33fc, false),
+            (0x8132_fc00, false),
+        ] {
+            put32(&mut dol, 0x48, address);
+            put32(&mut dol, 0xe0, address);
+            let result = parse_dol(&dol, Some(EXECUTABLE_MEMORY));
+            if valid {
+                let plan = result.unwrap();
+                assert_eq!(plan.entry, address);
+                assert_eq!(plan.segments[0].address, address);
+                assert_eq!(plan.segments[0].file_range, 0x100..0x104);
+            } else {
+                assert_eq!(
+                    result,
+                    Err(ParseError::InvalidSegment(
+                        "destination outside allowed memory"
+                    ))
+                );
+            }
+        }
+    }
 
     #[test]
     fn launch_ios_policy_reloads_preferred_ios() {
