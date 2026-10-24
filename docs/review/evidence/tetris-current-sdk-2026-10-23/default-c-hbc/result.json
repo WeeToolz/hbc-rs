@@ -1,0 +1,46 @@
+{
+  "image": "/Volumes/SSD/WiiDev/C-sources/hbc-reborn/channel/channelapp/channelapp-channel.dol",
+  "sha256": "a32c35c20e2a18ba3004aefbcea9ac10af555f0d068241e9332d6840b28fe5f6",
+  "physical_wii_tested": false,
+  "capture_complete": false,
+  "input_verification": "requires screenshot review",
+  "stages": [
+    {
+      "name": "app-browser",
+      "screenshot": "/private/tmp/tetris-current-default-hbc-test/dolphin-20261023-172630-148459207362333.png"
+    },
+    {
+      "name": "app-details",
+      "screenshot": "/private/tmp/tetris-current-default-hbc-test/dolphin-20261023-172633-148461812592291.png"
+    }
+  ],
+  "fixture": {
+    "application": {
+      "source": "/private/tmp/tetris-current-default-app",
+      "path": "sd:/apps/tetris-current-default-app/boot.dol",
+      "bytes": 5154816,
+      "sha256": "dce4ddca56f5be1226192be82f775b6e8f4b2294a155bf9ab89d34145c0779f3",
+      "build_manifest": {
+        "schema_version": 2,
+        "package": "tetris",
+        "target_kind": "--bin",
+        "target": "tetris",
+        "target_triple": "powerpc-nintendo-none",
+        "profile": "release",
+        "features": [],
+        "standard_library": "core,alloc",
+        "dol_bytes": 5154816,
+        "dol_sha256": "dce4ddca56f5be1226192be82f775b6e8f4b2294a155bf9ab89d34145c0779f3",
+        "development": false,
+        "elf_path": "/private/tmp/libogc-rs-current-source/target/xtask/custom-dol-build/powerpc-nintendo-none/release/tetris",
+        "source_revision": "5d7342ca713eef7944f5678bf7b0c01220a4ca51",
+        "source_changes": "?? tetris-audio-buffer-check.dol",
+        "sdk_revision": "cc56567d1e0c2bf1610c0af19264f6fea64d119f",
+        "sdk_changes": ""
+      }
+    }
+  },
+  "expected_visible_result": "The selected application starts and draws its screen",
+  "error": "Dolphin did not save a screenshot after the Y hotkey",
+  "dolphin_exit_code": 0
+}

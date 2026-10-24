@@ -1,0 +1,46 @@
+{
+  "image": "/Volumes/SSD/WiiDev/C-sources/hbc-reborn/channel/channelapp/channelapp-channel.dol",
+  "sha256": "a32c35c20e2a18ba3004aefbcea9ac10af555f0d068241e9332d6840b28fe5f6",
+  "physical_wii_tested": false,
+  "capture_complete": false,
+  "input_verification": "requires screenshot review",
+  "stages": [
+    {
+      "name": "app-browser",
+      "screenshot": "docs/review/evidence/tetris-c-sd-dolphin-2026-10-23-r5/dolphin-20261023-142839-137788197263791.png"
+    },
+    {
+      "name": "app-details",
+      "screenshot": "docs/review/evidence/tetris-c-sd-dolphin-2026-10-23-r5/dolphin-20261023-142842-137790777222208.png"
+    }
+  ],
+  "fixture": {
+    "application": {
+      "source": "/Volumes/SSD/WiiDev/Devtools/libogc-rs/apps/tetris",
+      "path": "sd:/apps/tetris/boot.dol",
+      "bytes": 5153056,
+      "sha256": "b5792032f947f4529bfcf934e75be82d328394f136b69e6db663b24cb5e9e1ba",
+      "build_manifest": {
+        "schema_version": 2,
+        "package": "tetris",
+        "target_kind": "--bin",
+        "target": "tetris",
+        "target_triple": "powerpc-nintendo-none",
+        "profile": "release",
+        "features": [],
+        "standard_library": "core,alloc",
+        "dol_bytes": 5153056,
+        "dol_sha256": "b5792032f947f4529bfcf934e75be82d328394f136b69e6db663b24cb5e9e1ba",
+        "development": false,
+        "elf_path": "/Volumes/SSD/WiiDev/Devtools/libogc-rs/target/xtask/custom-dol-build/powerpc-nintendo-none/release/tetris",
+        "source_revision": "5d7342ca713eef7944f5678bf7b0c01220a4ca51",
+        "source_changes": "?? tetris-audio-buffer-check.dol",
+        "sdk_revision": "e716e77aa5b5ada0f2b7bb9fc66c697de15cff5d",
+        "sdk_changes": "M Cargo.toml\n M config/implementation-evidence.csv\n M config/static-review-scope.csv\n M crates/abi/ogc-sys/src/lib.rs\n M crates/core/ogc-es-sys/src/imp.rs\n M crates/core/ogc-ipc/src/lib.rs\n M crates/core/ogc-lwp-driver/src/runtime.rs\n M crates/core/ogc-report-protocol/src/lib.rs\n M crates/core/ogc-sysbase/src/lib.rs\n M crates/core/ogc-system-sys/Cargo.toml\n M crates/core/ogc-system-sys/src/dev.rs\n M crates/core/ogc-system-sys/src/lib.rs\n M crates/hardware/ogc-exi-sys/src/lib.rs\n M crates/hardware/ogc-si-sys/src/lib.rs\n M crates/hardware/ogc-video-sys/src/lib.rs\n M crates/hardware/ogc-video/src/lib.rs\n M crates/services/lwip-sys/src/lib.rs\n M crates/services/ogc-bt-sync/src/hid_host.rs\n M crates/services/ogc-bt-sync/src/protocol.rs\n M crates/services/ogc-fat/src/lib.rs\n M crates/services/ogc-fat/src/timestamps.rs\n M crates/services/ogc-gcsd/src/lib.rs\n M crates/services/ogc-gcsd/src/wii_backend.rs\n M crates/services/ogc-network-sys/src/lib.rs\n M crates/services/ogc-network-sys/src/socket_receive.rs\n M crates/services/ogc-network-sys/src/std_net.rs\n M crates/services/ogc-network/src/lib.rs\n M crates/services/ogc-usb-sys/src/lib.rs\n M crates/services/ogc-usb-sys/src/v5_layout.rs\n M crates/services/ogc-usbstorage-lifecycle/src/lib.rs\n M crates/services/ogc-usbstorage-sys/src/lib.rs\n M crates/services/ogc-usbstorage-sys/src/wii_backend.rs\n M crates/services/ogc-wiisd/src/lib.rs\n M crates/services/ogc-wiisd/src/sdio_rules.rs\n M crates/services/wpad-sys/src/lib.rs\n M crates/services/wpad-sys/src/powerpc_backend.rs\n M crates/services/wpad-sys/src/wii_remote.rs\n M crates/tools/gc-elf/src/lib.rs\n M docs/generated/implementation-inventory.csv\n M docs/generated/implementation-status.md\n M docs/review/libgc-elf.md\n M probes/ogc-system-probe/Cargo.toml\n M probes/ogc-system-probe/src/dev_wrapper_probe/main.rs\n M probes/ogc-system-probe/src/lib.rs\n M probes/ui-input-probe-tests/Cargo.lock\n M xtask/src/main.rs\n?? apps/\n?? config/wad-parity.csv\n?? crates/core/ogc-system-sys/src/dev_stub.rs\n?? crates/services/ogc-usbstorage-lifecycle/src/drives.rs\n?? crates/tools/gc-elf/src/channel-entry.S\n?? crates/tools/gc-elf/src/channel-entry.bin\n?? crates/tools/gc-elf/src/channel.rs\n?? crates/tools/gc-wad/\n?? docs/generated/wad-parity.md\n?? docs/review/libgc-wad.md\n?? docs/review/usb-volumes-2026-10-23.md\n?? probes/ogc-system-probe/src/dev_wrapper_probe/screen_scale.rs\n?? probes/ogc-system-probe/src/dev_wrapper_probe/stub_entry.rs\n?? probes/ogc-system-probe/src/usb_volumes_probe.rs\n?? probes/ogc-system-probe/src/usb_volumes_probe/\n?? skills/\n?? xtask/src/wad_parity.rs"
+      }
+    }
+  },
+  "expected_visible_result": "The selected application starts and draws its screen",
+  "error": "Dolphin did not save a screenshot after the Y hotkey",
+  "dolphin_exit_code": 0
+}

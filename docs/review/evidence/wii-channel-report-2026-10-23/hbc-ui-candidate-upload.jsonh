@@ -1,0 +1,16 @@
+{
+  "completed_unix_ms": 1792774561453,
+  "compressed": true,
+  "destination": "tcp:192.168.2.3",
+  "elapsed_ms": 690,
+  "error": null,
+  "host_written_bytes": 539076,
+  "input": "/Users/user/Downloads/apps/yawmME/boot.dol",
+  "input_bytes": 954272,
+  "input_sha256": "7a0d265b236fa11eb8827955e19acd8f4feda9147e7c8c0b9a682ab71aa74384",
+  "port": 4299,
+  "result": "host_write_complete",
+  "schema_version": 1,
+  "status": "written",
+  "transfer_bytes": 539050
+}

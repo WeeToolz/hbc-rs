@@ -1,0 +1,12 @@
+{
+  "path": "/Volumes/SSD/WiiDev/Devtools/libogc-rs/apps/tetris/boot.dol",
+  "size": 5153056,
+  "sha256": "b5792032f947f4529bfcf934e75be82d328394f136b69e6db663b24cb5e9e1ba",
+  "text0_file_offset": 256,
+  "text0_size": 649176,
+  "entry": "0x80004000",
+  "physical_C_Reborn_load": "user reports success",
+  "physical_Rust_load": "user screenshot: DolHeaderOverlap section=0 offset=48 size=48",
+  "production_host_parser": "passes; 3 load sections; plan bounds validation passes",
+  "physical_file_hash_independently_measured": false
+}

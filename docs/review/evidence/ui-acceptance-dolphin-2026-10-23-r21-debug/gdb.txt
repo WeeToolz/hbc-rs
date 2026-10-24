@@ -1,0 +1,28 @@
+0x80004000 in _start ()
+Breakpoint 1 at 0x800eea84: file /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/wpad-sys/src/powerpc_backend.rs, line 1447.
+
+Breakpoint 1, wpad_sys::powerpc_backend::handle_wii_read_report (slot_idx=0, report=...) at /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/wpad-sys/src/powerpc_backend.rs:1447
+1447	                    let Some(action) = initial_followup else {
+
+Program received signal SIGTRAP, Trace/breakpoint trap.
+ogc_lwp_driver::runtime::switch_locked (previous=1, irq=32768) at /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-lwp-driver/src/runtime.rs:1062
+1062	        if next == previous {
+Warning: the current language does not match this frame.
+#0  ogc_lwp_driver::runtime::switch_locked (previous=1, irq=32768) at /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-lwp-driver/src/runtime.rs:1062
+#1  0x80119bcc in ogc_lwp_driver::runtime::idle_entry () at /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-lwp-driver/src/runtime.rs:1676
+#2  0x8011cd94 in ogc_lwp_driver::runtime::thread_bootstrap () at /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-lwp-driver/src/runtime.rs:1663
+#3  0x00000000 in ?? ()
+Backtrace stopped: Cannot access memory at address 0x3
+$1 = {active = true, kind = wpad_sys::powerpc_backend::ControllerKind::WiiRemote, accel_calib = {cal_zero = {x = 512, y = 512, z = 512}, cal_g = {x = 104, y = 104, z = 104}, st_roll = 0, st_pitch = 0, st_alpha = 0.300000012}, read = {addr = 22, requested = 8, received = 8, buffer = "\200\200\200\232\232\232\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000", covered = {255, 0, 0, 0, 0, 0, 0}}, pending_read = wpad_sys::powerpc_backend::PendingReadKind::None, wii_initialized = true, initial_handshake = {phase = wiiuse_rs::initial_handshake::Phase::Complete}, wii_u_pro = false, expansion_handshake_active = false, closed_hid_channels = 0 '\000', attachment_present = false, ir_enabled = false}
+No symbol "wpad_sys::powerpc_backend::WPAD_DATA_STATE" in current context.
+$2 = {stage = ogc_bt_sync::hid_host::HostStage::Ready, failed_stage = {255 '\377', None = {<No data fields>}}, failure = {4294967295, None = {<No data fields>}}, events = 55, acl_packets = 380, reports = 374, malformed = 4, connections = 1, disconnects = 0, connection_attempts = 1, connection_failures = 0, last_connection_status = {1 '\001', Some = {__0 = 0 '\000'}}, hci_command_failures = 4, authentication_failures = 0, last_authentication_status = {0 '\000', None = {<No data fields>}}, link_key_requests = 0, link_key_matches = 0, link_key_misses = 0, pin_code_requests = 0, searching = false, failed_opcode = {1, Some = {__0 = {__0 = 1027}}}, hci_status = {0 '\000', None = {<No data fields>}}, simple_pairing = false}
+$3 = 10
+$4 = {head = {__0 = 1}, len = 0, buf = {inner = {ptr = {pointer = 0x90a18cb0 ""}, cap = {__0 = 4}, alloc = {<No data fields>}}, _marker = {<No data fields>}}}
+$5 = {2, None = {<No data fields>}}
+$6 = {buf = {inner = {ptr = {pointer = 0x90a19c20 ""}, cap = {__0 = 4}, alloc = {<No data fields>}}, _marker = {<No data fields>}}, len = 0}
+A debugging session is active.
+
+	Inferior 1 [Remote target] will be detached.
+
+Quit anyway? (y or n) [answered Y; input not from terminal]
+Remote doesn't know how to detach

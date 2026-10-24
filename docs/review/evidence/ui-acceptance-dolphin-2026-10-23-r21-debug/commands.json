@@ -1,0 +1,19 @@
+[
+  "set pagination off",
+  "target remote localhost:55287",
+  "break *0x800eea84",
+  "continue",
+  "delete breakpoints",
+  "continue",
+  "set language c",
+  "bt",
+  "p 'wpad_sys::powerpc_backend::SLOTS'[0]",
+  "p 'wpad_sys::powerpc_backend::WPAD_DATA_STATE'[0].ir",
+  "set $host = ('ogc_bt_sync::wii_host::WiiHidHost'*) &'wpad_sys::powerpc_backend::BT_HOST'",
+  "p $host->protocol.diagnostic",
+  "p $host->protocol.acl_credits",
+  "p $host->protocol.acl",
+  "p $host->protocol.command",
+  "p $host->writes",
+  "quit"
+]

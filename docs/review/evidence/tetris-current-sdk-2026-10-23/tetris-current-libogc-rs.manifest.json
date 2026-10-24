@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "package": "tetris",
+  "target_kind": "--bin",
+  "target": "tetris",
+  "target_triple": "powerpc-nintendo-none",
+  "profile": "release",
+  "features": [
+    "agent-report"
+  ],
+  "standard_library": "core,alloc",
+  "dol_bytes": 5207936,
+  "dol_sha256": "eeed701568bd2ff36d086a02117bd161decf1f61940cf419ffc010db89e05701",
+  "development": false,
+  "elf_path": "/private/tmp/libogc-rs-current-source/target/xtask/custom-dol-build/powerpc-nintendo-none/release/tetris",
+  "source_revision": "5d7342ca713eef7944f5678bf7b0c01220a4ca51",
+  "source_changes": "?? tetris-audio-buffer-check.dol",
+  "sdk_revision": "cc56567d1e0c2bf1610c0af19264f6fea64d119f",
+  "sdk_changes": ""
+}

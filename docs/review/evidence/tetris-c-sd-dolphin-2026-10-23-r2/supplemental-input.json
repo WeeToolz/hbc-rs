@@ -1,0 +1,13 @@
+{
+  "reason": "Initial A presses had no focused browser item; focus with D-pad first",
+  "commands": [
+    "PRESS D_DOWN",
+    "RELEASE D_DOWN",
+    "PRESS A",
+    "RELEASE A",
+    "PRESS A",
+    "RELEASE A"
+  ],
+  "screenshot": "docs/review/evidence/tetris-c-sd-dolphin-2026-10-23-r2/dolphin-20261023-141705-137094198408208.png",
+  "details_review": "Tetris metadata and focused Load button confirmed from screenshot"
+}

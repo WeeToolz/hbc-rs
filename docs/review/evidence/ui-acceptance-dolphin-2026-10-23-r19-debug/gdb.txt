@@ -1,0 +1,23 @@
+0x80004000 in _start ()
+Breakpoint 1 at 0x800eea84: file /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/wpad-sys/src/powerpc_backend.rs, line 1447.
+
+Breakpoint 1, wpad_sys::powerpc_backend::handle_wii_read_report (slot_idx=0, report=...) at /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/wpad-sys/src/powerpc_backend.rs:1447
+1447	                    let Some(action) = initial_followup else {
+Warning: the current language does not match this frame.
+$1 = {active = true, kind = wpad_sys::powerpc_backend::ControllerKind::WiiRemote, accel_calib = {cal_zero = {x = 512, y = 512, z = 512}, cal_g = {x = 104, y = 104, z = 104}, st_roll = 0, st_pitch = 0, st_alpha = 0.300000012}, read = {addr = 22, requested = 8, received = 8, buffer = "\200\200\200\232\232\232\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000", covered = {255, 0, 0, 0, 0, 0, 0}}, pending_read = wpad_sys::powerpc_backend::PendingReadKind::None, wii_initialized = true, initial_handshake = {phase = wiiuse_rs::initial_handshake::Phase::Complete}, wii_u_pro = false, expansion_handshake_active = false, closed_hid_channels = 0 '\000', attachment_present = false, ir_enabled = false}
+retry_expansion_calibration = false
+invalid_handshake_transition = <optimized out>
+initial_followup = {2 '\002', Some = {__0 = wiiuse_rs::initial_handshake::HandshakeAction::RefreshStatus}}
+need_refresh = false
+need_refresh = <optimized out>
+retry_expansion_calibration = <optimized out>
+action = <optimized out>
+reset = <error reading variable reset (Cannot access memory at address 0x0)>
+outcome = {1 '\001', Some = {__0 = {1 '\001', Complete = {__0 = 8}}}}
+outcome = <error reading variable outcome (Cannot access memory at address 0x0)>
+initial_followup = <error reading variable initial_followup (Cannot access memory at address 0x0)>
+invalid_handshake_transition = <optimized out>
+retry_status = <optimized out>
+pending = wpad_sys::powerpc_backend::PendingReadKind::WiiRemoteCalibration
+chan = 0
+Breakpoint 2 at 0x800ec068: file /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/wpad-sys/src/powerpc_backend.rs, line 1135.

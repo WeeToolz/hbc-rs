@@ -1,0 +1,70 @@
+{
+  "success": false,
+  "physical_wii_tested": false,
+  "parent": "/Volumes/SSD/WiiDev/C-sources/hbc-reborn/channel/channelapp/channelapp-channel.dol",
+  "parent_sha256": "a32c35c20e2a18ba3004aefbcea9ac10af555f0d068241e9332d6840b28fe5f6",
+  "app": "/private/tmp/tetris-current-default-app/boot.dol",
+  "app_sha256": "dce4ddca56f5be1226192be82f775b6e8f4b2294a155bf9ab89d34145c0779f3",
+  "app_bytes": 5154816,
+  "input_path": "Dolphin Pipe emulated Wii Remote",
+  "screenshots": [
+    {
+      "stage": "c-browser",
+      "path": "/Volumes/SSD/WiiDev/RustPorts/hbc-rs/docs/review/evidence/tetris-startup-trace-2026-10-23-r3/dolphin-20261023-220117-164945875154583.png"
+    },
+    {
+      "stage": "c-tetris-details",
+      "path": "/Volumes/SSD/WiiDev/RustPorts/hbc-rs/docs/review/evidence/tetris-startup-trace-2026-10-23-r3/dolphin-20261023-220120-164948775183250.png"
+    }
+  ],
+  "initial_stop": "T0f40:80004000;01:8004d4bc;",
+  "parent_entry_stop": "T0f40:80004000;01:8004d4bc;",
+  "parent_step_stop": "T0540:80004004;01:8004d4bc;",
+  "child_entry_stop": "T0540:80004000;01:81684ce0;",
+  "child_code_matches_file": true,
+  "launch_arguments_hex": "73643a2f617070732f7465747269732f626f6f742e646f6c0000",
+  "tetris_main_stop": "T0540:80008000;01:817fffd0;",
+  "checkpoints": [
+    {
+      "stage": "system-ready",
+      "stop": "T0540:80008010;01:817fffc0;",
+      "r3": "0000B032"
+    },
+    {
+      "stage": "argv-ready",
+      "stop": "T0540:80008014;01:817fffc0;",
+      "r3": "80A70E24"
+    },
+    {
+      "stage": "display-ready",
+      "stop": "T0540:80008018;01:817fffc0;",
+      "r3": "804D88F0"
+    },
+    {
+      "stage": "controllers-ready",
+      "stop": "T0540:80008044;01:817fffc0;",
+      "r3": "00000007"
+    }
+  ],
+  "error": "Emulator debugger response timed out",
+  "failure_stop": "T0540:8009810c;01:8097c218;",
+  "frames": [
+    {
+      "sp": "0x8097c218",
+      "data": "8097c2a88009898c0000000000000000"
+    },
+    {
+      "sp": "0x8097c2a8",
+      "data": "8097c2c880091e340000000000000000"
+    },
+    {
+      "sp": "0x8097c2c8",
+      "data": "8097c2d8800947880000000000000000"
+    },
+    {
+      "sp": "0x8097c2d8",
+      "data": "ffffffff000000004c57504700000000"
+    }
+  ],
+  "dolphin_exit_code": 0
+}

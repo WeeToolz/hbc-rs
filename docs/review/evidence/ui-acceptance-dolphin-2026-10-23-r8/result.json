@@ -1,0 +1,188 @@
+{
+  "success": false,
+  "wad_sha256": "03d9da9fb00dc9d37a323cc5777d3b877a753e1371dacfc77b3c3d9c9e36155f",
+  "elf_sha256": "2b2a2266684777a8196238906f09c58c62072e15d810a3cb8de9bf83a99ceec5",
+  "physical_wii_tested": false,
+  "milestones": [],
+  "dol_sha256": "c20ed3d888c2fb2609fdc206afa8c40b484eb9cb5508ac295b54bab2f9f968a4",
+  "build_manifest": {
+    "format": 1,
+    "title_id": "000100014f484243",
+    "channel": "OHBC",
+    "ios": 58,
+    "signature_policy": "legacy-fakesign",
+    "certificate_root_trust": "unchecked",
+    "debug_profile": "release with debug=2",
+    "features": [
+      "debugger-network"
+    ],
+    "feature_evidence": "ELF source debug sections and WiiNetworkTransport symbol checked by packager",
+    "hbc_revision": "5dd9fa89cc8fda6ebd2b5ea24d6edcf0f2f94cd9",
+    "hbc_changes": [
+      " M DEVELOPMENT_RESULTS.md",
+      " M config/parity-ledger.csv",
+      " M docs/generated/parity-status.md",
+      " M src/catalog.rs",
+      " M src/font.rs",
+      " M src/main.rs",
+      " M src/render.rs",
+      " M tools/test_channel_wad_dolphin.py",
+      "?? docs/review/evidence/channel-install-2026-10-22/",
+      "?? docs/review/evidence/channel-wad-2026-10-22-r2/",
+      "?? docs/review/evidence/channel-wad-2026-10-22/",
+      "?? docs/review/evidence/latest-normal-launch-2026-10-22/",
+      "?? docs/review/evidence/normal-launch-2026-10-22/",
+      "?? docs/review/evidence/priiloader-return-dolphin-2026-10-22-r2/",
+      "?? docs/review/evidence/priiloader-return-dolphin-2026-10-22/",
+      "?? docs/review/evidence/recovery-validation-dolphin-2026-10-22/",
+      "?? docs/review/evidence/usb2-storage-2026-10-22/",
+      "?? docs/review/evidence/wad-wiiload-selfload-2026-10-22/",
+      "?? docs/review/usb2-storage-and-dry-2026-10-23.md",
+      "?? tools/test_hbc_ui_dolphin.py"
+    ],
+    "libogc_revision": "e716e77aa5b5ada0f2b7bb9fc66c697de15cff5d",
+    "libogc_changes": [
+      " M Cargo.toml",
+      " M config/implementation-evidence.csv",
+      " M config/static-review-scope.csv",
+      " M crates/abi/ogc-sys/src/lib.rs",
+      " M crates/core/ogc-es-sys/src/imp.rs",
+      " M crates/core/ogc-ipc/src/lib.rs",
+      " M crates/core/ogc-lwp-driver/src/runtime.rs",
+      " M crates/core/ogc-report-protocol/src/lib.rs",
+      " M crates/core/ogc-sysbase/src/lib.rs",
+      " M crates/core/ogc-system-sys/Cargo.toml",
+      " M crates/core/ogc-system-sys/src/dev.rs",
+      " M crates/core/ogc-system-sys/src/lib.rs",
+      " M crates/hardware/ogc-exi-sys/src/lib.rs",
+      " M crates/hardware/ogc-si-sys/src/lib.rs",
+      " M crates/hardware/ogc-video-sys/src/lib.rs",
+      " M crates/hardware/ogc-video/src/lib.rs",
+      " M crates/services/lwip-sys/src/lib.rs",
+      " M crates/services/ogc-bt-sync/src/hid_host.rs",
+      " M crates/services/ogc-bt-sync/src/protocol.rs",
+      " M crates/services/ogc-fat/src/lib.rs",
+      " M crates/services/ogc-fat/src/timestamps.rs",
+      " M crates/services/ogc-gcsd/src/lib.rs",
+      " M crates/services/ogc-gcsd/src/wii_backend.rs",
+      " M crates/services/ogc-network-sys/src/lib.rs",
+      " M crates/services/ogc-network-sys/src/socket_receive.rs",
+      " M crates/services/ogc-network-sys/src/std_net.rs",
+      " M crates/services/ogc-network/src/lib.rs",
+      " M crates/services/ogc-usb-sys/src/lib.rs",
+      " M crates/services/ogc-usb-sys/src/v5_layout.rs",
+      " M crates/services/ogc-usbstorage-lifecycle/src/lib.rs",
+      " M crates/services/ogc-usbstorage-sys/src/lib.rs",
+      " M crates/services/ogc-usbstorage-sys/src/wii_backend.rs",
+      " M crates/services/ogc-wiisd/src/lib.rs",
+      " M crates/services/ogc-wiisd/src/sdio_rules.rs",
+      " M crates/services/wpad-sys/src/lib.rs",
+      " M crates/services/wpad-sys/src/powerpc_backend.rs",
+      " M crates/services/wpad-sys/src/wii_remote.rs",
+      " M crates/tools/gc-elf/src/lib.rs",
+      " M docs/generated/implementation-inventory.csv",
+      " M docs/generated/implementation-status.md",
+      " M docs/review/libgc-elf.md",
+      " M probes/ogc-system-probe/Cargo.toml",
+      " M probes/ogc-system-probe/src/dev_wrapper_probe/main.rs",
+      " M probes/ogc-system-probe/src/lib.rs",
+      " M probes/ui-input-probe-tests/Cargo.lock",
+      " M xtask/src/main.rs",
+      "?? config/wad-parity.csv",
+      "?? crates/core/ogc-system-sys/src/dev_stub.rs",
+      "?? crates/services/ogc-usbstorage-lifecycle/src/drives.rs",
+      "?? crates/tools/gc-elf/src/channel-entry.S",
+      "?? crates/tools/gc-elf/src/channel-entry.bin",
+      "?? crates/tools/gc-elf/src/channel.rs",
+      "?? crates/tools/gc-wad/",
+      "?? docs/generated/wad-parity.md",
+      "?? docs/review/libgc-wad.md",
+      "?? docs/review/usb-volumes-2026-10-23.md",
+      "?? probes/ogc-system-probe/src/dev_wrapper_probe/screen_scale.rs",
+      "?? probes/ogc-system-probe/src/dev_wrapper_probe/stub_entry.rs",
+      "?? probes/ogc-system-probe/src/usb_volumes_probe.rs",
+      "?? probes/ogc-system-probe/src/usb_volumes_probe/",
+      "?? skills/",
+      "?? xtask/src/wad_parity.rs"
+    ],
+    "files": {
+      "hbc-rs-debug.elf": {
+        "size": 27092472,
+        "sha256": "2b2a2266684777a8196238906f09c58c62072e15d810a3cb8de9bf83a99ceec5"
+      },
+      "hbc-rs-debug.dol": {
+        "size": 2465920,
+        "sha256": "c20ed3d888c2fb2609fdc206afa8c40b484eb9cb5508ac295b54bab2f9f968a4"
+      },
+      "hbc-rs-debug-channel.dol": {
+        "size": 2466240,
+        "sha256": "7991a2581e41d87a6c8775b677ee14e4b271e99dd068b7201898efddcd5aa208"
+      },
+      "hbc-rs-debug-OHBC.wad": {
+        "size": 3108608,
+        "sha256": "03d9da9fb00dc9d37a323cc5777d3b877a753e1371dacfc77b3c3d9c9e36155f"
+      }
+    },
+    "return_stub": {
+      "size": 5216,
+      "sha256": "04e983c708c0b972692f82b08fc5c24c73d7a2cdcff058ef8432486644e0ddf5"
+    },
+    "physical_wii_tested": false,
+    "limitations": [
+      "No physical return fix is claimed",
+      "No private-key signing or EC verification",
+      "No certificate root trust check",
+      "No automatic recovery qualification",
+      "Installation would use the existing OHBC title ID"
+    ]
+  },
+  "ui_fixture": {
+    "name_order": [
+      "Amber",
+      "Birch",
+      "Cedar"
+    ],
+    "date_order": [
+      "Cedar",
+      "Birch",
+      "Amber"
+    ],
+    "apps": [
+      {
+        "directory": "cedar",
+        "title": "Cedar",
+        "release_date": "20250304120000"
+      },
+      {
+        "directory": "amber",
+        "title": "Amber",
+        "release_date": "20240102120000"
+      },
+      {
+        "directory": "birch",
+        "title": "Birch",
+        "release_date": "20241203120000"
+      }
+    ]
+  },
+  "screenshots": [
+    {
+      "stage": "wad_startup-ready",
+      "path": "docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r8/dolphin-20261023-011527-90195804447541.png",
+      "seconds_since_launch": 3.617
+    }
+  ],
+  "wad_startup": {
+    "seconds": 2.852,
+    "reply": {
+      "state": "unknown",
+      "operation": 0,
+      "id": 0,
+      "session": 1028,
+      "message": "No retained result for this request"
+    }
+  },
+  "error": "emulated Wii Remote click on bubble: guest Bluetooth failed; inspect IOS_WIIMOTE and HBC Bluetooth diagnostics in dolphin.log",
+  "screenshot": "docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r8/dolphin-20261023-011533-90201723143000.png",
+  "dolphin_exit_code": 0
+}

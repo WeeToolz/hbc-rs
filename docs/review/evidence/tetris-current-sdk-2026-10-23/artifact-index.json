@@ -1,0 +1,145 @@
+{
+  "description": "Copied run evidence. Absolute paths inside original records refer to the original temporary run locations. DOL binaries and NAND data are not included.",
+  "artifacts": [
+    {
+      "path": "default-c-hbc/Config/Dolphin.ini",
+      "bytes": 280,
+      "sha256": "4fd42d8d209c0732d9ca13219ab013fc0977f317d65aba39d435362e6e94a5df"
+    },
+    {
+      "path": "default-c-hbc/Config/GFX.ini",
+      "bytes": 82,
+      "sha256": "2d45a6b09139381d785dae0879a8ba1e53e00c5e2fbd37335d1ff4fcde755b20"
+    },
+    {
+      "path": "default-c-hbc/Config/Hotkeys.ini",
+      "bytes": 81,
+      "sha256": "4bc358a77e3215bc09c802380494dc0e504b49fd74faafa1cfa0dcc675c5dea6"
+    },
+    {
+      "path": "default-c-hbc/Config/Logger.ini",
+      "bytes": 164,
+      "sha256": "bb0f747a2dc518f92ea23e20b9f7b333fad3de8097e6834d7306699e3367206c"
+    },
+    {
+      "path": "default-c-hbc/Config/WiimoteNew.ini",
+      "bytes": 697,
+      "sha256": "7af85b28257302a07459702a6508ffc9c0e7e6a0761d5e6de48e0603ba73219e"
+    },
+    {
+      "path": "default-c-hbc/console.log",
+      "bytes": 629393,
+      "sha256": "b29a6a3b2452ab9793879735b9dda0bba768cbcec7f303796feb1732e13390f8"
+    },
+    {
+      "path": "default-c-hbc/dolphin-20261023-172630-148459207362333.png",
+      "bytes": 176265,
+      "sha256": "f29e437311e78c5abbc2526db7e8ddf17e0ac1a4ff62f83735c3ae171b66d5b5"
+    },
+    {
+      "path": "default-c-hbc/dolphin-20261023-172633-148461812592291.png",
+      "bytes": 82808,
+      "sha256": "99289dd34000fd7b646f81ab50f3f889aa495774f97a2780c697ea9566ce7c29"
+    },
+    {
+      "path": "default-c-hbc/dolphin.log",
+      "bytes": 629324,
+      "sha256": "af2bfdfa9f3c1bd0dbfaba088b8821d9681beb8328850a9755547f0630a0b49e"
+    },
+    {
+      "path": "default-c-hbc/result.json",
+      "bytes": 1876,
+      "sha256": "7e60d0f1a99b434d692ca720da2cc0eb7a272a29447f17eb8af1bad69acb983f"
+    },
+    {
+      "path": "reporting-c-hbc/Config/Dolphin.ini",
+      "bytes": 280,
+      "sha256": "4fd42d8d209c0732d9ca13219ab013fc0977f317d65aba39d435362e6e94a5df"
+    },
+    {
+      "path": "reporting-c-hbc/Config/GFX.ini",
+      "bytes": 82,
+      "sha256": "2d45a6b09139381d785dae0879a8ba1e53e00c5e2fbd37335d1ff4fcde755b20"
+    },
+    {
+      "path": "reporting-c-hbc/Config/Hotkeys.ini",
+      "bytes": 81,
+      "sha256": "4bc358a77e3215bc09c802380494dc0e504b49fd74faafa1cfa0dcc675c5dea6"
+    },
+    {
+      "path": "reporting-c-hbc/Config/Logger.ini",
+      "bytes": 164,
+      "sha256": "bb0f747a2dc518f92ea23e20b9f7b333fad3de8097e6834d7306699e3367206c"
+    },
+    {
+      "path": "reporting-c-hbc/Config/WiimoteNew.ini",
+      "bytes": 697,
+      "sha256": "7af85b28257302a07459702a6508ffc9c0e7e6a0761d5e6de48e0603ba73219e"
+    },
+    {
+      "path": "reporting-c-hbc/console.log",
+      "bytes": 644771,
+      "sha256": "1c06214f3feeb106d27e297f2ce75b2b6e03f61f09ddda404a7729208df13fb0"
+    },
+    {
+      "path": "reporting-c-hbc/dolphin-20261023-172440-148349137693208.png",
+      "bytes": 172987,
+      "sha256": "6a405fc8e304285f75fc0b5f685280c02f10003e260fec7d4692d91de7e8c897"
+    },
+    {
+      "path": "reporting-c-hbc/dolphin-20261023-172443-148351752185500.png",
+      "bytes": 77615,
+      "sha256": "2ca5b6965f4ea19116f6d89ed162df9a486831b5554309b262d5290ba069d1e4"
+    },
+    {
+      "path": "reporting-c-hbc/dolphin.log",
+      "bytes": 644702,
+      "sha256": "5203d8684601679dc713bcc09e0bc0e578f911f84f4358d11334676a602ca5fc"
+    },
+    {
+      "path": "reporting-c-hbc/result.json",
+      "bytes": 1898,
+      "sha256": "ae12ef1e63cd8762ab4294a4340f326693ba705f536dfaf8e97f41560d160244"
+    },
+    {
+      "path": "reporting-direct/dolphin.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reporting-direct/gameplay.png",
+      "bytes": 4502,
+      "sha256": "ce34685097c89d9b47493d3e998abf2527123a6ead27e5b8bffb49a8117cf18c"
+    },
+    {
+      "path": "reporting-direct/idle.png",
+      "bytes": 4502,
+      "sha256": "b7add70b66eca59733871ea5dee52d8864793fe6697b46a14c38ecfb9ece45da"
+    },
+    {
+      "path": "reporting-direct/menu.png",
+      "bytes": 3519,
+      "sha256": "4a917b311d59a10de544cf962c24dd0c7fd6774ce8279c63bb94ea33f15896a2"
+    },
+    {
+      "path": "reporting-direct/result.json",
+      "bytes": 916,
+      "sha256": "da0c7e5f36ace3f9ad629f1437529ee0823c246011e418bd43600806fc242de2"
+    },
+    {
+      "path": "reporting-direct/startup.png",
+      "bytes": 3522,
+      "sha256": "52868468f7b1c01ef753afc185c72519c2a2516e4bffce4f1ff1a30268ee6008"
+    },
+    {
+      "path": "tetris-current-libogc-rs-default.manifest.json",
+      "bytes": 676,
+      "sha256": "42a0d1b5909a6c87546fb924a143d4b1c4cff3df4bf47b4d0314ba0b7e3eb18a"
+    },
+    {
+      "path": "tetris-current-libogc-rs.manifest.json",
+      "bytes": 698,
+      "sha256": "c85304e22a5f9e9c5d4981f2f924092a9fb58cf1882cb23c65ddfea568eb1c04"
+    }
+  ]
+}

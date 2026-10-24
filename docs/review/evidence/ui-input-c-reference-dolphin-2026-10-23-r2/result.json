@@ -1,0 +1,71 @@
+{
+  "image": "/Volumes/SSD/WiiDev/C-sources/hbc-reborn/channel/channelapp/channelapp-channel.dol",
+  "sha256": "a32c35c20e2a18ba3004aefbcea9ac10af555f0d068241e9332d6840b28fe5f6",
+  "physical_wii_tested": false,
+  "capture_complete": true,
+  "input_verification": "screenshots reviewed",
+  "stages": [
+    {
+      "name": "pointer-center",
+      "screenshot": "docs/review/evidence/ui-input-c-reference-dolphin-2026-10-23-r2/dolphin-20261023-104621-124449579827250.png"
+    },
+    {
+      "name": "pointer-upper-left",
+      "screenshot": "docs/review/evidence/ui-input-c-reference-dolphin-2026-10-23-r2/dolphin-20261023-104623-124451546028583.png"
+    },
+    {
+      "name": "pointer-lower-right",
+      "screenshot": "docs/review/evidence/ui-input-c-reference-dolphin-2026-10-23-r2/dolphin-20261023-104625-124453517701875.png"
+    },
+    {
+      "name": "button-1",
+      "screenshot": "docs/review/evidence/ui-input-c-reference-dolphin-2026-10-23-r2/dolphin-20261023-104627-124455908666583.png"
+    },
+    {
+      "name": "button-2",
+      "screenshot": "docs/review/evidence/ui-input-c-reference-dolphin-2026-10-23-r2/dolphin-20261023-104630-124458512566583.png"
+    }
+  ],
+  "fixture": {
+    "name_order": [
+      "Amber",
+      "Birch",
+      "Cedar"
+    ],
+    "date_order": [
+      "Cedar",
+      "Birch",
+      "Amber"
+    ],
+    "apps": [
+      {
+        "directory": "cedar",
+        "title": "Cedar",
+        "release_date": "20250304120000"
+      },
+      {
+        "directory": "amber",
+        "title": "Amber",
+        "release_date": "20240102120000"
+      },
+      {
+        "directory": "birch",
+        "title": "Birch",
+        "release_date": "20241203120000"
+      }
+    ]
+  },
+  "dolphin_exit_code": 0,
+  "visual_checks": {
+    "pointer_center": true,
+    "pointer_upper_left": true,
+    "pointer_lower_right": true,
+    "button_1_options": true,
+    "button_2_grid": true
+  },
+  "verification_limits": [
+    "Qualitative pointer movement; exact guest coordinates not measured",
+    "Bubble pops, Date/Name sorting, and UI network scan not tested",
+    "C baseline uses a DOL boot; C WAD boot failed separately"
+  ]
+}

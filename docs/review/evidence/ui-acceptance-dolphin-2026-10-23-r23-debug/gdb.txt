@@ -1,0 +1,23 @@
+0x80004000 in _start ()
+Breakpoint 1 at 0x800eda78: file /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/wpad-sys/src/powerpc_backend.rs, line 1485.
+Warning: the current language does not match this frame.
+INPUT len=7
+0x90a1af40:	0x20	0x00	0x00	0x00	0x00	0x00	0x64	0x6e
+0x90a1af48:	0x3a	0x64	0x72	0x6f	0x69	0x64	0x62	0x6f
+0x90a1af50:	0x00	0x00	0x02	0xc0	0x00	0x00
+INPUT len=22
+0x90a1afc0:	0x21	0x00	0x00	0x70	0x00	0x16	0x80	0x80
+0x90a1afc8:	0x80	0x00	0x9a	0x9a	0x9a	0x00	0x00	0x00
+0x90a1afd0:	0x00	0x00	0x00	0x00	0x00	0x00
+
+Program received signal SIGTRAP, Trace/breakpoint trap.
+ogc_lwp_driver::runtime::switch_locked (previous=1, irq=32768) at /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-lwp-driver/src/runtime.rs:1062
+1062	        if next == previous {
+$1 = {v = {value = {__0 = 2}}}
+$2 = {phase = wiiuse_rs::initial_handshake::Phase::Complete}
+A debugging session is active.
+
+	Inferior 1 [Remote target] will be detached.
+
+Quit anyway? (y or n) [answered Y; input not from terminal]
+Remote doesn't know how to detach

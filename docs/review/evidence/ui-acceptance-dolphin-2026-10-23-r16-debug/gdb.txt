@@ -1,0 +1,27 @@
+0x80004000 in _start ()
+Breakpoint 1 at 0x800ee60c: file /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/wpad-sys/src/powerpc_backend.rs, line 1328.
+
+Breakpoint 1, wpad_sys::powerpc_backend::handle_wii_read_report (slot_idx=0, report=...) at /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/wpad-sys/src/powerpc_backend.rs:1328
+1328	    if !apply_read_report_buttons(unsafe { &mut WPAD_DATA_STATE[chan] }, report) {
+Warning: the current language does not match this frame.
+slot_idx = 0
+report = <optimized out>
+#0  wpad_sys::powerpc_backend::handle_wii_read_report (slot_idx=0, report=...) at /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/wpad-sys/src/powerpc_backend.rs:1328
+#1  wpad_sys::powerpc_backend::handle_wii_remote_report (slot_idx=0, report=...) at /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/wpad-sys/src/powerpc_backend.rs:1495
+#2  wpad_sys::powerpc_backend::process_hid_event (event=...) at /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/wpad-sys/src/powerpc_backend.rs:1698
+#3  wpad_sys::powerpc_backend::scan_pads () at /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/wpad-sys/src/powerpc_backend.rs:1962
+#4  0x800ea070 in wpad_sys::scan_pads () at /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/wpad-sys/src/lib.rs:1480
+#5  0x800c6730 in ogc_controller::hardware::ControllerManager::poll_bluetooth (self=0x80229510 <hbc_rs::platform::input::CONTROLLER_MANAGER>) at /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-controller/src/hardware.rs:995
+#6  ogc_controller::hardware::ControllerManager::scan_after_pad (self=0x80229510 <hbc_rs::platform::input::CONTROLLER_MANAGER>, gc_scan=1, raw_wpad=...) at /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-controller/src/hardware.rs:1581
+#7  0x800cd8dc in ogc_controller::hardware::ControllerManager::scan_with_raw_at_inner (self=0x80229510 <hbc_rs::platform::input::CONTROLLER_MANAGER>, timestamp_ticks=...) at /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-controller/src/hardware.rs:1496
+#8  0x800c6364 in ogc_controller::hardware::ControllerManager::scan_with_raw (self=<optimized out>) at /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-controller/src/hardware.rs:1476
+#9  0x80070a3c in hbc_rs::platform::input::scan () at src/platform/input.rs:640
+#10 0x800086b8 in hbc_rs::main (_argc=<optimized out>, _argv=<optimized out>) at src/main.rs:509
+$1 = {active = true, kind = wpad_sys::powerpc_backend::ControllerKind::WiiRemote, accel_calib = {cal_zero = {x = 499, y = 509, z = 507}, cal_g = {x = 703, y = 709, z = 709}, st_roll = 0, st_pitch = 0, st_alpha = 0.300000012}, read = {addr = 22, requested = 8, received = 0, buffer = "\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000", covered = {0, 0, 0, 0, 0, 0, 0}}, pending_read = wpad_sys::powerpc_backend::PendingReadKind::WiiRemoteCalibration, wii_initialized = true, initial_handshake = {phase = wiiuse_rs::initial_handshake::Phase::AwaitingCalibration}, wii_u_pro = false, expansion_handshake_active = false, closed_hid_channels = 0 '\000', attachment_present = false, ir_enabled = false}
+0x1:	Cannot access memory at address 0x1
+A debugging session is active.
+
+	Inferior 1 [Remote target] will be detached.
+
+Quit anyway? (y or n) [answered Y; input not from terminal]
+Remote doesn't know how to detach

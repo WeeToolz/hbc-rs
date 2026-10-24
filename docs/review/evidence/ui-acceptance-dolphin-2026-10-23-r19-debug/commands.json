@@ -1,0 +1,15 @@
+[
+  "set pagination off",
+  "target remote localhost:55287",
+  "break /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/wpad-sys/src/powerpc_backend.rs:1445",
+  "continue",
+  "set language c",
+  "p 'wpad_sys::powerpc_backend::SLOTS'[0]",
+  "info locals",
+  "delete breakpoints",
+  "break /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/wpad-sys/src/powerpc_backend.rs:1135",
+  "continue",
+  "p 'wpad_sys::powerpc_backend::SLOTS'[0]",
+  "bt",
+  "quit"
+]

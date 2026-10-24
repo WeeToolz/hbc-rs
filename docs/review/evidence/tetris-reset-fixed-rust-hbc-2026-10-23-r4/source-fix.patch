@@ -1,0 +1,105 @@
+diff --git a/host-tests/Cargo.toml b/host-tests/Cargo.toml
+index 66d0fbc..3f3b6c8 100644
+--- a/host-tests/Cargo.toml
++++ b/host-tests/Cargo.toml
+@@ -16,3 +16,7 @@ path = "../tests/tetris_pause.rs"
+ [[test]]
+ name = "direction"
+ path = "../tests/tetris_direction.rs"
++
++[[test]]
++name = "reset"
++path = "../tests/tetris_reset.rs"
+diff --git a/src/tetris.rs b/src/tetris.rs
+index 545bab1..c918bd1 100644
+--- a/src/tetris.rs
++++ b/src/tetris.rs
+@@ -31,6 +31,7 @@ mod input_delay;
+ mod layout;
+ mod online_input;
+ mod pause;
++mod reset_input;
+ 
+ #[cfg(target_arch = "powerpc")]
+ mod wii {
+@@ -564,8 +565,10 @@ mod wii {
+         }
+     }
+ 
++    static RESET_BUTTON: super::reset_input::ResetButton = super::reset_input::ResetButton::new();
++
+     fn console_reset_pressed() -> bool {
+-        system::reset_button_down() != 0
++        RESET_BUTTON.is_pressed(system::reset_button_down() != 0)
+     }
+ 
+     fn log_bluetooth_event(event: &'static str) {
+
+diff --git a/Volumes/SSD/WiiDev/Devtools/libogc-rs/games/tetris/src/reset_input.rs b/Volumes/SSD/WiiDev/Devtools/libogc-rs/games/tetris/src/reset_input.rs
+new file mode 100644
+index 0000000..315189c
+--- /dev/null
++++ b/Volumes/SSD/WiiDev/Devtools/libogc-rs/games/tetris/src/reset_input.rs
+@@ -0,0 +1,23 @@
++use core::sync::atomic::{AtomicBool, Ordering};
++
++/// Accept RESET only after the application has observed the button released.
++/// A held startup signal must not enter a blocking wait before the first menu.
++pub struct ResetButton {
++    released_since_start: AtomicBool,
++}
++
++impl ResetButton {
++    pub const fn new() -> Self {
++        Self {
++            released_since_start: AtomicBool::new(false),
++        }
++    }
++
++    pub fn is_pressed(&self, hardware_pressed: bool) -> bool {
++        if !hardware_pressed {
++            self.released_since_start.store(true, Ordering::Relaxed);
++            return false;
++        }
++        self.released_since_start.load(Ordering::Relaxed)
++    }
++}
+
+diff --git a/Volumes/SSD/WiiDev/Devtools/libogc-rs/games/tetris/tests/tetris_reset.rs b/Volumes/SSD/WiiDev/Devtools/libogc-rs/games/tetris/tests/tetris_reset.rs
+new file mode 100644
+index 0000000..312f46a
+--- /dev/null
++++ b/Volumes/SSD/WiiDev/Devtools/libogc-rs/games/tetris/tests/tetris_reset.rs
+@@ -0,0 +1,32 @@
++#[path = "../src/reset_input.rs"]
++mod reset_input;
++
++use reset_input::ResetButton;
++
++#[test]
++fn held_startup_signal_does_not_request_reset() {
++    let button = ResetButton::new();
++    for _ in 0..120 {
++        assert!(!button.is_pressed(true));
++    }
++}
++
++#[test]
++fn reset_is_available_after_startup_signal_is_released() {
++    let button = ResetButton::new();
++    assert!(!button.is_pressed(true));
++    assert!(!button.is_pressed(false));
++    assert!(button.is_pressed(true));
++    assert!(button.is_pressed(true));
++    assert!(!button.is_pressed(false));
++    assert!(button.is_pressed(true));
++}
++
++#[test]
++fn normal_launch_accepts_the_first_new_press() {
++    let button = ResetButton::new();
++    assert!(!button.is_pressed(false));
++    assert!(!button.is_pressed(false));
++    assert!(button.is_pressed(true));
++    assert!(!button.is_pressed(false));
++}

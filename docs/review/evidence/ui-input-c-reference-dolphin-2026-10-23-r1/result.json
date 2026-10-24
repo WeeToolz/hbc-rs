@@ -1,0 +1,40 @@
+{
+  "image": "/Volumes/SSD/WiiDev/C-sources/hbc-reborn/channel/title/channel_retail.wad",
+  "sha256": "16a728d46766be2ee866acc76ffc1d80dc75aed633696e9a9dbc875713ed0176",
+  "physical_wii_tested": false,
+  "capture_complete": false,
+  "input_verification": "requires screenshot review",
+  "stages": [],
+  "fixture": {
+    "name_order": [
+      "Amber",
+      "Birch",
+      "Cedar"
+    ],
+    "date_order": [
+      "Cedar",
+      "Birch",
+      "Amber"
+    ],
+    "apps": [
+      {
+        "directory": "cedar",
+        "title": "Cedar",
+        "release_date": "20250304120000"
+      },
+      {
+        "directory": "amber",
+        "title": "Amber",
+        "release_date": "20240102120000"
+      },
+      {
+        "directory": "birch",
+        "title": "Birch",
+        "release_date": "20241203120000"
+      }
+    ]
+  },
+  "error": "Dolphin did not save a screenshot after the Y hotkey",
+  "cleanup_error": "Dolphin required forced termination",
+  "dolphin_exit_code": -9
+}

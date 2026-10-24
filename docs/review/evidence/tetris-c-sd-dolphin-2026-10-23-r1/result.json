@@ -1,0 +1,14 @@
+{
+  "success": false,
+  "physical_wii_tested": false,
+  "parent": "/Volumes/SSD/WiiDev/C-sources/hbc-reborn/channel/channelapp/channelapp-channel.dol",
+  "parent_sha256": "a32c35c20e2a18ba3004aefbcea9ac10af555f0d068241e9332d6840b28fe5f6",
+  "app": "/Volumes/SSD/WiiDev/Devtools/libogc-rs/apps/tetris/boot.dol",
+  "app_sha256": "b5792032f947f4529bfcf934e75be82d328394f136b69e6db663b24cb5e9e1ba",
+  "app_bytes": 5153056,
+  "input_path": "Dolphin Pipe emulated Wii Remote",
+  "screenshots": [],
+  "initial_stop": "T0f40:80004000;01:8004d4bc;",
+  "error": "Emulator debugger response timed out",
+  "dolphin_exit_code": 0
+}

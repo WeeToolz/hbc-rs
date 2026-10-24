@@ -1,0 +1,15 @@
+[
+  "set pagination off",
+  "target remote localhost:55287",
+  "break *0x800eea84",
+  "continue",
+  "delete breakpoints",
+  "break *0x800ee730",
+  "continue",
+  "set language c",
+  "info locals",
+  "p 'wpad_sys::powerpc_backend::SLOTS'[0]",
+  "p 'wpad_sys::powerpc_backend::WPAD_FORMAT'[0]",
+  "bt",
+  "quit"
+]

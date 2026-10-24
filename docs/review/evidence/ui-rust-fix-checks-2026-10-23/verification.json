@@ -1,0 +1,14 @@
+{
+  "hbc_rust_tests": {"passed": 387, "failed": 0, "ignored": 0},
+  "python_tests": {"passed": 54, "failed": 0},
+  "sdk_bluetooth_tests": {"passed": 97, "failed": 0},
+  "sdk_wiiuse_tests": {"passed": 45, "failed": 0},
+  "host_clippy": "passed with -D warnings",
+  "hbc_powerpc_clippy": "passed with --no-deps and -D warnings; debugger-network enabled",
+  "sdk_powerpc_clippy": "passed for wpad-sys, ogc-bt-sync, wiiuse-rs with --no-deps and -D warnings",
+  "broader_powerpc_clippy": "blocked by existing clippy::mem_replace_with_default in ogc-lwp-driver/src/tls.rs:120",
+  "manifest_warning": "libmad-rs does not inherit workspace lints; unrelated manifest unchanged",
+  "parity_check": {"passed": true, "areas": 41},
+  "physical_wii_tested": false,
+  "notes": "Counts record commands run during this session. SDK completeness audit has separate retained output."
+}

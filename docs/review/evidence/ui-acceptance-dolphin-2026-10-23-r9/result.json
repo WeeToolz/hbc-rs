@@ -1,0 +1,112 @@
+{
+  "success": false,
+  "wad_sha256": "5f2c408581f2fe3df2e8639b398a6aadb96e095d16d3b29e08ef3e896c78cd27",
+  "elf_sha256": "35191cc5d03347fb4c25be6d1e9711f9b0cb7ac741519239fb970ac50403d735",
+  "physical_wii_tested": false,
+  "milestones": [],
+  "dol_sha256": "7fc7e70acf8c39860a4bfb4d061e8bc270366e6fdc7e89780710a312c4fd196b",
+  "build_manifest": {
+    "format": 1,
+    "title_id": "000100014f484243",
+    "channel": "OHBC",
+    "ios": 58,
+    "signature_policy": "legacy-fakesign",
+    "certificate_root_trust": "unchecked",
+    "debug_profile": "release with debug=2",
+    "features": [
+      "debugger-network"
+    ],
+    "feature_evidence": "ELF source debug sections and WiiNetworkTransport symbol checked by packager",
+    "hbc_revision": "4f3c222ba478eb85761e35ab2aaca18683ff9f5d",
+    "hbc_changes": [
+      " M DEVELOPMENT_RESULTS.md",
+      " M src/platform/input.rs",
+      " M tools/test_channel_wad_dolphin.py",
+      " M tools/test_hbc_ui_dolphin.py",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r6/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r7/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r8/"
+    ],
+    "libogc_revision": "7e7ccf13e9d3d4385c80853e9033a2daa3913a59",
+    "libogc_changes": [],
+    "files": {
+      "hbc-rs-debug.elf": {
+        "size": 27057952,
+        "sha256": "35191cc5d03347fb4c25be6d1e9711f9b0cb7ac741519239fb970ac50403d735"
+      },
+      "hbc-rs-debug.dol": {
+        "size": 2464224,
+        "sha256": "7fc7e70acf8c39860a4bfb4d061e8bc270366e6fdc7e89780710a312c4fd196b"
+      },
+      "hbc-rs-debug-channel.dol": {
+        "size": 2464544,
+        "sha256": "3efaf648ca0bb6f4da69dc68266259c7114a72f0eecfc2dad8c3e6499f94b626"
+      },
+      "hbc-rs-debug-OHBC.wad": {
+        "size": 3106944,
+        "sha256": "5f2c408581f2fe3df2e8639b398a6aadb96e095d16d3b29e08ef3e896c78cd27"
+      }
+    },
+    "return_stub": {
+      "size": 5216,
+      "sha256": "04e983c708c0b972692f82b08fc5c24c73d7a2cdcff058ef8432486644e0ddf5"
+    },
+    "physical_wii_tested": false,
+    "limitations": [
+      "No physical return fix is claimed",
+      "No private-key signing or EC verification",
+      "No certificate root trust check",
+      "No automatic recovery qualification",
+      "Installation would use the existing OHBC title ID"
+    ]
+  },
+  "ui_fixture": {
+    "name_order": [
+      "Amber",
+      "Birch",
+      "Cedar"
+    ],
+    "date_order": [
+      "Cedar",
+      "Birch",
+      "Amber"
+    ],
+    "apps": [
+      {
+        "directory": "cedar",
+        "title": "Cedar",
+        "release_date": "20250304120000"
+      },
+      {
+        "directory": "amber",
+        "title": "Amber",
+        "release_date": "20240102120000"
+      },
+      {
+        "directory": "birch",
+        "title": "Birch",
+        "release_date": "20241203120000"
+      }
+    ]
+  },
+  "screenshots": [
+    {
+      "stage": "wad_startup-ready",
+      "path": "docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r9/dolphin-20261023-101725-122714097710416.png",
+      "seconds_since_launch": 3.874
+    }
+  ],
+  "wad_startup": {
+    "seconds": 3.102,
+    "reply": {
+      "state": "unknown",
+      "operation": 0,
+      "id": 0,
+      "session": 1028,
+      "message": "No retained result for this request"
+    }
+  },
+  "error": "emulated Wii Remote click on bubble: guest Bluetooth failed; inspect IOS_WIIMOTE and HBC Bluetooth diagnostics in dolphin.log",
+  "screenshot": "docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r9/dolphin-20261023-101731-122719814029208.png",
+  "dolphin_exit_code": 0
+}

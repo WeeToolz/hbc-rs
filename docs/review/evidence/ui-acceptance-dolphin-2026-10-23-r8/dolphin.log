@@ -1,0 +1,1634 @@
+15:23:930 InputCommon/ControllerInterface/SDL/SDL.cpp:127 I[CI]: system: App name: org.dolphin-emu.dolphin
+15:23:930 InputCommon/ControllerInterface/SDL/SDL.cpp:127 I[CI]: system: App version: <unspecified>
+15:23:930 InputCommon/ControllerInterface/SDL/SDL.cpp:127 I[CI]: system: App ID: <unspecified>
+15:23:930 InputCommon/ControllerInterface/SDL/SDL.cpp:127 I[CI]: system: SDL revision: SDL-3.4.12-f87239e71
+15:23:966 InputCommon/ControllerInterface/ControllerInterface.cpp:273 N[CI]: Added device: Quartz/0/Keyboard & Mouse
+15:23:966 InputCommon/ControllerInterface/ControllerInterface.cpp:273 N[CI]: Added device: Pipe/0/hbc-ui-remote
+15:23:966 InputCommon/ControllerInterface/ControllerInterface.cpp:273 N[CI]: Added device: Pipe/0/priiloader-return
+15:23:966 InputCommon/ControllerInterface/DualShockUDPClient/DualShockUDPClient.cpp:492 I[CI]: DualShockUDPClient PopulateDevices
+15:23:966 InputCommon/ControllerInterface/SteamDeck/SteamDeck.cpp:141 I[CI]: SteamDeck PopulateDevices
+15:23:987 InputCommon/ControllerInterface/SteamDeck/SteamDeck.cpp:171 I[CI]: No Steam Deck interface found
+15:23:987 InputCommon/ControllerInterface/ControllerInterface.cpp:273 N[CI]: Added device: SDL/0/HORI POKKEN CONTROLLER
+15:23:988 Core/HW/WiimoteEmu/EmuSubroutines.cpp:185 I[Wiimote]: Attaching Motion Plus (Wiimote 0 in slot 0)
+15:23:988 Core/HW/WiimoteEmu/EmuSubroutines.cpp:185 I[Wiimote]: Attaching Motion Plus (Wiimote 1 in slot 1)
+15:23:988 Core/HW/WiimoteEmu/EmuSubroutines.cpp:185 I[Wiimote]: Attaching Motion Plus (Wiimote 2 in slot 2)
+15:23:988 Core/HW/WiimoteEmu/EmuSubroutines.cpp:185 I[Wiimote]: Attaching Motion Plus (Wiimote 3 in slot 3)
+15:23:988 Core/HW/WiimoteReal/WiimoteReal.cpp:911 N[Wiimote]: WiimoteReal::Initialize
+15:23:988 Core/HW/WiimoteReal/WiimoteReal.cpp:657 N[Wiimote]: Wiimote scanning thread has started.
+15:24:005 Core/ConfigManager.cpp:279 N[CORE]: Active title: Homebrew Channel (OHBC)
+15:24:007 Core/Core.cpp:237 I[BOOT]: Starting core = Wii mode
+15:24:007 Core/Core.cpp:238 I[BOOT]: CPU Thread separate = No
+15:24:013 InputCommon/ControllerInterface/ControllerInterface.cpp:310 N[CI]: Removed device: Quartz/0/Keyboard & Mouse
+15:24:029 InputCommon/ControllerInterface/ControllerInterface.cpp:273 N[CI]: Added device: Quartz/0/Keyboard & Mouse
+15:24:029 InputCommon/ControllerInterface/ControllerInterface.cpp:273 N[CI]: Added device: SDL/0/POKKEN CONTROLLER
+15:25:266 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #0 Constructed
+15:25:266 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #1 Constructed
+15:25:266 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #2 Constructed
+15:25:266 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #3 Constructed
+15:25:266 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #4 Constructed
+15:25:272 Core/IOS/Network/MACUtils.cpp:47 I[IOS_NET]: Using MAC address: 00:17:ab:4b:eb:c0
+15:25:367 Core/IOS/ES/TitleManagement.cpp:92 I[IOS_ES]: ImportTicket: Imported ticket for title 000100014f484243
+15:25:367 Core/IOS/ES/TitleManagement.cpp:227 I[IOS_ES]: ImportTitleInit
+15:25:368 Core/IOS/ES/Formats.cpp:688 I[IOS_ES]: Title 000100014f484243 already exists in uid.sys
+15:25:369 Core/IOS/ES/TitleManagement.cpp:308 I[IOS_ES]: ImportContentBegin: title 000100014f484243, content ID 00000000
+15:25:369 Core/IOS/ES/TitleManagement.cpp:355 I[IOS_ES]: ImportContentData: content fd 00000000, size 638400
+15:25:369 Core/IOS/ES/TitleManagement.cpp:387 I[IOS_ES]: ImportContentEnd: content fd 00000000
+15:25:370 Core/IOS/ES/TitleManagement.cpp:308 I[IOS_ES]: ImportContentBegin: title 000100014f484243, content ID 00000001
+15:25:370 Core/IOS/ES/TitleManagement.cpp:355 I[IOS_ES]: ImportContentData: content fd 00000000, size 2466240
+15:25:370 Core/IOS/ES/TitleManagement.cpp:387 I[IOS_ES]: ImportContentEnd: content fd 00000000
+15:25:378 Core/IOS/ES/TitleManagement.cpp:509 I[IOS_ES]: ImportTitleDone: title 000100014f484243
+15:25:379 Core/IOS/ES/Formats.cpp:688 I[IOS_ES]: Title 0000000100000002 already exists in uid.sys
+15:25:380 Core/IOS/ES/Formats.cpp:688 I[IOS_ES]: Title 0000000100000002 already exists in uid.sys
+15:25:380 Core/Boot/Boot_BS2Emu.cpp:435 I[BOOT]: Using serial number: 372730284
+15:25:380 Core/Boot/Boot_BS2Emu.cpp:463 I[BOOT]: Setup Wii Memory...
+15:25:380 Core/IOS/ES/ES.cpp:337 I[IOS_ES]: ES_Launch: Title context changed: (none)
+15:25:380 Core/IOS/ES/ES.cpp:339 N[IOS_ES]: Launching title 000100014f484243...
+15:25:381 Core/IOS/ES/ES.cpp:337 I[IOS_ES]: ES_Launch: Title context changed: (none)
+15:25:381 Core/IOS/ES/ES.cpp:339 N[IOS_ES]: Launching title 000000010000003a...
+15:25:383 Core/IOS/ES/ES.cpp:337 I[IOS_ES]: ES_Launch: Title context changed: (none)
+15:25:383 Core/IOS/ES/ES.cpp:339 N[IOS_ES]: Launching title 000100014f484243...
+15:25:385 Core/IOS/ES/ES.cpp:473 I[IOS_ES]: LaunchPPCTitle: Title context changed: 000100014f484243
+15:25:385 Core/IOS/ES/Formats.cpp:688 I[IOS_ES]: Title 000100014f484243 already exists in uid.sys
+15:25:385 Core/Boot/DolReader.cpp:102 W[BOOT]: DolReader: Data section 0 size is not aligned to 32 bytes and can cause issues when loaded
+15:25:385 Core/Boot/DolReader.cpp:102 W[BOOT]: DolReader: Data section 1 size is not aligned to 32 bytes and can cause issues when loaded
+15:25:387 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #0 Constructed
+15:25:387 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #1 Constructed
+15:25:387 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #2 Constructed
+15:25:387 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #3 Constructed
+15:25:387 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #4 Constructed
+15:25:387 Core/IOS/Network/MACUtils.cpp:47 I[IOS_NET]: Using MAC address: 00:17:ab:4b:eb:c0
+15:25:721 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: keeping the launching channel's return stub
+15:25:727 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: initializing video
+15:25:733 Core/HW/ProcessorInterface.cpp:115 I[PI]: Wrote PI_FIFO_RESET: 00000001
+15:25:733 Core/HW/ProcessorInterface.cpp:115 I[PI]: Wrote PI_FIFO_RESET: 00000000
+15:25:781 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: video initialized
+15:25:782 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: loading settings and theme
+15:25:832 Core/IOS/ES/ES.cpp:254 I[IOS_ES]: IOCTL_ES_GETTITLEID: 00010001/4f484243
+15:25:833 Core/IOS/ES/ES.cpp:227 I[IOS_ES]: IOCTL_ES_GETTITLEDIR: /title/00010001/4f484243/data
+15:25:853 Core/IOS/ES/Views.cpp:227 I[IOS_ES]: GetTMDViewSize: 108 bytes for title 00000001000000fe
+15:25:854 Core/IOS/ES/Views.cpp:256 I[IOS_ES]: GetTMDView: 108 bytes for title 00000001000000fe
+15:26:430 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: settings and theme loaded
+15:26:431 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: startup complete; entering render loop
+15:26:431 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first lifecycle poll complete
+15:26:432 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first storage poll complete
+15:26:432 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first device poll complete
+15:26:432 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: Wiiload receiver state changed to Starting
+15:26:432 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first receiver poll complete
+15:26:433 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first controller scan starting
+15:26:439 Core/IOS/USB/Bluetooth/BTEmu.cpp:1461 I[IOS_WIIMOTE]: Command: HCI_CMD_RESET
+15:26:440 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: Bluetooth startup: BLUETOOTH HCI RESET
+15:26:462 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first controller scan complete
+15:26:466 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first scene construction complete
+15:26:466 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first memo layout starting
+15:26:466 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first memo layout complete
+15:26:467 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC_UI_EVENT v=1 name=bubble_target x=448 y=457
+15:26:468 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first GX scene drawing starting
+15:26:480 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first GX scene drawing complete
+15:26:480 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first framebuffer presentation starting
+15:26:480 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first GX draw wait starting
+15:26:480 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first GX draw wait complete
+15:26:480 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first VI retrace wait starting
+15:26:492 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first VI retrace wait complete
+15:26:492 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first XFB copy starting
+15:26:492 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first XFB copy queued
+15:26:492 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first XFB copy wait starting
+15:26:492 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first XFB copy wait complete
+15:26:492 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first framebuffer queued for scanout
+15:26:492 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first scene rendered and copied to XFB
+15:26:492 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: display enabled after first rendered frame
+15:26:495 Core/IOS/Network/NCD/Manage.cpp:112 I[IOS_NET]: NET_NCD_MANAGE: IOCTLV_NCD_GETLINKSTATUS
+15:26:496 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:26:498 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: storage scan applied: volume=Some(Sd), apps=3
+15:26:499 Core/IOS/USB/Bluetooth/BTEmu.cpp:1813 I[IOS_WIIMOTE]: Command: HCI_CMD_READ_BUFFER_SIZE:
+15:26:499 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: Bluetooth startup: BLUETOOTH BUFFER SIZE
+15:26:507 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: Wiiload IOS network startup result: 0
+15:26:507 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: Wiiload socket startup result: 0
+15:26:507 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: Wiiload network startup took 20 ms
+15:26:507 Core/IOS/Network/IP/Top.cpp:591 I[IOS_NET]: IOCTL_SO_SOCKET Socket: 00000000 (2,1,0), BufferIn: (005a6a80, 12), BufferOut: (00000000, 0)
+15:26:507 Core/IOS/Network/IP/Top.cpp:728 I[IOS_NET]: IOCTL_SO_SETSOCKOPT(00000000, 0000ffff, 00001002, 00000004) BufferIn: (005a6a80, 36), BufferOut: (00000000, 0)00 00 80 00 68 fe 8e c0 7a 00 00 00 18 4b 8f 32 01 00 00 00
+15:26:507 Core/IOS/Network/IP/Top.cpp:728 I[IOS_NET]: IOCTL_SO_SETSOCKOPT(00000000, 0000ffff, 00000004, 00000004) BufferIn: (005a6a80, 36), BufferOut: (00000000, 0)00 00 00 01 28 06 8f c0 7a 00 00 00 c0 6b 8f 32 01 00 00 00
+15:26:507 Core/IOS/Network/Socket.cpp:260 I[IOS_NET]: IOCTL_SO_FCNTL(00000000, 00000003, 00000000)
+15:26:508 Core/IOS/Network/Socket.cpp:260 I[IOS_NET]: IOCTL_SO_FCNTL(00000000, 00000004, 00000004)
+15:26:508 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:26:508 Core/IOS/Network/Socket.cpp:298 I[IOS_NET]: IOCTL_SO_BIND (00000000, 192.168.1.52:4299) = 0
+15:26:508 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:26:508 Core/IOS/Network/IP/Top.cpp:591 I[IOS_NET]: IOCTL_SO_SOCKET Socket: 00000001 (2,1,0), BufferIn: (005a6a80, 12), BufferOut: (00000000, 0)
+15:26:508 Core/IOS/Network/IP/Top.cpp:728 I[IOS_NET]: IOCTL_SO_SETSOCKOPT(00000001, 0000ffff, 00001002, 00000004) BufferIn: (005a6a80, 36), BufferOut: (00000000, 0)00 00 80 00 09 80 a3 36 01 00 00 00 00 00 00 00 00 00 00 00
+15:26:508 Core/IOS/Network/Socket.cpp:260 I[IOS_NET]: IOCTL_SO_FCNTL(00000001, 00000003, 00000000)
+15:26:508 Core/IOS/Network/Socket.cpp:260 I[IOS_NET]: IOCTL_SO_FCNTL(00000001, 00000004, 00000004)
+15:26:508 Core/IOS/Network/Socket.cpp:298 I[IOS_NET]: IOCTL_SO_BIND (00000001, 192.168.1.52:2828) = 0
+15:26:509 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:26:509 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:509 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:509 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:509 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:511 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: Wiiload receiver state changed to Listening
+15:26:511 Core/IOS/USB/Bluetooth/BTEmu.cpp:1644 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_UNIT_CLASS:
+15:26:512 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: Bluetooth startup: BLUETOOTH ADAPTER CONFIGURATION
+15:26:512 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:512 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:512 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:26:512 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:512 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:520 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:520 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:520 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:520 Core/IOS/Network/Socket.cpp:260 I[IOS_NET]: IOCTL_SO_FCNTL(00000002, 00000003, 00000000)
+15:26:520 Core/IOS/Network/Socket.cpp:260 I[IOS_NET]: IOCTL_SO_FCNTL(00000002, 00000004, 00000004)
+15:26:521 Core/IOS/Network/Socket.cpp:694 I[IOS_NET]: IOCTLV_SO_RECV (16, 0x124a72ac0) Socket: 00000002, Flags: 00000000, BufferIn: (005a6a80, 8), BufferIn2: (00000000, 0), BufferOut: (005a6ac0, 16), BufferOut2: (00000000, 0)
+15:26:522 Core/IOS/Network/Socket.cpp:635 I[IOS_NET]: IOCTLV_SO_SEND  = 55 Socket: 00000002, BufferIn: (005a6a80, 55), BufferIn2: (005a6ae0, 40), 0.0.0.0
+15:26:522 Core/IOS/Network/IP/Top.cpp:619 I[IOS_NET]: IOCTL_SO_CLOSE(2) 0
+15:26:523 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:523 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:523 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:523 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:528 Core/IOS/USB/Bluetooth/BTEmu.cpp:1583 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_LOCAL_NAME:
+15:26:528 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:26:538 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:538 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:538 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:538 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:561 Core/IOS/USB/Bluetooth/BTEmu.cpp:1502 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_PIN_TYPE:
+15:26:561 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:26:562 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:562 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:562 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:562 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:581 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:581 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:581 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:581 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:594 Core/IOS/USB/Bluetooth/BTEmu.cpp:1663 I[IOS_WIIMOTE]: Command: HCI_CMD_HOST_BUFFER_SIZE:
+15:26:595 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:26:603 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:603 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:603 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:603 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:624 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:624 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:627 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:627 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:628 Core/IOS/USB/Bluetooth/BTEmu.cpp:1768 I[IOS_WIIMOTE]: Command: HCI_CMD_READ_LOCAL_VER:
+15:26:628 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:26:646 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:646 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:646 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:646 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:661 Core/IOS/USB/Bluetooth/BTEmu.cpp:1829 I[IOS_WIIMOTE]: Command: HCI_CMD_READ_BDADDR:
+15:26:661 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: Bluetooth startup: BLUETOOTH ADAPTER ADDRESS
+15:26:661 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:26:666 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:666 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:666 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:666 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:688 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:688 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:688 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:688 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:695 Core/IOS/USB/Bluetooth/BTEmu.cpp:1792 I[IOS_WIIMOTE]: Command: HCI_CMD_READ_LOCAL_FEATURES:
+15:26:695 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: Bluetooth startup: BLUETOOTH ADAPTER FEATURES
+15:26:695 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:26:712 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:712 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:713 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:713 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:728 Core/IOS/USB/Bluetooth/BTEmu.cpp:1729 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_INQUIRY_MODE:
+15:26:728 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: Bluetooth startup: BLUETOOTH ADAPTER CONFIGURATION
+15:26:728 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:26:730 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:730 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:730 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:730 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:752 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:752 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:752 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:752 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:761 Core/IOS/USB/Bluetooth/BTEmu.cpp:1751 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_PAGE_SCAN_TYPE:
+15:26:762 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:26:773 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:773 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:773 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:773 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:795 Core/IOS/USB/Bluetooth/BTEmu.cpp:1704 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_INQUIRY_SCAN_TYPE:
+15:26:795 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:26:796 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:796 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:796 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:796 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:815 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:815 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:816 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:816 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:828 Core/IOS/USB/Bluetooth/BTEmu.cpp:1644 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_UNIT_CLASS:
+15:26:829 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:26:837 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:837 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:837 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:837 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:861 Core/IOS/USB/Bluetooth/BTEmu.cpp:1600 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_PAGE_TIMEOUT:
+15:26:862 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:862 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:862 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:26:862 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:862 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:880 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:880 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:880 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:880 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:895 Core/IOS/USB/Bluetooth/BTEmu.cpp:1526 I[IOS_WIIMOTE]: Command: HCI_CMD_READ_STORED_LINK_KEY:
+15:26:895 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: Bluetooth startup: BLUETOOTH STORED KEYS
+15:26:896 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:26:901 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:901 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:901 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:901 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:923 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:923 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:923 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:923 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:931 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:26:946 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:946 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:947 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:947 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:962 Core/IOS/USB/Bluetooth/BTEmu.cpp:1850 I[IOS_WIIMOTE]: Command: CommandVendorSpecific_FC4F: (callstack WUDiRemovePatch)
+15:26:962 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: Bluetooth startup: BLUETOOTH ADAPTER PATCH
+15:26:963 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:26:965 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:965 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:965 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:965 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:987 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:987 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:987 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:26:987 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:26:995 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:008 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:008 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:012 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:012 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:029 Core/IOS/USB/Bluetooth/BTEmu.cpp:1850 I[IOS_WIIMOTE]: Command: CommandVendorSpecific_FC4F: (callstack WUDiRemovePatch)
+15:27:030 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:031 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:031 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:031 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:031 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:050 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:050 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:050 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:050 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:062 Core/IOS/USB/Bluetooth/BTEmu.cpp:1461 I[IOS_WIIMOTE]: Command: HCI_CMD_RESET
+15:27:063 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:072 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:072 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:072 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:072 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:095 Core/IOS/USB/Bluetooth/BTEmu.cpp:1813 I[IOS_WIIMOTE]: Command: HCI_CMD_READ_BUFFER_SIZE:
+15:27:096 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: Bluetooth startup: BLUETOOTH BUFFER SIZE
+15:27:096 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:097 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:098 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:098 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:098 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:114 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:114 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:115 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:115 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:129 Core/IOS/USB/Bluetooth/BTEmu.cpp:1729 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_INQUIRY_MODE:
+15:27:129 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: Bluetooth startup: BLUETOOTH ADAPTER CONFIGURATION
+15:27:130 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:136 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:136 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:136 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:136 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:157 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:157 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:157 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:157 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:162 Core/IOS/USB/Bluetooth/BTEmu.cpp:1751 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_PAGE_SCAN_TYPE:
+15:27:163 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:180 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:180 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:180 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:181 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:195 Core/IOS/USB/Bluetooth/BTEmu.cpp:1704 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_INQUIRY_SCAN_TYPE:
+15:27:196 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:200 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:200 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:200 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:200 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:222 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:222 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:222 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:222 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:229 Core/IOS/USB/Bluetooth/BTEmu.cpp:1644 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_UNIT_CLASS:
+15:27:230 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:246 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:246 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:246 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:246 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:262 Core/IOS/USB/Bluetooth/BTEmu.cpp:1600 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_PAGE_TIMEOUT:
+15:27:263 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:265 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:265 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:265 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:265 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:285 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:286 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:286 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:286 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:296 Core/IOS/USB/Bluetooth/BTEmu.cpp:1583 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_LOCAL_NAME:
+15:27:297 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:306 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:306 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:307 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:307 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:329 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: Bluetooth startup: BLUETOOTH SCAN ENABLE
+15:27:330 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:331 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:331 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:331 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:331 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:349 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:349 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:349 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:349 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:362 Core/IOS/USB/Bluetooth/BTEmu.cpp:1484 I[IOS_WIIMOTE]: Command: HCI_CMD_SET_EVENT_FILTER:
+15:27:363 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: Bluetooth startup: BLUETOOTH EVENT FILTER
+15:27:363 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:371 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:371 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:371 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:371 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:395 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:395 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:399 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:399 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:400 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:414 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:414 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:414 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:414 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:429 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: Bluetooth startup: BLUETOOTH READY
+15:27:430 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:434 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:434 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:434 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:435 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:456 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:456 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:456 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:456 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:463 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:480 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:480 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:480 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:480 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:496 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:498 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:498 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:498 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:498 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:520 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:520 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:521 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:521 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:530 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:541 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:541 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:545 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:545 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:563 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:565 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:565 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:565 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:565 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:584 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:584 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:584 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:584 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:596 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:606 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:606 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:606 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:606 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:630 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:631 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:631 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:631 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:631 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:648 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:648 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:648 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:648 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:663 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:669 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:669 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:669 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:670 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:691 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:691 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:691 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:691 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:696 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:714 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:714 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:714 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:714 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:740 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:742 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:742 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:743 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:743 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:755 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:755 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:755 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:755 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:763 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:779 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:779 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:780 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:780 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:796 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:797 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:797 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:797 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:797 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:818 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:818 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:818 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:818 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:829 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:839 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:839 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:839 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:839 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:863 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:863 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:863 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:863 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:863 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:882 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:882 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:882 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:882 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:896 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:904 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:904 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:904 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:904 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:925 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:925 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:929 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:929 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:929 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:947 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:947 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:947 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:947 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:963 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:27:968 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:968 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:968 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:968 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:990 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:990 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:990 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:27:990 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:27:996 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:013 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:013 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:014 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:014 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:029 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:031 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:031 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:031 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:031 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:053 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:053 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:053 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:053 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:063 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:074 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:074 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:075 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:075 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:096 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:097 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:097 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:097 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:097 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:117 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:117 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:117 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:117 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:130 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:139 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:139 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:139 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:139 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:163 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:163 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:163 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:163 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:163 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:181 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:181 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:181 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:181 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:196 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:203 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:203 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:203 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:203 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:224 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:224 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:224 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:224 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:230 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:248 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:248 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:248 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:248 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:263 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:266 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:266 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:266 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:266 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:288 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:288 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:288 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:288 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:296 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:309 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:309 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:313 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:313 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:330 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:331 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:331 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:331 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:331 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:351 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:351 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:351 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:351 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:363 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:373 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:373 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:373 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:373 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:396 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:397 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:397 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:397 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:397 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:415 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:415 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:415 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:415 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:430 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:438 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:438 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:438 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:438 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:458 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:458 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:458 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:458 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:464 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:481 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:481 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:481 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:481 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:497 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:501 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:501 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:501 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:501 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:523 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:523 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:523 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:523 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:530 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:547 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:547 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:547 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:547 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:563 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:565 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:565 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:565 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:565 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:586 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:586 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:587 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:587 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:597 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:608 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:608 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:608 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:608 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:630 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:631 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:631 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:631 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:631 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:650 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:650 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:650 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:650 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:663 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:672 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:672 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:672 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:672 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:696 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:696 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:697 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:697 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:697 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:715 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:715 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:715 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:715 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:730 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:736 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:736 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:736 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:736 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:758 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:758 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:758 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:758 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:763 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:781 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:781 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:781 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:781 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:797 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:799 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:799 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:799 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:799 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:821 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:821 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:821 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:821 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:830 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:843 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:843 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:846 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:846 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:864 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:864 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:864 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:864 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:864 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:885 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:885 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:885 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:885 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:897 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:906 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:906 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:906 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:906 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:931 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:931 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:931 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:931 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:931 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:949 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:949 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:949 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:949 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:964 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:28:971 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:971 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:971 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:971 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:992 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:992 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:992 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:28:992 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:28:997 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:015 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:015 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:015 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:016 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:031 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:034 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:034 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:035 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:035 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:056 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:056 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:057 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:057 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:064 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:080 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:080 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:081 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:081 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:098 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:099 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:099 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:100 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:100 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:120 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:120 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:120 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:120 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:131 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:142 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:142 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:142 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:142 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:165 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:165 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:165 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:166 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:166 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:184 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:184 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:184 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:184 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:198 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:206 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:206 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:206 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:206 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:227 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:227 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:230 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:230 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:231 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:250 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:250 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:250 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:250 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:265 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:269 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:269 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:269 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:269 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:290 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:291 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:291 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:291 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:298 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:315 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:315 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:315 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:315 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:331 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:333 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:333 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:333 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:333 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:355 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:355 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:355 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:355 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:365 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:376 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:376 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:376 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:376 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:398 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:400 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:400 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:400 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:400 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:418 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:419 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:419 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:419 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:432 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:440 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:440 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:441 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:441 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:465 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:465 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:465 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:466 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:466 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:483 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:484 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:484 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:484 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:498 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:504 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:504 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:504 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:504 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:526 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:526 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:526 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:526 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:532 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:549 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:549 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:549 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:549 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:565 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:568 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:568 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:568 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:568 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:590 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:590 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:590 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:590 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:598 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:614 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:614 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:615 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:615 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:632 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:634 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:634 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:634 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:634 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:653 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:654 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:655 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:655 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:665 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:675 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:675 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:676 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:676 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:698 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:700 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:700 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:700 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:700 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:717 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:717 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:717 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:717 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:732 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:739 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:739 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:739 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:739 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:761 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:761 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:761 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:762 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:765 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:783 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:783 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:784 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:784 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:799 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:802 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:803 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:803 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:803 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:824 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:824 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:825 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:825 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:832 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:848 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:848 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:849 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:849 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:865 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:867 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:867 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:867 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:867 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:888 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:888 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:888 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:888 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:899 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:910 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:910 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:910 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:910 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:932 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:933 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:933 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:934 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:934 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:952 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:952 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:952 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:952 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:965 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:29:973 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:973 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:973 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:974 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:998 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:998 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:998 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:29:998 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:29:999 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:017 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:017 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:017 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:017 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:032 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:037 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:037 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:037 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:037 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:058 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:058 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:059 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:059 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:065 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:083 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:083 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:083 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:083 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:098 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:101 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:101 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:101 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:101 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:122 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:122 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:122 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:123 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:132 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:143 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:143 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:148 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:148 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:165 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:166 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:166 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:166 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:166 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:186 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:186 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:186 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:186 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:198 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:207 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:207 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:207 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:207 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:232 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:232 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:232 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:232 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:232 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:250 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:250 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:250 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:250 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:265 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:272 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:272 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:272 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:272 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:293 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:293 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:293 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:293 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:299 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:316 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:316 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:316 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:316 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:332 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:335 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:335 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:335 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:335 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:358 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:358 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:358 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:358 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:365 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:382 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:382 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:382 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:382 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:398 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:399 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:399 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:399 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:399 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:421 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:421 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:421 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:421 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:432 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:443 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:443 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:443 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:443 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:465 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:466 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:466 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:466 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:466 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:485 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:485 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:485 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:485 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:499 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:507 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:507 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:507 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:507 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:527 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:527 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:531 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:531 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:532 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:550 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:550 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:550 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:550 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:565 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:570 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:570 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:571 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:571 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:592 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:592 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:592 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:592 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:599 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:616 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:616 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:617 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:617 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:632 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:634 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:634 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:634 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:634 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:656 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:656 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:656 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:656 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:666 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:678 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:678 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:678 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:678 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:699 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:700 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:700 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:700 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:700 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:720 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:720 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:720 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:720 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:733 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:742 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:742 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:742 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:742 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:766 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:766 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:766 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:767 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:767 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:784 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:784 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:785 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:785 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:799 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:806 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:806 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:806 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:806 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:827 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:827 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:827 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:827 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:833 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:851 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:851 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:851 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:851 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:866 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:869 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:869 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:869 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:869 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:891 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:891 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:891 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:891 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:899 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:915 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:915 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:916 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:916 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:933 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:934 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:934 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:934 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:934 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:955 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:955 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:955 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:955 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:966 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:30:977 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:977 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:30:978 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:30:978 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:000 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:001 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:001 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:001 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:001 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:018 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:018 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:019 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:019 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:033 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:040 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:040 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:040 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:040 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:062 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:062 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:063 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:063 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:067 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:084 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:084 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:084 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:084 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:100 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:104 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:104 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:104 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:104 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:125 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:126 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:126 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:126 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:133 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:150 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:150 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:150 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:150 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:167 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:169 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:169 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:169 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:169 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:189 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:189 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:189 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:189 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:200 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:211 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:211 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:211 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:212 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:233 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:234 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:234 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:234 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:234 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:253 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:253 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:253 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:253 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:266 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:275 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:275 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:275 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:275 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:299 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:299 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:299 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:299 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:299 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:317 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:317 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:318 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:318 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:333 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:338 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:338 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:338 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:338 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:359 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:359 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:359 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:359 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:366 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:384 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:384 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:384 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:384 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:399 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:402 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:402 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:402 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:402 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:424 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:424 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:424 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:424 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:433 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:445 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:445 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:449 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:449 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:467 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:468 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:468 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:468 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:468 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:488 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:488 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:488 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:488 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:500 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:510 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:510 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:510 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:510 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:533 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:534 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:534 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:534 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:534 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:552 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:552 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:552 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:552 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:567 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:574 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:574 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:574 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:574 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:596 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:596 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:596 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:596 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:600 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:618 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:618 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:618 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:618 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:634 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:637 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:637 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:637 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:637 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:658 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:659 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:659 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:659 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:667 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:683 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:683 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:684 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:684 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:700 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:703 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:703 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:703 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:703 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:723 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:723 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:723 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:723 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:734 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:744 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:744 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:745 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:745 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:767 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:768 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:768 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:768 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:768 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:786 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:786 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:787 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:787 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:800 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:808 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:808 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:808 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:808 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:830 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:830 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:833 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:833 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:834 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:852 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:852 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:852 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:852 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:867 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:872 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:872 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:872 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:872 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:893 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:893 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:893 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:893 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:900 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:917 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:917 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:918 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:918 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:934 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:936 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:936 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:936 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:936 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:957 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:957 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:957 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:957 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:967 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:31:979 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:980 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:31:980 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:31:980 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:001 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:003 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:003 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:003 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:003 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:021 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:021 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:021 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:021 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:035 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:043 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:043 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:043 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:043 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:067 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:067 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:068 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:069 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:069 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:086 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:086 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:086 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:086 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:101 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:107 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:107 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:107 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:107 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:129 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:129 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:130 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:130 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:135 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:152 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:152 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:152 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:152 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:168 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:170 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:170 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:171 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:171 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:192 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:193 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:193 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:193 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:201 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:216 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:217 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:218 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:218 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:235 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:236 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:236 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:237 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:237 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:256 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:256 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:256 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:256 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:268 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:278 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:278 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:278 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:278 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:301 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:302 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:302 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:302 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:302 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:320 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:320 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:320 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:320 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:335 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:342 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:342 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:342 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:342 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:363 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:363 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:363 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:363 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:368 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:385 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:386 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:386 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:386 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:401 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:405 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:405 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:405 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:405 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:428 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:428 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:428 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:428 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:436 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: Bluetooth startup: BLUETOOTH FAILED
+15:32:437 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:452 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:452 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:452 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:452 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:472 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:474 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:474 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:474 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:474 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:489 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:489 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:489 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:489 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:504 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:505 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:505 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:505 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:505 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:539 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:539 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:539 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:539 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:539 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:552 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:552 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:552 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:552 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:569 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:570 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:570 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:570 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:570 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:600 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:600 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:601 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:601 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:601 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:619 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:619 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:619 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:619 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:639 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:641 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:641 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:641 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:641 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:654 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:654 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:655 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:655 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:668 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:689 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:689 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:689 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:689 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:703 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:705 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:705 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:705 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:705 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:723 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:723 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:723 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:723 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:737 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:741 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:742 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:753 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:753 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:771 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:773 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:773 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:774 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:774 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:787 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:787 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:787 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:787 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:805 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:810 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:810 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:810 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:810 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:839 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:840 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:840 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:840 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:841 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:853 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:853 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:853 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:853 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:871 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:874 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:874 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:874 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:874 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:888 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:888 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:888 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:888 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:906 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:919 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:919 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:919 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:919 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:938 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:940 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:940 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:941 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:941 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:958 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:958 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:958 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:958 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:971 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:32:987 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:987 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:32:988 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:32:988 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:33:001 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:33:003 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:33:003 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:33:003 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:33:003 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:33:021 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:33:021 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:33:021 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:33:021 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:33:035 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:33:039 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:33:039 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:33:039 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:33:039 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:33:068 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:33:069 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:33:069 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:33:069 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:33:069 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:33:092 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:33:092 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:33:092 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:33:092 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:33:102 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:33:104 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:33:104 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:33:104 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:33:104 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:33:127 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:33:127 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:33:136 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:33:136 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:33:137 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:33:157 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:33:157 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:33:157 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:33:157 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:33:169 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:33:172 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:33:172 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:33:172 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:33:172 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:33:192 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:33:192 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:33:192 Core/IOS/Network/Socket.cpp:124 I[IOS_NET]: SO_ACCEPT failed with error 35: Resource temporarily unavailable, ret = -1
+15:33:192 Core/IOS/Device.cpp:109 I[IOS_NET]: IOCTL_SO_ACCEPT (fd 6) - IOCtl 0x1 (in_size=0x4, out_size=0x8)
+15:33:204 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+15:33:207 Core/WiiRoot.cpp:385 I[CORE]: Wii FS Cleanup: cleanup_required = false (wii_root_is_temporary = false, is netplay = false, is_netplay_write = false, is_netplay_host = false)
+15:33:498 Core/HW/WiimoteReal/WiimoteReal.cpp:750 N[Wiimote]: Wiimote scanning thread has stopped.
+15:33:499 Core/HW/WiimoteReal/WiimoteReal.cpp:930 N[Wiimote]: WiimoteReal::Shutdown

@@ -345,3 +345,184 @@ The worktree was clean at the start. The existing integration tests in commit
 `6f246bc` were preserved and included in these runs. No hardware operation,
 Dolphin run, or PowerPC build was performed for this test-only change. Real Wii
 input and interrupted-install recovery verification remain open.
+
+
+## Dolphin Wii Remote input diagnosis — 2026-10-23
+
+The installed Dolphin reports version 2609a. Runs r6, r7, and r8 used the
+existing hash-checked `dist/hbc-ui-acceptance-2026-10-23` package and a disposable
+copy of the local NAND. They did not change the physical Wii or the source NAND.
+Evidence is in `docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r6/`,
+`ui-acceptance-dolphin-2026-10-23-r7/`, and
+`ui-acceptance-dolphin-2026-10-23-r8/` under the same evidence directory.
+
+Dolphin discovers both Pipe devices. HBC reaches Bluetooth Ready, then reports
+Bluetooth Failed about five seconds later. No pointer press is observed. The
+harness now reports the guest Bluetooth failure instead of a pointer timeout.
+The UI acceptance test remains failed; pointer accuracy, bubble pops, sorting,
+and the network scan remain unverified.
+
+Pipe X and Y now map to Wii Remote 1 and 2. The previous statement that Pipe
+cannot provide these Wii buttons was incorrect: normal controller mappings
+translate the generic Pipe buttons. The writer emits independent press and
+release commands. This change has unit coverage but no successful guest button
+acceptance evidence yet. Bluetooth and Wii Remote logging are enabled; UI runs
+request debug verbosity, though the release binary did not emit the required
+per-command debug details.
+
+A source trace identifies a possible protocol incompatibility. ControllerManager
+starts Wii guest search first. HidHost::search_wii_guest queues PERIODIC_INQUIRY
+(opcode 0x0403). The examined Dolphin source dispatcher has no handler for that
+opcode and its default branch creates a Command Complete without return bytes.
+The Rust event parser requires a status byte and rejects that packet as malformed.
+A pending command can then time out. This is a source-based hypothesis, not a
+confirmed runtime opcode diagnosis. The package predates the current main commits;
+its full build identity is preserved in each result.json. Confirm the failed
+opcode from that actual runtime before changing the production protocol.
+
+Dolphin reference source:
+https://github.com/dolphin-emu/dolphin/blob/409881c34357d0f105fd473167d15ab0bd9c1628/Source/Core/Core/IOS/USB/Bluetooth/BTEmu.cpp
+
+The harness also assumes Pipe axes map linearly to guest screen pixels. Dolphin
+projects a virtual sensor bar through its camera, so that assumption still needs
+measurement after guest controller delivery works. No coordinate tolerance or
+acceptance requirement was reduced.
+
+Validation: all 51 Python tests pass outside the sandbox. The first sandbox run
+could not use the shared temporary directory or local sockets; it was repeated
+with the required access. The parity check passes for all 41 areas. The final
+Dolphin run r8 fails with the explicit guest Bluetooth error and exits cleanly.
+No physical Wii test was performed.
+
+
+## C HBC Reborn control run — 2026-10-23
+
+At the user's request, the built C HBC Reborn was run with the same Dolphin
+2609a Pipe mappings, background input, three SD fixture entries, copied source
+NAND, and screenshot hotkey as the Rust UI harness. The shared
+`configure_profile`, `make_sd_fixture`, `set_initial_sort`, `RemotePipe`, and
+`capture_screenshot` implementations were used. The C build has no Rust UI
+markers, so the input results were checked from saved screenshots.
+
+The C DOL passed the setup check. Its SHA-256 is
+`a32c35c20e2a18ba3004aefbcea9ac10af555f0d068241e9332d6840b28fe5f6`.
+The exact input is
+`/Volumes/SSD/WiiDev/C-sources/hbc-reborn/channel/channelapp/channelapp-channel.dol`.
+Final evidence is in
+`docs/review/evidence/ui-input-c-reference-dolphin-2026-10-23-r4/`.
+All six screenshots were inspected: pointer at center, upper-left and lower-right;
+button 1 opens Options; pointer A opens Birch app details; button 2 changes the
+browser to its grid view. Dolphin exits cleanly. This proves that the shared
+Pipe setup delivers real Wii Remote pointer and button input to a working guest.
+Exact pixel accuracy, bubble pops, Date/Name sorting, and UI network scanning
+were not acceptance-tested in this C comparison. The C UI displays fixture
+folder names and no descriptions; its fixture metadata interpretation is not
+claimed to match the Rust parser.
+
+The first C test used the retail WAD with SHA-256
+`16a728d46766be2ee866acc76ffc1d80dc75aed633696e9a9dbc875713ed0176`.
+It did not save a frame and its log repeatedly records PI FIFO resets. That run
+is a failure, separately retained in `ui-input-c-reference-dolphin-2026-10-23-r1`.
+Its large logs were compressed and checked byte-for-byte before the original
+log files were removed. The successful DOL run does not establish WAD boot parity.
+An early DOL run sent button 2 during dialog close and did not change view;
+waiting one second after each B release made the full final sequence pass.
+
+The comparison runner is `tools/probe_hbc_reference_input_dolphin.py`. It records
+capture completion separately from screenshot review. No physical Wii operation
+or C source modification was performed. All 51 Python tests and the 41-area
+parity check pass. The new runner passes Python compilation and diff whitespace
+checks.
+
+
+## Rust HBC UI acceptance — 2026-10-23
+
+Run r28 completed the Rust UI acceptance test in Dolphin 2609a. The run used an
+isolated Dolphin profile and copied NAND. Its captured DOL SHA-256 is
+`a218f1a76d14fdbb010738188a382c36e6ad82f55ffe2aebd341ea4cb2b01442`; its WAD
+SHA-256 is `fbe35d3b859ea877d822ae76dac9955da487c97f759c9ed828822af43f216322`.
+The result, Dolphin log, and seven screenshots are in
+`docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r28/`.
+
+The guest reached Bluetooth Ready. The harness measured the Pipe-to-guest
+pointer response, inverted that calibration, and reached the requested screen
+targets within four pixels. It recorded two real bubble pops, Date order
+Cedar/Birch/Amber, and Name order Amber/Birch/Cedar. It also opened Network
+Settings, started the UI network scan, observed the supported-driver error, and
+verified that the receiver returned to Listening. Dolphin exited with code 0.
+The C comparison run separately confirmed that Pipe mapping and guest input
+work with HBC Reborn.
+
+The harness now accounts for Dolphin's sensor-bar projection instead of
+assuming Pipe axes equal guest screen pixels. It measures both axes and uses
+the guest's reported pointer position as feedback. Pipe X and Y map to Wii
+Remote buttons 1 and 2. The result records the measured matrix and all pointer
+events; acceptance checks require the targets and successful UI state changes.
+
+Verification after the run: all 54 Python tests pass, including the focused
+Dolphin harness tests; `cargo test --features startup-diagnostics,debugger-network
+--quiet` passes (408 tests); `python3 tools/parity.py check` passes (41 areas);
+Python compilation and `git diff --check` pass. The current
+`dist/hbc-ui-acceptance` DOL has a different hash from the captured r28 DOL, so
+the current dist artifact is not claimed as the binary tested in r28. No
+physical Wii test was performed; real hardware input and recovery checks remain
+open.
+
+
+## Candidate DOL Wiiload launch in Dolphin — 2026-10-23
+
+The current `dist/hbc-ui-acceptance-2026-10-23` candidate was tested through
+the channel-to-Wiiload route in Dolphin 2609a. The emulator booted
+`hbc-rs-debug-OHBC.wad`, HBC became ready in 2.100 seconds, the sender
+transferred `hbc-rs-debug.dol` in 0.105 seconds, and a new HBC session became
+ready 1.834 seconds after transfer began. Parent startup, executable handoff,
+child startup, and the child Wiiload listener all passed their log checks.
+Dolphin exited with code 0. Evidence is in
+`docs/review/evidence/ui-candidate-wiiload-dolphin-2026-10-23-r1/`.
+
+The tested DOL SHA-256 is
+`c20ed3d888c2fb2609fdc206afa8c40b484eb9cb5508ac295b54bab2f9f968a4`.
+The matching WAD SHA-256 is
+`03d9da9fb00dc9d37a323cc5777d3b877a753e1371dacfc77b3c3d9c9e36155f`.
+Package verification confirms the WAD content hashes. The manifest identifies
+HBC revision `5dd9fa89cc8fda6ebd2b5ea24d6edcf0f2f94cd9` and libogc revision
+`e716e77aa5b5ada0f2b7bb9fc66c697de15cff5d`, which are older than the current
+main revisions. This run proves the launch route for this exact package; it
+does not prove the latest main build or the separate r28 UI acceptance DOL.
+
+The remaining package limits are material. The WAD uses legacy fakesigning;
+private-key signing, EC verification, and certificate-root trust are not
+verified. It installs under the existing OHBC title ID. The package manifest
+does not qualify automatic recovery. The prior focused Dolphin recovery test
+failed to return after its 30-second deadline, and the recovery path remains
+unqualified. Per the mandatory hardware procedure, do not upload this candidate
+to a Wii until recovery is reworked and validated. No physical Wii test was
+performed.
+
+
+## Wii defect report and temporary-folder cleanup — 2026-10-23
+
+The user reported slow-looking startup, a frozen network scan, a failed DOL
+launch from SD, inconsistent UI layout, and errors from the installed WAD
+channel. Four recent EasyCap screenshots show receiver cleanup failures during
+exit, restart, and network scan: `Cleanup(-1)`. The user confirmed that the MP4
+and text-only recovery-probe image are stale; neither is evidence for these
+defects. The exact SD-launch error and installed WAD identity remain open.
+
+Current source review confirms that some startup work precedes normal drawing
+and that the Scan action runs stop/scan/restart work on the drawing thread.
+The existing results picker cannot be reached when receiver shutdown fails.
+The cleanup report does not identify the failed operation, and the socket
+wrapper can reduce a backend error to `-1`. The actual Wii cleanup cause is
+not yet confirmed. These observations are not fixes or new hardware passes.
+
+The user authorized clearing `/Volumes/SSD/WiiDev/tmp`. The folder held about
+1 GB and 79 top-level entries. No Git data or open files were found. The four
+recent screenshots and one archival transfer summary were saved with hashes
+under `docs/review/evidence/wii-channel-report-2026-10-23/`. The temporary folder
+was removed and recreated empty. Existing sources, dist packages, and retained
+test evidence were preserved. No new DOL/WAD was built or sent to hardware.
+
+The defect list, source findings, fix order, and required checks are recorded
+in `docs/review/wii-follow-up-2026-10-23.md`. Document whitespace and saved-file
+hashes were checked. No production code was changed in this cleanup and review.

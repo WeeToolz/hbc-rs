@@ -1,0 +1,36 @@
+{
+  "success": false,
+  "physical_wii_tested": false,
+  "parent": "/Volumes/SSD/WiiDev/C-sources/hbc-reborn/channel/channelapp/channelapp-channel.dol",
+  "parent_sha256": "a32c35c20e2a18ba3004aefbcea9ac10af555f0d068241e9332d6840b28fe5f6",
+  "app": "/private/tmp/tetris-current-default-app/boot.dol",
+  "app_sha256": "dce4ddca56f5be1226192be82f775b6e8f4b2294a155bf9ab89d34145c0779f3",
+  "app_bytes": 5154816,
+  "input_path": "Dolphin Pipe emulated Wii Remote",
+  "screenshots": [
+    {
+      "stage": "c-browser",
+      "path": "/Volumes/SSD/WiiDev/RustPorts/hbc-rs/docs/review/evidence/tetris-startup-trace-2026-10-23-r4/dolphin-20261023-220325-165073501431583.png"
+    },
+    {
+      "stage": "c-tetris-details",
+      "path": "/Volumes/SSD/WiiDev/RustPorts/hbc-rs/docs/review/evidence/tetris-startup-trace-2026-10-23-r4/dolphin-20261023-220328-165076425901083.png"
+    }
+  ],
+  "initial_stop": "T0f40:80004000;01:8004d4bc;",
+  "parent_entry_stop": "T0f40:80004000;01:8004d4bc;",
+  "parent_step_stop": "T0540:80004004;01:8004d4bc;",
+  "child_entry_stop": "T0540:80004000;01:81684ce0;",
+  "child_code_matches_file": true,
+  "launch_arguments_hex": "73643a2f617070732f7465747269732f626f6f742e646f6c0000",
+  "tetris_main_stop": "T0540:80008000;01:817fffd0;",
+  "error": "Emulator memory read failed: E00",
+  "failure_stop": "T0540:80008000;01:817fffd0;",
+  "frames": [
+    {
+      "sp": "0x817fffd0",
+      "data": "818000008009bd588133f9b08133f9b0"
+    }
+  ],
+  "dolphin_exit_code": 0
+}

@@ -1,0 +1,123 @@
+{
+  "success": false,
+  "wad_sha256": "a4790332c075852ec7bcd65b474ea6daffb37012d764ca4f8676bab2e102ed39",
+  "elf_sha256": "4a9ccfa2b5d6b4d542d5a9541a8de51b64f6bab1868d57ebf52d83c7986c6d74",
+  "physical_wii_tested": false,
+  "milestones": [],
+  "dol_sha256": "c7e2e7cfde82784c6330eb916c0dcbba3fd04364b22c6b0bd7e95def32c7fdc8",
+  "build_manifest": {
+    "format": 1,
+    "title_id": "000100014f484243",
+    "channel": "OHBC",
+    "ios": 58,
+    "signature_policy": "legacy-fakesign",
+    "certificate_root_trust": "unchecked",
+    "debug_profile": "release with debug=2",
+    "features": [
+      "debugger-network"
+    ],
+    "feature_evidence": "ELF source debug sections and WiiNetworkTransport symbol checked by packager",
+    "hbc_revision": "4f3c222ba478eb85761e35ab2aaca18683ff9f5d",
+    "hbc_changes": [
+      " M DEVELOPMENT_RESULTS.md",
+      " M src/main.rs",
+      " M src/platform/input.rs",
+      " M tools/test_channel_wad_dolphin.py",
+      " M tools/test_hbc_ui_dolphin.py",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r10/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r11/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r12/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r13-debug/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r14-debug/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r6/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r7/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r8/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r9/"
+    ],
+    "libogc_revision": "7e7ccf13e9d3d4385c80853e9033a2daa3913a59",
+    "libogc_changes": [
+      " M crates/services/ogc-bt-sync/src/hid_host.rs",
+      " M crates/services/wiiuse-rs/src/read_assembly.rs",
+      " M docs/generated/implementation-inventory.csv"
+    ],
+    "files": {
+      "hbc-rs-debug.elf": {
+        "size": 27066988,
+        "sha256": "4a9ccfa2b5d6b4d542d5a9541a8de51b64f6bab1868d57ebf52d83c7986c6d74"
+      },
+      "hbc-rs-debug.dol": {
+        "size": 2465376,
+        "sha256": "c7e2e7cfde82784c6330eb916c0dcbba3fd04364b22c6b0bd7e95def32c7fdc8"
+      },
+      "hbc-rs-debug-channel.dol": {
+        "size": 2465696,
+        "sha256": "ebd539948b68f0f0ef7ddd72636aa96c31e4ee150e3e9c47ca3ead88fc881285"
+      },
+      "hbc-rs-debug-OHBC.wad": {
+        "size": 3108096,
+        "sha256": "a4790332c075852ec7bcd65b474ea6daffb37012d764ca4f8676bab2e102ed39"
+      }
+    },
+    "return_stub": {
+      "size": 5216,
+      "sha256": "04e983c708c0b972692f82b08fc5c24c73d7a2cdcff058ef8432486644e0ddf5"
+    },
+    "physical_wii_tested": false,
+    "limitations": [
+      "No physical return fix is claimed",
+      "No private-key signing or EC verification",
+      "No certificate root trust check",
+      "No automatic recovery qualification",
+      "Installation would use the existing OHBC title ID"
+    ]
+  },
+  "ui_fixture": {
+    "name_order": [
+      "Amber",
+      "Birch",
+      "Cedar"
+    ],
+    "date_order": [
+      "Cedar",
+      "Birch",
+      "Amber"
+    ],
+    "apps": [
+      {
+        "directory": "cedar",
+        "title": "Cedar",
+        "release_date": "20250304120000"
+      },
+      {
+        "directory": "amber",
+        "title": "Amber",
+        "release_date": "20240102120000"
+      },
+      {
+        "directory": "birch",
+        "title": "Birch",
+        "release_date": "20241203120000"
+      }
+    ]
+  },
+  "screenshots": [
+    {
+      "stage": "wad_startup-ready",
+      "path": "docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r15/dolphin-20261023-104051-124119558246916.png",
+      "seconds_since_launch": 3.862
+    }
+  ],
+  "wad_startup": {
+    "seconds": 3.088,
+    "reply": {
+      "state": "unknown",
+      "operation": 0,
+      "id": 0,
+      "session": 1028,
+      "message": "No retained result for this request"
+    }
+  },
+  "error": "guest Wii Remote pointer readiness was not observed; recent events=[{'name': 'bubble_target', 'x': '459', 'y': '478'}]",
+  "screenshot": "docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r15/dolphin-20261023-104122-124150647658541.png",
+  "dolphin_exit_code": 0
+}

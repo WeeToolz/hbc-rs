@@ -1,0 +1,13 @@
+{
+  "success": false,
+  "physical_wii_tested": false,
+  "parent": "/private/tmp/hbc-rs-loading-progress.dol",
+  "parent_sha256": "bfed820e189dce7fa682322e3e4e246efcd6ef2b9b140f55081c74aed9bf6526",
+  "app": "/private/tmp/tetris-reset-fixed-app/boot.dol",
+  "app_sha256": "b3362c7d9d79b5ff348cc13001178b56861d883efa6aa09cd2c3f0d0594404e0",
+  "app_bytes": 5155232,
+  "input_path": "Dolphin Pipe emulated Wii Remote",
+  "screenshots": [],
+  "error": "Dolphin exited before debugger",
+  "dolphin_exit_code": -6
+}

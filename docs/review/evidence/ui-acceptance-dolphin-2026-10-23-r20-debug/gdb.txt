@@ -1,0 +1,6 @@
+0x80004000 in _start ()
+Breakpoint 1 at 0x800eea84: file /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/wpad-sys/src/powerpc_backend.rs, line 1447.
+
+Breakpoint 1, wpad_sys::powerpc_backend::handle_wii_read_report (slot_idx=0, report=...) at /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/wpad-sys/src/powerpc_backend.rs:1447
+1447	                    let Some(action) = initial_followup else {
+Breakpoint 2 at 0x800ee730: file /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/wpad-sys/src/powerpc_backend.rs, line 1288.

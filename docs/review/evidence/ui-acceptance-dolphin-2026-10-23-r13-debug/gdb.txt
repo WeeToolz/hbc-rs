@@ -1,0 +1,10 @@
+0x80004000 in _start ()
+Breakpoint 1 at 0x800709ac: file src/platform/input.rs, line 621.
+
+Breakpoint 1, hbc_rs::platform::input::scan () at src/platform/input.rs:621
+621	pub fn scan() -> Result<InputFrame, InputScanError> {
+overlong character literal
+overlong character literal
+overlong character literal
+Remote doesn't know how to detach
+Remote doesn't know how to detach

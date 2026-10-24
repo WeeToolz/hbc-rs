@@ -1,0 +1,324 @@
+{
+  "success": true,
+  "wad_sha256": "fbe35d3b859ea877d822ae76dac9955da487c97f759c9ed828822af43f216322",
+  "elf_sha256": "886bc87025690da701930d081766c74f0defd1842d54dacb060b009f597b557e",
+  "physical_wii_tested": false,
+  "milestones": [],
+  "dol_sha256": "a218f1a76d14fdbb010738188a382c36e6ad82f55ffe2aebd341ea4cb2b01442",
+  "build_manifest": {
+    "format": 1,
+    "title_id": "000100014f484243",
+    "channel": "OHBC",
+    "ios": 58,
+    "signature_policy": "legacy-fakesign",
+    "certificate_root_trust": "unchecked",
+    "debug_profile": "release with debug=2",
+    "features": [
+      "debugger-network"
+    ],
+    "feature_evidence": "ELF source debug sections and WiiNetworkTransport symbol checked by packager",
+    "hbc_revision": "4f3c222ba478eb85761e35ab2aaca18683ff9f5d",
+    "hbc_changes": [
+      " M DEVELOPMENT_RESULTS.md",
+      " M src/main.rs",
+      " M src/platform/input.rs",
+      " M src/platform/startup.rs",
+      " M src/platform/storage.rs",
+      " M tools/test_channel_wad_dolphin.py",
+      " M tools/test_hbc_ui_dolphin.py",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r10/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r11/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r12/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r13-debug/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r14-debug/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r15/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r16-debug/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r17-debug/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r18-debug/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r19-debug/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r20-debug/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r21-debug/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r22-debug/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r23-debug/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r24/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r25/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r26/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r27/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r6/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r7/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r8/",
+      "?? docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r9/",
+      "?? docs/review/evidence/ui-input-c-reference-dolphin-2026-10-23-r1/",
+      "?? docs/review/evidence/ui-input-c-reference-dolphin-2026-10-23-r2/",
+      "?? docs/review/evidence/ui-input-c-reference-dolphin-2026-10-23-r3/",
+      "?? docs/review/evidence/ui-input-c-reference-dolphin-2026-10-23-r4/",
+      "?? docs/review/evidence/ui-rust-fix-checks-2026-10-23/",
+      "?? tools/probe_hbc_reference_input_dolphin.py"
+    ],
+    "libogc_revision": "7e7ccf13e9d3d4385c80853e9033a2daa3913a59",
+    "libogc_changes": [
+      " M config/implementation-evidence.csv",
+      " M config/implementation-overrides.csv",
+      " M crates/services/ogc-bt-sync/src/hid_host.rs",
+      " M crates/services/ogc-bt-sync/src/wii_host.rs",
+      " M crates/services/wiiuse-rs/src/read_assembly.rs",
+      " M crates/services/wpad-sys/src/lib.rs",
+      " M crates/services/wpad-sys/src/powerpc_backend.rs",
+      " M docs/generated/implementation-inventory.csv",
+      " M docs/generated/implementation-status.md"
+    ],
+    "files": {
+      "hbc-rs-debug.elf": {
+        "size": 27077696,
+        "sha256": "886bc87025690da701930d081766c74f0defd1842d54dacb060b009f597b557e"
+      },
+      "hbc-rs-debug.dol": {
+        "size": 2466912,
+        "sha256": "a218f1a76d14fdbb010738188a382c36e6ad82f55ffe2aebd341ea4cb2b01442"
+      },
+      "hbc-rs-debug-channel.dol": {
+        "size": 2467232,
+        "sha256": "0c6b84f4387c75762830f5f32124abffcdb53680b3f2c8248aee05dce945455e"
+      },
+      "hbc-rs-debug-OHBC.wad": {
+        "size": 3109632,
+        "sha256": "fbe35d3b859ea877d822ae76dac9955da487c97f759c9ed828822af43f216322"
+      }
+    },
+    "return_stub": {
+      "size": 5216,
+      "sha256": "04e983c708c0b972692f82b08fc5c24c73d7a2cdcff058ef8432486644e0ddf5"
+    },
+    "physical_wii_tested": false,
+    "limitations": [
+      "No physical return fix is claimed",
+      "No private-key signing or EC verification",
+      "No certificate root trust check",
+      "No automatic recovery qualification",
+      "Installation would use the existing OHBC title ID"
+    ]
+  },
+  "ui_fixture": {
+    "name_order": [
+      "Amber",
+      "Birch",
+      "Cedar"
+    ],
+    "date_order": [
+      "Cedar",
+      "Birch",
+      "Amber"
+    ],
+    "apps": [
+      {
+        "directory": "cedar",
+        "title": "Cedar",
+        "release_date": "20250304120000"
+      },
+      {
+        "directory": "amber",
+        "title": "Amber",
+        "release_date": "20240102120000"
+      },
+      {
+        "directory": "birch",
+        "title": "Birch",
+        "release_date": "20241203120000"
+      }
+    ]
+  },
+  "screenshots": [
+    {
+      "stage": "wad_startup-ready",
+      "path": "docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r28/dolphin-20261023-114208-127796773771375.png",
+      "seconds_since_launch": 3.611
+    },
+    {
+      "stage": "ui-bubble-pop",
+      "path": "docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r28/dolphin-20261023-114212-127801076456333.png",
+      "seconds_since_launch": 7.914
+    },
+    {
+      "stage": "ui-date-sort",
+      "path": "docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r28/dolphin-20261023-114228-127816437718583.png",
+      "seconds_since_launch": 23.276
+    },
+    {
+      "stage": "ui-name-sort",
+      "path": "docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r28/dolphin-20261023-114234-127822687393166.png",
+      "seconds_since_launch": 29.526
+    },
+    {
+      "stage": "ui-network-settings",
+      "path": "docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r28/dolphin-20261023-114237-127825699307458.png",
+      "seconds_since_launch": 32.538
+    },
+    {
+      "stage": "ui-network-scan-error",
+      "path": "docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r28/dolphin-20261023-114240-127828799875916.png",
+      "seconds_since_launch": 35.638
+    }
+  ],
+  "wad_startup": {
+    "seconds": 2.834,
+    "reply": {
+      "state": "unknown",
+      "operation": 0,
+      "id": 0,
+      "session": 1028,
+      "message": "No retained result for this request"
+    }
+  },
+  "viewport": {
+    "width": 852,
+    "height": 480
+  },
+  "pointer_calibration": {
+    "matrix": [
+      820.0,
+      380.0,
+      160.0,
+      800.0
+    ]
+  },
+  "ui_acceptance": {
+    "pointer_targets": [
+      [
+        "network_option",
+        "6"
+      ],
+      [
+        "none",
+        "-1"
+      ],
+      [
+        "option",
+        "4"
+      ],
+      [
+        "option",
+        "5"
+      ],
+      [
+        "option",
+        "6"
+      ],
+      [
+        "option",
+        "8"
+      ]
+    ],
+    "pointer_positions": [
+      {
+        "x": 850,
+        "y": 476,
+        "target": "none",
+        "index": "-1"
+      },
+      {
+        "x": 510,
+        "y": 265,
+        "target": "option",
+        "index": "5"
+      },
+      {
+        "x": 288,
+        "y": 358,
+        "target": "option",
+        "index": "6"
+      },
+      {
+        "x": 289,
+        "y": 265,
+        "target": "option",
+        "index": "4"
+      },
+      {
+        "x": 286,
+        "y": 361,
+        "target": "option",
+        "index": "6"
+      },
+      {
+        "x": 409,
+        "y": 329,
+        "target": "option",
+        "index": "8"
+      },
+      {
+        "x": 228,
+        "y": 417,
+        "target": "network_option",
+        "index": "6"
+      }
+    ],
+    "pointer_edge": {
+      "name": "pointer_press",
+      "valid": "1",
+      "x": "850",
+      "y": "476",
+      "target": "none",
+      "index": "-1"
+    },
+    "bubble_target": {
+      "x": 708,
+      "y": 77
+    },
+    "bubble_pop_counts": [
+      1,
+      1
+    ],
+    "name_order": [
+      "Amber",
+      "Birch",
+      "Cedar"
+    ],
+    "date_order": [
+      "Cedar",
+      "Birch",
+      "Amber"
+    ],
+    "network_scan": {
+      "name": "network_scan_complete",
+      "status": "error",
+      "restart": "ok",
+      "ui": "notice"
+    },
+    "receiver_recovery": {
+      "name": "network_scan_receiver_recovery",
+      "state": "Listening"
+    },
+    "input_path": "Dolphin emulated Wii Remote pointer via Pipe/0/hbc-ui-remote; Pipe X/Y map to Wii Remote 1/2",
+    "fixture": {
+      "apps": [
+        {
+          "directory": "cedar",
+          "title": "Cedar",
+          "release_date": "20250304120000"
+        },
+        {
+          "directory": "amber",
+          "title": "Amber",
+          "release_date": "20240102120000"
+        },
+        {
+          "directory": "birch",
+          "title": "Birch",
+          "release_date": "20241203120000"
+        }
+      ],
+      "name_order": [
+        "Amber",
+        "Birch",
+        "Cedar"
+      ],
+      "date_order": [
+        "Cedar",
+        "Birch",
+        "Amber"
+      ]
+    }
+  },
+  "screenshot": "docs/review/evidence/ui-acceptance-dolphin-2026-10-23-r28/dolphin-20261023-114241-127829581532416.png",
+  "dolphin_exit_code": 0
+}

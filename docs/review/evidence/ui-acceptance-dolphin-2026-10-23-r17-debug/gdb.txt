@@ -1,0 +1,22 @@
+0x80004000 in _start ()
+Breakpoint 1 at 0x800ee60c: file /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/wpad-sys/src/powerpc_backend.rs, line 1328.
+
+Breakpoint 1, wpad_sys::powerpc_backend::handle_wii_read_report (slot_idx=0, report=...) at /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/wpad-sys/src/powerpc_backend.rs:1328
+1328	    if !apply_read_report_buttons(unsafe { &mut WPAD_DATA_STATE[chan] }, report) {
+Warning: the current language does not match this frame.
+$1 = 22
+0x90a1b540:	0x21	0x00	0x00	0x70	0x00	0x16	0x80	0x80
+0x90a1b548:	0x80	0x00	0x9a	0x9a	0x9a	0x00	0x00	0x00
+0x90a1b550:	0x00	0x00	0x00	0x00	0x00	0x00	0x01	0x50
+Temporary breakpoint 2 at 0x800ee658: file /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/wpad-sys/src/powerpc_backend.rs, line 1339.
+
+Temporary breakpoint 2, wpad_sys::powerpc_backend::handle_wii_read_report (slot_idx=0, report=...) at /Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/wpad-sys/src/powerpc_backend.rs:1339
+1339	    let Some(outcome) = outcome else {
+$2 = {active = true, kind = wpad_sys::powerpc_backend::ControllerKind::WiiRemote, accel_calib = {cal_zero = {x = 499, y = 509, z = 507}, cal_g = {x = 703, y = 709, z = 709}, st_roll = 0, st_pitch = 0, st_alpha = 0.300000012}, read = {addr = 22, requested = 8, received = 8, buffer = "\200\200\200\232\232\232\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000", covered = {255, 0, 0, 0, 0, 0, 0}}, pending_read = wpad_sys::powerpc_backend::PendingReadKind::WiiRemoteCalibration, wii_initialized = true, initial_handshake = {phase = wiiuse_rs::initial_handshake::Phase::AwaitingCalibration}, wii_u_pro = false, expansion_handshake_active = false, closed_hid_channels = 0 '\000', attachment_present = false, ir_enabled = false}
+0x817ea7b4:	0x01	0x00	0x00	0x00	0x00	0x00	0x00	0x08
+A debugging session is active.
+
+	Inferior 1 [Remote target] will be detached.
+
+Quit anyway? (y or n) [answered Y; input not from terminal]
+Remote doesn't know how to detach

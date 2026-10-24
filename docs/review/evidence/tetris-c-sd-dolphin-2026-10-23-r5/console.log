@@ -1,0 +1,379 @@
+28:29:160 InputCommon/ControllerInterface/SDL/SDL.cpp:127 I[CI]: system: App name: org.dolphin-emu.dolphin
+28:29:160 InputCommon/ControllerInterface/SDL/SDL.cpp:127 I[CI]: system: App version: <unspecified>
+28:29:160 InputCommon/ControllerInterface/SDL/SDL.cpp:127 I[CI]: system: App ID: <unspecified>
+28:29:160 InputCommon/ControllerInterface/SDL/SDL.cpp:127 I[CI]: system: SDL revision: SDL-3.4.12-f87239e71
+28:29:193 InputCommon/ControllerInterface/ControllerInterface.cpp:273 N[CI]: Added device: Quartz/0/Keyboard & Mouse
+28:29:193 InputCommon/ControllerInterface/ControllerInterface.cpp:273 N[CI]: Added device: Pipe/0/hbc-ui-remote
+28:29:193 InputCommon/ControllerInterface/ControllerInterface.cpp:273 N[CI]: Added device: Pipe/0/priiloader-return
+28:29:193 InputCommon/ControllerInterface/DualShockUDPClient/DualShockUDPClient.cpp:492 I[CI]: DualShockUDPClient PopulateDevices
+28:29:193 InputCommon/ControllerInterface/SteamDeck/SteamDeck.cpp:141 I[CI]: SteamDeck PopulateDevices
+28:29:206 InputCommon/ControllerInterface/SteamDeck/SteamDeck.cpp:171 I[CI]: No Steam Deck interface found
+28:29:206 InputCommon/ControllerInterface/ControllerInterface.cpp:273 N[CI]: Added device: SDL/0/HORI POKKEN CONTROLLER
+28:29:207 Core/HW/WiimoteEmu/EmuSubroutines.cpp:185 I[Wiimote]: Attaching Motion Plus (Wiimote 0 in slot 0)
+28:29:207 Core/HW/WiimoteEmu/EmuSubroutines.cpp:185 I[Wiimote]: Attaching Motion Plus (Wiimote 1 in slot 1)
+28:29:207 Core/HW/WiimoteEmu/EmuSubroutines.cpp:185 I[Wiimote]: Attaching Motion Plus (Wiimote 2 in slot 2)
+28:29:207 Core/HW/WiimoteEmu/EmuSubroutines.cpp:185 I[Wiimote]: Attaching Motion Plus (Wiimote 3 in slot 3)
+28:29:207 Core/HW/WiimoteReal/WiimoteReal.cpp:911 N[Wiimote]: WiimoteReal::Initialize
+28:29:207 Core/HW/WiimoteReal/WiimoteReal.cpp:657 N[Wiimote]: Wiimote scanning thread has started.
+28:29:223 Core/ConfigManager.cpp:279 N[CORE]: Active title: 
+28:29:225 Core/Core.cpp:237 I[BOOT]: Starting core = Wii mode
+28:29:225 Core/Core.cpp:238 I[BOOT]: CPU Thread separate = No
+28:29:232 InputCommon/ControllerInterface/ControllerInterface.cpp:310 N[CI]: Removed device: Quartz/0/Keyboard & Mouse
+28:29:247 InputCommon/ControllerInterface/ControllerInterface.cpp:273 N[CI]: Added device: Quartz/0/Keyboard & Mouse
+28:29:248 InputCommon/ControllerInterface/ControllerInterface.cpp:273 N[CI]: Added device: SDL/0/POKKEN CONTROLLER
+28:30:522 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #0 Constructed
+28:30:522 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #1 Constructed
+28:30:522 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #2 Constructed
+28:30:522 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #3 Constructed
+28:30:522 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #4 Constructed
+28:30:525 Core/IOS/Network/MACUtils.cpp:47 I[IOS_NET]: Using MAC address: 00:17:ab:e4:ff:87
+28:30:606 Core/Boot/Boot.cpp:546 N[BOOT]: Booting from executable: /Volumes/SSD/WiiDev/C-sources/hbc-reborn/channel/channelapp/channelapp-channel.dol
+28:30:608 Core/IOS/ES/Formats.cpp:688 I[IOS_ES]: Title 0000000100000002 already exists in uid.sys
+28:30:608 Core/Boot/Boot_BS2Emu.cpp:435 I[BOOT]: Using serial number: 372730284
+28:30:608 Core/Boot/Boot_BS2Emu.cpp:463 I[BOOT]: Setup Wii Memory...
+28:30:609 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #0 Constructed
+28:30:609 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #1 Constructed
+28:30:609 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #2 Constructed
+28:30:609 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #3 Constructed
+28:30:609 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #4 Constructed
+28:30:610 Core/IOS/Network/MACUtils.cpp:47 I[IOS_NET]: Using MAC address: 00:17:ab:e4:ff:87
+28:31:232 Core/IOS/ES/Identity.cpp:104 I[IOS_ES]: IOCTL_ES_GETDEVICECERT
+28:31:246 Core/IOS/ES/Identity.cpp:26 I[IOS_ES]: GetDeviceId: 06EEED45
+28:31:247 Core/HW/ProcessorInterface.cpp:115 I[PI]: Wrote PI_FIFO_RESET: 00000001
+28:31:247 Core/HW/ProcessorInterface.cpp:115 I[PI]: Wrote PI_FIFO_RESET: 00000000
+28:31:420 Core/IOS/Network/NCD/Manage.cpp:112 I[IOS_NET]: NET_NCD_MANAGE: IOCTLV_NCD_GETLINKSTATUS
+28:31:423 Core/IOS/USB/Bluetooth/BTEmu.cpp:1461 I[IOS_WIIMOTE]: Command: HCI_CMD_RESET
+28:31:423 Core/IOS/USB/Bluetooth/BTEmu.cpp:1813 I[IOS_WIIMOTE]: Command: HCI_CMD_READ_BUFFER_SIZE:
+28:31:427 Core/IOS/USB/Bluetooth/BTEmu.cpp:1644 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_UNIT_CLASS:
+28:31:427 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+28:31:428 Core/IOS/USB/Bluetooth/BTEmu.cpp:1583 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_LOCAL_NAME:
+28:31:428 Core/IOS/USB/Bluetooth/BTEmu.cpp:1502 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_PIN_TYPE:
+28:31:428 Core/IOS/USB/Bluetooth/BTEmu.cpp:1663 I[IOS_WIIMOTE]: Command: HCI_CMD_HOST_BUFFER_SIZE:
+28:31:429 Core/IOS/USB/Bluetooth/BTEmu.cpp:1768 I[IOS_WIIMOTE]: Command: HCI_CMD_READ_LOCAL_VER:
+28:31:430 Core/IOS/USB/Bluetooth/BTEmu.cpp:1829 I[IOS_WIIMOTE]: Command: HCI_CMD_READ_BDADDR:
+28:31:430 Core/IOS/USB/Bluetooth/BTEmu.cpp:1792 I[IOS_WIIMOTE]: Command: HCI_CMD_READ_LOCAL_FEATURES:
+28:31:431 Core/IOS/USB/Bluetooth/BTEmu.cpp:1729 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_INQUIRY_MODE:
+28:31:432 Core/IOS/USB/Bluetooth/BTEmu.cpp:1751 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_PAGE_SCAN_TYPE:
+28:31:432 Core/IOS/USB/Bluetooth/BTEmu.cpp:1704 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_INQUIRY_SCAN_TYPE:
+28:31:433 Core/IOS/USB/Bluetooth/BTEmu.cpp:1644 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_UNIT_CLASS:
+28:31:433 Core/IOS/USB/Bluetooth/BTEmu.cpp:1600 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_PAGE_TIMEOUT:
+28:31:436 Core/IOS/ES/Views.cpp:227 I[IOS_ES]: GetTMDViewSize: 108 bytes for title 00000001000000fe
+28:31:437 Core/IOS/USB/Bluetooth/BTEmu.cpp:1526 I[IOS_WIIMOTE]: Command: HCI_CMD_READ_STORED_LINK_KEY:
+28:31:437 Core/IOS/USB/Bluetooth/BTEmu.cpp:1850 I[IOS_WIIMOTE]: Command: CommandVendorSpecific_FC4F: (callstack WUDiRemovePatch)
+28:31:438 Core/IOS/USB/Bluetooth/BTEmu.cpp:1850 I[IOS_WIIMOTE]: Command: CommandVendorSpecific_FC4F: (callstack WUDiRemovePatch)
+28:31:438 Core/IOS/USB/Bluetooth/BTEmu.cpp:1461 I[IOS_WIIMOTE]: Command: HCI_CMD_RESET
+28:31:438 Core/IOS/USB/Bluetooth/BTEmu.cpp:1813 I[IOS_WIIMOTE]: Command: HCI_CMD_READ_BUFFER_SIZE:
+28:31:438 Core/IOS/USB/Bluetooth/BTEmu.cpp:1644 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_UNIT_CLASS:
+28:31:438 Core/IOS/USB/Bluetooth/BTEmu.cpp:1583 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_LOCAL_NAME:
+28:31:438 Core/IOS/USB/Bluetooth/BTEmu.cpp:1502 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_PIN_TYPE:
+28:31:438 Core/IOS/USB/Bluetooth/BTEmu.cpp:1663 I[IOS_WIIMOTE]: Command: HCI_CMD_HOST_BUFFER_SIZE:
+28:31:438 Core/IOS/USB/Bluetooth/BTEmu.cpp:1768 I[IOS_WIIMOTE]: Command: HCI_CMD_READ_LOCAL_VER:
+28:31:443 Core/IOS/USB/Bluetooth/BTEmu.cpp:1829 I[IOS_WIIMOTE]: Command: HCI_CMD_READ_BDADDR:
+28:31:443 Core/IOS/USB/Bluetooth/BTEmu.cpp:1792 I[IOS_WIIMOTE]: Command: HCI_CMD_READ_LOCAL_FEATURES:
+28:31:443 Core/IOS/USB/Bluetooth/BTEmu.cpp:1729 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_INQUIRY_MODE:
+28:31:443 Core/IOS/USB/Bluetooth/BTEmu.cpp:1751 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_PAGE_SCAN_TYPE:
+28:31:443 Core/IOS/USB/Bluetooth/BTEmu.cpp:1704 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_INQUIRY_SCAN_TYPE:
+28:31:446 Core/IOS/USB/Bluetooth/BTEmu.cpp:1644 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_UNIT_CLASS:
+28:31:447 Core/IOS/USB/Bluetooth/BTEmu.cpp:1600 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_PAGE_TIMEOUT:
+28:31:447 Core/IOS/USB/Bluetooth/BTEmu.cpp:1583 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_LOCAL_NAME:
+28:31:448 Core/IOS/USB/Bluetooth/BTEmu.cpp:1484 I[IOS_WIIMOTE]: Command: HCI_CMD_SET_EVENT_FILTER:
+28:31:449 Core/IOS/USB/Bluetooth/BTEmu.cpp:1255 I[IOS_WIIMOTE]: Command: HCI_CMD_ACCEPT_CON
+28:31:449 Core/IOS/USB/Bluetooth/BTEmu.cpp:757 I[IOS_WIIMOTE]: Event: Command Status (Opcode: 0x0409)
+28:31:449 Core/HW/WiimoteEmu/EmuSubroutines.cpp:185 I[Wiimote]: Attaching Motion Plus (Wiimote 0 in slot 0)
+28:31:450 Core/IOS/USB/Bluetooth/BTEmu.cpp:1350 I[IOS_WIIMOTE]: Command: HCI_CMD_AUTH_REQ
+28:31:450 Core/IOS/USB/Bluetooth/BTEmu.cpp:757 I[IOS_WIIMOTE]: Event: Command Status (Opcode: 0x0411)
+28:31:454 Core/IOS/USB/Bluetooth/BTEmu.cpp:1449 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_LINK_POLICY_SETTINGS
+28:31:454 Core/IOS/USB/Bluetooth/BTEmu.cpp:757 I[IOS_WIIMOTE]: Event: Command Status (Opcode: 0x080d)
+28:31:476 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+28:31:481 Core/IOS/ES/Views.cpp:256 I[IOS_ES]: GetTMDView: 108 bytes for title 00000001000000fe
+28:31:486 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+28:31:520 Core/IOS/Network/IP/Top.cpp:591 I[IOS_NET]: IOCTL_SO_SOCKET Socket: 00000000 (2,1,0), BufferIn: (015f2500, 12), BufferOut: (00000000, 0)
+28:31:521 Core/IOS/Network/IP/Top.cpp:728 I[IOS_NET]: IOCTL_SO_SETSOCKOPT(00000000, 0000ffff, 00001002, 00000004) BufferIn: (015f2480, 36), BufferOut: (00000000, 0)00 00 80 00 68 d4 fe 9d 75 00 00 00 f8 6c 86 3b 01 00 00 00
+28:31:539 Core/IOS/Network/IP/Top.cpp:728 I[IOS_NET]: IOCTL_SO_SETSOCKOPT(00000000, 00000006, 00000001, 00000004) BufferIn: (015f2500, 36), BufferOut: (00000000, 0)00 00 00 01 00 00 40 a0 75 00 00 00 54 49 34 81 00 00 00 00
+28:31:540 Core/IOS/Network/IP/Top.cpp:154 I[IOS_NET]: SO_SETSOCKOPT: unknown level 6
+28:31:540 Core/IOS/Network/IP/Top.cpp:183 I[IOS_NET]: SO_SETSOCKOPT: unknown optname 1
+28:31:546 Core/IOS/Network/Socket.cpp:260 I[IOS_NET]: IOCTL_SO_FCNTL(00000000, 00000003, 00000000)
+28:31:547 Core/IOS/Network/Socket.cpp:260 I[IOS_NET]: IOCTL_SO_FCNTL(00000000, 00000004, 00000004)
+28:31:548 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+28:31:603 Core/IOS/Network/Socket.cpp:124 E[IOS_NET]: SO_BIND failed with error 48: Address already in use, ret = -1
+28:31:603 Core/IOS/Network/Socket.cpp:298 I[IOS_NET]: IOCTL_SO_BIND (00000000, 192.168.1.52:4299) = -1
+28:31:603 Core/IOS/Network/IP/Top.cpp:619 I[IOS_NET]: IOCTL_SO_CLOSE(0) 0
+28:43:787 Core/IOS/USB/Bluetooth/BTEmu.cpp:1461 I[IOS_WIIMOTE]: Command: HCI_CMD_RESET
+28:43:800 Core/HW/ProcessorInterface.cpp:115 I[PI]: Wrote PI_FIFO_RESET: 00000001
+28:43:800 Core/HW/ProcessorInterface.cpp:115 I[PI]: Wrote PI_FIFO_RESET: 00000000
+28:43:875 Core/IOS/ES/TitleInformation.cpp:154 I[IOS_ES]: GetTitleCount: 83 titles
+28:43:880 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000000555044
+28:43:880 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000000555045
+28:43:880 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000042524157
+28:43:880 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000100004253484f
+28:43:880 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000052534245
+28:43:880 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000053423445
+28:43:880 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000053484f43
+28:43:880 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 00010000534c5350
+28:43:880 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000053503245
+28:43:880 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000054455354
+28:43:880 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000057465346
+28:43:880 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000248414141
+28:43:880 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000248414241
+28:43:880 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000248414341
+28:43:880 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000248414641
+28:43:880 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000248414645
+28:43:880 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000248414741
+28:43:880 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000248414745
+28:43:880 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000248415941
+28:43:880 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 00010004524d4345
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000577424c45
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000848414b45
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000848414c45
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000857494948
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000139584758
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000144574641
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000146434555
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000100014c554c5a
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000100014e414150
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000100014e494945
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 00010001554e454f
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000157444d50
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000157464c45
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000157474f45
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000157494d43
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 00010001574a4545
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000157525045
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000157575245
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000100014f484243
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000004
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000009
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000000010000000a
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000000010000000b
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000000010000000c
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000000010000000d
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000000010000000e
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000000010000000f
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000010
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000011
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000014
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000015
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000016
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000000010000001c
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000000010000001e
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000000010000001f
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000021
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000022
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000023
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000024
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000025
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000026
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000000010000002e
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000030
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000032
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000033
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000034
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000035
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000037
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000038
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000039
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000000010000003a
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000000010000003c
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000000010000003d
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000000010000003e
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000046
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000050
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 00000001000000ec
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 00000001000000f9
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 00000001000000fa
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 00000001000000fe
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000100
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000101
+28:43:881 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000002
+28:43:881 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 988 bytes  for 000000010000001c
+28:43:882 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 000000010000001c (buffer size: 988)
+28:43:882 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 592 bytes  for 000000010000001e
+28:43:882 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 000000010000001e (buffer size: 592)
+28:43:882 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1024 bytes  for 000000010000001f
+28:43:882 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 000000010000001f (buffer size: 1024)
+28:43:882 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1024 bytes  for 0000000100000021
+28:43:882 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 0000000100000021 (buffer size: 1024)
+28:43:882 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1024 bytes  for 0000000100000022
+28:43:882 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 0000000100000022 (buffer size: 1024)
+28:43:882 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1024 bytes  for 0000000100000023
+28:43:883 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 0000000100000023 (buffer size: 1024)
+28:43:883 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1024 bytes  for 0000000100000024
+28:43:883 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 0000000100000024 (buffer size: 1024)
+28:43:883 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1024 bytes  for 0000000100000025
+28:43:883 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 0000000100000025 (buffer size: 1024)
+28:43:883 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1024 bytes  for 0000000100000026
+28:43:883 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 0000000100000026 (buffer size: 1024)
+28:43:883 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1024 bytes  for 000000010000002e
+28:43:883 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 000000010000002e (buffer size: 1024)
+28:43:883 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1024 bytes  for 0000000100000030
+28:43:883 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 0000000100000030 (buffer size: 1024)
+28:43:883 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 592 bytes  for 0000000100000032
+28:43:883 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 0000000100000032 (buffer size: 592)
+28:43:884 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 592 bytes  for 0000000100000033
+28:43:884 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 0000000100000033 (buffer size: 592)
+28:43:884 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 592 bytes  for 0000000100000034
+28:43:884 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 0000000100000034 (buffer size: 592)
+28:43:884 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1024 bytes  for 0000000100000035
+28:43:884 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 0000000100000035 (buffer size: 1024)
+28:43:884 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1024 bytes  for 0000000100000037
+28:43:884 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 0000000100000037 (buffer size: 1024)
+28:43:884 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1024 bytes  for 0000000100000038
+28:43:884 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 0000000100000038 (buffer size: 1024)
+28:43:884 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1168 bytes  for 0000000100000039
+28:43:884 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 0000000100000039 (buffer size: 1168)
+28:43:884 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1168 bytes  for 000000010000003a
+28:43:885 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 000000010000003a (buffer size: 1168)
+28:43:885 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 592 bytes  for 000000010000003c
+28:43:885 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 000000010000003c (buffer size: 592)
+28:43:885 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1024 bytes  for 000000010000003d
+28:43:885 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 000000010000003d (buffer size: 1024)
+28:43:888 Core/IOS/ES/TitleInformation.cpp:154 I[IOS_ES]: GetTitleCount: 83 titles
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000000555044
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000000555045
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000042524157
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000100004253484f
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000052534245
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000053423445
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000053484f43
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 00010000534c5350
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000053503245
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000054455354
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000057465346
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000248414141
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000248414241
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000248414341
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000248414641
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000248414645
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000248414741
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000248414745
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000248415941
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 00010004524d4345
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000577424c45
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000848414b45
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000848414c45
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000857494948
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000139584758
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000144574641
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000146434555
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000100014c554c5a
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000100014e414150
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000100014e494945
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 00010001554e454f
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000157444d50
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000157464c45
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000157474f45
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000157494d43
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 00010001574a4545
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000157525045
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0001000157575245
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000100014f484243
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000004
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000009
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000000010000000a
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000000010000000b
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000000010000000c
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000000010000000d
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000000010000000e
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000000010000000f
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000010
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000011
+28:43:891 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000014
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000015
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000016
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000000010000001c
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000000010000001e
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000000010000001f
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000021
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000022
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000023
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000024
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000025
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000026
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000000010000002e
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000030
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000032
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000033
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000034
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000035
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000037
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000038
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000039
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000000010000003a
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000000010000003c
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000000010000003d
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 000000010000003e
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000046
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000050
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 00000001000000ec
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 00000001000000f9
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 00000001000000fa
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 00000001000000fe
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000100
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000101
+28:43:892 Core/IOS/ES/TitleInformation.cpp:146 I[IOS_ES]:      title 0000000100000002
+28:43:892 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 988 bytes  for 000000010000001c
+28:43:892 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 000000010000001c (buffer size: 988)
+28:43:892 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 592 bytes  for 000000010000001e
+28:43:892 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 000000010000001e (buffer size: 592)
+28:43:892 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1024 bytes  for 000000010000001f
+28:43:892 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 000000010000001f (buffer size: 1024)
+28:43:892 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1024 bytes  for 0000000100000021
+28:43:892 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 0000000100000021 (buffer size: 1024)
+28:43:892 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1024 bytes  for 0000000100000022
+28:43:892 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 0000000100000022 (buffer size: 1024)
+28:43:892 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1024 bytes  for 0000000100000023
+28:43:892 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 0000000100000023 (buffer size: 1024)
+28:43:892 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1024 bytes  for 0000000100000024
+28:43:892 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 0000000100000024 (buffer size: 1024)
+28:43:892 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1024 bytes  for 0000000100000025
+28:43:892 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 0000000100000025 (buffer size: 1024)
+28:43:893 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1024 bytes  for 0000000100000026
+28:43:893 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 0000000100000026 (buffer size: 1024)
+28:43:893 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1024 bytes  for 000000010000002e
+28:43:893 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 000000010000002e (buffer size: 1024)
+28:43:893 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1024 bytes  for 0000000100000030
+28:43:893 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 0000000100000030 (buffer size: 1024)
+28:43:893 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 592 bytes  for 0000000100000032
+28:43:893 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 0000000100000032 (buffer size: 592)
+28:43:893 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 592 bytes  for 0000000100000033
+28:43:893 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 0000000100000033 (buffer size: 592)
+28:43:893 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 592 bytes  for 0000000100000034
+28:43:893 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 0000000100000034 (buffer size: 592)
+28:43:893 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1024 bytes  for 0000000100000035
+28:43:893 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 0000000100000035 (buffer size: 1024)
+28:43:893 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1024 bytes  for 0000000100000037
+28:43:893 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 0000000100000037 (buffer size: 1024)
+28:43:893 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1024 bytes  for 0000000100000038
+28:43:893 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 0000000100000038 (buffer size: 1024)
+28:43:893 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1168 bytes  for 0000000100000039
+28:43:893 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 0000000100000039 (buffer size: 1168)
+28:43:894 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1168 bytes  for 000000010000003a
+28:43:894 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 000000010000003a (buffer size: 1168)
+28:43:894 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 592 bytes  for 000000010000003c
+28:43:894 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 000000010000003c (buffer size: 592)
+28:43:894 Core/IOS/ES/TitleInformation.cpp:178 I[IOS_ES]: GetStoredTMDSize: 1024 bytes  for 000000010000003d
+28:43:894 Core/IOS/ES/TitleInformation.cpp:204 I[IOS_ES]: GetStoredTMD: title 000000010000003d (buffer size: 1024)
+28:43:894 Core/IOS/ES/Views.cpp:63 I[IOS_ES]: IOCTL_ES_GETVIEWCNT for titleID: 000000010000003a (View Count = 1)
+28:43:894 Core/IOS/ES/Views.cpp:102 I[IOS_ES]: IOCTL_ES_GETVIEWS for titleID: 000000010000003a (MaxViews = 1)
+28:43:894 Core/IOS/ES/ES.cpp:769 I[IOS_ES]: IOCTL_ES_LAUNCH 000000010000003a 00000000 0000d9077bbd3edf 00000000 000000010000003a ffff
+28:43:894 Core/IOS/ES/ES.cpp:337 I[IOS_ES]: ES_Launch: Title context changed: (none)
+28:43:894 Core/IOS/ES/ES.cpp:339 N[IOS_ES]: Launching title 000000010000003a...
+28:43:931 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #0 Constructed
+28:43:931 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #1 Constructed
+28:43:931 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #2 Constructed
+28:43:931 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #3 Constructed
+28:43:931 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #4 Constructed
+28:43:933 Core/IOS/Network/MACUtils.cpp:47 I[IOS_NET]: Using MAC address: 00:17:ab:e4:ff:87
+28:44:315 Core/HW/ProcessorInterface.cpp:115 I[PI]: Wrote PI_FIFO_RESET: 00000001
+28:44:315 Core/HW/ProcessorInterface.cpp:115 I[PI]: Wrote PI_FIFO_RESET: 00000000
+28:44:316 Core/HW/ProcessorInterface.cpp:115 I[PI]: Wrote PI_FIFO_RESET: 00000001
+28:44:316 Core/HW/ProcessorInterface.cpp:115 I[PI]: Wrote PI_FIFO_RESET: 00000000
+28:44:389 Core/IOS/USB/Bluetooth/BTEmu.cpp:1461 I[IOS_WIIMOTE]: Command: HCI_CMD_RESET
+28:44:398 Core/IOS/USB/Bluetooth/BTEmu.cpp:1813 I[IOS_WIIMOTE]: Command: HCI_CMD_READ_BUFFER_SIZE:
+28:44:414 Core/IOS/USB/Bluetooth/BTEmu.cpp:1644 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_UNIT_CLASS:
+28:44:474 Core/IOS/USB/Bluetooth/BTEmu.cpp:1583 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_LOCAL_NAME:
+
+A signal was received. A second signal will force Dolphin to stop.
+ 28:56:326 Core/WiiRoot.cpp:385 I[CORE]: Wii FS Cleanup: cleanup_required = false (wii_root_is_temporary = false, is netplay = false, is_netplay_write = false, is_netplay_host = false)
+28:56:462 Core/HW/WiimoteReal/WiimoteReal.cpp:750 N[Wiimote]: Wiimote scanning thread has stopped.
+28:56:462 Core/HW/WiimoteReal/WiimoteReal.cpp:930 N[Wiimote]: WiimoteReal::Shutdown
