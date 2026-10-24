@@ -12,8 +12,10 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 LEDGER = ROOT / "config" / "parity-ledger.csv"
 REPORT = ROOT / "docs" / "generated" / "parity-status.md"
-C_SOURCE = ROOT / ".." / ".." / "C-sources" / "hbc" / "channel" / "channelapp"
-C_REBORN_SOURCE = ROOT / ".." / ".." / "C-sources" / "hbc-reborn" / "channel" / "channelapp"
+C_SOURCE = ROOT / ".." / ".." / "C-sources" / "hbc-reborn" / "channel" / "channelapp"
+C_REBORN_SOURCE = C_SOURCE
+C_LIBOGC_SOURCE = ROOT / ".." / ".." / "C-sources" / "libogc"
+SDK_SOURCE = ROOT / ".." / ".." / "Devtools" / "libogc-rs"
 FIELDS = (
     "id",
     "area",
@@ -67,9 +69,15 @@ def load_rows() -> list[dict[str, str]]:
 def validate_ref(reference: str, base: Path, ledger: Path, line: int) -> None:
     if base == C_SOURCE and reference.startswith("scope:") and len(reference) > 6:
         return
+    if base == ROOT and reference.startswith("sdk:"):
+        base = SDK_SOURCE
+        reference = reference.removeprefix("sdk:")
     if base == C_SOURCE and reference.startswith("reborn:"):
         base = C_REBORN_SOURCE
         reference = reference.removeprefix("reborn:")
+    elif base == C_SOURCE and reference.startswith("libogc:"):
+        base = C_LIBOGC_SOURCE
+        reference = reference.removeprefix("libogc:")
     path_text, separator, symbol = reference.partition("#")
     path = (base / path_text).resolve()
     if not path.is_relative_to(base.resolve()) or not path.is_file():
@@ -124,8 +132,10 @@ def render(rows: list[dict[str, str]]) -> str:
             "- `source_reviewed`: a recorded source comparison is complete for this area.",
             "- `hardware_pending`: real Wii behavior has not been verified.",
             "",
-            "Unprefixed C references use `C-sources/hbc/channel/channelapp`. "
-            "References prefixed with `reborn:` use `C-sources/hbc-reborn/channel/channelapp`. "
+            "Unprefixed C references use `C-sources/hbc-reborn/channel/channelapp`. "
+            "References prefixed with `reborn:` use `C-sources/hbc-reborn/channel/channelapp`; "
+            "`libogc:` references use `C-sources/libogc`. "
+            "Rust references prefixed with `sdk:` use `Devtools/libogc-rs`. "
             "Update the CSV ledger, then run `python3 tools/parity.py refresh` and "
             "`python3 tools/parity.py check`.",
             "",
