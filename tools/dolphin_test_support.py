@@ -131,7 +131,7 @@ class Debugger:
         if length > 512:
             return b''.join(self.memory(address + offset, min(512, length - offset)) for offset in range(0, length, 512))
         reply = self.command(f'm{address:x},{length:x}')
-        if reply.startswith(('E', 'S', 'T')):
+        if reply.startswith(('S', 'T')) or (reply.startswith('E') and len(reply) == 3):
             raise RuntimeError(f'Emulator memory read failed: {reply}')
         data = bytes.fromhex(reply)
         if len(data) != length:

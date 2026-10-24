@@ -80,6 +80,10 @@ impl AppRuntime {
         self.controller.show_wiiload_receiving();
     }
 
+    pub fn show_executable_loading(&mut self) {
+        self.controller.show_executable_loading();
+    }
+
     pub fn finish_wiiload_receiving(&mut self) {
         self.controller.finish_wiiload_receiving();
     }
@@ -90,6 +94,18 @@ impl AppRuntime {
 
     pub fn set_wiiload_install_progress(&mut self, percent: u8) {
         self.controller.set_wiiload_install_progress(percent);
+    }
+
+    pub fn set_operation_progress(&mut self, percent: u8) {
+        self.controller.set_operation_progress(percent);
+    }
+
+    pub fn operation_progress(&self) -> u8 {
+        self.controller.operation_progress()
+    }
+
+    pub fn finish_executable_loading(&mut self) {
+        self.controller.finish_executable_loading();
     }
 
     pub fn set_network_config(&mut self, config: crate::network_config::NetworkConfig) {

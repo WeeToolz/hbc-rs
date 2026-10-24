@@ -133,6 +133,10 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     } else {
         hbc_rs::render::LOGICAL_WIDTH
     };
+    #[cfg(feature = "debugger-network")]
+    ogc_system::report(format_args!(
+        "HBC_UI_EVENT v=1 name=viewport width={view_width} height=480\n"
+    ));
     ogc_system::report(format_args!("HBC: initializing video\n"));
     let video =
         match hbc_rs::platform::video::initialize(view_width > hbc_rs::render::LOGICAL_WIDTH) {
@@ -191,6 +195,11 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     let mut network_check: Option<hbc_rs::platform::network_restart::ConnectionCheck> = None;
     let mut network_scan_receiver_recovery_pending = false;
     let mut bubble_target_reported = false;
+    #[cfg(feature = "debugger-network")]
+    let mut bubble_target_frames = 0u8;
+    let mut pointer_ready_reported = false;
+    #[cfg(feature = "debugger-network")]
+    let mut reported_pointer = None;
     let mut network_indicator_frame = 0u16;
     let mut reported_receiver_status = None;
     let mut remote_input = hbc_rs::remote_input::RemoteState::default();
@@ -262,6 +271,40 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         hbc_rs::platform::diagnostics::runtime_stage(2, "STORAGE RESULT POLL DONE");
         if first_frame {
             ogc_system::report(format_args!("HBC: first storage poll complete\n"));
+        }
+        if startup.executable_load_pending() {
+            match startup.advance_selected_executable_load() {
+                Ok(Some(image)) => {
+                    ogc_system::report(format_args!(
+                        "HBC: selected executable read and validated\n"
+                    ));
+                    startup.runtime_mut().finish_executable_loading();
+                    let ios_policy = image.ios_policy;
+                    if let Err(notice) = transfer_executable(
+                        &mut startup,
+                        image.bytes,
+                        image.plan,
+                        image.arguments,
+                        ios_policy,
+                        "Could not prepare this application to run.",
+                    ) {
+                        startup
+                            .runtime_mut()
+                            .show_notice_with_kind(&notice, hbc_rs::app::NoticeKind::Error);
+                    }
+                }
+                Ok(None) => {}
+                Err(error) => {
+                    ogc_system::report(format_args!(
+                        "HBC: selected executable load failed: {error:?}\n"
+                    ));
+                    startup.runtime_mut().finish_executable_loading();
+                    startup.runtime_mut().show_notice_with_kind(
+                        &format!("Could not load this application: {error:?}."),
+                        hbc_rs::app::NoticeKind::Error,
+                    );
+                }
+            }
         }
         if let Err(error) = startup.poll_device_availability() {
             ogc_system::report(format_args!(
@@ -378,7 +421,8 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         }
         if let Some(request) = hbc_rs::platform::lifecycle::take_ready_exit(
             &mut deferred_exit,
-            startup.received_zip_install_pending()
+            startup.executable_load_pending()
+                || startup.received_zip_install_pending()
                 || startup.storage_scan_pending()
                 || startup.device_probe_pending(),
         ) {
@@ -398,6 +442,7 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         if deferred_exit.is_none()
             && !startup.storage_scan_pending()
             && pending_zip.is_none()
+            && !startup.executable_load_pending()
             && !startup.received_zip_install_pending()
             && let Some(payload) = hbc_rs::platform::wiiload::take_payload()
         {
@@ -528,6 +573,23 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         // Device probes own storage in their worker. Menu input stays active;
         // operations that need storage validate worker ownership at the backend.
         let pointer = frame.pointer;
+        #[cfg(feature = "debugger-network")]
+        if pointer != reported_pointer {
+            match pointer {
+                Some(position) => ogc_system::report(format_args!(
+                    "HBC_UI_EVENT v=1 name=pointer_position valid=1 x={} y={}\n",
+                    position.x, position.y
+                )),
+                None => ogc_system::report(format_args!(
+                    "HBC_UI_EVENT v=1 name=pointer_position valid=0\n"
+                )),
+            }
+            reported_pointer = pointer;
+        }
+        if pointer.is_some() && !pointer_ready_reported {
+            ogc_system::report(format_args!("HBC_UI_EVENT v=1 name=pointer_ready\n"));
+            pointer_ready_reported = true;
+        }
         let pointer_pressed = frame.pointer_pressed;
         let pointer_held = frame.pointer_held;
         let sort_order_before_frame = startup.runtime().settings().current().sort_order;
@@ -640,6 +702,14 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             bubble_minute_cycle,
             pointer.map(|point| (f32::from(point.x), f32::from(point.y))),
         );
+        #[cfg(feature = "debugger-network")]
+        {
+            bubble_target_frames += 1;
+            if bubble_target_frames >= 15 {
+                bubble_target_frames = 0;
+                bubble_target_reported = false;
+            }
+        }
         if !bubble_target_reported {
             bubble_target_reported = report_bubble_target(&bubbles, view_width);
         }
@@ -781,6 +851,7 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             && remote_result.is_none()
             && !startup.storage_scan_pending()
             && !startup.device_probe_pending()
+            && !startup.executable_load_pending()
             && !startup.received_zip_install_pending()
             && !matches!(
                 hbc_rs::platform::wiiload::status(),
@@ -970,6 +1041,7 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 hbc_rs::platform::lifecycle::defer_exit(&mut deferred_exit, request);
                 if startup.storage_scan_pending()
                     || startup.device_probe_pending()
+                    || startup.executable_load_pending()
                     || startup.received_zip_install_pending()
                 {
                     startup.runtime_mut().show_notice_with_kind(
@@ -1232,10 +1304,15 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                         true,
                         Some(alloc::format!("Could not scan apps: {error:?}.")),
                     ),
-                    Err(_) => (
-                        false,
-                        Some(String::from("Could not change the storage device.")),
-                    ),
+                    Err(error) => {
+                        ogc_system::report(format_args!(
+                            "HBC: applying Options failed: {error:?}\n"
+                        ));
+                        (
+                            false,
+                            Some(String::from("Could not change the storage device.")),
+                        )
+                    }
                 };
                 if persist
                     && startup
@@ -1271,32 +1348,14 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             }
             if action == hbc_rs::app::Action::LaunchSelected {
                 ogc_system::report(format_args!("HBC: reading selected executable\n"));
-                let image = match startup.prepare_selected_executable() {
-                    Ok(image) => image,
-                    Err(error) => {
-                        startup.runtime_mut().show_notice_with_kind(
-                            &format!("Could not load this application: {error:?}."),
-                            hbc_rs::app::NoticeKind::Error,
-                        );
-                        continue;
-                    }
-                };
-                ogc_system::report(format_args!(
-                    "HBC: selected executable read and validated\n"
-                ));
-                let ios_policy = image.ios_policy;
-                if let Err(notice) = transfer_executable(
-                    &mut startup,
-                    image.bytes,
-                    image.plan,
-                    image.arguments,
-                    ios_policy,
-                    "Could not prepare this application to run.",
-                ) {
-                    startup
-                        .runtime_mut()
-                        .show_notice_with_kind(&notice, hbc_rs::app::NoticeKind::Error);
-                    continue;
+                if let Err(error) = startup.begin_selected_executable_load() {
+                    ogc_system::report(format_args!(
+                        "HBC: selected executable load failed: {error:?}\n"
+                    ));
+                    startup.runtime_mut().show_notice_with_kind(
+                        &format!("Could not load this application: {error:?}."),
+                        hbc_rs::app::NoticeKind::Error,
+                    );
                 }
             }
             if action == hbc_rs::app::Action::DeleteSelected {

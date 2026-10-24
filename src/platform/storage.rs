@@ -69,6 +69,31 @@ pub(crate) fn classify_device_presence<E: PartialEq>(
     }
 }
 
+#[cfg(any(test, target_arch = "powerpc"))]
+#[derive(Debug, Eq, PartialEq)]
+pub(crate) enum OptionsStoragePlan {
+    KeepMounted,
+    Busy,
+    Remount,
+}
+
+/// A sort change can keep its online volume while another device is probed.
+#[cfg(any(test, target_arch = "powerpc"))]
+pub(crate) fn plan_options_storage(
+    active: Option<Volume>,
+    wanted: Volume,
+    mounted: bool,
+    probe_pending: bool,
+) -> OptionsStoragePlan {
+    if active == Some(wanted) && mounted {
+        OptionsStoragePlan::KeepMounted
+    } else if probe_pending {
+        OptionsStoragePlan::Busy
+    } else {
+        OptionsStoragePlan::Remount
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Volume {
     Sd,
@@ -137,9 +162,29 @@ pub fn device_scan_order(preference: i32) -> [Volume; DEVICE_COUNT] {
 #[cfg(test)]
 mod device_selection_tests {
     use super::{
-        StorageFailureNotice, StoragePresence, VOLUMES, Volume, classify_device_presence,
-        device_scan_order,
+        OptionsStoragePlan, StorageFailureNotice, StoragePresence, VOLUMES, Volume,
+        classify_device_presence, device_scan_order, plan_options_storage,
     };
+
+    #[test]
+    fn sort_only_options_keep_the_mounted_volume_during_a_device_probe() {
+        assert_eq!(
+            plan_options_storage(Some(Volume::Sd), Volume::Sd, true, true),
+            OptionsStoragePlan::KeepMounted
+        );
+        assert_eq!(
+            plan_options_storage(Some(Volume::Sd), Volume::Usb, true, true),
+            OptionsStoragePlan::Busy
+        );
+        assert_eq!(
+            plan_options_storage(Some(Volume::Sd), Volume::Sd, false, true),
+            OptionsStoragePlan::Busy
+        );
+        assert_eq!(
+            plan_options_storage(Some(Volume::Sd), Volume::Usb, false, false),
+            OptionsStoragePlan::Remount
+        );
+    }
 
     #[test]
     fn repeated_storage_failure_is_reported_once_and_recovery_rearms_it() {
@@ -394,6 +439,16 @@ impl FatStorage {
         }
         read_exact_file(&mut file, &mut bytes[..len]).map_err(StorageError::Fat)?;
         Ok(Some(len))
+    }
+
+    /// Open a mounted file for a caller that reads it across multiple frames.
+    pub fn open_file(&self, path: &str) -> Result<Option<ogc_fat::FatFile>, StorageError> {
+        let path = self.full_path(path)?;
+        match ogc_fat::FatFile::open(&path) {
+            Ok(file) => Ok(Some(file)),
+            Err(ogc_fat::FatError::NotFound) => Ok(None),
+            Err(error) => Err(StorageError::Fat(error)),
+        }
     }
 
     /// Save a screenshot to the active volume without replacing an existing capture.

@@ -13,7 +13,9 @@ use core::{
 
 use crate::{
     catalog::{AppEntry, AppKind, CatalogStorage, scan_apps},
-    loader::{LoadPlan, ParseError, build_launch_arguments, parse_dol, parse_elf32_ppc},
+    loader::{
+        LaunchSource, LoadPlan, ParseError, build_launch_arguments, parse_dol, parse_elf32_ppc,
+    },
     metadata::{ThemeMetadata, UserSettings},
     platform::{
         input, settings,
@@ -32,6 +34,7 @@ const STORAGE_SCAN_STACK_SIZE: usize = 16 * 1024;
 // The main loop gives this worker a bounded 1 ms slice each frame while a scan
 // is pending, instead of yielding indefinitely to an equal-priority worker.
 const STORAGE_SCAN_PRIORITY: u8 = 62;
+const EXECUTABLE_READ_CHUNK_BYTES: usize = 16 * 1024;
 const STORAGE_SCAN_IDLE: u8 = 0;
 const STORAGE_SCAN_RUNNING: u8 = 1;
 const STORAGE_SCAN_READY: u8 = 2;
@@ -556,6 +559,17 @@ pub struct WiiStartup {
     storage_failure_notice: super::storage::StorageFailureNotice<(Volume, StorageError)>,
     zip_install_thread: Option<ogc_lwp::ThreadHandle>,
     device_probe_thread: Option<ogc_lwp::ThreadHandle>,
+    pending_executable: Option<PendingExecutableLoad>,
+}
+
+struct PendingExecutableLoad {
+    file: ogc_fat::FatFile,
+    bytes: LaunchSource,
+    offset: usize,
+    total: usize,
+    kind: AppKind,
+    arguments: Vec<u8>,
+    ios_policy: crate::loader::IosLaunchPolicy,
 }
 
 pub struct IconTexture {
@@ -804,6 +818,7 @@ impl WiiStartup {
             storage_failure_notice: super::storage::StorageFailureNotice::default(),
             zip_install_thread: None,
             device_probe_thread: None,
+            pending_executable: None,
         };
         // Start the first mount/catalog pass on a lower-priority storage worker.
         // It is not scheduled here. The browser loop gives it a bounded slice
@@ -1191,8 +1206,11 @@ impl WiiStartup {
         Ok(())
     }
 
-    /// Read and validate the selected ELF or DOL without writing Wii memory.
-    pub fn prepare_selected_executable(&mut self) -> Result<LaunchImage, StartupError> {
+    /// Begin reading the selected ELF or DOL without blocking the render loop.
+    pub fn begin_selected_executable_load(&mut self) -> Result<(), StartupError> {
+        if self.pending_executable.is_some() {
+            return Err(StartupError::ExecutableLoadPending);
+        }
         let entry = self
             .runtime
             .catalog()
@@ -1210,13 +1228,15 @@ impl WiiStartup {
         let relative_path = alloc::format!("apps/{}/{}", entry.directory, filename);
         let storage = self.storage.as_mut().ok_or(StartupError::NoStorage)?;
         let executable_size = usize::try_from(entry.size).map_err(|_| StartupError::TooLarge)?;
-        let mut bytes = crate::loader::LaunchSource::try_allocate(executable_size)
+        let bytes = LaunchSource::try_allocate(executable_size)
             .ok_or(StartupError::Storage(StorageError::Allocation))?;
-        let read_size = storage
-            .read_file_into(&relative_path, bytes.as_mut_slice())
+        let file = storage
+            .open_file(&relative_path)
             .map_err(StartupError::Storage)?
             .ok_or(StartupError::MissingExecutable)?;
-        if read_size != executable_size || read_size as u64 != entry.size {
+        if file.len() as usize != executable_size {
+            file.close()
+                .map_err(|error| StartupError::Storage(StorageError::Fat(error)))?;
             return Err(StartupError::MissingExecutable);
         }
         let prefix = storage.prefix();
@@ -1228,19 +1248,78 @@ impl WiiStartup {
             .unwrap_or(&[]);
         let launch_arguments =
             build_launch_arguments(&executable_path, arguments).map_err(StartupError::Loader)?;
-        let plan = match entry.kind {
-            AppKind::Elf => parse_elf32_ppc(bytes.as_slice(), Some(EXECUTABLE_MEMORY.clone())),
-            AppKind::Dol => parse_dol(bytes.as_slice(), Some(EXECUTABLE_MEMORY.clone())),
+        self.pending_executable = Some(PendingExecutableLoad {
+            file,
+            bytes,
+            offset: 0,
+            total: executable_size,
+            kind: entry.kind,
+            arguments: launch_arguments,
+            ios_policy: crate::loader::app_ios_launch_policy(entry.metadata.as_ref()),
+        });
+        self.runtime.show_executable_loading();
+        Ok(())
+    }
+
+    /// Read one bounded chunk, update the shared progress bar, and validate the
+    /// executable when the final byte arrives.
+    pub fn advance_selected_executable_load(
+        &mut self,
+    ) -> Result<Option<LaunchImage>, StartupError> {
+        let Some(pending) = self.pending_executable.as_mut() else {
+            return Ok(None);
+        };
+        let remaining = pending.total - pending.offset;
+        let chunk_len = remaining.min(EXECUTABLE_READ_CHUNK_BYTES);
+        let end = pending.offset + chunk_len;
+        let read = match pending
+            .file
+            .read(&mut pending.bytes.as_mut_slice()[pending.offset..end])
+        {
+            Ok(read) if read != 0 => read,
+            Ok(_) => {
+                self.pending_executable = None;
+                return Err(StartupError::MissingExecutable);
+            }
+            Err(error) => {
+                self.pending_executable = None;
+                return Err(StartupError::Storage(StorageError::Fat(error)));
+            }
+        };
+        pending.offset += read;
+        let progress =
+            crate::wiiload::progress_percent(pending.offset as u32, pending.total as u32);
+        self.runtime.set_operation_progress(progress);
+        if pending.offset < pending.total {
+            return Ok(None);
+        }
+
+        let pending = self
+            .pending_executable
+            .take()
+            .ok_or(StartupError::ExecutableLoadPending)?;
+        pending
+            .file
+            .close()
+            .map_err(|error| StartupError::Storage(StorageError::Fat(error)))?;
+        let plan = match pending.kind {
+            AppKind::Elf => {
+                parse_elf32_ppc(pending.bytes.as_slice(), Some(EXECUTABLE_MEMORY.clone()))
+            }
+            AppKind::Dol => parse_dol(pending.bytes.as_slice(), Some(EXECUTABLE_MEMORY.clone())),
             AppKind::Theme => return Err(StartupError::NotExecutable),
         }
         .map_err(StartupError::Loader)?;
-
-        Ok(LaunchImage {
-            bytes,
+        Ok(Some(LaunchImage {
+            bytes: pending.bytes,
             plan,
-            arguments: launch_arguments,
-            ios_policy: crate::loader::app_ios_launch_policy(entry.metadata.as_ref()),
-        })
+            arguments: pending.arguments,
+            ios_policy: pending.ios_policy,
+        }))
+    }
+
+    pub fn executable_load_pending(&self) -> bool {
+        self.pending_executable.is_some()
     }
 
     /// Read a selected theme ZIP and parse its bounded metadata.
@@ -1289,13 +1368,19 @@ impl WiiStartup {
 
     /// Apply the confirmed storage preference and refresh the app catalog.
     pub fn apply_options(&mut self) -> Result<bool, StartupError> {
-        if self.device_probe_pending() {
-            return Err(StartupError::StorageScanPending);
-        }
         let preferred = self.runtime.settings().current().device;
         let wanted = Volume::from_settings_index(preferred).unwrap_or(Volume::Sd);
-        if self.volume == Some(wanted) && ogc_fat::is_mounted(wanted.mount_name()) {
-            return Ok(true);
+        match super::storage::plan_options_storage(
+            self.volume,
+            wanted,
+            self.volume == Some(wanted) && ogc_fat::is_mounted(wanted.mount_name()),
+            self.device_probe_pending(),
+        ) {
+            super::storage::OptionsStoragePlan::KeepMounted => return Ok(true),
+            super::storage::OptionsStoragePlan::Busy => {
+                return Err(StartupError::StorageScanPending);
+            }
+            super::storage::OptionsStoragePlan::Remount => {}
         }
         if self.storage.is_some() {
             ogc_fat::shutdown_all()
@@ -1405,6 +1490,7 @@ pub enum StartupError {
     Storage(StorageError),
     ScanWorker(i32),
     StorageScanPending,
+    ExecutableLoadPending,
     Loader(ParseError),
     Theme(crate::theme::ThemePackageError),
     ThemeStorage(super::settings::SettingsIoError),

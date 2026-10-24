@@ -957,6 +957,51 @@ const MODAL_SHADE: Color = Color {
 /// The caller clips/scales it to the active framebuffer. Catalog selection
 /// uses controller identity and page policy, so rendering does not duplicate
 /// filtering, sorting, or page calculations.
+fn draw_progress_dialog(
+    frame: &mut Frame,
+    theme: Option<&ThemeMetadata>,
+    text_color: Color,
+    title: &str,
+    waiting_label: &str,
+    percent: u8,
+) {
+    frame.theme_art(rect(60, 44, 520, 360), ThemeArt::Dialog, false);
+    frame.set_text_style(theme_text_style(theme, "dlgtitle", text_color));
+    frame.text(252.0, 124.0, title, 1.0, text_color, 40);
+    frame.set_text_style(theme_text_style(theme, "label", text_color));
+    let percent = percent.min(100);
+    let label = [
+        b'0' + percent / 100,
+        b'0' + (percent / 10) % 10,
+        b'0' + percent % 10,
+        b'%',
+    ];
+    let label = core::str::from_utf8(&label).unwrap_or("000%");
+    if percent > 0 {
+        let stops = theme
+            .and_then(|metadata| metadata.progress_gradient)
+            .unwrap_or([Rgba(63, 155, 211, 255); 4]);
+        let x = 155.0;
+        let y = 255.0;
+        let width = 330.0;
+        const SPANS: usize = 32;
+        for span in 0..SPANS {
+            let start = span as f32 / SPANS as f32;
+            if start >= f32::from(percent) / 100.0 {
+                break;
+            }
+            let end = ((span + 1) as f32 / SPANS as f32).min(f32::from(percent) / 100.0);
+            frame.fill(
+                rect(x + width * start, y, width * (end - start), 42),
+                gradient_color(stops, start),
+            );
+        }
+    }
+    frame.theme_art(rect(120, 220, 400, 112), ThemeArt::Progress, false);
+    frame.text(192.0, 190.0, waiting_label, 1.0, text_color, 40);
+    frame.text(430.0, 292.0, label, 1.0, text_color, 5);
+}
+
 pub fn browser_frame(controller: &AppController, catalog: &[AppEntry]) -> Frame {
     browser_frame_with_theme(controller, catalog, None)
 }
@@ -1025,7 +1070,8 @@ pub fn browser_frame_with_language(
         | Screen::DeleteConfirm
         | Screen::WiiloadConfirm
         | Screen::WiiloadInstalling
-        | Screen::WiiloadReceiving => {
+        | Screen::WiiloadReceiving
+        | Screen::ExecutableLoading => {
             if navigation.has_previous() {
                 frame.page_arrow(
                     rect(24, 192, 64, 64),
@@ -1203,6 +1249,7 @@ pub fn browser_frame_with_language(
             | Screen::WiiloadConfirm
             | Screen::WiiloadInstalling
             | Screen::WiiloadReceiving
+            | Screen::ExecutableLoading
             | Screen::Options
             | Screen::NetworkSettings
             | Screen::NetworkKeyboard
@@ -1643,60 +1690,19 @@ pub fn browser_frame_with_language(
                 frame.hit_target(PointerTarget::WiiloadChoice { yes: *yes }, bounds);
             }
         } else {
-            let dialog_bounds = if controller.screen == Screen::NetworkSettings {
-                rect(40, 24, 560, 432)
-            } else {
-                rect(60, 44, 520, 360)
+            let title = match controller.screen {
+                Screen::WiiloadReceiving => tr("Receiving upload"),
+                Screen::ExecutableLoading => tr("Loading application"),
+                _ => tr("Installing ZIP"),
             };
-            frame.theme_art(dialog_bounds, ThemeArt::Dialog, false);
-            frame.set_text_style(theme_text_style(theme, "dlgtitle", text_color));
-            let receiving = controller.screen == Screen::WiiloadReceiving;
-            frame.text(
-                if receiving { 250.0 } else { 252.0 },
-                124.0,
-                if receiving {
-                    tr("Receiving upload")
-                } else {
-                    tr("Installing ZIP")
-                },
-                1.0,
+            draw_progress_dialog(
+                &mut frame,
+                theme,
                 text_color,
-                40,
+                title,
+                tr("Please wait..."),
+                controller.operation_progress(),
             );
-            frame.set_text_style(theme_text_style(theme, "label", text_color));
-            let percent = controller.wiiload_install_progress();
-            let label = [
-                b'0' + percent / 100,
-                b'0' + (percent / 10) % 10,
-                b'0' + percent % 10,
-                b'%',
-            ];
-            let label = core::str::from_utf8(&label).unwrap_or("000%");
-            if percent > 0 {
-                let stops = theme
-                    .and_then(|metadata| metadata.progress_gradient)
-                    .unwrap_or([Rgba(63, 155, 211, 255); 4]);
-                let x = 155.0;
-                let y = 255.0;
-                let width = 330.0;
-                // Four theme colors are gradient stops. Render short solid
-                // spans so this path works with the GX rectangle renderer.
-                const SPANS: usize = 32;
-                for span in 0..SPANS {
-                    let start = span as f32 / SPANS as f32;
-                    if start >= f32::from(percent) / 100.0 {
-                        break;
-                    }
-                    let end = ((span + 1) as f32 / SPANS as f32).min(f32::from(percent) / 100.0);
-                    frame.fill(
-                        rect(x + width * start, y, width * (end - start), 42),
-                        gradient_color(stops, start),
-                    );
-                }
-            }
-            frame.theme_art(rect(120, 220, 400, 112), ThemeArt::Progress, false);
-            frame.text(192.0, 190.0, tr("Please wait..."), 1.0, text_color, 40);
-            frame.text(430.0, 292.0, label, 1.0, text_color, 5);
         }
     }
     if controller.screen == Screen::Notice {
@@ -2833,6 +2839,29 @@ mod tests {
             .collect();
         assert!(progress.iter().all(|fill| fill.color == ACCENT));
         assert!((progress.iter().map(|fill| fill.bounds.width).sum::<f32>() - 115.5).abs() < 0.01);
+    }
+
+    #[test]
+    fn executable_loading_uses_the_shared_progress_dialog_and_meter() {
+        let mut controller = AppController::new();
+        controller.show_executable_loading();
+        controller.set_operation_progress(40);
+        let frame = browser_frame(&controller, &[]);
+        assert!(frame.commands.iter().any(|command| matches!(
+            command,
+            FrameCommand::ThemeArt {
+                art: ThemeArt::Progress,
+                bounds,
+                ..
+            } if *bounds == rect(120, 220, 400, 112)
+        )));
+        let progress: Vec<_> = frame
+            .fills
+            .iter()
+            .filter(|fill| fill.bounds.y == 255.0 && fill.bounds.x >= 155.0)
+            .collect();
+        assert!(progress.iter().all(|fill| fill.color == ACCENT));
+        assert!((progress.iter().map(|fill| fill.bounds.width).sum::<f32>() - 132.0).abs() < 0.01);
     }
 
     #[test]

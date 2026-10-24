@@ -320,9 +320,11 @@ def main():
                 '[Hotkeys]\nDevice = Pipe/0/priiloader-return\n'
                 'General/Take Screenshot = `Button Y`\n')
             (config / 'Logger.ini').write_text(
-                '[Options]\nWriteToFile=True\nVerbosity=4\n'
+                '[Options]\nWriteToFile=True\n' +
+                ('Verbosity=5\n' if args.ui_acceptance else 'Verbosity=4\n') +
                 '[Logs]\nOSREPORT=True\nCORE=True\nBOOT=True\n'
-                'PI=True\nIOS_STM=True\nIOS_ES=True\nCI=True\nIOS_NET=True\n')
+                'PI=True\nIOS_STM=True\nIOS_ES=True\nCI=True\nIOS_NET=True\n'
+                'IOS_WIIMOTE=True\nWiimote=True\n')
             pipes = profile / 'Pipes'
             pipes.mkdir(exist_ok=True)
             pipe = pipes / 'priiloader-return'

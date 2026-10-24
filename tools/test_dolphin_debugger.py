@@ -64,6 +64,17 @@ class DebuggerTests(unittest.TestCase):
         self.assertTrue(connection.sent[0].startswith(b'$m1000,3#'))
         self.assertEqual(connection.sent[-1], b'+')
 
+    def test_memory_data_beginning_with_e_is_not_an_error_packet(self):
+        connection = ScriptedSocket(b'$E880#e5')
+        debugger = Debugger(connection, {})
+        self.assertEqual(debugger.memory(0x1000, 2), b'\xe8\x80')
+
+    def test_memory_error_packet_is_rejected(self):
+        connection = ScriptedSocket(b'$E00#a5')
+        debugger = Debugger(connection, {})
+        with self.assertRaisesRegex(RuntimeError, 'memory read failed: E00'):
+            debugger.memory(0x1000, 2)
+
     def test_command_queues_async_stop_then_returns_command_reply(self):
         connection = ScriptedSocket(b'$T05#b9', b'$01020304#8a')
         debugger = Debugger(connection, {})

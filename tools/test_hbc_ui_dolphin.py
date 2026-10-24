@@ -3,9 +3,11 @@
 import configparser
 import os
 import struct
+import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 APP_FIXTURES = (
@@ -91,7 +93,13 @@ def _titles(event):
 
 def validate_events(log_text):
     """Assert observable pointer, bubble, sorting, and scan results."""
+    if 'ACL queue size reached' in log_text or 'failure: Some(QueueFull)' in log_text:
+        raise RuntimeError('Bluetooth input queue overflowed during UI acceptance')
     events = parse_events(log_text)
+    viewport = next((event for event in events if event['name'] == 'viewport'), None)
+    if viewport is None:
+        raise RuntimeError('Guest viewport dimensions were not reported')
+    width = int(viewport['width'])
     pointer = [event for event in events if event['name'] == 'pointer_press']
     targets = {(event.get('target'), event.get('index')) for event in pointer
                if event.get('valid') == '1'}
@@ -100,8 +108,7 @@ def validate_events(log_text):
     if not required_targets.issubset(targets):
         raise RuntimeError(f'Wii Remote did not hit required UI targets: {targets}')
     edge_clipped = any(
-        (event.get('valid') == '0') or
-        (event.get('valid') == '1' and int(event.get('x', '-1')) >= 630
+        (event.get('valid') == '1' and int(event.get('x', '-1')) >= width - 10
          and int(event.get('y', '-1')) >= 470)
         for event in pointer)
     if not edge_clipped:
@@ -112,10 +119,10 @@ def validate_events(log_text):
         raise RuntimeError('Wii Remote test did not prove three pointer positions')
 
     bubble_targets = [event for event in events if event['name'] == 'bubble_target']
-    if len(bubble_targets) != 1:
-        raise RuntimeError(f'Expected one production bubble target, found {len(bubble_targets)}')
-    x, y = int(bubble_targets[0]['x']), int(bubble_targets[0]['y'])
-    if not (0 <= x < 640 and 0 <= y < 480):
+    if not bubble_targets:
+        raise RuntimeError('No production bubble target was observed')
+    x, y = int(bubble_targets[-1]['x']), int(bubble_targets[-1]['y'])
+    if not (0 <= x < width and 0 <= y < 480):
         raise RuntimeError(f'Bubble target is outside the screen: {x},{y}')
     bubble_pops = [event for event in events if event['name'] == 'bubble_pop']
     if not any(int(event.get('count', '0')) > 0 for event in bubble_pops):
@@ -170,7 +177,7 @@ class RemotePipe:
         time.sleep(0.2)
 
     def button(self, name):
-        name = {'1': 'START'}.get(name, name)
+        name = {'1': 'X', '2': 'Y'}.get(name, name)
         self.send(f'PRESS {name}')
         self.send(f'RELEASE {name}')
 
@@ -182,14 +189,72 @@ class RemotePipe:
         self.button('A')
 
 
+def pointer_axis_delta(matrix, dx, dy):
+    """Invert the measured two-axis pointer response."""
+    a, b, c, d = matrix
+    determinant = a * d - b * c
+    if abs(determinant) < 1:
+        raise RuntimeError(f'Dolphin pointer calibration is singular: {matrix}')
+    return ((d * dx - b * dy) / determinant,
+            (a * dy - c * dx) / determinant)
+
+
+class PointerDriver:
+    """Position the real guest pointer using observed coordinates as feedback."""
+
+    def __init__(self, remote, log_path, width):
+        self.remote = remote
+        self.log_path = log_path
+        self.width = width
+        self.axes = (0.5, 0.5)
+        center = self.measure(0.5, 0.5)
+        horizontal = self.measure(0.55, 0.5)
+        vertical = self.measure(0.5, 0.55)
+        self.matrix = ((horizontal[0] - center[0]) / 0.05,
+                       (vertical[0] - center[0]) / 0.05,
+                       (horizontal[1] - center[1]) / 0.05,
+                       (vertical[1] - center[1]) / 0.05)
+        pointer_axis_delta(self.matrix, 1, 1)
+
+    def position(self):
+        events = parse_events(self.log_path.read_text(errors='replace'))
+        positions = [event for event in events if event['name'] == 'pointer_position']
+        if not positions or positions[-1].get('valid') != '1':
+            raise RuntimeError(f'Guest pointer is not visible at Pipe axes {self.axes}')
+        return int(positions[-1]['x']), int(positions[-1]['y'])
+
+    def measure(self, x, y):
+        self.remote.axes(x, y)
+        self.axes = (x, y)
+        time.sleep(0.25)
+        return self.position()
+
+    def move_to(self, x, y):
+        for _ in range(12):
+            actual_x, actual_y = self.position()
+            dx, dy = x - actual_x, y - actual_y
+            if abs(dx) <= 4 and abs(dy) <= 4:
+                return actual_x, actual_y
+            ax, ay = pointer_axis_delta(self.matrix, dx, dy)
+            step = max(1, abs(ax) / 0.08, abs(ay) / 0.08)
+            self.measure(max(0, min(1, self.axes[0] + ax / step)),
+                         max(0, min(1, self.axes[1] + ay / step)))
+        raise RuntimeError(f'Guest pointer did not reach {x},{y}; actual={self.position()}')
+
+
 def wait_for_events(log_path, predicate, timeout, description, after_count=0):
     deadline = time.monotonic() + timeout
     last_events = []
     while time.monotonic() < deadline:
         try:
-            events = parse_events(log_path.read_text(errors='replace'))
+            log_text = log_path.read_text(errors='replace')
         except FileNotFoundError:
-            events = []
+            log_text = ''
+        if 'HBC: Bluetooth startup: BLUETOOTH FAILED' in log_text:
+            raise RuntimeError(
+                f'{description}: guest Bluetooth failed; inspect IOS_WIIMOTE '
+                'and HBC Bluetooth diagnostics in dolphin.log')
+        events = parse_events(log_text)
         last_events = events
         selected = [event for event in events[after_count:] if predicate(event)]
         if selected:
@@ -198,9 +263,46 @@ def wait_for_events(log_path, predicate, timeout, description, after_count=0):
     raise TimeoutError(f'{description} was not observed; recent events={last_events[-8:]}')
 
 
-def click_at(remote, log_path, x, y, target, index, timeout):
+class RemotePipeTests(unittest.TestCase):
+    def test_acceptance_rejects_real_bluetooth_queue_overflow(self):
+        with self.assertRaisesRegex(RuntimeError, 'Bluetooth input queue overflowed'):
+            validate_events('E[IOS_WIIMOTE]: ACL queue size reached 100 - current packet will be dropped!')
+
+    def test_pointer_calibration_inverts_both_measured_axes(self):
+        x, y = pointer_axis_delta((800, 20, 10, 600), 82, 61)
+        self.assertAlmostEqual(x, 0.1)
+        self.assertAlmostEqual(y, 0.1)
+
+    def test_pointer_calibration_rejects_unresponsive_axes(self):
+        with self.assertRaisesRegex(RuntimeError, 'singular'):
+            pointer_axis_delta((800, 0, 400, 0), 82, 61)
+
+    def test_wii_buttons_use_independent_pipe_controls(self):
+        reader, writer = os.pipe()
+        try:
+            with patch.object(time, 'sleep'):
+                remote = RemotePipe(writer)
+                remote.button('1')
+                remote.button('2')
+            self.assertEqual(os.read(reader, 256),
+                             b'PRESS X\nRELEASE X\nPRESS Y\nRELEASE Y\n')
+        finally:
+            os.close(writer)
+            os.close(reader)
+
+    def test_guest_bluetooth_failure_is_reported_before_pointer_timeout(self):
+        with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1]) as directory:
+            log_path = Path(directory) / 'dolphin.log'
+            log_path.write_text(
+                'N[OSREPORT]: HBC: Bluetooth startup: BLUETOOTH FAILED\n')
+            with self.assertRaisesRegex(RuntimeError, 'guest Bluetooth failed'):
+                wait_for_events(log_path, lambda event: False, 1, 'pointer click')
+
+
+def click_at(remote, pointer, log_path, x, y, target, index, timeout):
+    x += (pointer.width - 640) // 2
     before = len(parse_events(log_path.read_text(errors='replace')))
-    remote.axes(x / 639, y / 479)
+    pointer.move_to(x, y)
     remote.click()
     event, _ = wait_for_events(
         log_path,
@@ -214,6 +316,10 @@ def click_at(remote, log_path, x, y, target, index, timeout):
     actual_x, actual_y = int(event['x']), int(event['y'])
     if abs(actual_x - x) > 12 or abs(actual_y - y) > 12:
         raise RuntimeError(f'Wii Remote pointer reached {actual_x},{actual_y}; expected {x},{y}')
+    presses = [item for item in parse_events(log_path.read_text(errors='replace'))[before:]
+               if item['name'] == 'pointer_press']
+    if len(presses) != 1:
+        raise RuntimeError(f'One Pipe A press produced {len(presses)} guest pointer presses')
     return event
 
 
@@ -232,63 +338,60 @@ def run_acceptance(args, result, profile, remote_fd, process, screenshot):
     else:
         raise TimeoutError('The three-app SD catalog did not finish scanning')
 
-    initial_events = parse_events(log_text)
-    bubble = next((event for event in initial_events if event['name'] == 'bubble_target'), None)
-    if bubble is None:
-        bubble, _ = wait_for_events(log_path, lambda event: event['name'] == 'bubble_target',
-                                    args.startup_timeout, 'production bubble target')
-    bubble_x, bubble_y = int(bubble['x']), int(bubble['y'])
-    before_pops = sum(int(event.get('count', '0')) for event in parse_events(
-        log_path.read_text(errors='replace')) if event['name'] == 'bubble_pop')
-    remote.axes(bubble_x / 639, bubble_y / 479)
-    pointer_before = len(initial_events)
-    remote.click()
-    pointer_event, _ = wait_for_events(
-        log_path,
-        lambda item: item['name'] == 'pointer_press' and item.get('valid') == '1',
-        10, 'emulated Wii Remote click on bubble', after_count=pointer_before)
-    if abs(int(pointer_event['x']) - bubble_x) > 12 or \
-            abs(int(pointer_event['y']) - bubble_y) > 12:
-        raise RuntimeError('Wii Remote pointer did not reach the production bubble target')
-    event, events = wait_for_events(
-        log_path,
-        lambda item: item['name'] == 'bubble_pop' and int(item.get('count', '0')) > 0,
-        args.startup_timeout,
-        'real bubble pop after the emulated Wii Remote click')
-    after_pops = sum(int(item.get('count', '0')) for item in events
-                     if item['name'] == 'bubble_pop')
-    if after_pops <= before_pops:
-        raise RuntimeError('Bubble pop count did not increase after the Wii Remote input')
-    remote.button('B')
+    viewport, _ = wait_for_events(log_path, lambda event: event['name'] == 'viewport',
+                                  args.startup_timeout, 'guest viewport')
+    width = int(viewport['width'])
+    result['viewport'] = {'width': width, 'height': int(viewport['height'])}
+    remote.axes(0.5, 0.5)
+    wait_for_events(log_path, lambda event: event['name'] == 'pointer_ready',
+                    args.startup_timeout, 'guest Wii Remote pointer readiness')
+    pointer = PointerDriver(remote, log_path, width)
+    result['pointer_calibration'] = {'matrix': pointer.matrix}
+    # Production bubbles pop on pointer contact. Use current bounds and wait
+    # ahead of the moving bubble instead of clicking its stale startup position.
+    pop_before = len(parse_events(log_path.read_text(errors='replace')))
+    for _ in range(4):
+        events = parse_events(log_path.read_text(errors='replace'))
+        if any(event['name'] == 'bubble_pop' for event in events[pop_before:]):
+            break
+        targets = [event for event in events if event['name'] == 'bubble_target']
+        if not targets:
+            raise RuntimeError('No current production bubble bounds are available')
+        bubble = targets[-1]
+        pointer.move_to(int(bubble['x']), max(20, int(bubble['y']) - 50))
+        time.sleep(1)
+    wait_for_events(log_path,
+                    lambda event: event['name'] == 'bubble_pop' and int(event.get('count', '0')) > 0,
+                    5, 'real bubble pop after Wii Remote pointer contact', after_count=pop_before)
     screenshot('ui-bubble-pop')
 
-    # The Pipe clamps out-of-range axes to its maximum value. Check that the
-    # Wii Remote reports the clipped bottom-right screen edge.
+    # Verify an actual guest screen-edge click. Pipe axes describe a camera
+    # pose, so a clamped axis maximum is not a screen-pixel coordinate.
+    pointer.move_to(width - 3, 477)
     edge_before = len(parse_events(log_path.read_text(errors='replace')))
-    remote.send('SET MAIN 1.5 1.5')
     remote.click()
     edge_event, _ = wait_for_events(
         log_path,
         lambda item: item['name'] == 'pointer_press',
         5, 'clipped Wii Remote pointer sample', after_count=edge_before)
     if edge_event.get('valid') != '1' or (
-            int(edge_event['x']) < 630 or int(edge_event['y']) < 470):
+            int(edge_event['x']) < width - 10 or int(edge_event['y']) < 470):
         raise RuntimeError(f'Wii Remote did not reach the clipped screen edge: {edge_event}')
     remote.button('B')
-    remote.axes(0.5, 0.5)
+    pointer.move_to(320, 240)
 
     # Date then Name ensures both settings transitions produce actual orders.
     remote.button('1')
-    click_at(remote, log_path, 400, 265, 'option', 5, 10)
-    click_at(remote, log_path, 180, 360, 'option', 6, 10)
+    click_at(remote, pointer, log_path, 400, 265, 'option', 5, 10)
+    click_at(remote, pointer, log_path, 180, 360, 'option', 6, 10)
     wait_for_events(log_path,
                     lambda item: item['name'] == 'sort_changed' and item.get('key') == 'date'
                     and _titles(item) == DATE_ORDER,
                     10, 'Date sort and visible order')
     screenshot('ui-date-sort')
     remote.button('1')
-    click_at(remote, log_path, 180, 265, 'option', 4, 10)
-    click_at(remote, log_path, 180, 360, 'option', 6, 10)
+    click_at(remote, pointer, log_path, 180, 265, 'option', 4, 10)
+    click_at(remote, pointer, log_path, 180, 360, 'option', 6, 10)
     wait_for_events(log_path,
                     lambda item: item['name'] == 'sort_changed' and item.get('key') == 'name'
                     and _titles(item) == NAME_ORDER,
@@ -296,9 +399,9 @@ def run_acceptance(args, result, profile, remote_fd, process, screenshot):
     screenshot('ui-name-sort')
 
     remote.button('1')
-    click_at(remote, log_path, 300, 330, 'option', 8, 10)
+    click_at(remote, pointer, log_path, 300, 330, 'option', 8, 10)
     screenshot('ui-network-settings')
-    click_at(remote, log_path, 120, 420, 'network_option', 6, 10)
+    click_at(remote, pointer, log_path, 120, 420, 'network_option', 6, 10)
     wait_for_events(log_path,
                     lambda item: item['name'] == 'network_scan_complete' and
                     item.get('status') == 'error' and item.get('restart') == 'ok' and
@@ -314,7 +417,7 @@ def run_acceptance(args, result, profile, remote_fd, process, screenshot):
     result['ui_acceptance'] = validate_events(log_text)
     result['ui_acceptance']['input_path'] = (
         'Dolphin emulated Wii Remote pointer via Pipe/0/hbc-ui-remote; '
-        'Pipe START maps to HBC Options because Dolphin Pipe has no Wii Remote 1/2 controls'
+        'Pipe X/Y map to Wii Remote 1/2'
     )
     result['ui_acceptance']['fixture'] = {
         'apps': [{'directory': folder, 'title': title, 'release_date': date}
@@ -340,7 +443,8 @@ def configure_profile(profile, config_path):
         'Device = Pipe/0/hbc-ui-remote\n'
         'Buttons/A = `Pipe/0/hbc-ui-remote:Button A`\n'
         'Buttons/B = `Pipe/0/hbc-ui-remote:Button B`\n'
-        'Buttons/1 = `Pipe/0/hbc-ui-remote:Button START`\n'
+        'Buttons/1 = `Pipe/0/hbc-ui-remote:Button X`\n'
+        'Buttons/2 = `Pipe/0/hbc-ui-remote:Button Y`\n'
         'D-Pad/Up = `Pipe/0/hbc-ui-remote:Button D_UP`\n'
         'D-Pad/Down = `Pipe/0/hbc-ui-remote:Button D_DOWN`\n'
         'D-Pad/Left = `Pipe/0/hbc-ui-remote:Button D_LEFT`\n'

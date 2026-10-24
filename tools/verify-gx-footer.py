@@ -11,12 +11,10 @@ from pathlib import Path
 import socket
 import subprocess
 import time
-import struct
-import zlib
 
 root = Path(__file__).resolve().parents[1]
 from dolphin_capture_config import configure_capture_profile
-from xfb_capture import summarize_yuyv_luma
+from xfb_capture import summarize_yuyv_luma, write_yuyv_png
 from dolphin_test_support import Debugger
 parser = argparse.ArgumentParser(description='Capture production HBC notice, footer, menu, and Options paths in Dolphin.')
 parser.add_argument('--label', default='fixed')
@@ -87,21 +85,7 @@ def capture(name):
         capture_failure = f'{name}: {error}'
         print('capture rejected:', capture_failure, flush=True)
         raise
-    rgb = bytearray()
-    for offset in range(0, len(xfb), 4):
-        y0, u, y1, v = xfb[offset:offset + 4]
-        for y in (y0, y1):
-            c, d, e = y - 16, u - 128, v - 128
-            channels = ((298*c + 409*e + 128) >> 8,
-                        (298*c - 100*d - 208*e + 128) >> 8,
-                        (298*c + 516*d + 128) >> 8)
-            rgb.extend(max(0, min(255, value)) for value in channels)
-    def chunk(kind, data):
-        return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data))
-    rows = b''.join(b'\x00' + rgb[y*1920:(y+1)*1920] for y in range(480))
-    png = (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', 640, 480, 8, 2, 0, 0, 0))
-           + chunk(b'IDAT', zlib.compress(rows)) + chunk(b'IEND', b''))
-    (output / (name + '.png')).write_bytes(png)
+    write_yuyv_png(output / (name + '.png'), xfb, 640, 480)
     print('capture', name, hex(pointer), summary, flush=True)
 
 completed = False

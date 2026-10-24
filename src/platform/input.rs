@@ -33,6 +33,9 @@ static mut RIGHT_STICK_MAPPER: DigitalStickMapper<MAX_CONTROLLERS> = DigitalStic
 #[cfg(target_arch = "powerpc")]
 fn report_bluetooth_startup(stage: &'static str) {
     ogc_system::report(format_args!("HBC: Bluetooth startup: {stage}\n"));
+    if stage == "BLUETOOTH FAILED" {
+        report_bluetooth_diagnostics(wpad_sys::bluetooth_diagnostics());
+    }
 }
 
 #[cfg(target_arch = "powerpc")]

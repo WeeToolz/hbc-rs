@@ -66,6 +66,7 @@ pub enum Screen {
     WiiloadConfirm,
     WiiloadInstalling,
     WiiloadReceiving,
+    ExecutableLoading,
     Options,
     NetworkSettings,
     NetworkScan,
@@ -277,7 +278,7 @@ pub struct AppController {
     wiiload_confirmation_scroll_pixel_remainder: i16,
     confirmation_action: Option<ConfirmationAction>,
     confirmation_return_screen: Screen,
-    wiiload_install_progress: u8,
+    operation_progress: u8,
     notice: Option<String>,
     notice_kind: NoticeKind,
     notice_idle_ticks: u16,
@@ -391,13 +392,18 @@ impl AppController {
     }
 
     pub fn show_wiiload_installing(&mut self) {
-        self.wiiload_install_progress = 0;
+        self.operation_progress = 0;
         self.screen = Screen::WiiloadInstalling;
     }
 
     pub fn show_wiiload_receiving(&mut self) {
-        self.wiiload_install_progress = 0;
+        self.operation_progress = 0;
         self.screen = Screen::WiiloadReceiving;
+    }
+
+    pub fn show_executable_loading(&mut self) {
+        self.operation_progress = 0;
+        self.screen = Screen::ExecutableLoading;
     }
 
     pub fn finish_wiiload_receiving(&mut self) {
@@ -407,16 +413,30 @@ impl AppController {
     }
 
     pub fn set_wiiload_install_progress(&mut self, percent: u8) {
+        self.set_operation_progress(percent);
+    }
+
+    pub fn set_operation_progress(&mut self, percent: u8) {
         if matches!(
             self.screen,
-            Screen::WiiloadInstalling | Screen::WiiloadReceiving
+            Screen::WiiloadInstalling | Screen::WiiloadReceiving | Screen::ExecutableLoading
         ) {
-            self.wiiload_install_progress = percent.min(100);
+            self.operation_progress = percent.min(100);
         }
     }
 
     pub fn wiiload_install_progress(&self) -> u8 {
-        self.wiiload_install_progress
+        self.operation_progress
+    }
+
+    pub fn operation_progress(&self) -> u8 {
+        self.operation_progress
+    }
+
+    pub fn finish_executable_loading(&mut self) {
+        if self.screen == Screen::ExecutableLoading {
+            self.screen = Screen::Browser;
+        }
     }
 
     pub fn finish_wiiload_installing(&mut self) {
@@ -1056,7 +1076,9 @@ impl AppController {
                 }
                 _ => Action::None,
             },
-            Screen::WiiloadInstalling | Screen::WiiloadReceiving => Action::None,
+            Screen::WiiloadInstalling | Screen::WiiloadReceiving | Screen::ExecutableLoading => {
+                Action::None
+            }
             Screen::Options => self.handle_options(input, catalog),
             Screen::NetworkSettings => self.handle_network_settings(input),
             Screen::NetworkScan => self.handle_network_scan(input),
@@ -1189,7 +1211,10 @@ impl AppController {
                 }
             }
             (Screen::WiiloadConfirm, PointerTarget::WiiloadMemo) => Action::None,
-            (Screen::WiiloadInstalling | Screen::WiiloadReceiving, _) => Action::None,
+            (
+                Screen::WiiloadInstalling | Screen::WiiloadReceiving | Screen::ExecutableLoading,
+                _,
+            ) => Action::None,
             (Screen::Options, PointerTarget::Option(index)) if self.option_enabled(index) => {
                 self.options_focus = index;
                 if pressed {
@@ -2513,6 +2538,32 @@ mod tests {
         assert_eq!(controller.wiiload_install_progress(), 100);
         controller.finish_wiiload_receiving();
         assert_eq!(controller.screen, Screen::Browser);
+    }
+
+    #[test]
+    fn executable_loading_reuses_bounded_operation_progress_and_returns_to_browser() {
+        let mut controller = AppController::new();
+        controller.show_executable_loading();
+        controller.set_operation_progress(37);
+        assert_eq!(controller.screen, Screen::ExecutableLoading);
+        assert_eq!(controller.operation_progress(), 37);
+        controller.set_operation_progress(255);
+        assert_eq!(controller.operation_progress(), 100);
+        controller.finish_executable_loading();
+        controller.set_operation_progress(22);
+        assert_eq!(controller.screen, Screen::Browser);
+        assert_eq!(controller.operation_progress(), 100);
+    }
+
+    #[test]
+    fn executable_loading_ignores_controller_and_pointer_input() {
+        let mut controller = AppController::new();
+        controller.show_executable_loading();
+        assert_eq!(controller.handle(Input::Confirm, &[]), Action::None);
+        assert_eq!(
+            controller.handle_pointer(Some(PointerTarget::App(0)), true, &[]),
+            Action::None
+        );
     }
 
     #[test]
