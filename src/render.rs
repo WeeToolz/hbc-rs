@@ -970,13 +970,13 @@ fn draw_progress_dialog(
     frame.text(252.0, 124.0, title, 1.0, text_color, 40);
     frame.set_text_style(theme_text_style(theme, "label", text_color));
     let percent = percent.min(100);
-    let label = [
-        b'0' + percent / 100,
-        b'0' + (percent / 10) % 10,
-        b'0' + percent % 10,
-        b'%',
-    ];
-    let label = core::str::from_utf8(&label).unwrap_or("000%");
+    let (label, label_len) = progress_label(percent);
+    let label_x = match label_len {
+        4 => 430.0,
+        3 => 440.0,
+        _ => 450.0,
+    };
+    let label = core::str::from_utf8(&label[..label_len]).unwrap_or("0%");
     if percent > 0 {
         let stops = theme
             .and_then(|metadata| metadata.progress_gradient)
@@ -999,7 +999,23 @@ fn draw_progress_dialog(
     }
     frame.theme_art(rect(120, 220, 400, 112), ThemeArt::Progress, false);
     frame.text(192.0, 190.0, waiting_label, 1.0, text_color, 40);
-    frame.text(430.0, 292.0, label, 1.0, text_color, 5);
+    frame.text(label_x, 292.0, label, 1.0, text_color, 5);
+}
+
+fn progress_label(percent: u8) -> ([u8; 4], usize) {
+    let percent = percent.min(100);
+    let mut label = [0; 4];
+    let length = if percent == 100 {
+        label.copy_from_slice(b"100%");
+        4
+    } else if percent >= 10 {
+        label[..3].copy_from_slice(&[b'0' + percent / 10, b'0' + percent % 10, b'%']);
+        3
+    } else {
+        label[..2].copy_from_slice(&[b'0' + percent, b'%']);
+        2
+    };
+    (label, length)
 }
 
 pub fn browser_frame(controller: &AppController, catalog: &[AppEntry]) -> Frame {
@@ -2766,6 +2782,20 @@ mod tests {
             (progress.iter().map(|fill| fill.bounds.width).sum::<f32>() - 82.5).abs() < 0.01,
             "{progress:?}"
         );
+    }
+
+    #[test]
+    fn progress_percentage_has_no_leading_zero_and_clamps_at_one_hundred() {
+        for (percent, expected) in [
+            (0, "0%"),
+            (9, "9%"),
+            (30, "30%"),
+            (100, "100%"),
+            (255, "100%"),
+        ] {
+            let (label, length) = progress_label(percent);
+            assert_eq!(core::str::from_utf8(&label[..length]), Ok(expected));
+        }
     }
 
     #[test]
