@@ -1,0 +1,46 @@
+{
+  "image": "/Users/user/Library/Application Support/Dolphin/Load/WiiSD/apps/tetris/boot.dol",
+  "sha256": "f7b51ee24af743117d932173749d37bc8f3ee3da52de92342ab69103542f3b21",
+  "physical_wii_tested": false,
+  "capture_complete": false,
+  "input_verification": "requires screenshot review",
+  "stages": [],
+  "fixture": {
+    "application": {
+      "source": "/Users/user/Library/Application Support/Dolphin/Load/WiiSD/apps/tetris",
+      "path": "sd:/apps/tetris/boot.dol",
+      "bytes": 5155488,
+      "sha256": "f7b51ee24af743117d932173749d37bc8f3ee3da52de92342ab69103542f3b21",
+      "build_manifest": {
+        "schema_version": 2,
+        "package": "tetris",
+        "target_kind": "--bin",
+        "target": "tetris",
+        "target_triple": "powerpc-nintendo-none",
+        "profile": "release",
+        "features": [],
+        "standard_library": "core,alloc",
+        "dol_bytes": 5155488,
+        "dol_sha256": "f7b51ee24af743117d932173749d37bc8f3ee3da52de92342ab69103542f3b21",
+        "development": false,
+        "elf_path": "/Volumes/SSD/WiiDev/RustPorts/hbc-rs/target/dolphin-current-build/powerpc-nintendo-none/release/tetris",
+        "source_revision": "876513b9761a119543dbc7e3311f3bf3fb177fcb",
+        "source_changes": "",
+        "sdk_revision": "cc3747288c597c9a46936b0c0f90dd7df9c8277b",
+        "sdk_changes": "M probes/ogc-system-probe/Cargo.toml"
+      }
+    }
+  },
+  "expected_visible_result": "The selected application starts and draws its screen",
+  "command": [
+    "/Applications/Dolphin.app/Contents/MacOS/Dolphin",
+    "-b",
+    "-u",
+    "/Volumes/SSD/WiiDev/tmp/hbc-c-input-db16qj2m",
+    "-e",
+    "/Users/user/Library/Application Support/Dolphin/Load/WiiSD/apps/tetris/boot.dol"
+  ],
+  "load_focus_left": false,
+  "error": "Dolphin did not save a screenshot after the Y hotkey",
+  "dolphin_exit_code": 0
+}

@@ -1,0 +1,71 @@
+{
+  "image": "/Users/user/Library/Application Support/Dolphin/Load/WiiSD/apps/hbc/boot.dol",
+  "sha256": "6b72a89ee420981e4f2ca0fa5f68af2728f61068ee9de3107af898c82643b699",
+  "physical_wii_tested": false,
+  "capture_complete": false,
+  "input_verification": "requires screenshot review",
+  "stages": [
+    {
+      "name": "app-browser",
+      "screenshot": "docs/review/evidence/wpad-shutdown-rust-dolphin-2026-10-24-r3/dolphin-20261024-014230-178219108123000.png"
+    },
+    {
+      "name": "app-details",
+      "screenshot": "docs/review/evidence/wpad-shutdown-rust-dolphin-2026-10-24-r3/dolphin-20261024-014233-178221688035916.png"
+    },
+    {
+      "name": "app-load-selected",
+      "screenshot": "docs/review/evidence/wpad-shutdown-rust-dolphin-2026-10-24-r3/dolphin-20261024-014234-178222858079625.png"
+    }
+  ],
+  "fixture": {
+    "application": {
+      "source": "/Users/user/Library/Application Support/Dolphin/Load/WiiSD/apps/tetris",
+      "path": "sd:/apps/tetris/boot.dol",
+      "bytes": 5155488,
+      "sha256": "f7b51ee24af743117d932173749d37bc8f3ee3da52de92342ab69103542f3b21",
+      "build_manifest": {
+        "schema_version": 2,
+        "package": "tetris",
+        "target_kind": "--bin",
+        "target": "tetris",
+        "target_triple": "powerpc-nintendo-none",
+        "profile": "release",
+        "features": [],
+        "standard_library": "core,alloc",
+        "dol_bytes": 5155488,
+        "dol_sha256": "f7b51ee24af743117d932173749d37bc8f3ee3da52de92342ab69103542f3b21",
+        "development": false,
+        "elf_path": "/Volumes/SSD/WiiDev/RustPorts/hbc-rs/target/dolphin-current-build/powerpc-nintendo-none/release/tetris",
+        "source_revision": "876513b9761a119543dbc7e3311f3bf3fb177fcb",
+        "source_changes": "",
+        "sdk_revision": "cc3747288c597c9a46936b0c0f90dd7df9c8277b",
+        "sdk_changes": "M probes/ogc-system-probe/Cargo.toml"
+      }
+    }
+  },
+  "expected_visible_result": "The selected application starts and draws its screen",
+  "command": [
+    "/Applications/Dolphin.app/Contents/MacOS/Dolphin",
+    "-b",
+    "-u",
+    "/Volumes/SSD/WiiDev/tmp/hbc-c-input-is90oc06",
+    "-e",
+    "/Users/user/Library/Application Support/Dolphin/Load/WiiSD/apps/hbc/boot.dol",
+    "-d",
+    "-C",
+    "Dolphin.General.GDBPort=55287",
+    "-C",
+    "Dolphin.Core.CPUThread=False"
+  ],
+  "load_focus_left": true,
+  "child_entry_stop": "T0540:80004000;01:817f27d0;",
+  "child_entry_verified": true,
+  "error": "Dolphin did not save a screenshot after the Y hotkey",
+  "dolphin_exit_code": 0,
+  "review": {
+    "entry_check_passed": true,
+    "visible_game_check_passed": false,
+    "observation": "Selected DOL entry reached; compared entry bytes outside the argv patch match the DOL. Post-launch screenshot timed out."
+  }
+}

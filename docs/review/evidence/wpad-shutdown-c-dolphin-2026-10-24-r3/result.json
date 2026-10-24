@@ -1,0 +1,67 @@
+{
+  "image": "/Volumes/SSD/WiiDev/C-sources/hbc-reborn/channel/channelapp/channelapp-channel.dol",
+  "sha256": "a32c35c20e2a18ba3004aefbcea9ac10af555f0d068241e9332d6840b28fe5f6",
+  "physical_wii_tested": false,
+  "capture_complete": false,
+  "input_verification": "requires screenshot review",
+  "stages": [
+    {
+      "name": "app-browser",
+      "screenshot": "docs/review/evidence/wpad-shutdown-c-dolphin-2026-10-24-r3/dolphin-20261024-014422-178330355203375.png"
+    },
+    {
+      "name": "app-details",
+      "screenshot": "docs/review/evidence/wpad-shutdown-c-dolphin-2026-10-24-r3/dolphin-20261024-014424-178332953282375.png"
+    }
+  ],
+  "fixture": {
+    "application": {
+      "source": "/Users/user/Library/Application Support/Dolphin/Load/WiiSD/apps/tetris",
+      "path": "sd:/apps/tetris/boot.dol",
+      "bytes": 5155488,
+      "sha256": "f7b51ee24af743117d932173749d37bc8f3ee3da52de92342ab69103542f3b21",
+      "build_manifest": {
+        "schema_version": 2,
+        "package": "tetris",
+        "target_kind": "--bin",
+        "target": "tetris",
+        "target_triple": "powerpc-nintendo-none",
+        "profile": "release",
+        "features": [],
+        "standard_library": "core,alloc",
+        "dol_bytes": 5155488,
+        "dol_sha256": "f7b51ee24af743117d932173749d37bc8f3ee3da52de92342ab69103542f3b21",
+        "development": false,
+        "elf_path": "/Volumes/SSD/WiiDev/RustPorts/hbc-rs/target/dolphin-current-build/powerpc-nintendo-none/release/tetris",
+        "source_revision": "876513b9761a119543dbc7e3311f3bf3fb177fcb",
+        "source_changes": "",
+        "sdk_revision": "cc3747288c597c9a46936b0c0f90dd7df9c8277b",
+        "sdk_changes": "M probes/ogc-system-probe/Cargo.toml"
+      }
+    }
+  },
+  "expected_visible_result": "The selected application starts and draws its screen",
+  "command": [
+    "/Applications/Dolphin.app/Contents/MacOS/Dolphin",
+    "-b",
+    "-u",
+    "/Volumes/SSD/WiiDev/tmp/hbc-c-input-y7ne3nt2",
+    "-e",
+    "/Volumes/SSD/WiiDev/C-sources/hbc-reborn/channel/channelapp/channelapp-channel.dol",
+    "-d",
+    "-C",
+    "Dolphin.General.GDBPort=55287",
+    "-C",
+    "Dolphin.Core.CPUThread=False"
+  ],
+  "load_focus_left": false,
+  "child_entry_stop": "T0540:80004000;01:81684ce0;",
+  "child_entry_verified": true,
+  "error": "Dolphin did not save a screenshot after the Y hotkey",
+  "dolphin_exit_code": 0,
+  "review": {
+    "entry_check_passed": true,
+    "visible_game_check_passed": false,
+    "observation": "Selected DOL entry reached; compared entry bytes outside the argv patch match the DOL. Post-launch screenshot timed out."
+  }
+}

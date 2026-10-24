@@ -1,0 +1,53 @@
+{
+  "image": "/Users/user/Library/Application Support/Dolphin/Load/WiiSD/apps/hbc/boot.dol",
+  "sha256": "6b72a89ee420981e4f2ca0fa5f68af2728f61068ee9de3107af898c82643b699",
+  "physical_wii_tested": false,
+  "capture_complete": true,
+  "input_verification": "requires screenshot review",
+  "stages": [
+    {
+      "name": "app-browser",
+      "screenshot": "docs/review/evidence/wpad-shutdown-rust-dolphin-2026-10-24-r1/dolphin-20261024-013906-178015158181625.png"
+    },
+    {
+      "name": "app-details",
+      "screenshot": "docs/review/evidence/wpad-shutdown-rust-dolphin-2026-10-24-r1/dolphin-20261024-013909-178017738632791.png"
+    },
+    {
+      "name": "app-after-load",
+      "screenshot": "docs/review/evidence/wpad-shutdown-rust-dolphin-2026-10-24-r1/dolphin-20261024-013930-178038912672166.png"
+    }
+  ],
+  "fixture": {
+    "application": {
+      "source": "/Users/user/Library/Application Support/Dolphin/Load/WiiSD/apps/tetris",
+      "path": "sd:/apps/tetris/boot.dol",
+      "bytes": 5155488,
+      "sha256": "f7b51ee24af743117d932173749d37bc8f3ee3da52de92342ab69103542f3b21",
+      "build_manifest": {
+        "schema_version": 2,
+        "package": "tetris",
+        "target_kind": "--bin",
+        "target": "tetris",
+        "target_triple": "powerpc-nintendo-none",
+        "profile": "release",
+        "features": [],
+        "standard_library": "core,alloc",
+        "dol_bytes": 5155488,
+        "dol_sha256": "f7b51ee24af743117d932173749d37bc8f3ee3da52de92342ab69103542f3b21",
+        "development": false,
+        "elf_path": "/Volumes/SSD/WiiDev/RustPorts/hbc-rs/target/dolphin-current-build/powerpc-nintendo-none/release/tetris",
+        "source_revision": "876513b9761a119543dbc7e3311f3bf3fb177fcb",
+        "source_changes": "",
+        "sdk_revision": "cc3747288c597c9a46936b0c0f90dd7df9c8277b",
+        "sdk_changes": "M probes/ogc-system-probe/Cargo.toml"
+      }
+    }
+  },
+  "expected_visible_result": "The selected application starts and draws its screen",
+  "dolphin_exit_code": 0,
+  "review": {
+    "launch_pass": false,
+    "observation": "No launch: the unmodified C input sequence selected Back in Rust HBC."
+  }
+}

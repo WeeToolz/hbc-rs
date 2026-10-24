@@ -1,0 +1,88 @@
+{
+  "image": "/Users/user/Library/Application Support/Dolphin/Load/WiiSD/apps/hbc/boot.dol",
+  "sha256": "6b72a89ee420981e4f2ca0fa5f68af2728f61068ee9de3107af898c82643b699",
+  "physical_wii_tested": false,
+  "capture_complete": false,
+  "input_verification": "requires screenshot review",
+  "stages": [
+    {
+      "name": "app-browser",
+      "screenshot": "docs/review/evidence/wpad-shutdown-rust-dolphin-2026-10-24-r4/dolphin-20261024-014617-178445768745666.png"
+    },
+    {
+      "name": "app-details",
+      "screenshot": "docs/review/evidence/wpad-shutdown-rust-dolphin-2026-10-24-r4/dolphin-20261024-014620-178448345039958.png"
+    },
+    {
+      "name": "app-load-selected",
+      "screenshot": "docs/review/evidence/wpad-shutdown-rust-dolphin-2026-10-24-r4/dolphin-20261024-014621-178449525872166.png"
+    }
+  ],
+  "fixture": {
+    "application": {
+      "source": "/Users/user/Library/Application Support/Dolphin/Load/WiiSD/apps/tetris",
+      "path": "sd:/apps/tetris/boot.dol",
+      "bytes": 5155488,
+      "sha256": "f7b51ee24af743117d932173749d37bc8f3ee3da52de92342ab69103542f3b21",
+      "build_manifest": {
+        "schema_version": 2,
+        "package": "tetris",
+        "target_kind": "--bin",
+        "target": "tetris",
+        "target_triple": "powerpc-nintendo-none",
+        "profile": "release",
+        "features": [],
+        "standard_library": "core,alloc",
+        "dol_bytes": 5155488,
+        "dol_sha256": "f7b51ee24af743117d932173749d37bc8f3ee3da52de92342ab69103542f3b21",
+        "development": false,
+        "elf_path": "/Volumes/SSD/WiiDev/RustPorts/hbc-rs/target/dolphin-current-build/powerpc-nintendo-none/release/tetris",
+        "source_revision": "876513b9761a119543dbc7e3311f3bf3fb177fcb",
+        "source_changes": "",
+        "sdk_revision": "cc3747288c597c9a46936b0c0f90dd7df9c8277b",
+        "sdk_changes": "M probes/ogc-system-probe/Cargo.toml"
+      }
+    }
+  },
+  "expected_visible_result": "The selected application starts and draws its screen",
+  "command": [
+    "/Applications/Dolphin.app/Contents/MacOS/Dolphin",
+    "-b",
+    "-u",
+    "/Volumes/SSD/WiiDev/tmp/hbc-c-input-kjkvywq5",
+    "-e",
+    "/Users/user/Library/Application Support/Dolphin/Load/WiiSD/apps/hbc/boot.dol",
+    "-d",
+    "-C",
+    "Dolphin.General.GDBPort=55287",
+    "-C",
+    "Dolphin.Core.CPUThread=False"
+  ],
+  "load_focus_left": true,
+  "child_entry_stop": "T0540:80004000;01:817f27d0;",
+  "child_entry_verified": true,
+  "error": "Dolphin did not save a screenshot after the Y hotkey",
+  "failure_stop": "T0540:800982b0;01:8097c4b8;",
+  "failure_pc": 2148109104,
+  "failure_lr": 2148109104,
+  "failure_stack": [
+    {
+      "sp": 2157429944,
+      "saved_lr": 2148109104
+    },
+    {
+      "sp": 2157430088,
+      "saved_lr": 2148081624
+    },
+    {
+      "sp": 2157430120,
+      "saved_lr": 2148092204
+    },
+    {
+      "sp": 2157430136,
+      "saved_lr": 0
+    }
+  ],
+  "failure_inspection_error": "XFB is blank or nearly blank: 7532 active pixels (minimum 307), 5 luma levels (minimum 8)",
+  "dolphin_exit_code": 0
+}
