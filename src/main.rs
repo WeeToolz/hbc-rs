@@ -556,10 +556,14 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 ogc_system::report(format_args!(
                     "HBC: controller input scan failed: {error:?}\n"
                 ));
-                startup.runtime_mut().show_notice_with_kind(
-                    "Controller input failed. See the system log for details.",
-                    hbc_rs::app::NoticeKind::Warning,
-                );
+                // A failed handoff can leave input unavailable. Keep its
+                // original error visible instead of replacing it each frame.
+                if startup.runtime().controller().screen != hbc_rs::app::Screen::Notice {
+                    startup.runtime_mut().show_notice_with_kind(
+                        &format!("Controller input failed: {error:?}."),
+                        hbc_rs::app::NoticeKind::Warning,
+                    );
+                }
                 hbc_rs::platform::input::InputFrame::default()
             }
         };
