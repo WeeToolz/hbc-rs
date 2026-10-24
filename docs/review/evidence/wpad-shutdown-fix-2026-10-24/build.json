@@ -1,0 +1,25 @@
+{
+  "command": [
+    "rustup",
+    "run",
+    "nightly",
+    "cargo",
+    "build",
+    "-Z",
+    "json-target-spec",
+    "--target",
+    "/Volumes/SSD/WiiDev/Devtools/libogc-rs/targets/powerpc-nintendo-none.json",
+    "--target-dir",
+    "/Volumes/SSD/WiiDev/RustPorts/hbc-rs/target/sdk-app-checks",
+    "--release",
+    "--manifest-path",
+    "/Volumes/SSD/WiiDev/RustPorts/hbc-rs/Cargo.toml",
+    "--bin",
+    "hbc-rs",
+    "-Z",
+    "build-std=core,alloc",
+    "-Z",
+    "build-std-features=compiler-builtins-mem"
+  ],
+  "sha256": "6b72a89ee420981e4f2ca0fa5f68af2728f61068ee9de3107af898c82643b699"
+}

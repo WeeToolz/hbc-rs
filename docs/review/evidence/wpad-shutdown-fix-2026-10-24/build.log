@@ -1,0 +1,14 @@
+   Compiling wpad-sys v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/wpad-sys)
+   Compiling ogc-system-sys v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-system-sys)
+   Compiling ogc-system v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/core/ogc-system)
+   Compiling ogc-usbstorage-sys v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-usbstorage-sys)
+   Compiling ogc-wd v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-wd)
+   Compiling ogc-input-sys v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-input-sys)
+   Compiling ogc-gcsd v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-gcsd)
+   Compiling ogc-gx v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/hardware/ogc-gx)
+   Compiling ogc-input v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-input)
+   Compiling ogc-fat v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-fat)
+   Compiling ogc-controller v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/libogc-rs/crates/services/ogc-controller)
+   Compiling hbc-rs v0.1.0 (/Volumes/SSD/WiiDev/RustPorts/hbc-rs)
+    Finished `release` profile [optimized] target(s) in 3.37s
+wrote /Volumes/SSD/WiiDev/RustPorts/hbc-rs/dist/wpad-shutdown-fix-2026-10-24/boot.dol

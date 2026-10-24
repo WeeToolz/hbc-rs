@@ -1,0 +1,11 @@
+{
+  "build_passed": true,
+  "compiler_warnings": 0,
+  "dol_header_valid": true,
+  "sha256": "6b72a89ee420981e4f2ca0fa5f68af2728f61068ee9de3107af898c82643b699",
+  "dolphin_run_performed": false,
+  "physical_wii_tested": false,
+  "runtime_fix_verified": false,
+  "sdk_commit": "4271745",
+  "sd_copy_hash_verified": true
+}
