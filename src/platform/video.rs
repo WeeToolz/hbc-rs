@@ -225,12 +225,14 @@ impl VideoSystem {
                     ogc_gx::init_tex_obj(
                         &mut object,
                         texture.as_ptr() as *mut core::ffi::c_void,
-                        texture.width,
-                        texture.height,
-                        ogc_gx::GX_TF_RGBA8,
-                        0,
-                        0,
-                        0,
+                        ogc_gx::GxTexObjInit {
+                            wd: texture.width,
+                            ht: texture.height,
+                            fmt: ogc_gx::GX_TF_RGBA8,
+                            wrap_s: 0,
+                            wrap_t: 0,
+                            mipmap: 0,
+                        },
                     );
                     ogc_gx::init_tex_obj_filter_mode(&mut object, ogc_gx::GX_NEAR, ogc_gx::GX_NEAR);
                     ogc_gx::draw_textured_rect(
