@@ -192,8 +192,7 @@ mod tests {
         }
     }
 
-    const DROID_REGULAR: &[u8] =
-        include_bytes!("../../../C-sources/hbc/channel/channelapp/data/droid.ttf");
+    const DROID_REGULAR: &[u8] = include_bytes!("../assets/droid.ttf");
 
     #[test]
     fn true_type_metrics_raster_data_and_glyph_cache_are_stable() {
