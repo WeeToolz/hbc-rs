@@ -38,3 +38,5 @@ DOL files, commands, SHA-256 hashes, source commit IDs, and full logs:
 
 The existing Dolphin records in HBC report that Dolphin exited before the
 debugger started. They do not establish an HBC-to-Tetris launch result.
+
+Capsule was rebuilt after review of the input changes in commit `698a292d4b31cd7be65cc6dfe5e8453be4b97633`. The release link, DOL conversion, and header checks passed. The rebuild log is in `/Volumes/SSD/WiiDev/Devtools/reports/evidence/2026-10-24-capsule-input-dol`.
