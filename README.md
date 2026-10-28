@@ -1,7 +1,7 @@
 # HBC Rust port
 
 An in-progress Rust port of the Wii Homebrew Channel application. It uses the
-Rust Wii services in [WeeToolz](https://github.com/notOrrytrout/WeeToolz).
+Rust Wii services in [WeeToolz](https://github.com/WeeToolz/libogc-rs).
 The project is based on the published [Homebrew Channel source](https://github.com/fail0verflow/hbc)
 and [HBC Reborn](https://github.com/Monsterray/hbc-reborn).
 
@@ -18,8 +18,8 @@ Install Rust, Cargo, Python 3, and a nightly Rust toolchain with `rust-src`.
 Clone WeeToolz beside this repository using the directory name `libogc-rs`:
 
 ```sh
-git clone https://github.com/notOrrytrout/WeeToolz.git libogc-rs
-git clone https://github.com/notOrrytrout/hbc-rs.git hbc-rs
+git clone https://github.com/WeeToolz/libogc-rs.git libogc-rs
+git clone https://github.com/WeeToolz/hbc-rs.git hbc-rs
 cd hbc-rs
 rustup toolchain install nightly
 rustup component add rust-src --toolchain nightly
