@@ -19,7 +19,7 @@ Clone WeeToolz beside this repository using the directory name `libogc-rs`:
 
 ```sh
 git clone https://github.com/notOrrytrout/WeeToolz.git libogc-rs
-# Clone this repository into a sibling directory named hbc-rs.
+git clone https://github.com/notOrrytrout/hbc-rs.git hbc-rs
 cd hbc-rs
 rustup toolchain install nightly
 rustup component add rust-src --toolchain nightly
