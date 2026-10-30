@@ -1,8 +1,11 @@
 # Local `libogc-rs` changes
 
-The `libogc-rs/` directory is a complete local copy and is ignored by this
-repository. Changes inside it are not included in HBC commits. Record required
-changes here so a new checkout can reproduce them in its own local copy.
+This is a historical record of changes made during HBC development. The current
+HBC checkout uses the shared sibling `../libogc-rs` repository through Cargo
+path dependencies. Make and commit libogc changes in that repository. The
+notes below describe historical source and results; they do not establish the
+current implementation or hardware status. Record each test build revision
+and uncommitted changes so its evidence can be matched to the source.
 
 ## HBC application handoff exception restoration
 

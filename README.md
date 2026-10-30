@@ -26,10 +26,10 @@ rustup component add rust-src --toolchain nightly
 cargo test
 ```
 
-The path dependencies in `Cargo.toml` require `../libogc-rs`. The development
-checkout used WeeToolz commit `1f8f98fb5504826b810a50a67a0208ac633f0cfa`;
-other revisions can have different APIs or behavior. The host tests do not
-exercise Wii hardware.
+The path dependencies in `Cargo.toml` use the shared `../libogc-rs` checkout.
+Maintain libogc changes in that repository, and record the exact revision and
+local changes for each test build. Older HBC results apply to their recorded
+builds. The host tests do not exercise Wii hardware.
 
 ## Wii build
 
