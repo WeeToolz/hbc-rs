@@ -516,6 +516,20 @@ The cleanup report does not identify the failed operation, and the socket
 wrapper can reduce a backend error to `-1`. The actual Wii cleanup cause is
 not yet confirmed. These observations are not fixes or new hardware passes.
 
+### Network scan status update — 2026-11-03
+
+The NCD lock-handle bug in `libogc-rs` is fixed. The production scan API passed
+twice in Dolphin, and each scan returned one valid result. See the
+[Dolphin scan report](../libogc-rs/docs/review/wd-scan-dolphin-2026-10-31.md)
+and [verified run](../libogc-rs/docs/review/evidence/wd-scan-verified-2026-11-02/suite.json).
+We expect the scan to work on a real Wii after this fix, but we have not tested
+it on a Wii. Do not report hardware success until that test passes.
+
+HBC still stops Wiiload, scans, and restarts Wiiload on the drawing thread. A
+receiver stop error still prevents the scan and results picker. The October 23
+report of a Wii freeze therefore remains unverified, and the HBC thread-blocking
+and stop-error paths remain open.
+
 The user authorized clearing `/Volumes/SSD/WiiDev/tmp`. The folder held about
 1 GB and 79 top-level entries. No Git data or open files were found. The four
 recent screenshots and one archival transfer summary were saved with hashes
