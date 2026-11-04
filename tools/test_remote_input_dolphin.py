@@ -2,13 +2,13 @@
 """Test the production input socket in an isolated macOS Dolphin profile."""
 import argparse
 import importlib.util
+import hashlib
+import json
 import os
 from pathlib import Path
-import signal
 import shutil
 import socket
 import subprocess
-import tempfile
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -41,11 +41,23 @@ def main():
     parser.add_argument("--host",required=True,help="Mac LAN address used by Dolphin's emulated Wii sockets")
     parser.add_argument("--dol",type=Path,default=ROOT/"target/hbc-rs.dol")
     parser.add_argument("--control", action="store_true", help="also test the direct terminal command service")
+    parser.add_argument("--nand", type=Path, required=True, help="Source NAND; only a private copy is used")
+    parser.add_argument("--dolphin", type=Path, required=True, help="Dolphin executable")
+    parser.add_argument("--output", type=Path, required=True, help="New result directory, including its private profile")
     args = parser.parse_args()
-    profile = Path(tempfile.mkdtemp(prefix="hbc-remote-input-"))
+    addresses = subprocess.check_output(["/sbin/ifconfig"], text=True)
+    if f"inet {args.host} " not in addresses:
+        parser.error("--host must be an address assigned to this Mac")
+    with socket.socket() as port_check:
+        port_check.bind((args.host, 4299))
+    args.output.mkdir(parents=True, exist_ok=False)
+    profile = args.output / "profile"
+    profile.mkdir()
+    result = {"dol_sha256": hashlib.sha256(args.dol.read_bytes()).hexdigest(),
+              "success": False, "transport": "HBC TCP input protocol", "control": args.control}
     log = profile/"Logs/dolphin.log"
 
-    nand = Path("/Volumes/SSD/WiiDev/dolphin-network-test-nand/Wii")
+    nand = args.nand.resolve(strict=True)
     if not (nand / "shared2/sys/SYSCONF").is_file():
         raise RuntimeError("Source NAND SYSCONF not found")
     if not (nand / "shared2/sys/net/02/config.dat").is_file():
@@ -54,17 +66,20 @@ def main():
     shutil.copytree(nand, profile / "Wii")
     print(f"Isolated profile: {profile}", flush=True)
     print("PASS: Test NAND copied into Dolphin profile", flush=True)
-    subprocess.run(["/usr/bin/open","-n","-a","/Applications/Dolphin.app","--args",
+    output_log = (args.output / "process.log").open("w")
+    process = subprocess.Popen([str(args.dolphin.resolve(strict=True)),
                     "-b","-u",str(profile),"-e",str(args.dol.resolve()),
                     "-C","Logger.Options.WriteToFile=True","-C","Logger.Options.Verbosity=4",
                     "-C","Logger.Logs.OSREPORT=True","-C","Dolphin.Interface.UsePanicHandlers=False",
                     "-C","Dolphin.Interface.ConfirmStop=False",
                     "-C","Dolphin.Analytics.PermissionAsked=True",
                     "-C","Dolphin.Analytics.Enabled=False",
-                    "-C","Dolphin.Core.WiiSDCard=False"],check=True)
+                    "-C","Dolphin.Core.WiiSDCard=False"], stdout=output_log, stderr=subprocess.STDOUT)
     try:
         deadline = time.monotonic()+40
         while time.monotonic()<deadline:
+            if process.poll() is not None:
+                raise RuntimeError("Dolphin exited before the HBC listener became ready")
             text = log.read_text(errors="replace") if log.exists() else ""
             if "Wiiload receiver state changed to Listening" in text: break
             if "panic" in text.lower(): raise RuntimeError("guest panic during startup")
@@ -117,16 +132,22 @@ def main():
         text = log.read_text(errors="replace")
         if any(word in text.lower() for word in ("panicked at", "program exception", "invalid read")):
             raise RuntimeError("guest fault recorded; inspect log")
+        result["success"] = True
         print("PASS: production socket and main-loop input path in Dolphin; real Wii verification remains required",flush=True)
+    except Exception as error:
+        result["error"] = str(error)
+        raise
     finally:
-        processes = own_processes(profile)
-        for pid in processes:
-            try: os.kill(pid,signal.SIGTERM)
-            except ProcessLookupError: pass
-        time.sleep(.5)
-        for pid in own_processes(profile):
-            try: os.kill(pid,signal.SIGKILL)
-            except ProcessLookupError: pass
-        if own_processes(profile): raise RuntimeError("could not stop the isolated Dolphin process")
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=5)
+            result["success"] = False
+            result["cleanup_error"] = "Dolphin required forced termination"
+        output_log.close()
+        (args.output / "result.json").write_text(json.dumps(result, indent=2) + "\n")
+    return 0 if result["success"] else 1
 
-if __name__ == "__main__": main()
+if __name__ == "__main__": raise SystemExit(main())
