@@ -522,6 +522,7 @@ dependencies = [
  "ogc-sha",
  "ogc-si",
  "ogc-sys",
+ "ogc-sysbase",
  "ogc-video-sys",
  "ogc-wiilaunch",
  "wpad-sys",
