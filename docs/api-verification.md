@@ -100,6 +100,13 @@ memo layout. See the [font API record](review/evidence/reborn-api-font-rust-dolp
 This is partial evidence: it does not establish FreeType equivalence across all
 theme fonts or physical Wii rendering behavior.
 
+The localization API case checks supported and fallback language selection,
+Japanese theme gating, representative translated strings, dynamic-string
+fallback, and received ZIP confirmation formatting. See the
+[localization API record](review/evidence/reborn-api-localization-rust-dolphin-2026-11-23-r2/README.md).
+The case does not compare every generated PO catalog entry or the rendered
+language glyphs on Wii hardware.
+
 The loader helper case calls the policy, argument-building, and plan-validation
 APIs directly in Dolphin. IOS and AHB hardware effects remain pending. Rust
 keeps NUL-separated arguments and complete preflight validation as safety and

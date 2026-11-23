@@ -73,6 +73,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"font-api" {
         return font_api();
     }
+    if case == b"localization-api" {
+        return localization_api();
+    }
     if case == b"loader-helpers" {
         return loader_helpers();
     }
@@ -1518,6 +1521,52 @@ fn font_api() -> i32 {
     }
     ogc_system::report(format_args!(
         "PASS font API metrics, glyphs and memo layout\n"
+    ));
+    0
+}
+
+fn localization_api() -> i32 {
+    use crate::{localization::Language, metadata::ThemeMetadata};
+
+    let mut japanese_theme = ThemeMetadata::default();
+    japanese_theme.languages = alloc::vec![String::from("ja")];
+    if Language::from_console(-1, None) != Language::English
+        || Language::from_console(0, None) != Language::English
+        || Language::from_console(0, Some(&japanese_theme)) != Language::Japanese
+        || Language::from_console(2, None) != Language::German
+        || Language::from_console(3, None) != Language::French
+        || Language::from_console(4, None) != Language::Spanish
+        || Language::from_console(5, None) != Language::Italian
+        || Language::from_console(6, None) != Language::Dutch
+        || Language::from_console(99, None) != Language::English
+    {
+        ogc_system::report(format_args!("FAIL localization API language selection\n"));
+        return -1;
+    }
+    if Language::Spanish.text("Back") != "Atrás"
+        || Language::French.text("Device:") != "Dispositif:"
+        || Language::German.text("Options") != "Einstellungen"
+        || Language::Dutch.text("Options") != "Opties"
+        || Language::Italian.text("Please wait...") != "Attendere..."
+        || Language::Japanese.text("Yes") != "はい"
+        || Language::French.text("dynamic text") != "dynamic text"
+    {
+        ogc_system::report(format_args!("FAIL localization API catalog lookup\n"));
+        return -1;
+    }
+    let plain = Language::English.received_zip_confirmation("demo", 2048, false);
+    let overwrite = Language::German.received_zip_confirmation("demo", 1024 * 1024, true);
+    if !plain.contains("2 KB of free space")
+        || plain.contains("overwritten")
+        || !overwrite.contains("1.00 MB")
+        || !overwrite.contains("'demo'")
+        || !overwrite.contains("überschrieben")
+    {
+        ogc_system::report(format_args!("FAIL localization API ZIP confirmation\n"));
+        return -1;
+    }
+    ogc_system::report(format_args!(
+        "PASS localization API selection, catalog and ZIP text\n"
     ));
     0
 }
