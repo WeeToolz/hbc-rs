@@ -2,7 +2,89 @@
 
 use alloc::vec::Vec;
 use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
-use miniz_oxide::inflate::decompress_slice_iter_to_slice;
+
+const WIILOAD_STREAM_CHUNK: usize = 1024;
+
+#[derive(Debug)]
+pub(crate) enum StreamDecodeError<E> {
+    Source(E),
+    Allocation,
+    SizeMismatch,
+    Invalid,
+}
+
+/// Decode a zlib payload while the caller supplies bounded input chunks.
+/// The output allocation is the only payload-sized allocation.
+pub(crate) fn decode_zlib_stream<E>(
+    output_len: usize,
+    input_len: usize,
+    mut read_chunk: impl FnMut(&mut [u8]) -> Result<(), E>,
+) -> Result<Vec<u8>, StreamDecodeError<E>> {
+    use miniz_oxide::inflate::{
+        TINFLStatus,
+        core::{DecompressorOxide, decompress, inflate_flags},
+    };
+
+    let output_capacity = output_len
+        .checked_add(1)
+        .ok_or(StreamDecodeError::Allocation)?;
+    let mut output = Vec::new();
+    output
+        .try_reserve_exact(output_capacity)
+        .map_err(|_| StreamDecodeError::Allocation)?;
+    output.resize(output_capacity, 0);
+    let mut decompressor = Vec::new();
+    decompressor
+        .try_reserve_exact(1)
+        .map_err(|_| StreamDecodeError::Allocation)?;
+    decompressor.push(DecompressorOxide::new());
+    let mut input = [0; WIILOAD_STREAM_CHUNK];
+    let mut input_remaining = input_len;
+    let mut output_written = 0;
+    let mut stream_done = false;
+
+    while input_remaining > 0 {
+        let chunk_len = input_remaining.min(input.len());
+        read_chunk(&mut input[..chunk_len]).map_err(StreamDecodeError::Source)?;
+        input_remaining -= chunk_len;
+        if stream_done {
+            continue;
+        }
+
+        let mut flags = inflate_flags::TINFL_FLAG_PARSE_ZLIB_HEADER
+            | inflate_flags::TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF;
+        if input_remaining > 0 {
+            flags |= inflate_flags::TINFL_FLAG_HAS_MORE_INPUT;
+        }
+        let (status, consumed, written) = decompress(
+            &mut decompressor[0],
+            &input[..chunk_len],
+            &mut output,
+            output_written,
+            flags,
+        );
+        output_written = output_written
+            .checked_add(written)
+            .ok_or(StreamDecodeError::Invalid)?;
+        if output_written > output_len {
+            return Err(StreamDecodeError::Invalid);
+        }
+        match status {
+            TINFLStatus::Done => stream_done = true,
+            TINFLStatus::NeedsMoreInput if consumed == chunk_len => {}
+            _ => return Err(StreamDecodeError::Invalid),
+        }
+    }
+
+    if !stream_done {
+        return Err(StreamDecodeError::Invalid);
+    }
+    if output_written != output_len {
+        return Err(StreamDecodeError::SizeMismatch);
+    }
+    output.truncate(output_len);
+    Ok(output)
+}
 
 pub const WIILOAD_HEADER_LEN: usize = 16;
 pub const WIILOAD_TCP_PORT: u16 = 4299;
@@ -252,22 +334,19 @@ impl WiiloadHeader {
         let args = copy_bytes(&body[wire_data_len..])?;
         let data = if self.is_compressed() {
             let expected = self.data_len_uncompressed as usize;
-            let mut decoded = Vec::new();
-            decoded
-                .try_reserve_exact(expected)
-                .map_err(|_| WiiloadError::AllocationFailed)?;
-            decoded.resize(expected, 0);
-            let decoded_len = decompress_slice_iter_to_slice(
-                &mut decoded,
-                core::iter::once(wire_data),
-                true,
-                false,
-            )
-            .map_err(|_| WiiloadError::DecompressionFailed)?;
-            if decoded_len != expected {
-                return Err(WiiloadError::DecompressedSizeMismatch);
-            }
-            decoded
+            let mut offset = 0;
+            decode_zlib_stream(expected, wire_data.len(), |chunk| {
+                let end = offset + chunk.len();
+                chunk.copy_from_slice(&wire_data[offset..end]);
+                offset = end;
+                Ok::<_, core::convert::Infallible>(())
+            })
+            .map_err(|error| match error {
+                StreamDecodeError::Allocation => WiiloadError::AllocationFailed,
+                StreamDecodeError::Source(never) => match never {},
+                StreamDecodeError::SizeMismatch => WiiloadError::DecompressedSizeMismatch,
+                StreamDecodeError::Invalid => WiiloadError::DecompressionFailed,
+            })?
         } else {
             copy_bytes(wire_data)?
         };
@@ -292,6 +371,28 @@ pub struct WiiloadPayload {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn zlib_stream_decoder_reads_bounded_chunks_without_buffering_the_wire_body() {
+        let expected: Vec<u8> = (0..96 * 1024)
+            .scan(0x1234_5678u32, |state, _| {
+                *state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                Some((*state >> 24) as u8)
+            })
+            .collect();
+        let compressed = miniz_oxide::deflate::compress_to_vec_zlib(&expected, 6);
+        assert!(compressed.len() > 8 * 1024);
+        let mut offset = 0;
+        let decoded = decode_zlib_stream(expected.len(), compressed.len(), |buffer| {
+            let end = offset + buffer.len();
+            buffer.copy_from_slice(&compressed[offset..end]);
+            offset = end;
+            Ok::<_, ()>(())
+        })
+        .unwrap();
+        assert_eq!(decoded, expected);
+        assert_eq!(offset, compressed.len());
+    }
 
     #[test]
     fn payload_consumer_defers_until_the_producer_finishes() {

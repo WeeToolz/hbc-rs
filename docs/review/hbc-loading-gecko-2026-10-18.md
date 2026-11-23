@@ -1,5 +1,24 @@
 # HBC upload, DOL validation, and Gecko review (2026-10-18)
 
+## Bounded compressed Wiiload decode follow-up (2026-11-23)
+
+The C receiver in `loader.c#ld_tcp_inflate_run` reads compressed uploads in
+fixed 16 KiB blocks. Rust previously retained the complete wire body and then
+allocated a second decompressed payload. This could nearly double payload
+memory at the advertised maximum. Rust now reads through 1 KiB chunks into one
+output allocation, with the decompressor state allocated on the heap. It still
+consumes all advertised wire bytes, rejects invalid zlib data, and checks the
+exact advertised output size. Allocation failure remains an explicit error.
+
+Host tests cover multiple input chunks and exact output size. The earlier
+96 KiB `wiiload-header` Dolphin acceptance run passed through
+`WiiloadHeader::decode_body`, but it predates the final chunk-size and
+decompressor-allocation changes. It did not exercise the TCP worker. The final
+normal 32 KiB PowerPC stack audit and a fresh Dolphin DOL run remain pending:
+the final target link failed because the workspace volume had no free space.
+Physical Wii validation of live compressed uploads and application entry also
+remains pending. See the evidence README and HBC-WIILOAD-01 ledger row.
+
 Authoritative C comparison: `C-sources/hbc-reborn/channel/channelapp/source/loader.c`
 and `loader_reloc.c`. The existing ledger IDs remain the status source.
 

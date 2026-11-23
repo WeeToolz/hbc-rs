@@ -832,24 +832,49 @@ fn receive_client(
     shared
         .receive_total
         .store(body_len as u32, Ordering::Release);
-    // Peak receive memory can approach the wire body plus a second maximum-size
-    // decompressed payload (about 38 MiB, plus allocator overhead).
-    let mut body = Vec::new();
-    body.try_reserve_exact(body_len)
+    let data = if header.is_compressed() {
+        let mut compressed_read = 0usize;
+        crate::wiiload::decode_zlib_stream(
+            header.data_len_uncompressed as usize,
+            header.data_len as usize,
+            |chunk| {
+                read_exact(shared, client, chunk, false, started_at)?;
+                compressed_read += chunk.len();
+                shared
+                    .receive_completed
+                    .store(compressed_read as u32, Ordering::Release);
+                Ok::<_, ReceiveError>(())
+            },
+        )
+        .map_err(|error| match error {
+            crate::wiiload::StreamDecodeError::Source(source) => source,
+            crate::wiiload::StreamDecodeError::Allocation => ReceiveError::Memory,
+            crate::wiiload::StreamDecodeError::SizeMismatch => ReceiveError::Invalid,
+            crate::wiiload::StreamDecodeError::Invalid => ReceiveError::Invalid,
+        })?
+    } else {
+        let data_len = header.data_len as usize;
+        let mut data = Vec::new();
+        data.try_reserve_exact(data_len)
+            .map_err(|_| ReceiveError::Memory)?;
+        data.resize(data_len, 0);
+        read_exact(shared, client, &mut data, true, started_at)?;
+        data
+    };
+    let mut args = Vec::new();
+    args.try_reserve_exact(header.args_len as usize)
         .map_err(|_| ReceiveError::Memory)?;
-    body.resize(body_len, 0);
-    read_exact(shared, client, &mut body, true, started_at)?;
+    args.resize(header.args_len as usize, 0);
+    read_exact(shared, client, &mut args, false, started_at)?;
+    shared
+        .receive_completed
+        .store(body_len as u32, Ordering::Release);
     ogc_system::report(format_args!(
-        "HBC: Wiiload body received; decoding {} bytes\n",
-        body.len()
+        "HBC: Wiiload payload received; data={} args={} bytes\n",
+        data.len(),
+        args.len()
     ));
-    header.decode_body(&body).map(Some).map_err(|error| {
-        ogc_system::report(format_args!("HBC: Wiiload decoding failed: {error:?}\n"));
-        match error {
-            WiiloadError::AllocationFailed => ReceiveError::Memory,
-            _ => ReceiveError::Invalid,
-        }
-    })
+    Ok(Some(WiiloadPayload { data, args }))
 }
 
 fn read_exact(

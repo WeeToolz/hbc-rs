@@ -704,6 +704,27 @@ fn wiiload_header() -> i32 {
         ogc_system::report(format_args!("FAIL wiiload-header compressed body\n"));
         return -1;
     }
+    let large_payload: Vec<u8> = (0..96 * 1024)
+        .scan(0x1234_5678u32, |state, _| {
+            *state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            Some((*state >> 24) as u8)
+        })
+        .collect();
+    let large_compressed = miniz_oxide::deflate::compress_to_vec_zlib(&large_payload, 6);
+    let mut large_wire_header = [b'H', b'A', b'X', b'X', 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    large_wire_header[8..12].copy_from_slice(&(large_compressed.len() as u32).to_be_bytes());
+    large_wire_header[12..16].copy_from_slice(&(large_payload.len() as u32).to_be_bytes());
+    let large_header = WiiloadHeader::decode(&large_wire_header);
+    if large_compressed.len() <= 8 * 1024
+        || !matches!(large_header, Ok(header)
+        if header.decode_body(&large_compressed) == Ok(crate::wiiload::WiiloadPayload {
+            data: large_payload.clone(),
+            args: Vec::new(),
+        }))
+    {
+        ogc_system::report(format_args!("FAIL wiiload-header multi-chunk zlib body\n"));
+        return -1;
+    }
     let wrong_size =
         WiiloadHeader::decode(&[b'H', b'A', b'X', b'X', 0, 5, 0, 0, 0, 0, 0, 38, 0, 0, 0, 31]);
     if !matches!(wrong_size, Ok(header) if header.decode_body(&compressed) == Err(WiiloadError::DecompressedSizeMismatch))
@@ -742,7 +763,9 @@ fn wiiload_header() -> i32 {
         ));
         return -1;
     }
-    ogc_system::report(format_args!("PASS wiiload-header decode and body bounds\n"));
+    ogc_system::report(format_args!(
+        "PASS wiiload-header decode, body bounds and multi-chunk zlib\n"
+    ));
     0
 }
 
