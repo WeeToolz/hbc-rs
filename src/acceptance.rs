@@ -40,6 +40,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"wiiload-header" {
         return wiiload_header();
     }
+    if case == b"wiiload-policy" {
+        return wiiload_policy();
+    }
     if case == b"metadata-theme" {
         return metadata_theme();
     }
@@ -734,6 +737,39 @@ fn wiiload_header() -> i32 {
         return -1;
     }
     ogc_system::report(format_args!("PASS wiiload-header decode and body bounds\n"));
+    0
+}
+
+fn wiiload_policy() -> i32 {
+    use crate::wiiload::{
+        ReceiverStatus, client_deadline_expired, indicator_state, network_indicator_visible,
+        progress_percent, same_local_subnet_16, socket_would_block,
+    };
+
+    let local = u32::from_be_bytes([192, 168, 4, 2]);
+    if !same_local_subnet_16(u32::from_be_bytes([192, 168, 4, 200]), local)
+        || same_local_subnet_16(u32::from_be_bytes([192, 169, 4, 2]), local)
+        || progress_percent(50, 100) != 50
+        || progress_percent(101, 100) != 100
+        || progress_percent(1, 0) != 0
+        || !indicator_state(ReceiverStatus::Listening, true).network_active
+        || !indicator_state(ReceiverStatus::Listening, true).gecko_active
+        || indicator_state(ReceiverStatus::Stopped, false).network_active
+        || network_indicator_visible(ReceiverStatus::Starting, 19)
+        || !network_indicator_visible(ReceiverStatus::Starting, 20)
+        || !network_indicator_visible(ReceiverStatus::Listening, 0)
+        || network_indicator_visible(ReceiverStatus::Stopped, 20)
+        || !client_deadline_expired(100, 110, 10)
+        || client_deadline_expired(100, 109, 10)
+        || !client_deadline_expired(u64::MAX - 5, 4, 10)
+        || !socket_would_block(-6)
+        || socket_would_block(-11)
+        || socket_would_block(0)
+    {
+        ogc_system::report(format_args!("FAIL wiiload-policy outputs\n"));
+        return -1;
+    }
+    ogc_system::report(format_args!("PASS wiiload-policy helpers\n"));
     0
 }
 
