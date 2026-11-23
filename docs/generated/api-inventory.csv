@@ -297,7 +297,7 @@ hbc_rs::platform::storage::FatStorage::unmount,src/platform/storage.rs,532,unver
 hbc_rs::platform::storage::Volume::from_settings_index,src/platform/storage.rs,116,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::storage::Volume::mount_name,src/platform/storage.rs,137,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::storage::Volume::settings_index,src/platform/storage.rs,127,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::platform::storage::device_scan_order,src/platform/storage.rs,148,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::platform::storage::device_scan_order,src/platform/storage.rs,148,partial,HBC-API-STORAGE-VOLUME-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::platform::theme::ThemeTextures::load,src/platform/theme.rs,124,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::theme::ThemeTextures::load_for_viewport,src/platform/theme.rs,128,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::theme::load,src/platform/theme.rs,443,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.

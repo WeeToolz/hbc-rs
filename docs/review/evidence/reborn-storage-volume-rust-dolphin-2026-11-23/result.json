@@ -1,0 +1,12 @@
+{
+  "sha256": "0fb2b87446624d2e9b33e752b04405db8f698365b3b322c5e0d6c1bb7f3c3116",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-ganpyvhg",
+  "cases": [
+    {
+      "case": "storage-volumes",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}
