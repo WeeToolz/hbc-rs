@@ -242,54 +242,42 @@ fn parse_date(s: &str) -> Option<u64> {
     if count < 3 {
         return None;
     }
-    let mut year = u32::try_from(fields[0]).ok()?;
-    let mut month = u32::try_from(fields[1]).ok()?;
-    let mut day = u32::try_from(fields[2]).ok()?;
-    if !(1..=12).contains(&month) {
-        return None;
-    }
-    let max_day = days_in_month(year, month);
-    if day == 0 || day > max_day {
-        return None;
-    }
-    let (mut hour, mut minute, mut second) = if count == 6 {
-        let hour = u32::try_from(fields[3]).ok()?;
-        let minute = u32::try_from(fields[4]).ok()?;
-        let second = u32::try_from(fields[5]).ok()?;
-        if hour > 23 || minute > 59 || second > 60 {
-            return None;
-        }
-        (hour, minute, second)
+    // Reborn assigns the parsed month directly to mktime's zero-based tm_mon.
+    let mut year = fields[0] + fields[1].div_euclid(12);
+    let mut month = fields[1].rem_euclid(12) as u32 + 1;
+    let seconds = if count == 6 {
+        fields[3] * 3600 + fields[4] * 60 + fields[5]
     } else {
-        (1, 0, 0)
+        3600
     };
-    // Reborn passes the one-based XML month directly to tm_mon. mktime
-    // therefore advances it by one month before normalizing the day.
-    month += 1;
-    if month == 13 {
-        month = 1;
-        year += 1;
-    }
-    if second == 60 {
-        second = 0;
-        minute += 1;
-        if minute == 60 {
-            minute = 0;
-            hour += 1;
-            if hour == 24 {
-                hour = 0;
-                day += 1;
-            }
+    let mut day = fields[2] + seconds.div_euclid(86_400);
+    let second_of_day = seconds.rem_euclid(86_400) as u32;
+    while day <= 0 {
+        if month == 1 {
+            month = 12;
+            year -= 1;
+        } else {
+            month -= 1;
         }
+        day += days_in_month(u32::try_from(year).ok()?, month) as i32;
     }
-    if day > days_in_month(year, month) {
-        day -= days_in_month(year, month);
+    loop {
+        let days = days_in_month(u32::try_from(year).ok()?, month) as i32;
+        if day <= days {
+            break;
+        }
+        day -= days;
         month += 1;
         if month == 13 {
             month = 1;
             year += 1;
         }
     }
+    let year = u32::try_from(year).ok()?;
+    let day = day as u32;
+    let hour = second_of_day / 3600;
+    let minute = second_of_day / 60 % 60;
+    let second = second_of_day % 60;
     Some(
         u64::from(year) * 10_000_000_000
             + u64::from(month) * 100_000_000
@@ -593,6 +581,15 @@ mod tests {
         assert_eq!(theme.description.as_ref().unwrap().len(), 64);
     }
     #[test]
+    fn release_date_normalizes_out_of_range_fields_like_reborn() {
+        assert_eq!(parse_date("20241332"), Some(20250304010000));
+        assert_eq!(parse_date("20250000"), Some(20241231010000));
+        assert_eq!(parse_date("20250101999999"), Some(20250205044039));
+        assert_eq!(parse_date("2025-01-02"), Some(20250101010000));
+        assert_eq!(parse_date("20250101-1-1-1"), Some(20250131225859));
+    }
+
+    #[test]
     fn release_date_uses_reborn_scan_widths_and_partial_time_fallback() {
         let date_only = parse_date("20250101");
         assert_eq!(parse_date("2025010112"), date_only);
@@ -614,9 +611,9 @@ mod tests {
     }
 
     #[test]
-    fn rejects_bad_xml_and_invalid_dates() {
+    fn rejects_bad_xml_and_unscannable_dates() {
         assert!(parse_app_xml("<app><name>x</app>").is_err());
-        assert_eq!(parse_date("20241332"), None);
+        assert_eq!(parse_date("not a date"), None);
         assert_eq!(parse_date("20250102"), Some(20250202010000));
     }
 
