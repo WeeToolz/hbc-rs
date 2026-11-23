@@ -34,6 +34,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"metadata-settings" {
         return metadata_settings();
     }
+    if case == b"settings-state" {
+        return settings_state();
+    }
     if case == b"metadata-theme" {
         return metadata_theme();
     }
@@ -526,6 +529,58 @@ fn metadata_settings() -> i32 {
         }
         ogc_system::report(format_args!("PASS metadata-settings {index}\n"));
     }
+    0
+}
+
+fn settings_state() -> i32 {
+    let mut state = crate::settings::SettingsState::default();
+    if state.current() != &UserSettings::default() || state.is_dirty() {
+        ogc_system::report(format_args!("FAIL settings-state defaults\n"));
+        return -1;
+    }
+    state.current_mut().device = 1;
+    if state.current().device != 1 || !state.is_dirty() {
+        ogc_system::report(format_args!("FAIL settings-state edit tracking\n"));
+        return -1;
+    }
+    let mut saved = false;
+    if state.save_if_dirty(|settings| {
+        saved = settings.device == 1;
+        Ok::<(), ()>(())
+    }) != Ok(true)
+        || !saved
+        || state.is_dirty()
+    {
+        ogc_system::report(format_args!("FAIL settings-state successful save\n"));
+        return -1;
+    }
+    let mut save_called = false;
+    if state.save_if_dirty(|_| {
+        save_called = true;
+        Ok::<(), ()>(())
+    }) != Ok(false)
+        || save_called
+    {
+        ogc_system::report(format_args!("FAIL settings-state unchanged save\n"));
+        return -1;
+    }
+    state.current_mut().sort_order = 2;
+    if state.save_if_dirty(|_| Err("write")) != Err("write") || !state.is_dirty() {
+        ogc_system::report(format_args!("FAIL settings-state failed save tracking\n"));
+        return -1;
+    }
+    state.mark_persisted();
+    if state.is_dirty() {
+        ogc_system::report(format_args!("FAIL settings-state mark persisted\n"));
+        return -1;
+    }
+    let loaded = expected_settings();
+    state.load(loaded.clone());
+    if state.current() != &loaded || state.is_dirty() {
+        ogc_system::report(format_args!("FAIL settings-state load\n"));
+        return -1;
+    }
+    ogc_system::report(format_args!("PASS settings-state dirty, save and load\n"));
     0
 }
 

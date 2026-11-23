@@ -1,0 +1,12 @@
+{
+  "sha256": "ce4110cc37cefd1a9037a19652d3b167eb05542d8039a1bec12b1b1872731995",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-ckcyc_h9",
+  "cases": [
+    {
+      "case": "settings-state",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

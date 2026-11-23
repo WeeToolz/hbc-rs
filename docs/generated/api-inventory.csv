@@ -407,12 +407,12 @@ hbc_rs::runtime::AppRuntime::update,src/runtime.rs,259,unverified,,not_run,No ex
 hbc_rs::runtime::AppRuntime::update_frame_with_pointer,src/runtime.rs,344,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::update_pointer,src/runtime.rs,319,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::update_pointer_frame,src/runtime.rs,323,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::settings::SettingsState::current,src/settings.rs,105,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::settings::SettingsState::current_mut,src/settings.rs,108,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::settings::SettingsState::is_dirty,src/settings.rs,111,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::settings::SettingsState::load,src/settings.rs,132,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::settings::SettingsState::mark_persisted,src/settings.rs,114,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::settings::SettingsState::save_if_dirty,src/settings.rs,120,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::settings::SettingsState::current,src/settings.rs,105,partial,HBC-API-SETTINGS-STATE-CURRENT-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::settings::SettingsState::current_mut,src/settings.rs,108,partial,HBC-API-SETTINGS-STATE-MUT-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::settings::SettingsState::is_dirty,src/settings.rs,111,partial,HBC-API-SETTINGS-STATE-DIRTY-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::settings::SettingsState::load,src/settings.rs,132,partial,HBC-API-SETTINGS-STATE-LOAD-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::settings::SettingsState::mark_persisted,src/settings.rs,114,partial,HBC-API-SETTINGS-STATE-MARK-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::settings::SettingsState::save_if_dirty,src/settings.rs,120,partial,HBC-API-SETTINGS-STATE-SAVE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::settings::decode_settings_xml,src/settings.rs,74,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::settings::encode_settings_xml,src/settings.rs,42,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::settings::load_or_create,src/settings.rs,18,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
