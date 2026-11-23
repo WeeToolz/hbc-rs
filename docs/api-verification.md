@@ -56,3 +56,9 @@ contract against the HBC Reborn C source, then add API-specific production
 checks and named evidence. Run the relevant host tests, target build, and
 Dolphin probe before linking evidence. Preserve any failed or incomplete run
 with its limits; do not change it into a passing result.
+
+The `parse_dol` and `parse_elf32_ppc` APIs also have named Dolphin launch cases.
+Each case sends a synthetic executable through the production parser, staging
+path, and handoff to a test child. These cases prove the selected load paths
+run in Dolphin; they do not prove full format parity or Broadway cache behavior.
+See [the loader acceptance record](review/evidence/reborn-loader-rust-dolphin-2026-11-23/README.md).

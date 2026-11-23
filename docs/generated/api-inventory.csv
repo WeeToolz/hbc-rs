@@ -148,8 +148,8 @@ hbc_rs::loader::launch_source::LaunchSource::as_mut_slice,src/loader/launch_sour
 hbc_rs::loader::launch_source::LaunchSource::as_slice,src/loader/launch_source.rs,81,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::loader::launch_source::LaunchSource::from_vec,src/loader/launch_source.rs,72,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::loader::launch_source::LaunchSource::try_allocate,src/loader/launch_source.rs,32,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::loader::parse_dol,src/loader/mod.rs,213,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::loader::parse_elf32_ppc,src/loader/mod.rs,307,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::loader::parse_dol,src/loader/mod.rs,213,partial,HBC-API-LOADER-DOL-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::loader::parse_elf32_ppc,src/loader/mod.rs,307,partial,HBC-API-LOADER-ELF-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::loader::validate_load_plan,src/loader/mod.rs,156,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::loader::wii::stage_launch,src/loader/wii.rs,235,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::loader::wii::transfer_control,src/loader/wii.rs,417,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.

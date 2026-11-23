@@ -1,0 +1,17 @@
+{
+  "sha256": "7f8dd5a3630fb5a89afb1afa3cb14a4a56e922317269af5670cbfd83ef4fc3c5",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-nsrtj8n8",
+  "cases": [
+    {
+      "case": "launch-dol",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "launch-elf",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}
