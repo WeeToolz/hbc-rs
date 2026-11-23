@@ -83,12 +83,12 @@ hbc_rs::app::AppController::wiiload_install_progress,src/app.rs,437,partial,HBC-
 hbc_rs::app::PageNavigation::has_next,src/app.rs,246,partial,HBC-API-APP-PAGE-HAS-NEXT-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::PageNavigation::has_previous,src/app.rs,242,partial,HBC-API-APP-PAGE-HAS-PREVIOUS-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::device_availability_snapshot,src/app.rs,253,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::archive::ZipArchive::entries,src/archive.rs,192,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::archive::ZipArchive::entry,src/archive.rs,197,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::archive::ZipArchive::extract,src/archive.rs,205,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::archive::ZipArchive::parse,src/archive.rs,82,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::archive::ZipArchive::parse_limited,src/archive.rs,88,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::archive::validate_archive_path,src/archive.rs,289,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::archive::ZipArchive::entries,src/archive.rs,192,partial,HBC-API-ARCHIVE-ENTRIES-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::archive::ZipArchive::entry,src/archive.rs,197,partial,HBC-API-ARCHIVE-ENTRY-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::archive::ZipArchive::extract,src/archive.rs,205,partial,HBC-API-ARCHIVE-EXTRACT-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::archive::ZipArchive::parse,src/archive.rs,82,partial,HBC-API-ARCHIVE-PARSE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::archive::ZipArchive::parse_limited,src/archive.rs,88,partial,HBC-API-ARCHIVE-PARSE-LIMITED-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::archive::validate_archive_path,src/archive.rs,289,partial,HBC-API-ARCHIVE-PATH-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::catalog::CatalogStorage::close_dir,src/catalog.rs,54,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::catalog::CatalogStorage::file_size,src/catalog.rs,55,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::catalog::CatalogStorage::next_dir_entry,src/catalog.rs,53,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.

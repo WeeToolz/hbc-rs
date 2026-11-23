@@ -61,6 +61,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"theme-package" {
         return theme_package();
     }
+    if case == b"archive-api" {
+        return archive_api();
+    }
     if case == b"loader-helpers" {
         return loader_helpers();
     }
@@ -1148,6 +1151,46 @@ fn theme_package() -> i32 {
     }
     ogc_system::report(format_args!(
         "PASS theme package validation and extraction\n"
+    ));
+    0
+}
+
+fn archive_api() -> i32 {
+    use crate::archive::{ArchivePathError, ZipArchive, ZipError, validate_archive_path};
+
+    let bytes = include_bytes!("../tests/fixtures/theme-valid.zip");
+    let archive = match ZipArchive::parse(bytes) {
+        Ok(archive) => archive,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL archive API parse {error:?}\n"));
+            return -1;
+        }
+    };
+    let entries = archive.entries();
+    if entries.len() != 2
+        || entries[0].name != "theme.xml"
+        || entries[1].name != "button.png"
+        || archive.entry("theme.xml").map(|entry| entry.name.as_str()) != Some("theme.xml")
+        || archive.entry("missing.png").is_some()
+        || archive.extract(bytes, "button.png", 32).as_deref()
+            != Ok(b"theme-button-bytes".as_slice())
+        || archive.extract(bytes, "button.png", 1) != Err(ZipError::OutputTooLarge)
+        || ZipArchive::parse_limited(bytes, 1) != Err(ZipError::TooManyEntries)
+        || ZipArchive::parse(b"not a zip") != Err(ZipError::TooShort)
+        || validate_archive_path("theme.xml").is_err()
+        || validate_archive_path("folder/theme.xml").is_err()
+        || validate_archive_path("../escape").is_ok()
+        || validate_archive_path("folder/../escape").is_ok()
+    {
+        ogc_system::report(format_args!("FAIL archive API observable results\n"));
+        return -1;
+    }
+    if validate_archive_path("../escape") != Err(ArchivePathError::InvalidComponent) {
+        ogc_system::report(format_args!("FAIL archive API traversal rejection\n"));
+        return -1;
+    }
+    ogc_system::report(format_args!(
+        "PASS archive API parse, lookup, extraction and paths\n"
     ));
     0
 }

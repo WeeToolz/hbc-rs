@@ -1,0 +1,12 @@
+{
+  "sha256": "3338be39397ee92d9df6b974e5c46b141077ed42484bbaf194098dc38f7daf51",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-goo3c73j",
+  "cases": [
+    {
+      "case": "archive-api",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

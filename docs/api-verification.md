@@ -75,6 +75,10 @@ The theme package APIs have one Dolphin case for validation, root XML selection,
 and file extraction. It checks two fixed archive fixtures. It does not compare
 every ZIP edge case with Reborn's minizip path or prove the full theme install
 flow. Rust's extra path and integrity checks are retained for safety.
+The lower-level `ZipArchive` APIs now also have a direct production Dolphin
+case for parsing, entry listing and lookup, bounded extraction, entry limits,
+and path validation. The [archive API record](review/evidence/reborn-api-archive-rust-dolphin-2026-11-23/README.md)
+records the tested behaviors and the remaining safety and compatibility gaps.
 
 The loader helper case calls the policy, argument-building, and plan-validation
 APIs directly in Dolphin. IOS and AHB hardware effects remain pending. Rust
