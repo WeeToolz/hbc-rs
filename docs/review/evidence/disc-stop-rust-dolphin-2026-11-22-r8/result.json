@@ -1,0 +1,16 @@
+{
+  "sha256": "28efd8bce60cc62698ea74927b6f2156a5b55e83b7bc77d97d85b76fc261447c",
+  "profile": "/Volumes/SSD/WiiDev/tmp/hbc-production-acceptance-qftexb66",
+  "cases": [
+    {
+      "case": "disc-stop",
+      "success": true,
+      "encoded_result": 1141309697,
+      "disc_callback_mask": 7,
+      "disc_open_succeeded": true,
+      "disc_stop_succeeded": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

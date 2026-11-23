@@ -203,6 +203,8 @@ hbc_rs::network_config::validate_wifi,src/network_config.rs,567,unverified,,not_
 hbc_rs::platform::allocator::initialize_wii,src/platform/allocator.rs,16,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::control::Operation::begin,src/platform/control.rs,38,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::control::Operation::poll,src/platform/control.rs,87,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::platform::disc::wii::shutdown,src/platform/disc.rs,215,partial,HBC-API-DISC-02,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::platform::disc::wii::start_stop,src/platform/disc.rs,136,partial,HBC-API-DISC-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::platform::home_overlay::capture_and_save_screenshot,src/platform/home_overlay.rs,31,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::home_overlay::draw_chrome,src/platform/home_overlay.rs,50,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::input::ButtonsForTest::contains,src/platform/input.rs,148,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.

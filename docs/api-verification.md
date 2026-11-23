@@ -25,13 +25,19 @@ required contract evidence. `blocked` requires evidence that the remaining
 requirement depends on an unavailable prerequisite. The generator does not
 infer either state from a build, source review, or a broad subsystem test.
 
-The current API-specific runtime evidence is the `parse_app_xml` date case in
+API-specific runtime evidence includes the `parse_app_xml` date case in
 Dolphin. It compares eight production Rust parser cases with an independent
 C-runtime probe. Its result is partial API evidence, not proof of the entire
 metadata API. See [the Rust Dolphin evidence](review/evidence/reborn-date-rust-dolphin-2026-11-22/README.md)
 and [the C probe evidence](review/evidence/reborn-date-c-dolphin-2026-11-22/).
 No physical Wii API result is implied by Dolphin. Hardware checks remain
 separate in the parity ledger.
+
+The `start_stop` and `shutdown` APIs now have a named Dolphin acceptance case
+for Reborn's `/dev/di` callback chain. It checks open, ioctl `0xe3`, close,
+callback completion, and the drain result. The [direct API record](review/evidence/disc-stop-rust-dolphin-2026-11-22-r8/README.md)
+and [standard HBC startup capture](review/evidence/disc-startup-rust-async-2026-11-22-r2/README.md)
+are separate evidence. They do not prove physical Wii behavior.
 
 To expand coverage, select related entries from the generated CSV, review each
 contract against the HBC Reborn C source, then add API-specific production

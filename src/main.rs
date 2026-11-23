@@ -159,11 +159,11 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     #[cfg(feature = "startup-diagnostics")]
     hbc_rs::platform::diagnostics::mark("GX 2D READY");
 
-    // C HBC submits its startup disc motor stop asynchronously. ogc-di's
-    // stop_motor() is synchronous, so calling it here can block first-frame
-    // startup when IOS or an emulator does not complete the DI request. Keep
-    // the shutdown/handoff stop below, but do not substitute a synchronous
-    // operation for C's non-blocking startup request.
+    if let Err(error) = hbc_rs::platform::disc::start_stop() {
+        ogc_system::report(format_args!(
+            "HBC: startup disc motor stop submission failed: {error}\n"
+        ));
+    }
 
     ogc_system::report(format_args!("HBC: loading settings and theme\n"));
     let playtime_reset_error = hbc_rs::platform::settings::reset_playtime_record().err();
@@ -1576,8 +1576,14 @@ fn install_return_stub() {
 
 #[cfg(target_arch = "powerpc")]
 fn shutdown_disc_services() -> Result<(), i32> {
-    // C WiiDVD_ShutDown closes an existing request. It does not open /dev/di
-    // or issue another motor command while handing control to the next app.
+    // The C callback chain may still be active. Drain it before handoff so no
+    // callback can return into HBC code after the next executable starts.
+    let stop_result = hbc_rs::platform::disc::shutdown()?;
+    if stop_result < 0 {
+        ogc_system::report(format_args!(
+            "HBC: startup disc motor stop completed with error: {stop_result}\n"
+        ));
+    }
     let close_result = ogc_di::close();
     if close_result < 0 {
         ogc_system::report(format_args!("HBC: DI close failed: {close_result}\n"));

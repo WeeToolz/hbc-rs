@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Capture a C HBC control run with the Rust acceptance test's Pipe setup."""
+"""Capture HBC startup with the shared Pipe input setup used by C controls."""
 
 import argparse
 import hashlib

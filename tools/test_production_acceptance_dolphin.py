@@ -69,9 +69,13 @@ def run_case(dol, names, profile, output, case, port):
             debug.send('c')
             debug.stopped_at(target, 45)
             code = int(debug.command('p4' if case.startswith('launch-') else 'p3'), 16)
-            result['result'] = code
-            if code != 0:
-                raise RuntimeError(f'Production acceptance failed: {code:#x}')
+            if case == 'disc-stop':
+                result.update(decode_disc_stop_result(code))
+                result['result'] = 0
+            else:
+                result['result'] = code
+                if code != 0:
+                    raise RuntimeError(f'Production acceptance failed: {code:#x}')
             if case.startswith('launch-'):
                 expected = {0x80012000: b'\x12\x34\x56\x78', 0x80012004: bytes(4), 0x80013000: bytes(4), 0x8132fc00: b'boot.dol\0\0'}
                 for address, data in expected.items():
@@ -96,13 +100,30 @@ def run_case(dol, names, profile, output, case, port):
     return result
 
 
+def decode_disc_stop_result(code):
+    """Decode the production acceptance marker and reject incomplete chains."""
+    if code & 0xff000000 != 0x44000000:
+        raise RuntimeError(f'Disc acceptance failed: {code:#x}')
+    callbacks = (code >> 16) & 0xff
+    opened = bool(code & 0x100)
+    stopped = bool(code & 0x1)
+    if (opened and (callbacks != 7 or not stopped)) or (not opened and callbacks != 1):
+        raise RuntimeError('Disc acceptance reported an incomplete callback chain')
+    return {
+        'encoded_result': code,
+        'disc_callback_mask': callbacks,
+        'disc_open_succeeded': opened,
+        'disc_stop_succeeded': stopped,
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--dol', type=Path, required=True)
     parser.add_argument('--elf', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--debug-port', type=int, default=55287)
-    parser.add_argument('--cases', nargs='+', choices=['launch-dol', 'launch-elf', 'settings', 'metadata-date'], default=['launch-dol', 'launch-elf', 'settings'])
+    parser.add_argument('--cases', nargs='+', choices=['launch-dol', 'launch-elf', 'settings', 'metadata-date', 'disc-stop'], default=['launch-dol', 'launch-elf', 'settings'])
     parser.add_argument('--sdk-root', type=Path, default=Path(__file__).resolve().parents[2] / 'libogc-rs')
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=False)

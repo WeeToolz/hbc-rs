@@ -26,6 +26,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"metadata-date" {
         return metadata_date();
     }
+    if case == b"disc-stop" {
+        return disc_stop();
+    }
     let result = match case {
         b"settings-save" => settings::save(&expected_settings()),
         b"settings-load" => settings::load().and_then(|actual| {
@@ -56,6 +59,40 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
             -5
         }
     }
+}
+
+fn disc_stop() -> i32 {
+    if let Err(error) = crate::platform::disc::start_stop() {
+        ogc_system::report(format_args!("FAIL disc-stop submit {error}\n"));
+        return -5;
+    }
+    let service_result = match crate::platform::disc::shutdown() {
+        Ok(result) => result,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL disc-stop drain {error}\n"));
+            return -5;
+        }
+    };
+    let (callbacks, open_result, stop_result) = crate::platform::disc::acceptance_report();
+    ogc_system::report(format_args!(
+        "HBC_DISC callbacks={callbacks} open={open_result} stop={stop_result} result={service_result}\n"
+    ));
+    if callbacks & 1 == 0 {
+        return -5;
+    }
+    if open_result < 0 {
+        ogc_system::report(format_args!("PASS disc-stop open-error-path\n"));
+        if callbacks != 1 || service_result != open_result {
+            return -5;
+        }
+        return (0x4400_0000 | (callbacks << 16)) as i32;
+    }
+    if callbacks != 7 || stop_result < 0 || service_result != 0 {
+        ogc_system::report(format_args!("FAIL disc-stop callback-chain\n"));
+        return -5;
+    }
+    ogc_system::report(format_args!("PASS disc-stop callback-chain\n"));
+    (0x4400_0000 | (callbacks << 16) | 0x101) as i32
 }
 
 fn metadata_date() -> i32 {
