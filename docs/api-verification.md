@@ -73,3 +73,9 @@ The theme package APIs have one Dolphin case for validation, root XML selection,
 and file extraction. It checks two fixed archive fixtures. It does not compare
 every ZIP edge case with Reborn's minizip path or prove the full theme install
 flow. Rust's extra path and integrity checks are retained for safety.
+
+The loader helper case calls the policy, argument-building, and plan-validation
+APIs directly in Dolphin. IOS and AHB hardware effects remain pending. Rust
+keeps NUL-separated arguments and complete preflight validation as safety and
+behavior extensions; Reborn uses one space-joined command string and validates
+while relocating.

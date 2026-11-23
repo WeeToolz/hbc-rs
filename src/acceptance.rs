@@ -46,6 +46,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"theme-package" {
         return theme_package();
     }
+    if case == b"loader-helpers" {
+        return loader_helpers();
+    }
     if case == b"disc-stop" {
         return disc_stop();
     }
@@ -373,6 +376,104 @@ fn theme_package() -> i32 {
     }
     ogc_system::report(format_args!(
         "PASS theme package validation and extraction\n"
+    ));
+    0
+}
+
+fn loader_helpers() -> i32 {
+    use crate::loader::{
+        IosLaunchPolicy, LoadPlan, LoadSegment, ParseError, app_ios_launch_policy,
+        build_launch_arguments, ios_launch_policy, validate_load_plan,
+    };
+
+    if ios_launch_policy(true)
+        != (IosLaunchPolicy {
+            reload: true,
+            ahb_access: true,
+        })
+    {
+        return -1;
+    }
+    for (xml, expected) in [
+        (
+            "<app/>",
+            IosLaunchPolicy {
+                reload: true,
+                ahb_access: false,
+            },
+        ),
+        (
+            "<app><ahb_access/></app>",
+            IosLaunchPolicy {
+                reload: true,
+                ahb_access: true,
+            },
+        ),
+        (
+            "<app><no_ios_reload/></app>",
+            IosLaunchPolicy {
+                reload: false,
+                ahb_access: false,
+            },
+        ),
+        (
+            "<app><ahb_access/><no_ios_reload/></app>",
+            IosLaunchPolicy {
+                reload: false,
+                ahb_access: true,
+            },
+        ),
+    ] {
+        let Ok(metadata) = crate::metadata::parse_app_xml(xml) else {
+            return -1;
+        };
+        if app_ios_launch_policy(Some(&metadata)) != expected {
+            return -1;
+        }
+    }
+    if app_ios_launch_policy(None)
+        != (IosLaunchPolicy {
+            reload: true,
+            ahb_access: false,
+        })
+    {
+        return -1;
+    }
+
+    let arguments = alloc::vec![String::from("--safe"), String::from("two words")];
+    if build_launch_arguments("sd:/apps/demo/boot.dol", &arguments)
+        != Ok(b"sd:/apps/demo/boot.dol\0--safe\0two words\0\0".to_vec())
+        || build_launch_arguments("bad\0path", &[]).is_ok()
+    {
+        return -1;
+    }
+
+    let bytes = [1, 2, 3, 4];
+    let plan = LoadPlan {
+        segments: alloc::vec![LoadSegment {
+            file_range: 0..4,
+            address: 0x8000_3400,
+            file_size: 4,
+            memory_size: 8,
+            executable: true,
+        }],
+        bss: Some(0x8000_3408..0x8000_3410),
+        entry: 0x8000_3400,
+    };
+    if validate_load_plan(&bytes, &plan, &(0x8000_3400..0x8000_4000)).is_err() {
+        return -1;
+    }
+    let mut invalid = plan;
+    invalid.entry = 0x8000_3410;
+    if validate_load_plan(&bytes, &invalid, &(0x8000_3400..0x8000_4000))
+        != Err(ParseError::InvalidFormat(
+            "entry point is outside executable segments",
+        ))
+    {
+        return -1;
+    }
+    ogc_system::report(format_args!(
+        "PASS loader policies, arguments, and plan validation\n"
     ));
     0
 }

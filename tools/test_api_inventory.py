@@ -19,6 +19,10 @@ class InventoryTests(unittest.TestCase):
         self.assertEqual(api_inventory.collect(self.document, self.ledger)[0]['status'], 'partial')
         self.assertEqual(api_inventory.collect(self.document, [])[0]['status'], 'unverified')
 
+    def test_public_const_function_references_resolve(self):
+        self.ledger[0]['rust_ref'] = 'src/metadata.rs#pub const fn parse_app_xml'
+        self.assertEqual(api_inventory.collect(self.document, self.ledger)[0]['status'], 'partial')
+
     def test_unknown_rustdoc_format_and_missing_api_are_rejected(self):
         self.document['format_version'] = 999
         with self.assertRaises(ValueError):

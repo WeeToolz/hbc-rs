@@ -1,0 +1,12 @@
+{
+  "sha256": "6f60e2d802672562f1540711b653a122a413d83db8817209c42525fce8739ce6",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-xnnr_p5u",
+  "cases": [
+    {
+      "case": "loader-helpers",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

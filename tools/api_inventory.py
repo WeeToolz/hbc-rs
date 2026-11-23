@@ -96,7 +96,12 @@ def collect(document: dict, ledger: list[dict[str, str]]) -> list[dict[str, str]
         if not row["id"].startswith("HBC-API-"):
             continue
         source, separator, symbol = row["rust_ref"].partition("#")
-        anchor = symbol.removeprefix("pub ").removeprefix("unsafe ").removeprefix("pub ")
+        anchor = (
+            symbol.removeprefix("pub ")
+            .removeprefix("unsafe ")
+            .removeprefix("pub ")
+            .removeprefix("const ")
+        )
         if not separator or not anchor.startswith("fn "):
             raise ValueError(f"{row['id']}: API reference must use path#pub fn name")
         name = anchor[3:].split("(", 1)[0].strip()
