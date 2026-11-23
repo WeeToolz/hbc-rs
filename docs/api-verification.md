@@ -26,10 +26,10 @@ requirement depends on an unavailable prerequisite. The generator does not
 infer either state from a build, source review, or a broad subsystem test.
 
 API-specific runtime evidence includes the `parse_app_xml` date case in
-Dolphin. It compares eight production Rust parser cases with an independent
+Dolphin. It compares 17 production Rust parser cases with an independent
 C-runtime probe. Its result is partial API evidence, not proof of the entire
-metadata API. See [the Rust Dolphin evidence](review/evidence/reborn-date-rust-dolphin-2026-11-22/README.md)
-and [the C probe evidence](review/evidence/reborn-date-c-dolphin-2026-11-22/).
+metadata API or all C runtime timezone behavior. See [the expanded Rust Dolphin evidence](review/evidence/reborn-date-rust-dolphin-2026-11-23-expanded/README.md)
+and [the expanded C probe evidence](review/evidence/reborn-date-c-dolphin-2026-11-23-expanded-r5/README.md).
 No physical Wii API result is implied by Dolphin. Hardware checks remain
 separate in the parity ledger.
 

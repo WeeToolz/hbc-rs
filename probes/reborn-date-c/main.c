@@ -38,7 +38,9 @@ int main(void) {
     VIDEO_Flush();
     VIDEO_WaitVSync();
     const char *cases[] = {"20241332", "20250000", "20250101999999", "2025-01-02",
-                           "20250101-1-1-1", "19691201000000", "-0010101", "2025010112"};
+                           "20250101-1-1-1", "19691201000000", "-0010101", "2025010112",
+                           "2025 1 1", "2025x0101", "20250101123456tail", "202501011234",
+                           "20240131", "20250131", "20241231", "20250131235960", "20250102"};
     for (unsigned i = 0; i < sizeof cases / sizeof cases[0]; ++i) check(cases[i]);
     SYS_Report("HBC_DATE done cases=%u\n", (unsigned)(sizeof cases / sizeof cases[0]));
     for (;;) VIDEO_WaitVSync();

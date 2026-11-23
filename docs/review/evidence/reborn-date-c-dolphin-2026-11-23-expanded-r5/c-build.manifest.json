@@ -1,0 +1,11 @@
+{
+  "compiler": "/opt/devkitpro/devkitPPC/bin/powerpc-eabi-gcc",
+  "linker": "/opt/devkitpro/tools/bin/elf2dol",
+  "source": "probes/reborn-date-c/main.c",
+  "source_sha256": "7946b35e094f1762dffe2915b80b1d94a567a5f33076d6cb1ac8356fe599563c",
+  "dol": "probe-expanded.dol",
+  "dol_sha256": "7c51668675bfecf2a20a3eccbc2cff277019064e9628dec68f23b4c6ab3b34f5",
+  "compile_flags": ["-DGEKKO", "-mrvl", "-mcpu=750", "-meabi", "-mhard-float", "-O2", "-Wall", "-Wextra"],
+  "libraries": ["libogc", "libm"],
+  "run_environment": "Dolphin, minimal private profile; no physical Wii"
+}

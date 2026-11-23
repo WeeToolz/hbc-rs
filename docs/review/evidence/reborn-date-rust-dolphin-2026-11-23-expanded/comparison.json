@@ -1,0 +1,9 @@
+{
+  "success": true,
+  "api": "hbc_rs::metadata::parse_app_xml",
+  "comparison": "17 production Rust results match the independent Reborn C runtime results",
+  "cases": 17,
+  "dolphin_c_sha256": "7c51668675bfecf2a20a3eccbc2cff277019064e9628dec68f23b4c6ab3b34f5",
+  "dolphin_rust_sha256": "e21902d7ef29c24537d31f61cfa160f48c2db5d915aa462d9c2ed014faa68ba6",
+  "physical_wii_tested": false
+}

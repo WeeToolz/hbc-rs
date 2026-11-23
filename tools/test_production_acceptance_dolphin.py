@@ -16,6 +16,7 @@ import time
 from dolphin_test_support import Debugger, verified_artifact, write_dolphin_config
 
 ROOT = Path(__file__).resolve().parents[3]
+TEMP_ROOT = Path('/private/tmp/hbc-rs')
 EXPECTED_XML = (b'<?xml version="1.0" encoding="UTF-8"?><hbc><device>1</device>'
                 b'<sort_order>2</sort_order><browse_mode>1</browse_mode>'
                 b'<app_sel>sd:/apps/acceptance/boot.dol</app_sel></hbc>')
@@ -127,11 +128,18 @@ def main():
     parser.add_argument('--sdk-root', type=Path, default=Path(__file__).resolve().parents[2] / 'libogc-rs')
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=False)
-    names, digest, manifest = verified_artifact(args.dol.resolve(), args.elf.resolve(), ROOT, args.sdk_root.resolve())
+    TEMP_ROOT.mkdir(parents=True, exist_ok=True)
+    (TEMP_ROOT / 'tmp').mkdir(exist_ok=True)
+    names, digest, manifest = verified_artifact(
+        args.dol.resolve(), args.elf.resolve(), TEMP_ROOT, args.sdk_root.resolve()
+    )
     if manifest['development'] or manifest['target'] != 'emulator-acceptance':
         raise RuntimeError('Use the normal emulator-acceptance test binary')
-    profile = Path(tempfile.mkdtemp(prefix='hbc-production-acceptance-', dir=ROOT / 'tmp'))
-    shutil.copytree(Path.home() / 'Library/Application Support/Dolphin/Wii', profile / 'Wii')
+    profile = Path(tempfile.mkdtemp(prefix='hbc-production-acceptance-', dir=TEMP_ROOT))
+    if 'settings' in args.cases:
+        shutil.copytree(Path.home() / 'Library/Application Support/Dolphin/Wii', profile / 'Wii')
+    else:
+        (profile / 'Wii').mkdir()
     config = profile / 'Config'
     config.mkdir()
     write_dolphin_config(config, '[Core]\nCPUThread=False\nWiiSDCard=False\n[Interface]\nConfirmStop=False\nUsePanicHandlers=False\n')

@@ -1,0 +1,234 @@
+{
+  "image": "/Volumes/SSD/WiiDev/WeeToolz/hbc-rs/target/reborn-date-c/probe-expanded.dol",
+  "sha256": "7c51668675bfecf2a20a3eccbc2cff277019064e9628dec68f23b4c6ab3b34f5",
+  "physical_wii_tested": false,
+  "expected_cases": 17,
+  "success": true,
+  "command": [
+    "/Applications/Dolphin.app/Contents/MacOS/Dolphin",
+    "-b",
+    "-u",
+    "/private/tmp/hbc-rs/hbc-date-c-2l_2h1oi",
+    "-e",
+    "/Volumes/SSD/WiiDev/WeeToolz/hbc-rs/target/reborn-date-c/probe-expanded.dol"
+  ],
+  "completion_marker": true,
+  "forced_termination": true,
+  "dolphin_exit_code": -9,
+  "records": [
+    {
+      "input": "20241332",
+      "scan_count": 3,
+      "epoch": 1741050000,
+      "normalized": [
+        2025,
+        3,
+        4,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "20250000",
+      "scan_count": 3,
+      "epoch": 1735606800,
+      "normalized": [
+        2024,
+        12,
+        31,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "20250101999999",
+      "scan_count": 6,
+      "epoch": 1738730439,
+      "normalized": [
+        2025,
+        2,
+        5,
+        4,
+        40,
+        39
+      ]
+    },
+    {
+      "input": "2025-01-02",
+      "scan_count": 3,
+      "epoch": 1735693200,
+      "normalized": [
+        2025,
+        1,
+        1,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "20250101-1-1-1",
+      "scan_count": 6,
+      "epoch": 1738364339,
+      "normalized": [
+        2025,
+        1,
+        31,
+        22,
+        58,
+        59
+      ]
+    },
+    {
+      "input": "19691201000000",
+      "scan_count": 6,
+      "epoch": 0,
+      "normalized": [
+        1970,
+        1,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "-0010101",
+      "scan_count": 3,
+      "epoch": -62196073200,
+      "normalized": [
+        -1,
+        2,
+        1,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "2025010112",
+      "scan_count": 3,
+      "epoch": 1738371600,
+      "normalized": [
+        2025,
+        2,
+        1,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "2025 1 1",
+      "scan_count": 3,
+      "epoch": 1738371600,
+      "normalized": [
+        2025,
+        2,
+        1,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "2025x0101",
+      "scan_count": 1,
+      "invalid": true
+    },
+    {
+      "input": "20250101123456tail",
+      "scan_count": 6,
+      "epoch": 1738413296,
+      "normalized": [
+        2025,
+        2,
+        1,
+        12,
+        34,
+        56
+      ]
+    },
+    {
+      "input": "202501011234",
+      "scan_count": 3,
+      "epoch": 1738371600,
+      "normalized": [
+        2025,
+        2,
+        1,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "20240131",
+      "scan_count": 3,
+      "epoch": 1709341200,
+      "normalized": [
+        2024,
+        3,
+        2,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "20250131",
+      "scan_count": 3,
+      "epoch": 1740963600,
+      "normalized": [
+        2025,
+        3,
+        3,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "20241231",
+      "scan_count": 3,
+      "epoch": 1738285200,
+      "normalized": [
+        2025,
+        1,
+        31,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "20250131235960",
+      "scan_count": 6,
+      "epoch": 1741046400,
+      "normalized": [
+        2025,
+        3,
+        4,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "20250102",
+      "scan_count": 3,
+      "epoch": 1738458000,
+      "normalized": [
+        2025,
+        2,
+        2,
+        1,
+        0,
+        0
+      ]
+    }
+  ],
+  "record_count": 17
+}
