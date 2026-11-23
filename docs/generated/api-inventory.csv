@@ -52,16 +52,16 @@ hbc_rs::app::AppController::scroll_active_memo_by_stick,src/app.rs,469,unverifie
 hbc_rs::app::AppController::scroll_detail_by_stick,src/app.rs,465,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::app::AppController::selected_index,src/app.rs,331,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::app::AppController::set_about_theme_description,src/app.rs,509,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::app::AppController::set_active_device,src/app.rs,858,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::app::AppController::set_active_device,src/app.rs,858,partial,HBC-API-OPTIONS-ACTIVE-SET-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::set_bootmii_available,src/app.rs,670,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::app::AppController::set_browser_layout,src/app.rs,896,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::app::AppController::set_device_availability,src/app.rs,866,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::app::AppController::set_device_availability,src/app.rs,866,partial,HBC-API-OPTIONS-AVAILABILITY-SET-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::set_grid_columns,src/app.rs,905,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::app::AppController::set_main_menu_status,src/app.rs,339,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::app::AppController::set_measured_memo,src/app.rs,528,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::app::AppController::set_network_config,src/app.rs,769,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::app::AppController::set_operation_progress,src/app.rs,428,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::app::AppController::set_preferred_device,src/app.rs,854,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::app::AppController::set_preferred_device,src/app.rs,854,partial,HBC-API-OPTIONS-PREFERRED-SET-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::set_scanned_networks,src/app.rs,791,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::app::AppController::set_wiiload_confirmation_text,src/app.rs,378,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::app::AppController::set_wiiload_install_progress,src/app.rs,424,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.

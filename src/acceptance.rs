@@ -345,12 +345,13 @@ fn render_hit_test() -> i32 {
 
     let mut options = AppController::new();
     options.set_device_availability([true; crate::platform::storage::DEVICE_COUNT]);
+    options.set_preferred_device(2);
     options.set_active_device(Some(0));
     options.handle(Input::OpenOptions, &catalog);
     if options.device_available(4) != Some(true)
         || options.options_focus() != OPTION_BACK
         || options.pending_device() != 0
-        || options.preferred_device() != 0
+        || options.preferred_device() != 2
         || options.pending_sort() != crate::catalog::SortOrder::Name
     {
         ogc_system::report(format_args!("FAIL render-hit-test initial device state\n"));
@@ -376,7 +377,7 @@ fn render_hit_test() -> i32 {
         || options.handle_pointer(usb2_target, true, &catalog) != Action::None
         || options.options_focus() != 4
         || options.pending_device() != 4
-        || options.preferred_device() != 0
+        || options.preferred_device() != 2
         || options.handle_pointer(
             Some(PointerTarget::Option(OPTION_SORT_DATE)),
             true,
