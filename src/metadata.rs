@@ -229,13 +229,22 @@ fn number(node: &XmlNode, key: &str, fallback: i32) -> i32 {
         .unwrap_or(fallback)
 }
 fn parse_date(s: &str) -> Option<u64> {
-    let digits: String = s.chars().filter(|c| c.is_ascii_digit()).collect();
-    if digits.len() != 8 && digits.len() != 14 {
+    let mut remaining = s.as_bytes();
+    let mut fields = [0i32; 6];
+    let mut count = 0;
+    for (index, field) in fields.iter_mut().enumerate() {
+        let Some(value) = scan_decimal(&mut remaining, if index == 0 { 4 } else { 2 }) else {
+            break;
+        };
+        *field = value;
+        count += 1;
+    }
+    if count < 3 {
         return None;
     }
-    let mut year: u32 = digits[0..4].parse().ok()?;
-    let mut month: u32 = digits[4..6].parse().ok()?;
-    let mut day: u32 = digits[6..8].parse().ok()?;
+    let mut year = u32::try_from(fields[0]).ok()?;
+    let mut month = u32::try_from(fields[1]).ok()?;
+    let mut day = u32::try_from(fields[2]).ok()?;
     if !(1..=12).contains(&month) {
         return None;
     }
@@ -243,10 +252,10 @@ fn parse_date(s: &str) -> Option<u64> {
     if day == 0 || day > max_day {
         return None;
     }
-    let (mut hour, mut minute, mut second) = if digits.len() == 14 {
-        let hour: u32 = digits[8..10].parse().ok()?;
-        let minute: u32 = digits[10..12].parse().ok()?;
-        let second: u32 = digits[12..14].parse().ok()?;
+    let (mut hour, mut minute, mut second) = if count == 6 {
+        let hour = u32::try_from(fields[3]).ok()?;
+        let minute = u32::try_from(fields[4]).ok()?;
+        let second = u32::try_from(fields[5]).ok()?;
         if hour > 23 || minute > 59 || second > 60 {
             return None;
         }
@@ -289,6 +298,26 @@ fn parse_date(s: &str) -> Option<u64> {
             + u64::from(minute) * 100
             + u64::from(second),
     )
+}
+
+fn scan_decimal(input: &mut &[u8], width: usize) -> Option<i32> {
+    let trimmed = input.trim_ascii_start();
+    let mut length = 0;
+    let negative = trimmed.first() == Some(&b'-');
+    if matches!(trimmed.first(), Some(b'+' | b'-')) {
+        length += 1;
+    }
+    let digit_start = length;
+    let mut value = 0i32;
+    while length < width && trimmed.get(length).is_some_and(u8::is_ascii_digit) {
+        value = value * 10 + i32::from(trimmed[length] - b'0');
+        length += 1;
+    }
+    if length == digit_start {
+        return None;
+    }
+    *input = &trimmed[length..];
+    Some(if negative { -value } else { value })
 }
 
 fn days_in_month(year: u32, month: u32) -> u32 {
@@ -563,6 +592,19 @@ mod tests {
         .unwrap();
         assert_eq!(theme.description.as_ref().unwrap().len(), 64);
     }
+    #[test]
+    fn release_date_uses_reborn_scan_widths_and_partial_time_fallback() {
+        let date_only = parse_date("20250101");
+        assert_eq!(parse_date("2025010112"), date_only);
+        assert_eq!(parse_date("202501011234"), date_only);
+        assert_eq!(parse_date("2025 1 1"), date_only);
+        assert_eq!(parse_date("2025x0101"), None);
+        assert_eq!(
+            parse_date("20250101123456tail"),
+            parse_date("20250101123456")
+        );
+    }
+
     #[test]
     fn release_date_normalizes_reborn_month_and_time_boundaries() {
         assert_eq!(parse_date("20240131"), Some(20240302010000));
