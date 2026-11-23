@@ -46,6 +46,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"wiiload-zip" {
         return wiiload_zip();
     }
+    if case == b"wiiload-controller" {
+        return wiiload_controller();
+    }
     if case == b"metadata-theme" {
         return metadata_theme();
     }
@@ -836,6 +839,86 @@ fn wiiload_zip() -> i32 {
     }
     ogc_system::report(format_args!(
         "PASS wiiload-zip app, theme and invalid inputs\n"
+    ));
+    0
+}
+
+fn wiiload_controller() -> i32 {
+    use crate::app::{Action, AppController, Input, Screen};
+
+    let mut controller = AppController::new();
+    controller.request_wiiload_zip_confirmation();
+    if controller.screen != Screen::WiiloadConfirm
+        || controller.wiiload_confirmation_text() != "Extract the received ZIP file?"
+        || controller.wiiload_confirmation_scroll() != 0
+        || controller.wiiload_confirmation_max_scroll() != 0
+        || controller.wiiload_confirmation_yes()
+    {
+        ogc_system::report(format_args!(
+            "FAIL wiiload-controller initial confirmation\n"
+        ));
+        return -1;
+    }
+    let details = "ZIP detail ".repeat(240);
+    controller.set_wiiload_confirmation_text(details.clone());
+    if controller.wiiload_confirmation_text() != details
+        || controller.wiiload_confirmation_max_scroll() == 0
+        || controller.wiiload_confirmation_scroll() != 0
+    {
+        ogc_system::report(format_args!("FAIL wiiload-controller confirmation text\n"));
+        return -1;
+    }
+    controller.handle(Input::Down, &[]);
+    controller.handle(Input::Left, &[]);
+    if controller.wiiload_confirmation_scroll() != 1
+        || !controller.wiiload_confirmation_yes()
+        || controller.handle(Input::Confirm, &[]) != Action::AcceptWiiloadZip
+        || controller.screen != Screen::Browser
+    {
+        ogc_system::report(format_args!("FAIL wiiload-controller accept ZIP\n"));
+        return -1;
+    }
+
+    controller.show_wiiload_receiving();
+    if controller.screen != Screen::WiiloadReceiving
+        || controller.operation_progress() != 0
+        || controller.wiiload_install_progress() != 0
+    {
+        ogc_system::report(format_args!("FAIL wiiload-controller receive start\n"));
+        return -1;
+    }
+    controller.set_wiiload_install_progress(35);
+    if controller.wiiload_install_progress() != 35 || controller.operation_progress() != 35 {
+        ogc_system::report(format_args!("FAIL wiiload-controller receive progress\n"));
+        return -1;
+    }
+    controller.set_operation_progress(255);
+    if controller.operation_progress() != 100 {
+        ogc_system::report(format_args!("FAIL wiiload-controller bounded progress\n"));
+        return -1;
+    }
+    controller.finish_wiiload_receiving();
+    controller.set_wiiload_install_progress(22);
+    if controller.screen != Screen::Browser || controller.wiiload_install_progress() != 100 {
+        ogc_system::report(format_args!("FAIL wiiload-controller receive finish\n"));
+        return -1;
+    }
+
+    controller.show_wiiload_installing();
+    controller.set_wiiload_install_progress(48);
+    controller.finish_wiiload_installing();
+    if controller.screen != Screen::Browser || controller.wiiload_install_progress() != 48 {
+        ogc_system::report(format_args!("FAIL wiiload-controller install finish\n"));
+        return -1;
+    }
+    controller.show_wiiload_receiving();
+    controller.finish_wiiload_receiving();
+    if controller.screen != Screen::Browser {
+        ogc_system::report(format_args!("FAIL wiiload-controller repeat receive\n"));
+        return -1;
+    }
+    ogc_system::report(format_args!(
+        "PASS wiiload-controller confirmation and progress\n"
     ));
     0
 }
