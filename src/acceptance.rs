@@ -29,6 +29,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"metadata-update" {
         return metadata_update();
     }
+    if case == b"metadata-settings" {
+        return metadata_settings();
+    }
     if case == b"disc-stop" {
         return disc_stop();
     }
@@ -151,6 +154,29 @@ fn metadata_update() -> i32 {
             ogc_system::report(format_args!("FAIL metadata-update {index}: {actual:?}\n"));
             return -1;
         }
+    }
+    0
+}
+
+fn metadata_settings() -> i32 {
+    let cases = [
+        (
+            "<hbc><device>  +12tail</device><sort_order>-3.5</sort_order><browse_mode>words</browse_mode></hbc>",
+            12,
+            -3,
+            0,
+        ),
+        ("<hbc/>", -1, 0, 0),
+        ("<hbc><device>\u{a0}4</device></hbc>", 0, 0, 0),
+    ];
+    for (index, (xml, device, sort_order, browse_mode)) in cases.iter().enumerate() {
+        let actual = crate::metadata::parse_settings_xml(xml);
+        if !matches!(actual, Ok(ref settings) if (settings.device, settings.sort_order, settings.browse_mode) == (*device, *sort_order, *browse_mode))
+        {
+            ogc_system::report(format_args!("FAIL metadata-settings {index}: {actual:?}\n"));
+            return -1;
+        }
+        ogc_system::report(format_args!("PASS metadata-settings {index}\n"));
     }
     0
 }

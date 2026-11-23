@@ -163,7 +163,7 @@ hbc_rs::management::plan_app_deletion,src/management.rs,172,unverified,,not_run,
 hbc_rs::management::plan_extraction,src/management.rs,205,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::management::rollback_staged_directory,src/management.rs,147,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::metadata::parse_app_xml,src/metadata.rs,78,partial,HBC-API-DATE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
-hbc_rs::metadata::parse_settings_xml,src/metadata.rs,171,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::metadata::parse_settings_xml,src/metadata.rs,171,partial,HBC-API-SETTINGS-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::metadata::parse_theme_xml,src/metadata.rs,190,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::metadata::parse_update_xml,src/metadata.rs,121,partial,HBC-API-UPDATE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::network_config::NetworkConfig::active_profile,src/network_config.rs,383,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.

@@ -262,9 +262,40 @@ fn parse_color(node: &XmlNode) -> Option<Rgba> {
     ))
 }
 fn number(node: &XmlNode, key: &str, fallback: i32) -> i32 {
-    node.text(key)
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(fallback)
+    let Some(text) = node.find(key).and_then(XmlNode::raw_value) else {
+        return fallback;
+    };
+    scan_atoi(&text).unwrap_or(0)
+}
+
+// Reborn uses atoi for settings. It accepts an optional sign and decimal
+// prefix, skips ASCII whitespace, and returns zero when no digits follow.
+// Checked arithmetic keeps malformed, very large settings safe.
+fn scan_atoi(text: &str) -> Option<i32> {
+    let bytes = text.as_bytes();
+    let mut index = bytes.iter().position(|byte| !byte.is_ascii_whitespace())?;
+    let negative = match bytes[index] {
+        b'-' => {
+            index += 1;
+            true
+        }
+        b'+' => {
+            index += 1;
+            false
+        }
+        _ => false,
+    };
+    let start = index;
+    let mut value = 0i64;
+    while let Some(byte @ b'0'..=b'9') = bytes.get(index).copied() {
+        value = value.checked_mul(10)?.checked_add(i64::from(byte - b'0'))?;
+        index += 1;
+    }
+    if index == start {
+        return None;
+    }
+    let signed = if negative { -value } else { value };
+    i32::try_from(signed).ok()
 }
 fn parse_date(s: &str) -> Option<i64> {
     let mut remaining = s.as_bytes();
@@ -625,6 +656,24 @@ mod tests {
         ))
         .unwrap();
         assert_eq!(theme.description.as_ref().unwrap().len(), 64);
+    }
+
+    #[test]
+    fn settings_numbers_match_reborn_atoi_prefix_rules() {
+        let settings = parse_settings_xml(
+            "<hbc><device>  +12tail</device><sort_order>-3.5</sort_order><browse_mode>words</browse_mode></hbc>",
+        ).unwrap();
+        assert_eq!(
+            (settings.device, settings.sort_order, settings.browse_mode),
+            (12, -3, 0)
+        );
+        let missing = parse_settings_xml("<hbc/>").unwrap();
+        assert_eq!(
+            (missing.device, missing.sort_order, missing.browse_mode),
+            (-1, 0, 0)
+        );
+        let non_ascii_space = parse_settings_xml("<hbc><device>\u{a0}4</device></hbc>").unwrap();
+        assert_eq!(non_ascii_space.device, 0);
     }
 
     #[test]
