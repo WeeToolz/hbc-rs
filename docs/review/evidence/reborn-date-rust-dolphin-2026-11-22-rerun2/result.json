@@ -1,0 +1,12 @@
+{
+  "sha256": "8653edfe9333eafb60f6e12d4b7dcd7faa9f9cdce13c37ae99ea487d86a5619f",
+  "profile": "/Volumes/SSD/WiiDev/tmp/hbc-production-acceptance-c0o4n5h8",
+  "cases": [
+    {
+      "case": "metadata-date",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

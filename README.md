@@ -60,6 +60,8 @@ package without understanding its inputs, risks, and recovery requirements.
 - [Port status](docs/port-status.md) records implemented behavior and open work.
 - [Parity report](docs/generated/parity-status.md) maps C behavior to Rust and
   separates implementation, review, and verification.
+- [Public API evidence](docs/generated/api-status.md) lists target library APIs
+  with exact linked evidence; see the [verification scope](docs/api-verification.md).
 - [Terminal control](docs/terminal-control.md) describes the development tools.
 - [Source and asset notices](SOURCE_NOTICES.md) records upstream material and
   known licensing limits.
