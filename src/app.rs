@@ -7,6 +7,15 @@ use crate::{
     text_layout::wrap_lines,
 };
 
+pub(crate) const OPTION_SORT_NAME: usize = 5;
+pub(crate) const OPTION_SORT_DATE: usize = 6;
+pub(crate) const OPTION_SORT_CUSTOM: usize = 7;
+pub(crate) const OPTION_NETWORK_SETUP: usize = 8;
+pub(crate) const OPTION_OK: usize = 9;
+pub(crate) const OPTION_BACK: usize = 10;
+const OPTION_FOCUS_ORDER: [usize; 11] = [0, 1, 4, 2, 3, 5, 6, 7, 9, 10, 8];
+const OPTION_ROWS: &[&[usize]] = &[&[0, 1, 4], &[2, 3], &[5, 6, 7], &[8], &[9, 10]];
+
 /// Converts pointer movement into scroll pixels for a pressed memo area.
 /// Any scrollable memo can use this tracker; the view owns its scroll offset.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -1369,7 +1378,7 @@ impl AppController {
                         .clamp(0, crate::platform::storage::DEVICE_COUNT as i32 - 1),
                 };
                 self.pending_sort = self.sort;
-                self.options_focus = 7;
+                self.options_focus = OPTION_BACK;
                 self.screen = Screen::Options;
                 Action::None
             }
@@ -1414,53 +1423,113 @@ impl AppController {
     }
 
     pub fn option_enabled(&self, index: usize) -> bool {
-        match index {
-            0..=3 => false,
-            4..=9 => true,
-            _ => false,
+        if index < crate::platform::storage::DEVICE_COUNT {
+            self.device_available(index) == Some(true)
+        } else {
+            matches!(
+                index,
+                OPTION_SORT_NAME
+                    | OPTION_SORT_DATE
+                    | OPTION_SORT_CUSTOM
+                    | OPTION_NETWORK_SETUP
+                    | OPTION_OK
+                    | OPTION_BACK
+            )
         }
     }
 
     fn move_options_focus(&mut self, input: Input) {
-        let enabled: [bool; 10] = core::array::from_fn(|index| self.option_enabled(index));
         if matches!(input, Input::Left | Input::Right) {
-            const ORDER: [usize; 6] = [4, 5, 9, 6, 7, 8];
-            if let Some(position) = ORDER.iter().position(|&item| item == self.options_focus) {
-                let next = if input == Input::Right {
-                    (position + 1).min(ORDER.len() - 1)
-                } else {
-                    position.saturating_sub(1)
-                };
-                self.options_focus = ORDER[next];
+            if let Some(mut position) = OPTION_FOCUS_ORDER
+                .iter()
+                .position(|&item| item == self.options_focus)
+            {
+                let direction = if input == Input::Right { 1isize } else { -1 };
+                loop {
+                    let next = position as isize + direction;
+                    if !(0..OPTION_FOCUS_ORDER.len() as isize).contains(&next) {
+                        break;
+                    }
+                    position = next as usize;
+                    let candidate = OPTION_FOCUS_ORDER[position];
+                    if self.option_enabled(candidate) {
+                        self.options_focus = candidate;
+                        break;
+                    }
+                }
             }
             return;
         }
-        const ROWS: [&[usize]; 5] = [&[0, 1], &[2, 3], &[4, 5, 9], &[8], &[6, 7]];
-        let Some(row) = ROWS
+        let Some(row) = OPTION_ROWS
             .iter()
             .position(|items| items.contains(&self.options_focus))
         else {
             return;
         };
         let direction = if input == Input::Up { -1isize } else { 1isize };
-        let column = match self.options_focus {
-            1 | 3 | 5 | 7 => 1,
-            8 => 1,
-            _ => 0,
-        };
+        let column = OPTION_ROWS[row]
+            .iter()
+            .position(|index| *index == self.options_focus)
+            .unwrap_or(0);
         let mut next_row = row as isize + direction;
-        while (0..ROWS.len() as isize).contains(&next_row) {
-            let items = ROWS[next_row as usize];
-            let preferred = items
-                .get(column.min(items.len().saturating_sub(1)))
-                .copied()
-                .filter(|index| enabled[*index]);
-            if let Some(target) = preferred.or_else(|| items.iter().copied().find(|i| enabled[*i]))
-            {
-                self.options_focus = target;
-                break;
+        while (0..OPTION_ROWS.len() as isize).contains(&next_row) {
+            let items = OPTION_ROWS[next_row as usize];
+            if !items.is_empty() {
+                let mut candidate_column = column.min(items.len() - 1);
+                loop {
+                    let candidate = items[candidate_column];
+                    if self.option_enabled(candidate) {
+                        self.options_focus = candidate;
+                        return;
+                    }
+                    if candidate_column == 0 {
+                        break;
+                    }
+                    candidate_column -= 1;
+                }
             }
             next_row += direction;
+        }
+    }
+
+    fn activate_option(&mut self, index: usize, catalog: &[AppEntry]) -> Action {
+        if index < crate::platform::storage::DEVICE_COUNT {
+            self.pending_device = index as i32;
+            return Action::None;
+        }
+        match index {
+            OPTION_SORT_NAME => {
+                self.pending_sort = SortOrder::Name;
+                Action::None
+            }
+            OPTION_SORT_DATE => {
+                self.pending_sort = SortOrder::ReleaseDate;
+                Action::None
+            }
+            OPTION_SORT_CUSTOM => {
+                self.pending_sort = SortOrder::Custom;
+                Action::None
+            }
+            OPTION_OK => {
+                self.preferred_device = self.pending_device;
+                self.sort = self.pending_sort;
+                self.filter = match self.pending_sort {
+                    SortOrder::Name | SortOrder::Custom => Filter::All,
+                    SortOrder::ReleaseDate => Filter::MetadataOnly,
+                };
+                self.reconcile_selection(catalog);
+                self.screen = Screen::Browser;
+                Action::ApplyOptions
+            }
+            OPTION_BACK => {
+                self.screen = Screen::Browser;
+                Action::None
+            }
+            OPTION_NETWORK_SETUP => {
+                self.screen = Screen::Options;
+                Action::LoadNetworkConfig
+            }
+            _ => Action::None,
         }
     }
 
@@ -1475,40 +1544,7 @@ impl AppController {
                 Action::None
             }
             Input::Confirm if !self.option_enabled(self.options_focus) => Action::None,
-            Input::Confirm => match self.options_focus {
-                4 => {
-                    self.pending_sort = SortOrder::Name;
-                    Action::None
-                }
-                5 => {
-                    self.pending_sort = SortOrder::ReleaseDate;
-                    Action::None
-                }
-                9 => {
-                    self.pending_sort = SortOrder::Custom;
-                    Action::None
-                }
-                6 => {
-                    self.preferred_device = self.pending_device;
-                    self.sort = self.pending_sort;
-                    self.filter = match self.pending_sort {
-                        SortOrder::Name | SortOrder::Custom => Filter::All,
-                        SortOrder::ReleaseDate => Filter::MetadataOnly,
-                    };
-                    self.reconcile_selection(catalog);
-                    self.screen = Screen::Browser;
-                    Action::ApplyOptions
-                }
-                7 => {
-                    self.screen = Screen::Browser;
-                    Action::None
-                }
-                8 => {
-                    self.screen = Screen::Options;
-                    Action::LoadNetworkConfig
-                }
-                _ => Action::None,
-            },
+            Input::Confirm => self.activate_option(self.options_focus, catalog),
             _ => Action::None,
         }
     }
@@ -2317,13 +2353,17 @@ mod tests {
         let mut controller = AppController::new();
         controller.handle(Input::OpenOptions, &catalog);
         assert_eq!(
-            controller.handle_pointer(Some(PointerTarget::Option(4)), true, &catalog),
+            controller.handle_pointer(
+                Some(PointerTarget::Option(OPTION_SORT_NAME)),
+                true,
+                &catalog
+            ),
             Action::None
         );
         assert_eq!(controller.pending_sort(), SortOrder::Name);
-        assert_eq!(controller.options_focus(), 4);
+        assert_eq!(controller.options_focus(), OPTION_SORT_NAME);
         assert_eq!(
-            controller.handle_pointer(Some(PointerTarget::Option(6)), true, &catalog),
+            controller.handle_pointer(Some(PointerTarget::Option(OPTION_OK)), true, &catalog),
             Action::ApplyOptions
         );
         assert_eq!(controller.screen, Screen::Browser);
@@ -2663,7 +2703,7 @@ mod tests {
         controller.handle(Input::Up, &catalog);
         controller.handle(Input::Up, &catalog);
         controller.handle(Input::Left, &catalog);
-        assert_eq!(controller.options_focus(), 4);
+        assert_eq!(controller.options_focus(), OPTION_SORT_NAME);
         controller.handle(Input::Confirm, &catalog);
         assert_eq!(controller.pending_sort(), SortOrder::Name);
         assert_eq!(controller.handle(Input::Back, &catalog), Action::None);
@@ -2678,8 +2718,7 @@ mod tests {
         controller.handle(Input::Confirm, &catalog);
         controller.handle(Input::Down, &catalog);
         controller.handle(Input::Down, &catalog);
-        controller.handle(Input::Left, &catalog);
-        assert_eq!(controller.options_focus(), 6);
+        assert_eq!(controller.options_focus(), OPTION_OK);
         assert_eq!(
             controller.handle(Input::Confirm, &catalog),
             Action::ApplyOptions
@@ -2938,7 +2977,7 @@ mod tests {
         controller.handle(Input::Confirm, &catalog);
         controller.handle(Input::Down, &catalog);
         controller.handle(Input::Down, &catalog);
-        controller.handle(Input::Left, &catalog);
+        assert_eq!(controller.options_focus(), OPTION_OK);
         controller.handle(Input::Confirm, &catalog);
         assert_eq!(controller.selected_app.as_deref(), Some("e"));
         assert_eq!(controller.selected_index(), 4);
@@ -2966,21 +3005,39 @@ mod tests {
         let mut controller = AppController::new();
         controller.set_device_availability([false; crate::platform::storage::DEVICE_COUNT]);
         controller.handle(Input::OpenOptions, &[]);
-        assert_eq!(controller.options_focus(), 7);
+        assert_eq!(controller.options_focus(), OPTION_BACK);
         controller.handle(Input::Right, &[]);
-        assert_eq!(controller.options_focus(), 8);
+        assert_eq!(controller.options_focus(), OPTION_NETWORK_SETUP);
         controller.handle(Input::Down, &[]);
-        assert_eq!(controller.options_focus(), 7);
+        assert_eq!(controller.options_focus(), OPTION_OK);
         controller.handle(Input::Up, &[]);
-        assert_eq!(controller.options_focus(), 8);
+        assert_eq!(controller.options_focus(), OPTION_NETWORK_SETUP);
         assert_eq!(
             controller.handle(Input::Confirm, &[]),
             Action::LoadNetworkConfig
         );
         let pending = controller.pending_device();
         controller.handle_pointer(Some(PointerTarget::Option(1)), true, &[]);
-        assert_eq!(controller.options_focus(), 8);
+        assert_eq!(controller.options_focus(), OPTION_NETWORK_SETUP);
         assert_eq!(controller.pending_device(), pending);
+    }
+
+    #[test]
+    fn options_allow_pointer_selection_of_an_available_device() {
+        let mut controller = AppController::new();
+        controller.set_device_availability([true; crate::platform::storage::DEVICE_COUNT]);
+        controller.handle(Input::OpenOptions, &[]);
+
+        for device in 0..crate::platform::storage::DEVICE_COUNT {
+            assert!(controller.option_enabled(device), "device {device}");
+        }
+        assert_eq!(controller.pending_device(), 0);
+        assert_eq!(
+            controller.handle_pointer(Some(PointerTarget::Option(4)), true, &[]),
+            Action::None
+        );
+        assert_eq!(controller.pending_device(), 4);
+        assert_eq!(controller.pending_sort(), SortOrder::Name);
     }
 
     #[test]
@@ -3007,26 +3064,31 @@ mod tests {
     }
 
     #[test]
-    fn detected_devices_remain_status_only_while_controller_skips_them() {
+    fn available_devices_can_be_selected_and_missing_devices_are_skipped() {
         let mut controller = AppController::new();
-        controller.set_device_availability([true; crate::platform::storage::DEVICE_COUNT]);
+        controller.set_device_availability([true, false, false, false, true]);
         controller.handle(Input::OpenOptions, &[]);
-        for index in 0..4 {
-            assert!(!controller.option_enabled(index));
+        for (index, available) in [true, false, false, false, true].into_iter().enumerate() {
+            assert_eq!(controller.option_enabled(index), available);
         }
-        for index in 4..9 {
+        for index in OPTION_SORT_NAME..=OPTION_BACK {
             assert!(controller.option_enabled(index));
         }
-        assert_eq!(controller.options_focus(), 7);
-        let pending_device = controller.pending_device();
+        assert_eq!(controller.options_focus(), OPTION_BACK);
         controller.handle(Input::Up, &[]);
-        assert_eq!(controller.options_focus(), 8);
+        assert_eq!(controller.options_focus(), OPTION_NETWORK_SETUP);
         controller.handle(Input::Up, &[]);
-        assert_eq!(controller.options_focus(), 5);
-        controller.handle(Input::Left, &[]);
-        assert_eq!(controller.options_focus(), 4);
+        assert_eq!(controller.options_focus(), OPTION_SORT_NAME);
+        controller.handle(Input::Up, &[]);
+        assert_eq!(controller.options_focus(), 0);
         controller.handle(Input::Confirm, &[]);
-        assert_eq!(controller.pending_sort(), SortOrder::Name);
-        assert_eq!(controller.pending_device(), pending_device);
+        assert_eq!(controller.pending_device(), 0);
+        controller.handle_pointer(Some(PointerTarget::Option(4)), true, &[]);
+        assert_eq!(controller.pending_device(), 4);
+        assert_eq!(
+            controller.handle_pointer(Some(PointerTarget::Option(OPTION_OK)), true, &[]),
+            Action::ApplyOptions
+        );
+        assert_eq!(controller.preferred_device(), 4);
     }
 }

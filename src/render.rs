@@ -1286,20 +1286,34 @@ pub fn browser_frame_with_language(
             frame.text(299.0, 60.0, tr("Options"), 1.0, text_color, 24);
             frame.set_text_style(theme_text_style(theme, "label", text_color));
             frame.text(92.0, 80.0, tr("Device:"), 1.0, text_color, 32);
-            for (index, (x, y, label)) in [
-                (112.0, 96.0, tr("Internal SD Slot")),
-                (328.0, 96.0, tr("USB device")),
-                (112.0, 140.0, tr("SDGecko Slot A")),
-                (328.0, 140.0, tr("SDGecko Slot B")),
-                (112.0, 184.0, tr("USB device 2")),
+            for (index, x, y, label) in [
+                (0, 112.0, 96.0, tr("SD card")),
+                (1, 256.0, 96.0, tr("USB 1")),
+                (4, 400.0, 96.0, tr("USB 2")),
+                (2, 184.0, 140.0, tr("SDGecko A")),
+                (3, 328.0, 140.0, tr("SDGecko B")),
             ]
             .into_iter()
-            .enumerate()
             {
                 let available = controller.device_available(index) == Some(true);
-                let color = if available { ACCENT } else { MUTED };
-                frame.fill(rect(x, y + 19.0, 10.0, 10.0), color);
-                frame.text(x + 18.0, y + 20.0, label, 1.0, color, 27);
+                let color = if controller.pending_device() == index as i32 {
+                    ACCENT
+                } else if available {
+                    text_color
+                } else {
+                    MUTED
+                };
+                let bounds = frame.button(
+                    x,
+                    y,
+                    ButtonSize::Tiny,
+                    controller.options_focus() == index,
+                    label,
+                    color,
+                );
+                if available {
+                    frame.hit_target(PointerTarget::Option(index), bounds);
+                }
             }
             frame.set_text_style(theme_text_style(theme, "label", text_color));
             frame.text(
@@ -1314,7 +1328,7 @@ pub fn browser_frame_with_language(
                 112.0,
                 248.0,
                 ButtonSize::Tiny,
-                controller.options_focus() == 4,
+                controller.options_focus() == crate::app::OPTION_SORT_NAME,
                 tr("Name"),
                 if controller.pending_sort() == crate::catalog::SortOrder::Name {
                     ACCENT
@@ -1322,12 +1336,12 @@ pub fn browser_frame_with_language(
                     text_color
                 },
             );
-            frame.hit_target(PointerTarget::Option(4), bounds);
+            frame.hit_target(PointerTarget::Option(crate::app::OPTION_SORT_NAME), bounds);
             let bounds = frame.button(
                 256.0,
                 248.0,
                 ButtonSize::Tiny,
-                controller.options_focus() == 5,
+                controller.options_focus() == crate::app::OPTION_SORT_DATE,
                 tr("Date"),
                 if controller.pending_sort() == crate::catalog::SortOrder::ReleaseDate {
                     ACCENT
@@ -1335,12 +1349,12 @@ pub fn browser_frame_with_language(
                     text_color
                 },
             );
-            frame.hit_target(PointerTarget::Option(5), bounds);
+            frame.hit_target(PointerTarget::Option(crate::app::OPTION_SORT_DATE), bounds);
             let bounds = frame.button(
                 400.0,
                 248.0,
                 ButtonSize::Tiny,
-                controller.options_focus() == 9,
+                controller.options_focus() == crate::app::OPTION_SORT_CUSTOM,
                 tr("Custom"),
                 if controller.pending_sort() == crate::catalog::SortOrder::Custom {
                     ACCENT
@@ -1348,34 +1362,40 @@ pub fn browser_frame_with_language(
                     text_color
                 },
             );
-            frame.hit_target(PointerTarget::Option(9), bounds);
+            frame.hit_target(
+                PointerTarget::Option(crate::app::OPTION_SORT_CUSTOM),
+                bounds,
+            );
             let bounds = frame.compact_button(
                 224.0,
                 310.0,
                 ButtonSize::Small,
-                controller.options_focus() == 8,
+                controller.options_focus() == crate::app::OPTION_NETWORK_SETUP,
                 tr("Network setup"),
                 text_color,
             );
-            frame.hit_target(PointerTarget::Option(8), bounds);
+            frame.hit_target(
+                PointerTarget::Option(crate::app::OPTION_NETWORK_SETUP),
+                bounds,
+            );
             let bounds = frame.button(
                 92.0,
                 340.0,
                 ButtonSize::Small,
-                controller.options_focus() == 6,
+                controller.options_focus() == crate::app::OPTION_OK,
                 tr("Ok"),
                 text_color,
             );
-            frame.hit_target(PointerTarget::Option(6), bounds);
+            frame.hit_target(PointerTarget::Option(crate::app::OPTION_OK), bounds);
             let bounds = frame.button(
                 348.0,
                 340.0,
                 ButtonSize::Small,
-                controller.options_focus() == 7,
+                controller.options_focus() == crate::app::OPTION_BACK,
                 tr("Back"),
                 text_color,
             );
-            frame.hit_target(PointerTarget::Option(7), bounds);
+            frame.hit_target(PointerTarget::Option(crate::app::OPTION_BACK), bounds);
         } else if controller.screen == Screen::NetworkSettings {
             frame.set_text_style(theme_text_style(theme, "dlgtitle", text_color));
             frame.text(235.0, 48.0, tr("Network setup"), 1.0, text_color, 32);
@@ -3087,10 +3107,10 @@ mod tests {
             .map(|run| run.value.as_str())
             .collect();
         for label in [
-            "Internal SD Slot",
-            "USB device",
-            "SDGecko Slot A",
-            "SDGecko Slot B",
+            "SD card",
+            "USB 1",
+            "SDGecko A",
+            "SDGecko B",
             "Network setup",
         ] {
             assert!(
@@ -3184,7 +3204,7 @@ mod tests {
     }
 
     #[test]
-    fn options_device_statuses_are_lights_and_only_actions_are_buttons() {
+    fn options_render_available_devices_as_selectable_buttons() {
         let mut controller = AppController::new();
         controller.set_device_availability([true, false, true, false, false]);
         controller.handle(crate::app::Input::OpenOptions, &[]);
@@ -3218,43 +3238,32 @@ mod tests {
                     if *bounds == rect(224, 310, 200, 28)
         )));
         for device_bounds in [
-            rect(112, 96, 200, 48),
-            rect(328, 96, 200, 48),
-            rect(112, 140, 200, 48),
-            rect(328, 140, 200, 48),
-            rect(112, 184, 200, 48),
+            rect(112, 96, 132, 48),
+            rect(256, 96, 132, 48),
+            rect(400, 96, 132, 48),
+            rect(184, 140, 132, 48),
+            rect(328, 140, 132, 48),
         ] {
-            assert!(!frame.commands.iter().any(|command| matches!(
+            assert!(frame.commands.iter().any(|command| matches!(
                 command,
-                FrameCommand::ThemeArt { art: ThemeArt::Button(_), bounds, .. }
+                FrameCommand::ThemeArt { art: ThemeArt::Button(ButtonSize::Tiny), bounds, .. }
                     if *bounds == device_bounds
             )));
         }
-        assert!(frame.fills.contains(&FillRect {
-            bounds: rect(112, 115, 10, 10),
-            color: ACCENT,
+        assert!(frame.hit_targets.iter().any(|target| {
+            target.target == PointerTarget::Option(0) && target.bounds == rect(112, 96, 132, 48)
         }));
-        assert!(frame.fills.contains(&FillRect {
-            bounds: rect(328, 115, 10, 10),
-            color: MUTED,
+        assert!(frame.hit_targets.iter().any(|target| {
+            target.target == PointerTarget::Option(2) && target.bounds == rect(184, 140, 132, 48)
         }));
-        assert!((0..4).all(|index| {
+        assert!([1, 3, 4].iter().all(|index| {
             !frame
                 .hit_targets
                 .iter()
-                .any(|target| target.target == PointerTarget::Option(index))
+                .any(|target| target.target == PointerTarget::Option(*index))
         }));
-        assert!(
-            frame
-                .text_runs
-                .iter()
-                .any(|run| run.value == "USB device 2")
-        );
-        assert!(frame.fills.contains(&FillRect {
-            bounds: rect(112, 203, 10, 10),
-            color: MUTED
-        }));
-        assert_eq!(frame.hit_test(120.0, 120.0), None);
+        assert!(frame.text_runs.iter().any(|run| run.value == "USB 2"));
+        assert_eq!(frame.hit_test(120.0, 120.0), Some(PointerTarget::Option(0)));
         assert_eq!(frame.hit_test(120.0, 80.0), None);
     }
 

@@ -719,7 +719,6 @@ mod tests {
                 Input::Confirm,
                 Input::Down,
                 Input::Down,
-                Input::Left,
                 Input::Confirm,
             ],
             held: vec![],
@@ -760,13 +759,16 @@ mod tests {
             pressed: vec![Input::OpenOptions],
             ..InputFrame::default()
         });
-        runtime.update_pointer(Some(PointerTarget::Option(9)), true);
+        runtime.update_pointer(
+            Some(PointerTarget::Option(crate::app::OPTION_SORT_CUSTOM)),
+            true,
+        );
         assert_eq!(
             runtime.controller().pending_sort(),
             crate::catalog::SortOrder::Custom
         );
         assert_eq!(
-            runtime.update_pointer(Some(PointerTarget::Option(6)), true),
+            runtime.update_pointer(Some(PointerTarget::Option(crate::app::OPTION_OK)), true),
             vec![Action::ApplyOptions]
         );
         assert_eq!(runtime.settings().current().sort_order, 2);

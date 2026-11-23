@@ -283,7 +283,7 @@ fn input_mapping() -> i32 {
 
 fn render_hit_test() -> i32 {
     use crate::{
-        app::{AppController, PointerTarget},
+        app::{Action, AppController, Input, OPTION_OK, PointerTarget},
         catalog::{AppEntry, AppKind},
         render::{Frame, Rect, browser_frame},
     };
@@ -340,8 +340,40 @@ fn render_hit_test() -> i32 {
         ));
         return -1;
     }
+
+    let mut options = AppController::new();
+    options.set_device_availability([true; crate::platform::storage::DEVICE_COUNT]);
+    options.set_active_device(Some(0));
+    options.handle(Input::OpenOptions, &catalog);
+    let options_frame = browser_frame(&options, &catalog);
+    let Some(usb2) = options_frame
+        .hit_targets
+        .iter()
+        .find(|hit| hit.target == PointerTarget::Option(4))
+    else {
+        ogc_system::report(format_args!(
+            "FAIL render-hit-test available USB 2 option\n"
+        ));
+        return -1;
+    };
+    let usb2_target = options_frame.hit_test(
+        usb2.bounds.x + usb2.bounds.width / 2.0,
+        usb2.bounds.y + usb2.bounds.height / 2.0,
+    );
+    if usb2_target != Some(PointerTarget::Option(4))
+        || options.handle_pointer(usb2_target, true, &catalog) != Action::None
+        || options.pending_device() != 4
+        || options.handle_pointer(Some(PointerTarget::Option(OPTION_OK)), true, &catalog)
+            != Action::ApplyOptions
+        || options.preferred_device() != 4
+    {
+        ogc_system::report(format_args!(
+            "FAIL render-hit-test USB 2 selection and apply\n"
+        ));
+        return -1;
+    }
     ogc_system::report(format_args!(
-        "PASS render-hit-test reverse order, inclusive bounds and browser target\n"
+        "PASS render-hit-test ordering, bounds, browser and device targets\n"
     ));
     0
 }
