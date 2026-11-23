@@ -49,6 +49,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"loader-helpers" {
         return loader_helpers();
     }
+    if case == b"app-controller" {
+        return app_controller();
+    }
     if case == b"disc-stop" {
         return disc_stop();
     }
@@ -474,6 +477,52 @@ fn loader_helpers() -> i32 {
     }
     ogc_system::report(format_args!(
         "PASS loader policies, arguments, and plan validation\n"
+    ));
+    0
+}
+
+fn app_controller() -> i32 {
+    use crate::{
+        app::{Action, AppController, Input},
+        catalog::{AppEntry, AppKind},
+    };
+
+    let catalog: Vec<_> = (0..7)
+        .map(|index| AppEntry {
+            directory: alloc::format!("app-{index}"),
+            kind: AppKind::Dol,
+            size: 1,
+            has_icon: false,
+            metadata: None,
+        })
+        .collect();
+    let mut controller = AppController::new();
+    let navigation = controller.page_navigation(&catalog);
+    if navigation.capacity != 5
+        || navigation.start != 0
+        || !navigation.has_next()
+        || navigation.has_previous()
+        || controller.handle(Input::NextPage, &catalog) != Action::NextPage
+        || controller.selected_app.as_deref() != Some("app-5")
+        || controller.page_start() != 5
+        || controller.handle(Input::NextPage, &catalog) != Action::None
+        || controller.handle(Input::PreviousPage, &catalog) != Action::PreviousPage
+        || controller.selected_app.as_deref() != Some("app-0")
+    {
+        ogc_system::report(format_args!("FAIL app controller page navigation\n"));
+        return -1;
+    }
+    controller.handle(Input::ToggleBrowseMode, &catalog);
+    controller.handle(Input::Down, &catalog);
+    if controller.browser_layout().columns != 3
+        || controller.selected_app.as_deref() != Some("app-3")
+        || controller.visible_page(&catalog).len() != 7
+    {
+        ogc_system::report(format_args!("FAIL app controller grid navigation\n"));
+        return -1;
+    }
+    ogc_system::report(format_args!(
+        "PASS app controller page and grid navigation\n"
     ));
     0
 }

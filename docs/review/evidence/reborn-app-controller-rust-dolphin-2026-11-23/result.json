@@ -1,0 +1,12 @@
+{
+  "sha256": "de49bf00f8bc22648a3dfb4dab0c58ff9fa036f25f2cc85cb2f81dbcbdf37030",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-wt449t_1",
+  "cases": [
+    {
+      "case": "app-controller",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

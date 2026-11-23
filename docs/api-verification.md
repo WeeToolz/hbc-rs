@@ -79,3 +79,9 @@ APIs directly in Dolphin. IOS and AHB hardware effects remain pending. Rust
 keeps NUL-separated arguments and complete preflight validation as safety and
 behavior extensions; Reborn uses one space-joined command string and validates
 while relocating.
+
+The browser controller case checks list-page movement, boundary stops, grid
+mode changes, selection identity, and grid row movement with a seven-entry
+catalog. It calls the production controller APIs in Dolphin. Rendered widget
+geometry, transition animation, and physical controller behavior remain
+separate checks.
