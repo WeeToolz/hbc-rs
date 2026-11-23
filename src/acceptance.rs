@@ -64,6 +64,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"input-mapping" {
         return input_mapping();
     }
+    if case == b"render-hit-test" {
+        return render_hit_test();
+    }
     if case == b"disc-stop" {
         return disc_stop();
     }
@@ -274,6 +277,71 @@ fn input_mapping() -> i32 {
     }
     ogc_system::report(format_args!(
         "PASS input-mapping PAD, WPAD, Classic and IR\n"
+    ));
+    0
+}
+
+fn render_hit_test() -> i32 {
+    use crate::{
+        app::{AppController, PointerTarget},
+        catalog::{AppEntry, AppKind},
+        render::{Frame, Rect, browser_frame},
+    };
+
+    let mut frame = Frame::default();
+    frame.hit_target(
+        PointerTarget::App(0),
+        Rect {
+            x: 10.0,
+            y: 20.0,
+            width: 30.0,
+            height: 40.0,
+        },
+    );
+    frame.hit_target(
+        PointerTarget::Menu(1),
+        Rect {
+            x: 20.0,
+            y: 30.0,
+            width: 30.0,
+            height: 40.0,
+        },
+    );
+    if frame.hit_test(20.0, 30.0) != Some(PointerTarget::Menu(1))
+        || frame.hit_test(50.0, 70.0) != Some(PointerTarget::Menu(1))
+        || frame.hit_test(50.1, 70.0).is_some()
+        || frame.hit_test(f32::NAN, 40.0).is_some()
+    {
+        ogc_system::report(format_args!("FAIL render-hit-test overlap and bounds\n"));
+        return -1;
+    }
+
+    let catalog = [AppEntry {
+        directory: String::from("demo"),
+        kind: AppKind::Dol,
+        size: 1,
+        has_icon: false,
+        metadata: None,
+    }];
+    let rendered = browser_frame(&AppController::new(), &catalog);
+    let Some(target) = rendered
+        .hit_targets
+        .iter()
+        .find(|hit| hit.target == PointerTarget::App(0))
+    else {
+        ogc_system::report(format_args!("FAIL render-hit-test browser app target\n"));
+        return -1;
+    };
+    let center_x = target.bounds.x + target.bounds.width / 2.0;
+    let center_y = target.bounds.y + target.bounds.height / 2.0;
+    if rendered.hit_test(center_x, center_y) != Some(PointerTarget::App(0)) {
+        ogc_system::report(format_args!(
+            "FAIL render-hit-test rendered browser target\n"
+        ));
+        return -1;
+    }
+    ogc_system::report(format_args!(
+        "PASS render-hit-test reverse order, inclusive bounds and browser target\n"
     ));
     0
 }

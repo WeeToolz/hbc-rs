@@ -351,7 +351,7 @@ hbc_rs::render::BackgroundAnimation::take_pop_count,src/render.rs,314,unverified
 hbc_rs::render::BackgroundAnimation::tick,src/render.rs,229,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::render::Color::rgb,src/render.rs,34,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::render::Frame::hit_target,src/render.rs,493,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::render::Frame::hit_test,src/render.rs,480,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::render::Frame::hit_test,src/render.rs,480,partial,HBC-API-RENDER-HITTEST-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::render::Frame::logical_width,src/render.rs,471,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::render::Frame::pointer_cursor,src/render.rs,498,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::render::Frame::resolve_memos,src/render.rs,435,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
@@ -362,7 +362,7 @@ hbc_rs::render::Rect::bottom,src/render.rs,65,unverified,,not_run,No exact API-s
 hbc_rs::render::Rect::intersect,src/render.rs,70,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::render::Rect::is_valid,src/render.rs,54,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::render::Rect::right,src/render.rs,62,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::render::browser_frame,src/render.rs,1021,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::render::browser_frame,src/render.rs,1021,partial,HBC-API-BROWSER-HITS-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::render::browser_frame_with_language,src/render.rs,1051,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::render::browser_frame_with_theme,src/render.rs,1026,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::render::browser_frame_with_viewport,src/render.rs,1035,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
