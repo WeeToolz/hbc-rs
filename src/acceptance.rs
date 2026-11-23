@@ -37,6 +37,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"settings-state" {
         return settings_state();
     }
+    if case == b"wiiload-header" {
+        return wiiload_header();
+    }
     if case == b"metadata-theme" {
         return metadata_theme();
     }
@@ -628,6 +631,47 @@ fn settings_state() -> i32 {
         return -1;
     }
     ogc_system::report(format_args!("PASS settings-state dirty, save and load\n"));
+    0
+}
+
+fn wiiload_header() -> i32 {
+    use crate::wiiload::{WiiloadError, WiiloadHeader};
+
+    let wire_header = [b'H', b'A', b'X', b'X', 0, 5, 0, 3, 0, 0, 0, 4, 0, 0, 0, 0];
+    let header = match WiiloadHeader::decode(&wire_header) {
+        Ok(header) => header,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL wiiload-header decode {error:?}\n"));
+            return -1;
+        }
+    };
+    if header.version != 5
+        || header.args_len != 3
+        || header.data_len != 4
+        || header.validate() != Ok(())
+        || header.body_len() != Ok(7)
+        || header.is_compressed()
+        || header.decode_body(b"ELF!arg")
+            != Ok(crate::wiiload::WiiloadPayload {
+                data: b"ELF!".to_vec(),
+                args: b"arg".to_vec(),
+            })
+    {
+        ogc_system::report(format_args!("FAIL wiiload-header decoded fields or body\n"));
+        return -1;
+    }
+    let mut bad_magic = wire_header;
+    bad_magic[0] = b'X';
+    if WiiloadHeader::decode(&bad_magic) != Err(WiiloadError::InvalidHeader)
+        || WiiloadHeader::decode(&wire_header[..15]) != Err(WiiloadError::InvalidHeader)
+        || WiiloadHeader::decode(&[b'H', b'A', b'X', b'X', 0, 4, 0, 3, 0, 0, 0, 4, 0, 0, 0, 0])
+            != Err(WiiloadError::UnsupportedVersion)
+        || header.decode_body(b"ELF!argx") != Err(WiiloadError::IncompleteBody)
+    {
+        ogc_system::report(format_args!("FAIL wiiload-header rejection bounds\n"));
+        return -1;
+    }
+    ogc_system::report(format_args!("PASS wiiload-header decode and body bounds\n"));
     0
 }
 
