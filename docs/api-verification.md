@@ -24,6 +24,10 @@ target, or Dolphin tests may still exercise the API. `verified` requires all
 required contract evidence. `blocked` requires evidence that the remaining
 requirement depends on an unavailable prerequisite. The generator does not
 infer either state from a build, source review, or a broad subsystem test.
+`extension` identifies APIs that an `HBC-EXT-*` or `HBC-REMOTE-INPUT-*` ledger
+row explicitly marks as Rust-only with one or more exact `api_prefix=` scope
+entries. These APIs remain listed, but they do not count as C parity work. Do
+not add a prefix unless the named APIs have no matching C HBC contract.
 
 API-specific runtime evidence includes 17 `parse_app_xml` date cases and 8
 `parse_update_xml` date cases compared with an independent C-runtime probe in
@@ -89,6 +93,12 @@ The PNG encoder, decoder, GX tile conversion, and owned texture accessors have
 a direct production case with fixed pixel and tile results. See the
 [PNG API record](review/evidence/reborn-api-png-rust-dolphin-2026-11-23/README.md)
 for the tested contract and the remaining image and hardware checks.
+
+The `ThemeFontFace` APIs have a direct Dolphin case for parsing the bundled
+Droid face, rasterizing a glyph, line metrics, kerning, text width, and measured
+memo layout. See the [font API record](review/evidence/reborn-api-font-rust-dolphin-2026-11-23/README.md).
+This is partial evidence: it does not establish FreeType equivalence across all
+theme fonts or physical Wii rendering behavior.
 
 The loader helper case calls the policy, argument-building, and plan-validation
 APIs directly in Dolphin. IOS and AHB hardware effects remain pending. Rust

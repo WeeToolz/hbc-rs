@@ -19,6 +19,39 @@ class InventoryTests(unittest.TestCase):
         self.assertEqual(api_inventory.collect(self.document, self.ledger)[0]['status'], 'partial')
         self.assertEqual(api_inventory.collect(self.document, [])[0]['status'], 'unverified')
 
+    def test_explicit_rust_extension_is_not_counted_as_unverified(self):
+        extension = {
+            'id': 'HBC-API-EXT-DATE-01',
+            'c_ref': 'scope:Rust-only extension with no C counterpart; '
+                     'api_prefix=hbc_rs::metadata::',
+        }
+        result = api_inventory.collect(self.document, [extension])[0]
+        self.assertEqual(result['status'], 'extension')
+        self.assertEqual(result['evidence'], 'HBC-API-EXT-DATE-01')
+        self.assertEqual(result['verification'], 'not_applicable')
+        self.assertIn('no C counterpart', result['limitations'])
+
+    def test_stale_extension_prefix_is_rejected(self):
+        extension = {
+            'id': 'HBC-EXT-API-MISSING-01',
+            'c_ref': 'scope:Rust-only extension; api_prefix=hbc_rs::missing::',
+        }
+        with self.assertRaises(ValueError):
+            api_inventory.collect(self.document, [extension])
+
+    def test_remote_input_contract_can_declare_its_public_extension_apis(self):
+        extension = {
+            'id': 'HBC-REMOTE-INPUT-01',
+            'c_ref': 'scope:Rust-only remote input; api_prefix=hbc_rs::metadata::',
+        }
+        result = api_inventory.collect(self.document, [extension])[0]
+        self.assertEqual(result['status'], 'extension')
+        self.assertEqual(result['evidence'], 'HBC-REMOTE-INPUT-01')
+
+    def test_status_report_shows_extension_count_separately(self):
+        report = api_inventory.render_status([{'status': 'extension'}])
+        self.assertIn('extension: **1**', report)
+
     def test_public_const_function_references_resolve(self):
         self.ledger[0]['rust_ref'] = 'src/metadata.rs#pub const fn parse_app_xml'
         self.assertEqual(api_inventory.collect(self.document, self.ledger)[0]['status'], 'partial')

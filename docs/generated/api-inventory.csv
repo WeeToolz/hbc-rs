@@ -22,15 +22,15 @@ hbc_rs::app::AppController::main_menu_status,src/app.rs,344,unverified,,not_run,
 hbc_rs::app::AppController::mark_timed_notice_input_consumed,src/app.rs,578,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::app::AppController::menu_focus,src/app.rs,335,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::app::AppController::menu_item_count,src/app.rs,881,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::app::AppController::network_config,src/app.rs,688,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::app::AppController::network_config_for_save,src/app.rs,805,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::app::AppController::network_config_snapshot,src/app.rs,834,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::app::AppController::network_encryption,src/app.rs,704,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::app::AppController::network_focus,src/app.rs,708,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::app::AppController::network_key,src/app.rs,696,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::app::AppController::network_key_visible,src/app.rs,700,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::app::AppController::network_scan_focus,src/app.rs,801,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::app::AppController::network_ssid,src/app.rs,692,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::app::AppController::network_config,src/app.rs,688,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::app::AppController::network_config_for_save,src/app.rs,805,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::app::AppController::network_config_snapshot,src/app.rs,834,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::app::AppController::network_encryption,src/app.rs,704,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::app::AppController::network_focus,src/app.rs,708,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::app::AppController::network_key,src/app.rs,696,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::app::AppController::network_key_visible,src/app.rs,700,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::app::AppController::network_scan_focus,src/app.rs,801,extension,HBC-API-EXT-SCAN-01,not_applicable,Rust wireless scan controller APIs have no matching C HBC API
+hbc_rs::app::AppController::network_ssid,src/app.rs,692,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
 hbc_rs::app::AppController::new,src/app.rs,322,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::app::AppController::notice,src/app.rs,606,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::app::AppController::notice_kind,src/app.rs,610,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
@@ -47,7 +47,7 @@ hbc_rs::app::AppController::pointer_target,src/app.rs,842,partial,HBC-API-APP-PO
 hbc_rs::app::AppController::preferred_device,src/app.rs,680,partial,HBC-API-OPTIONS-PREFERRED-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::reconcile_catalog,src/app.rs,886,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::app::AppController::request_wiiload_zip_confirmation,src/app.rs,352,partial,HBC-API-WIILOAD-CONFIRM-REQUEST-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
-hbc_rs::app::AppController::scanned_networks,src/app.rs,797,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::app::AppController::scanned_networks,src/app.rs,797,extension,HBC-API-EXT-SCAN-01,not_applicable,Rust wireless scan controller APIs have no matching C HBC API
 hbc_rs::app::AppController::scroll_active_memo_by_stick,src/app.rs,469,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::app::AppController::scroll_detail_by_stick,src/app.rs,465,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::app::AppController::selected_index,src/app.rs,331,partial,HBC-API-APP-SELECTED-INDEX-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
@@ -59,10 +59,10 @@ hbc_rs::app::AppController::set_device_availability,src/app.rs,866,partial,HBC-A
 hbc_rs::app::AppController::set_grid_columns,src/app.rs,905,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::app::AppController::set_main_menu_status,src/app.rs,339,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::app::AppController::set_measured_memo,src/app.rs,528,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::app::AppController::set_network_config,src/app.rs,769,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::app::AppController::set_network_config,src/app.rs,769,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
 hbc_rs::app::AppController::set_operation_progress,src/app.rs,428,partial,HBC-API-WIILOAD-PROGRESS-SET-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::set_preferred_device,src/app.rs,854,partial,HBC-API-OPTIONS-PREFERRED-SET-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
-hbc_rs::app::AppController::set_scanned_networks,src/app.rs,791,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::app::AppController::set_scanned_networks,src/app.rs,791,extension,HBC-API-EXT-SCAN-01,not_applicable,Rust wireless scan controller APIs have no matching C HBC API
 hbc_rs::app::AppController::set_wiiload_confirmation_text,src/app.rs,378,partial,HBC-API-WIILOAD-CONFIRM-TEXT-SET-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::set_wiiload_install_progress,src/app.rs,424,partial,HBC-API-WIILOAD-INSTALL-PROGRESS-SET-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::show_executable_loading,src/app.rs,413,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
@@ -96,13 +96,13 @@ hbc_rs::catalog::CatalogStorage::open_dir,src/catalog.rs,52,partial,HBC-API-CATA
 hbc_rs::catalog::CatalogStorage::read_file,src/catalog.rs,56,partial,HBC-API-CATALOG-READ-FILE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::catalog::scan_apps,src/catalog.rs,68,partial,HBC-API-CATALOG-SCAN-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::catalog::visible_entries,src/catalog.rs,166,partial,HBC-API-CATALOG-VISIBLE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
-hbc_rs::font::ThemeFontFace::cached_glyph_count,src/font.rs,73,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::font::ThemeFontFace::horizontal_kern,src/font.rs,82,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::font::ThemeFontFace::horizontal_line_metrics,src/font.rs,76,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::font::ThemeFontFace::layout_memo,src/font.rs,105,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::font::ThemeFontFace::measure_width,src/font.rs,87,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::font::ThemeFontFace::parse,src/font.rs,39,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::font::ThemeFontFace::rasterize,src/font.rs,49,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::font::ThemeFontFace::cached_glyph_count,src/font.rs,73,extension,HBC-API-EXT-FONT-01,not_applicable,Rust-only cache introspection
+hbc_rs::font::ThemeFontFace::horizontal_kern,src/font.rs,82,partial,HBC-API-FONT-KERN-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::font::ThemeFontFace::horizontal_line_metrics,src/font.rs,76,partial,HBC-API-FONT-LINE-METRICS-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::font::ThemeFontFace::layout_memo,src/font.rs,105,partial,HBC-API-FONT-LAYOUT-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::font::ThemeFontFace::measure_width,src/font.rs,87,partial,HBC-API-FONT-MEASURE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::font::ThemeFontFace::parse,src/font.rs,39,partial,HBC-API-FONT-PARSE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::font::ThemeFontFace::rasterize,src/font.rs,49,partial,HBC-API-FONT-RASTERIZE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::home_overlay::OpenSignal::new,src/home_overlay.rs,16,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::home_overlay::OpenSignal::request,src/home_overlay.rs,19,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::home_overlay::OpenSignal::take,src/home_overlay.rs,22,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
@@ -166,40 +166,40 @@ hbc_rs::metadata::parse_app_xml,src/metadata.rs,78,partial,HBC-API-DATE-01,dolph
 hbc_rs::metadata::parse_settings_xml,src/metadata.rs,175,partial,HBC-API-SETTINGS-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::metadata::parse_theme_xml,src/metadata.rs,194,partial,HBC-API-THEME-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::metadata::parse_update_xml,src/metadata.rs,125,partial,HBC-API-UPDATE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
-hbc_rs::network_config::NetworkConfig::active_profile,src/network_config.rs,383,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::NetworkConfig::active_wifi_profile,src/network_config.rs,372,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::NetworkConfig::as_bytes,src/network_config.rs,345,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::NetworkConfig::as_bytes_mut,src/network_config.rs,349,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::NetworkConfig::from_bytes,src/network_config.rs,341,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::NetworkConfig::interface_kind,src/network_config.rs,368,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::NetworkConfig::profile,src/network_config.rs,353,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::NetworkConfig::profile_mut,src/network_config.rs,359,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::NetworkConfig::set_interface_kind,src/network_config.rs,408,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::NetworkConfig::validate_format,src/network_config.rs,397,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::NetworkSecurity::config_encryption,src/network_config.rs,266,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::NetworkSecurity::label,src/network_config.rs,255,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::Profile::flags,src/network_config.rs,436,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::Profile::manual_ipv4,src/network_config.rs,440,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::Profile::wifi,src/network_config.rs,447,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::ProfileMut::flags,src/network_config.rs,459,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::ProfileMut::manual_ipv4,src/network_config.rs,471,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::ProfileMut::set_flag,src/network_config.rs,463,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::ProfileMut::set_manual_ipv4,src/network_config.rs,478,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::ProfileMut::wifi,src/network_config.rs,483,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::ProfileMut::wifi_mut,src/network_config.rs,489,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::ScannedNetwork::name_bytes,src/network_config.rs,295,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::ScannedNetwork::signal_label,src/network_config.rs,299,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::ScannedNetworks::as_slice,src/network_config.rs,325,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::WifiConfig::encryption,src/network_config.rs,537,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::WifiConfig::key,src/network_config.rs,545,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::WifiConfig::key_len,src/network_config.rs,541,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::WifiConfig::ssid,src/network_config.rs,529,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::WifiConfig::ssid_len,src/network_config.rs,533,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::WifiConfigMut::encryption,src/network_config.rs,1184,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::WifiConfigMut::set_encryption,src/network_config.rs,1198,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::WifiConfigMut::set_key,src/network_config.rs,1207,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::WifiConfigMut::set_ssid,src/network_config.rs,1188,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::network_config::validate_wifi,src/network_config.rs,567,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::network_config::NetworkConfig::active_profile,src/network_config.rs,383,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::NetworkConfig::active_wifi_profile,src/network_config.rs,372,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::NetworkConfig::as_bytes,src/network_config.rs,345,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::NetworkConfig::as_bytes_mut,src/network_config.rs,349,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::NetworkConfig::from_bytes,src/network_config.rs,341,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::NetworkConfig::interface_kind,src/network_config.rs,368,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::NetworkConfig::profile,src/network_config.rs,353,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::NetworkConfig::profile_mut,src/network_config.rs,359,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::NetworkConfig::set_interface_kind,src/network_config.rs,408,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::NetworkConfig::validate_format,src/network_config.rs,397,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::NetworkSecurity::config_encryption,src/network_config.rs,266,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::NetworkSecurity::label,src/network_config.rs,255,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::Profile::flags,src/network_config.rs,436,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::Profile::manual_ipv4,src/network_config.rs,440,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::Profile::wifi,src/network_config.rs,447,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::ProfileMut::flags,src/network_config.rs,459,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::ProfileMut::manual_ipv4,src/network_config.rs,471,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::ProfileMut::set_flag,src/network_config.rs,463,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::ProfileMut::set_manual_ipv4,src/network_config.rs,478,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::ProfileMut::wifi,src/network_config.rs,483,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::ProfileMut::wifi_mut,src/network_config.rs,489,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::ScannedNetwork::name_bytes,src/network_config.rs,295,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::ScannedNetwork::signal_label,src/network_config.rs,299,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::ScannedNetworks::as_slice,src/network_config.rs,325,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::WifiConfig::encryption,src/network_config.rs,537,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::WifiConfig::key,src/network_config.rs,545,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::WifiConfig::key_len,src/network_config.rs,541,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::WifiConfig::ssid,src/network_config.rs,529,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::WifiConfig::ssid_len,src/network_config.rs,533,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::WifiConfigMut::encryption,src/network_config.rs,1184,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::WifiConfigMut::set_encryption,src/network_config.rs,1198,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::WifiConfigMut::set_key,src/network_config.rs,1207,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::WifiConfigMut::set_ssid,src/network_config.rs,1188,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::network_config::validate_wifi,src/network_config.rs,567,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
 hbc_rs::platform::allocator::initialize_wii,src/platform/allocator.rs,16,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::control::Operation::begin,src/platform/control.rs,38,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::control::Operation::poll,src/platform/control.rs,87,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
@@ -340,11 +340,11 @@ hbc_rs::remote_control::Reply::encode,src/remote_control.rs,113,unverified,,not_
 hbc_rs::remote_control::Request::decode,src/remote_control.rs,73,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::remote_control::observe_disconnect,src/remote_control.rs,136,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::remote_control::observe_eject,src/remote_control.rs,127,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::remote_input::Command::decode,src/remote_input.rs,33,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::remote_input::Mailbox::completion,src/remote_input.rs,124,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::remote_input::Mailbox::consume,src/remote_input.rs,127,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::remote_input::Mailbox::new,src/remote_input.rs,100,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::remote_input::Mailbox::submit,src/remote_input.rs,113,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::remote_input::Command::decode,src/remote_input.rs,33,extension,HBC-REMOTE-INPUT-01,not_applicable,Rust development control extension
+hbc_rs::remote_input::Mailbox::completion,src/remote_input.rs,124,extension,HBC-REMOTE-INPUT-01,not_applicable,Rust development control extension
+hbc_rs::remote_input::Mailbox::consume,src/remote_input.rs,127,extension,HBC-REMOTE-INPUT-01,not_applicable,Rust development control extension
+hbc_rs::remote_input::Mailbox::new,src/remote_input.rs,100,extension,HBC-REMOTE-INPUT-01,not_applicable,Rust development control extension
+hbc_rs::remote_input::Mailbox::submit,src/remote_input.rs,113,extension,HBC-REMOTE-INPUT-01,not_applicable,Rust development control extension
 hbc_rs::render::BackgroundAnimation::new,src/render.rs,182,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::render::BackgroundAnimation::pop_all,src/render.rs,305,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::render::BackgroundAnimation::take_pop_count,src/render.rs,314,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
@@ -369,14 +369,14 @@ hbc_rs::render::browser_frame_with_viewport,src/render.rs,1035,unverified,,not_r
 hbc_rs::render::map_rect,src/render.rs,1936,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::apply_theme,src/runtime.rs,150,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::catalog,src/runtime.rs,138,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::runtime::AppRuntime::clear_network_config,src/runtime.rs,134,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::runtime::AppRuntime::clear_network_config,src/runtime.rs,134,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
 hbc_rs::runtime::AppRuntime::controller,src/runtime.rs,59,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::finish_executable_loading,src/runtime.rs,107,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::finish_wiiload_installing,src/runtime.rs,91,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::finish_wiiload_receiving,src/runtime.rs,87,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::load_settings,src/runtime.rs,225,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::runtime::AppRuntime::network_config_for_save,src/runtime.rs,124,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::runtime::AppRuntime::network_config_snapshot,src/runtime.rs,130,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::runtime::AppRuntime::network_config_for_save,src/runtime.rs,124,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
+hbc_rs::runtime::AppRuntime::network_config_snapshot,src/runtime.rs,130,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
 hbc_rs::runtime::AppRuntime::new,src/runtime.rs,47,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::operation_progress,src/runtime.rs,103,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::prepare_settings_for_exit,src/runtime.rs,206,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
@@ -388,10 +388,10 @@ hbc_rs::runtime::AppRuntime::set_bootmii_available,src/runtime.rs,167,unverified
 hbc_rs::runtime::AppRuntime::set_device_availability,src/runtime.rs,175,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::set_main_menu_status,src/runtime.rs,115,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::set_measured_memo,src/runtime.rs,63,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::runtime::AppRuntime::set_network_config,src/runtime.rs,111,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::runtime::AppRuntime::set_network_config,src/runtime.rs,111,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
 hbc_rs::runtime::AppRuntime::set_operation_progress,src/runtime.rs,99,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::set_preferred_device,src/runtime.rs,187,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::runtime::AppRuntime::set_scanned_networks,src/runtime.rs,120,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::runtime::AppRuntime::set_scanned_networks,src/runtime.rs,120,extension,HBC-API-EXT-SCAN-01,not_applicable,Rust wireless scan controller APIs have no matching C HBC API
 hbc_rs::runtime::AppRuntime::set_settings_persistence_enabled,src/runtime.rs,220,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::set_widescreen,src/runtime.rs,182,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::set_wiiload_confirmation_text,src/runtime.rs,71,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.

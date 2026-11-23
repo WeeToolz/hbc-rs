@@ -70,6 +70,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"management-api" {
         return management_api();
     }
+    if case == b"font-api" {
+        return font_api();
+    }
     if case == b"loader-helpers" {
         return loader_helpers();
     }
@@ -1405,6 +1408,116 @@ fn management_api() -> i32 {
 
     ogc_system::report(format_args!(
         "PASS management API planning and staged rename policy\n"
+    ));
+    0
+}
+
+fn font_api() -> i32 {
+    use crate::{
+        font::{FontError, ThemeFontFace},
+        text_layout::MemoSpec,
+    };
+
+    if ThemeFontFace::parse(String::from("bad.ttf"), alloc::vec![0; 8]).is_ok() {
+        ogc_system::report(format_args!("FAIL font API invalid font accepted\n"));
+        return -1;
+    }
+    let mut face = match ThemeFontFace::parse(
+        String::from("droid.ttf"),
+        include_bytes!("../assets/droid.ttf").to_vec(),
+    ) {
+        Ok(face) => face,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL font API parse {error:?}\n"));
+            return -1;
+        }
+    };
+    let Some((ascent, descent, line_gap)) = face.horizontal_line_metrics(18) else {
+        ogc_system::report(format_args!("FAIL font API line metrics missing\n"));
+        return -1;
+    };
+    if ascent <= 0.0 || descent >= 0.0 || !line_gap.is_finite() {
+        ogc_system::report(format_args!("FAIL font API line metrics values\n"));
+        return -1;
+    }
+    let empty_width = face.measure_width("", 18);
+    let narrow_width = face.measure_width("iii", 18);
+    let wide_width = face.measure_width("WWW", 18);
+    if empty_width != 0.0 || wide_width <= narrow_width * 2.0 {
+        ogc_system::report(format_args!("FAIL font API measured widths\n"));
+        return -1;
+    }
+    if face
+        .horizontal_kern('A', 'V', 18)
+        .is_some_and(|value| !value.is_finite())
+    {
+        ogc_system::report(format_args!("FAIL font API kerning value\n"));
+        return -1;
+    }
+    if face.cached_glyph_count() != 0 {
+        ogc_system::report(format_args!("FAIL font API initial cache count\n"));
+        return -1;
+    }
+    let glyph = match face.rasterize('A', 18) {
+        Ok(glyph) => glyph.clone(),
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL font API rasterize {error:?}\n"));
+            return -1;
+        }
+    };
+    if glyph.width == 0
+        || glyph.height == 0
+        || glyph.coverage.len() != usize::from(glyph.width) * usize::from(glyph.height)
+        || !glyph.coverage.iter().any(|coverage| *coverage != 0)
+        || face.rasterize('A', 18).as_deref() != Ok(&glyph)
+        || face.cached_glyph_count() != 1
+        || face.rasterize('A', 22).is_err()
+        || face.cached_glyph_count() != 2
+        || face.rasterize('A', 0) != Err(FontError::InvalidSize)
+    {
+        ogc_system::report(format_args!("FAIL font API glyph cache or bounds\n"));
+        return -1;
+    }
+
+    let text = "Dolphin theme fonts wrap text across several memo lines.";
+    let memo = match face.layout_memo(
+        text,
+        MemoSpec {
+            width: 80.0,
+            height: 32.0,
+            scroll: 0,
+        },
+        16,
+        1.0,
+    ) {
+        Ok(memo) => memo,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL font API layout {error:?}\n"));
+            return -1;
+        }
+    };
+    if memo.max_scroll == 0
+        || memo.lines.is_empty()
+        || memo
+            .lines
+            .iter()
+            .any(|line| face.measure_width(line, 16) > 80.0)
+        || face.layout_memo(
+            text,
+            MemoSpec {
+                width: 0.0,
+                height: 32.0,
+                scroll: 0,
+            },
+            16,
+            1.0,
+        ) != Err(FontError::InvalidSize)
+    {
+        ogc_system::report(format_args!("FAIL font API memo layout bounds\n"));
+        return -1;
+    }
+    ogc_system::report(format_args!(
+        "PASS font API metrics, glyphs and memo layout\n"
     ));
     0
 }

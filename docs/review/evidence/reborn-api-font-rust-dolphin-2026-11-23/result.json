@@ -1,0 +1,12 @@
+{
+  "sha256": "7ef548aea83025373204df6ee48d123986a6121447b5977a24d6b652c65fd4ec",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-pjswmhlx",
+  "cases": [
+    {
+      "case": "font-api",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}
