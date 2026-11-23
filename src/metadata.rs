@@ -257,7 +257,13 @@ fn parse_date(s: &str) -> Option<u64> {
             return None;
         }
     }
-    digits.parse().ok()
+    let value: u64 = digits.parse().ok()?;
+    // Reborn sets the time to 01:00:00 for the date-only form.
+    Some(if digits.len() == 8 {
+        value * 1_000_000 + 10_000
+    } else {
+        value
+    })
 }
 
 #[derive(Debug)]
@@ -525,6 +531,7 @@ mod tests {
     fn rejects_bad_xml_and_invalid_dates() {
         assert!(parse_app_xml("<app><name>x</app>").is_err());
         assert_eq!(parse_date("20241332"), None);
+        assert_eq!(parse_date("20250102"), Some(20250102010000));
     }
 
     #[test]

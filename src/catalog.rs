@@ -354,6 +354,30 @@ mod tests {
         }
     }
     #[test]
+    fn date_sort_compares_date_only_and_timestamp_entries_chronologically() {
+        let mut older = app("older", Some("Older"), None, false);
+        older.metadata = Some(
+            crate::metadata::parse_app_xml(
+                "<app><name>Older</name><release_date>20200102120000</release_date></app>",
+            )
+            .unwrap(),
+        );
+        let mut newer = app("newer", Some("Newer"), None, false);
+        newer.metadata = Some(
+            crate::metadata::parse_app_xml(
+                "<app><name>Newer</name><release_date>20250102</release_date></app>",
+            )
+            .unwrap(),
+        );
+        let entries = [older, newer];
+        let order: Vec<_> = visible_entries(&entries, Filter::MetadataOnly, SortOrder::ReleaseDate)
+            .iter()
+            .map(|entry| entry.directory.as_str())
+            .collect();
+        assert_eq!(order, ["newer", "older"]);
+    }
+
+    #[test]
     fn custom_sort_uses_reborn_sort_ids_and_keeps_unset_entries() {
         let mut entries = [
             app("late", Some("Late"), None, false),
