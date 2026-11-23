@@ -671,6 +671,39 @@ fn wiiload_header() -> i32 {
         ogc_system::report(format_args!("FAIL wiiload-header rejection bounds\n"));
         return -1;
     }
+    let compressed = [
+        0x78, 0x9c, 0x4b, 0x54, 0x28, 0xce, 0x4d, 0xcc, 0xc9, 0x51, 0x08, 0xcf, 0xcc, 0x54, 0x48,
+        0xad, 0x48, 0x4d, 0x2e, 0x2d, 0x49, 0x4c, 0xca, 0x49, 0x55, 0x28, 0x48, 0xac, 0xcc, 0xc9,
+        0x4f, 0x4c, 0x01, 0x00, 0xa8, 0x16, 0x0b, 0x30,
+    ];
+    let compressed_header =
+        WiiloadHeader::decode(&[b'H', b'A', b'X', b'X', 0, 5, 0, 2, 0, 0, 0, 38, 0, 0, 0, 30]);
+    let Ok(compressed_header) = compressed_header else {
+        ogc_system::report(format_args!("FAIL wiiload-header compressed header\n"));
+        return -1;
+    };
+    let mut compressed_body = compressed.to_vec();
+    compressed_body.extend_from_slice(b"xy");
+    if !compressed_header.is_compressed()
+        || compressed_header.body_len() != Ok(40)
+        || compressed_header.decode_body(&compressed_body)
+            != Ok(crate::wiiload::WiiloadPayload {
+                data: b"a small Wii executable payload".to_vec(),
+                args: b"xy".to_vec(),
+            })
+    {
+        ogc_system::report(format_args!("FAIL wiiload-header compressed body\n"));
+        return -1;
+    }
+    let wrong_size =
+        WiiloadHeader::decode(&[b'H', b'A', b'X', b'X', 0, 5, 0, 0, 0, 0, 0, 38, 0, 0, 0, 31]);
+    if !matches!(wrong_size, Ok(header) if header.decode_body(&compressed) == Err(WiiloadError::DecompressedSizeMismatch))
+    {
+        ogc_system::report(format_args!(
+            "FAIL wiiload-header decompressed size check\n"
+        ));
+        return -1;
+    }
     ogc_system::report(format_args!("PASS wiiload-header decode and body bounds\n"));
     0
 }
