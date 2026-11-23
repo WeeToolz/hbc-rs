@@ -1,0 +1,12 @@
+{
+  "sha256": "b5783ae09b10fa40655fa7583a93c3f602df568afde2312e9ae3484fda1c878b",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-85mwhnxi",
+  "cases": [
+    {
+      "case": "catalog",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

@@ -94,8 +94,8 @@ hbc_rs::catalog::CatalogStorage::file_size,src/catalog.rs,55,unverified,,not_run
 hbc_rs::catalog::CatalogStorage::next_dir_entry,src/catalog.rs,53,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::catalog::CatalogStorage::open_dir,src/catalog.rs,52,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::catalog::CatalogStorage::read_file,src/catalog.rs,56,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::catalog::scan_apps,src/catalog.rs,68,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::catalog::visible_entries,src/catalog.rs,166,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::catalog::scan_apps,src/catalog.rs,68,partial,HBC-API-CATALOG-SCAN-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::catalog::visible_entries,src/catalog.rs,166,partial,HBC-API-CATALOG-VISIBLE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::font::ThemeFontFace::cached_glyph_count,src/font.rs,73,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::font::ThemeFontFace::horizontal_kern,src/font.rs,82,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::font::ThemeFontFace::horizontal_line_metrics,src/font.rs,76,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.

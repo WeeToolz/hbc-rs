@@ -62,3 +62,9 @@ Each case sends a synthetic executable through the production parser, staging
 path, and handoff to a test child. These cases prove the selected load paths
 run in Dolphin; they do not prove full format parity or Broadway cache behavior.
 See [the loader acceptance record](review/evidence/reborn-loader-rust-dolphin-2026-11-23/README.md).
+
+The `scan_apps` and `visible_entries` APIs have a Dolphin acceptance case with a
+controlled storage fixture. It checks file priority, size limits, folder
+filtering, optional metadata, catalog filters, and custom sort IDs. It does not
+replace a Wii scan over FAT or verify device failure behavior. Rust keeps stable
+tie ordering where Reborn's `qsort` does not define it.

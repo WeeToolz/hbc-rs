@@ -1,6 +1,8 @@
 //! Emulator acceptance entry. This module is absent from normal HBC builds.
 use crate::{loader, metadata::UserSettings, platform::settings};
+use alloc::collections::BTreeMap;
 use alloc::string::String;
+use alloc::vec::Vec;
 
 fn expected_settings() -> UserSettings {
     UserSettings {
@@ -37,6 +39,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     }
     if case == b"metadata-app" {
         return metadata_app();
+    }
+    if case == b"catalog" {
+        return catalog();
     }
     if case == b"disc-stop" {
         return disc_stop();
@@ -223,6 +228,117 @@ fn metadata_app() -> i32 {
         return -1;
     }
     ogc_system::report(format_args!("PASS metadata-app CData and sort prefix\n"));
+    0
+}
+
+struct MemoryCatalogStorage {
+    folders: Vec<crate::catalog::DirectoryEntry>,
+    next_folder: usize,
+    files: BTreeMap<String, Vec<u8>>,
+}
+
+impl crate::catalog::CatalogStorage for MemoryCatalogStorage {
+    type Error = ();
+
+    fn open_dir(&mut self, path: &str) -> Result<(), Self::Error> {
+        (path == "apps").then_some(()).ok_or(())
+    }
+
+    fn next_dir_entry(&mut self) -> Result<Option<crate::catalog::DirectoryEntry>, Self::Error> {
+        let folder = self.folders.get(self.next_folder).cloned();
+        self.next_folder += usize::from(folder.is_some());
+        Ok(folder)
+    }
+
+    fn close_dir(&mut self) {}
+
+    fn file_size(&mut self, path: &str) -> Result<Option<u64>, Self::Error> {
+        Ok(self.files.get(path).map(|bytes| bytes.len() as u64))
+    }
+
+    fn read_file(&mut self, path: &str, max_bytes: usize) -> Result<Option<Vec<u8>>, Self::Error> {
+        Ok(self
+            .files
+            .get(path)
+            .filter(|bytes| bytes.len() <= max_bytes)
+            .cloned())
+    }
+}
+
+fn catalog() -> i32 {
+    use crate::catalog::{AppKind, DirectoryEntry, Filter, SortOrder, scan_apps, visible_entries};
+
+    let folders = [
+        ("alpha", true),
+        ("beta", true),
+        ("badmeta", true),
+        (".hidden", true),
+        ("unsafe/name", true),
+        ("large", true),
+        ("theme-large", true),
+        ("file", false),
+    ];
+    let mut storage = MemoryCatalogStorage {
+        folders: folders
+            .iter()
+            .map(|(name, is_directory)| DirectoryEntry {
+                name: String::from(*name),
+                is_directory: *is_directory,
+            })
+            .collect(),
+        next_folder: 0,
+        files: BTreeMap::new(),
+    };
+    for (path, bytes) in [
+        ("apps/alpha/boot.elf", b"elf".as_slice()),
+        ("apps/alpha/boot.dol", b"dol".as_slice()),
+        ("apps/alpha/theme.zip", b"zip".as_slice()),
+        ("apps/beta/boot.dol", b"dol".as_slice()),
+        ("apps/badmeta/boot.dol", b"dol".as_slice()),
+        ("apps/large/boot.elf", b"123456".as_slice()),
+        ("apps/theme-large/theme.zip", b"1234".as_slice()),
+        (
+            "apps/alpha/meta.xml",
+            b"<app><name>Zeta</name><sort_id>2</sort_id></app>".as_slice(),
+        ),
+        (
+            "apps/beta/meta.xml",
+            b"<app><name>Alpha</name><sort_id>1</sort_id></app>".as_slice(),
+        ),
+        ("apps/badmeta/meta.xml", b"<app>".as_slice()),
+    ] {
+        storage.files.insert(String::from(path), bytes.to_vec());
+    }
+    let entries = match scan_apps(&mut storage, "apps", 5, 3) {
+        Ok(entries) => entries,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL catalog scan {error:?}\n"));
+            return -1;
+        }
+    };
+    if entries.len() != 3
+        || entries[0].directory != "alpha"
+        || entries[0].kind != AppKind::Elf
+        || entries[1].directory != "beta"
+        || entries[1].kind != AppKind::Dol
+        || entries[2].directory != "badmeta"
+        || entries[2].metadata.is_some()
+    {
+        ogc_system::report(format_args!("FAIL catalog entries {entries:?}\n"));
+        return -1;
+    }
+    let custom = visible_entries(&entries, Filter::MetadataOnly, SortOrder::Custom);
+    if custom
+        .iter()
+        .map(|entry| entry.directory.as_str())
+        .collect::<Vec<_>>()
+        != ["beta", "alpha"]
+        || !visible_entries(&entries, Filter::IconsOnly, SortOrder::Name).is_empty()
+    {
+        ogc_system::report(format_args!("FAIL catalog filter or sort\n"));
+        return -1;
+    }
+    ogc_system::report(format_args!("PASS catalog scan and sort\n"));
     0
 }
 
