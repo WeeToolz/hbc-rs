@@ -1,0 +1,12 @@
+{
+  "sha256": "1940f19d385253e4d4345f6863f9f8ca31599ae3e3d2a00df3e8c02fb6e9530d",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-tg5nh9le",
+  "cases": [
+    {
+      "case": "app-controller",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

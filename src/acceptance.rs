@@ -826,16 +826,21 @@ fn app_controller() -> i32 {
         .collect();
     let mut controller = AppController::new();
     let navigation = controller.page_navigation(&catalog);
-    if navigation.capacity != 5
+    if controller.visible_apps(&catalog).len() != 7
+        || controller.selected_index() != 0
+        || controller.page_start() != 0
+        || navigation.capacity != 5
         || navigation.start != 0
         || !navigation.has_next()
         || navigation.has_previous()
         || controller.handle(Input::NextPage, &catalog) != Action::NextPage
         || controller.selected_app.as_deref() != Some("app-5")
+        || controller.selected_index() != 5
         || controller.page_start() != 5
         || controller.handle(Input::NextPage, &catalog) != Action::None
         || controller.handle(Input::PreviousPage, &catalog) != Action::PreviousPage
         || controller.selected_app.as_deref() != Some("app-0")
+        || controller.selected_index() != 0
     {
         ogc_system::report(format_args!("FAIL app controller page navigation\n"));
         return -1;
@@ -844,6 +849,7 @@ fn app_controller() -> i32 {
     controller.handle(Input::Down, &catalog);
     if controller.browser_layout().columns != 3
         || controller.selected_app.as_deref() != Some("app-3")
+        || controller.selected_index() != 3
         || controller.visible_page(&catalog).len() != 7
     {
         ogc_system::report(format_args!("FAIL app controller grid navigation\n"));
