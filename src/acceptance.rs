@@ -345,6 +345,13 @@ fn render_hit_test() -> i32 {
     options.set_device_availability([true; crate::platform::storage::DEVICE_COUNT]);
     options.set_active_device(Some(0));
     options.handle(Input::OpenOptions, &catalog);
+    if options.device_available(4) != Some(true)
+        || options.pending_device() != 0
+        || options.preferred_device() != 0
+    {
+        ogc_system::report(format_args!("FAIL render-hit-test initial device state\n"));
+        return -1;
+    }
     let options_frame = browser_frame(&options, &catalog);
     let Some(usb2) = options_frame
         .hit_targets
@@ -361,14 +368,31 @@ fn render_hit_test() -> i32 {
         usb2.bounds.y + usb2.bounds.height / 2.0,
     );
     if usb2_target != Some(PointerTarget::Option(4))
+        || !options.option_enabled(4)
         || options.handle_pointer(usb2_target, true, &catalog) != Action::None
         || options.pending_device() != 4
+        || options.preferred_device() != 0
         || options.handle_pointer(Some(PointerTarget::Option(OPTION_OK)), true, &catalog)
             != Action::ApplyOptions
         || options.preferred_device() != 4
     {
         ogc_system::report(format_args!(
             "FAIL render-hit-test USB 2 selection and apply\n"
+        ));
+        return -1;
+    }
+    let mut unavailable = AppController::new();
+    unavailable.set_device_availability([true, false, false, false, false]);
+    unavailable.handle(Input::OpenOptions, &catalog);
+    if unavailable.device_available(4) != Some(false)
+        || unavailable.option_enabled(4)
+        || unavailable.handle_pointer(Some(PointerTarget::Option(4)), true, &catalog)
+            != Action::None
+        || unavailable.pending_device() != 0
+        || unavailable.preferred_device() != 0
+    {
+        ogc_system::report(format_args!(
+            "FAIL render-hit-test unavailable device state\n"
         ));
         return -1;
     }
