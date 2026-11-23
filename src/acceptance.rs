@@ -26,6 +26,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"metadata-date" {
         return metadata_date();
     }
+    if case == b"metadata-update" {
+        return metadata_update();
+    }
     if case == b"disc-stop" {
         return disc_stop();
     }
@@ -123,6 +126,31 @@ fn metadata_date() -> i32 {
             return -1;
         }
         ogc_system::report(format_args!("PASS metadata-date {index}\n"));
+    }
+    0
+}
+
+fn metadata_update() -> i32 {
+    let cases = [
+        (Some("123tail"), Some(123)),
+        (Some("  +456rest"), Some(456)),
+        (Some("-7tail"), Some(u64::MAX - 6)),
+        (Some("junk"), None),
+        (Some("0"), Some(0)),
+        (Some(""), None),
+        (Some("\u{a0}123"), None),
+        (None, None),
+    ];
+    for (index, (input, expected)) in cases.iter().enumerate() {
+        let xml = match input {
+            Some(input) => alloc::format!("<update><app><date>{input}</date></app></update>"),
+            None => String::from("<update><app></app></update>"),
+        };
+        let actual = crate::metadata::parse_update_xml(&xml).map(|entry| entry.date);
+        if actual != Ok(*expected) {
+            ogc_system::report(format_args!("FAIL metadata-update {index}: {actual:?}\n"));
+            return -1;
+        }
     }
     0
 }

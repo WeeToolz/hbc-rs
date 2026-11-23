@@ -25,11 +25,11 @@ required contract evidence. `blocked` requires evidence that the remaining
 requirement depends on an unavailable prerequisite. The generator does not
 infer either state from a build, source review, or a broad subsystem test.
 
-API-specific runtime evidence includes the `parse_app_xml` date case in
-Dolphin. It compares 17 production Rust parser cases with an independent
-C-runtime probe. Its result is partial API evidence, not proof of the entire
-metadata API or all C runtime timezone behavior. See [the expanded Rust Dolphin evidence](review/evidence/reborn-date-rust-dolphin-2026-11-23-expanded/README.md)
-and [the expanded C probe evidence](review/evidence/reborn-date-c-dolphin-2026-11-23-expanded-r5/README.md).
+API-specific runtime evidence includes 17 `parse_app_xml` date cases and 8
+`parse_update_xml` date cases compared with an independent C-runtime probe in
+Dolphin. This is partial API evidence. It does not prove all C runtime timezone
+behavior or integer overflow behavior. See [the combined Rust Dolphin evidence](review/evidence/reborn-metadata-rust-dolphin-2026-11-23-r1/README.md)
+and [the combined C probe evidence](review/evidence/reborn-metadata-c-dolphin-2026-11-23-r2/README.md).
 No physical Wii API result is implied by Dolphin. Hardware checks remain
 separate in the parity ledger.
 
@@ -38,6 +38,10 @@ for Reborn's `/dev/di` callback chain. It checks open, ioctl `0xe3`, close,
 callback completion, and the drain result. The [direct API record](review/evidence/disc-stop-rust-dolphin-2026-11-22-r8/README.md)
 and [standard HBC startup capture](review/evidence/disc-startup-rust-async-2026-11-22-r2/README.md)
 are separate evidence. They do not prove physical Wii behavior.
+
+The update API comparison records that Rust keeps `None` for absent or invalid
+dates, while C leaves its zero-initialized field at zero. It does not verify the
+disabled update service.
 
 To expand coverage, select related entries from the generated CSV, review each
 contract against the HBC Reborn C source, then add API-specific production

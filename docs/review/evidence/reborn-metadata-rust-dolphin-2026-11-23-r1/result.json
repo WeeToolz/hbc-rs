@@ -1,0 +1,17 @@
+{
+  "sha256": "6f30da7dd9ddc2d1235ba94712a351a2ca184193f3d328d7087db540e8a52028",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-35fpa_50",
+  "cases": [
+    {
+      "case": "metadata-date",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "metadata-update",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

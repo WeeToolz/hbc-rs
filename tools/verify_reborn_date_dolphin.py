@@ -25,6 +25,16 @@ EXPECTED = [
     ('20250131235960', 20250304000000),
     ('20250102', 20250202010000),
 ]
+EXPECTED_UPDATE = [
+    123,
+    456,
+    18446744073709551609,
+    0,
+    0,
+    0,
+    0,
+    0,
+]
 
 
 def normalized_key(record: dict[str, object]) -> int | None:
@@ -49,13 +59,26 @@ def compare(c_result: dict[str, object], rust_result: dict[str, object]) -> dict
     if actual != EXPECTED:
         raise ValueError(f'C results do not match the expected Reborn date table: {actual!r}')
     cases = rust_result.get('cases')
-    if not rust_result.get('success') or cases != [{'case': 'metadata-date', 'success': True, 'result': 0}]:
-        raise ValueError('Rust Dolphin run did not pass the production metadata-date case')
+    update_records = c_result.get('update_records')
+    if not isinstance(update_records, list) or [
+        (record['index'], record['value']) for record in update_records
+    ] != list(enumerate(EXPECTED_UPDATE)):
+        raise ValueError('C update date results do not match Reborn sscanf behavior')
+    expected_cases = [
+        {'case': 'metadata-date', 'success': True, 'result': 0},
+        {'case': 'metadata-update', 'success': True, 'result': 0},
+    ]
+    if not rust_result.get('success') or cases != expected_cases:
+        raise ValueError('Rust Dolphin run did not pass both production metadata APIs')
     return {
         'success': True,
-        'api': 'hbc_rs::metadata::parse_app_xml',
-        'comparison': '17 production Rust results match the independent Reborn C runtime results',
+        'apis': [
+            'hbc_rs::metadata::parse_app_xml',
+            'hbc_rs::metadata::parse_update_xml',
+        ],
+        'comparison': '17 release dates and 8 update dates match independent Reborn C runtime results',
         'cases': len(EXPECTED),
+        'update_cases': len(EXPECTED_UPDATE),
         'dolphin_c_sha256': c_result['sha256'],
         'dolphin_rust_sha256': rust_result['sha256'],
         'physical_wii_tested': False,

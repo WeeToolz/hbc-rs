@@ -123,10 +123,48 @@ pub fn parse_update_xml(xml: &str) -> Result<UpdateMetadata, String> {
     let app = root.find("app").ok_or("missing app element")?;
     Ok(UpdateMetadata {
         version: app.text("version"),
-        date: app.text("date").and_then(|v| v.parse().ok()),
+        date: app
+            .find("date")
+            .and_then(XmlNode::raw_value)
+            .and_then(|value| scan_unsigned_decimal(&value)),
         notes: app.text("notes"),
         uri: app.text("uri"),
         hash: app.text("hash"),
+    })
+}
+
+fn scan_unsigned_decimal(value: &str) -> Option<u64> {
+    let bytes = value.as_bytes();
+    let mut index = bytes
+        .iter()
+        .position(|byte| !byte.is_ascii_whitespace())
+        .unwrap_or(bytes.len());
+    let negative = match bytes.get(index) {
+        Some(b'-') => {
+            index += 1;
+            true
+        }
+        Some(b'+') => {
+            index += 1;
+            false
+        }
+        _ => false,
+    };
+    let start = index;
+    let mut result = 0u64;
+    while let Some(byte @ b'0'..=b'9') = bytes.get(index).copied() {
+        result = result
+            .checked_mul(10)?
+            .checked_add(u64::from(byte - b'0'))?;
+        index += 1;
+    }
+    if index == start {
+        return None;
+    }
+    Some(if negative {
+        result.wrapping_neg()
+    } else {
+        result
     })
 }
 
@@ -352,6 +390,9 @@ impl XmlNode {
     fn value(&self) -> Option<String> {
         let s = self.text.trim();
         (!s.is_empty()).then(|| s.to_owned())
+    }
+    fn raw_value(&self) -> Option<String> {
+        (!self.text.is_empty()).then(|| self.text.clone())
     }
 }
 
@@ -584,6 +625,29 @@ mod tests {
         ))
         .unwrap();
         assert_eq!(theme.description.as_ref().unwrap().len(), 64);
+    }
+
+    #[test]
+    fn update_date_matches_reborn_unsigned_scan_rules() {
+        let cases = [
+            ("123", Some(123)),
+            ("  \t123tail", Some(123)),
+            ("+456rest", Some(456)),
+            ("-7tail", Some(u64::MAX - 6)),
+            ("junk", None),
+            ("+", None),
+            ("\u{a0}123", None),
+        ];
+        for (input, expected) in cases {
+            let xml = format!("<update><app><date>{input}</date></app></update>");
+            assert_eq!(parse_update_xml(&xml).unwrap().date, expected, "{input:?}");
+        }
+        assert_eq!(
+            parse_update_xml("<update><app></app></update>")
+                .unwrap()
+                .date,
+            None
+        );
     }
     #[test]
     fn release_date_preserves_negative_year_and_zero_epoch_semantics() {

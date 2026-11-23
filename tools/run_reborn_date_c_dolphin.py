@@ -21,6 +21,7 @@ DATE_LINE = re.compile(
     r'normalized=(-?\d+),(-?\d+),(-?\d+),(-?\d+),(-?\d+),(-?\d+)'
 )
 INVALID_LINE = re.compile(r'HBC_DATE input=(.*?) count=(\d+) invalid')
+UPDATE_LINE = re.compile(r'HBC_UPDATE index=(\d+) value=(\d+)')
 
 
 def parse_records(console: str) -> list[dict[str, object]]:
@@ -40,11 +41,19 @@ def parse_records(console: str) -> list[dict[str, object]]:
     return records
 
 
+def parse_update_records(console: str) -> list[dict[str, object]]:
+    return [
+        {'index': int(match.group(1)), 'value': int(match.group(2))}
+        for match in UPDATE_LINE.finditer(console)
+    ]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--dol', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--expected-cases', type=int, default=17)
+    parser.add_argument('--expected-date-cases', type=int, default=17)
+    parser.add_argument('--expected-update-cases', type=int, default=8)
     parser.add_argument('--timeout', type=float, default=30)
     args = parser.parse_args()
     dol = args.dol.resolve(strict=True)
@@ -53,7 +62,8 @@ def main() -> int:
         'image': str(dol),
         'sha256': hashlib.sha256(dol.read_bytes()).hexdigest(),
         'physical_wii_tested': False,
-        'expected_cases': args.expected_cases,
+        'expected_date_cases': args.expected_date_cases,
+        'expected_update_cases': args.expected_update_cases,
         'success': False,
     }
     process = None
@@ -87,7 +97,11 @@ def main() -> int:
                         break
                     console.flush()
                     content = console_path.read_text(encoding='utf-8', errors='replace')
-                    if f'HBC_DATE done cases={args.expected_cases}' in content:
+                    marker = (
+                        f'HBC_META done dates={args.expected_date_cases} '
+                        f'updates={args.expected_update_cases}'
+                    )
+                    if marker in content:
                         result['completion_marker'] = True
                         break
                     time.sleep(0.1)
@@ -103,10 +117,13 @@ def main() -> int:
             result['dolphin_exit_code'] = process.returncode
             content = console_path.read_text(encoding='utf-8', errors='replace')
             result['records'] = parse_records(content)
+            result['update_records'] = parse_update_records(content)
             result['record_count'] = len(result['records'])
+            result['update_record_count'] = len(result['update_records'])
             result['success'] = (
                 result.get('completion_marker') is True
-                and result['record_count'] == args.expected_cases
+                and result['record_count'] == args.expected_date_cases
+                and result['update_record_count'] == args.expected_update_cases
             )
             if not result['success']:
                 result['error'] = 'Dolphin did not emit the complete C probe result set'
