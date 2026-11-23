@@ -1,0 +1,30 @@
+{
+  "stack_bytes": 32768,
+  "alignment": 32,
+  "direct_call_lower_bound_bytes": 2080,
+  "remaining_bytes": 30688,
+  "required_margin_bytes": 16384,
+  "frames": [
+    {
+      "function": "hbc_rs::platform::wiiload::worker",
+      "bytes": 432
+    },
+    {
+      "function": "<hbc_rs::wiiload::WiiloadHeader>::decode_body",
+      "bytes": 1168
+    },
+    {
+      "function": "miniz_oxide::inflate::core::decompress",
+      "bytes": 240
+    },
+    {
+      "function": "miniz_oxide::inflate::core::init_tree",
+      "bytes": 224
+    },
+    {
+      "function": "memset",
+      "bytes": 16
+    }
+  ],
+  "success": true
+}
