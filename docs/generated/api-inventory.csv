@@ -433,4 +433,4 @@ hbc_rs::wiiload::network_indicator_visible,src/wiiload.rs,153,partial,HBC-API-WI
 hbc_rs::wiiload::progress_percent,src/wiiload.rs,167,partial,HBC-API-WIILOAD-PROGRESS-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::wiiload::same_local_subnet_16,src/wiiload.rs,162,partial,HBC-API-WIILOAD-SUBNET-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::wiiload::socket_would_block,src/wiiload.rs,31,partial,HBC-API-WIILOAD-EAGAIN-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
-hbc_rs::wiiload_zip::classify_received_zip,src/wiiload_zip.rs,41,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::wiiload_zip::classify_received_zip,src/wiiload_zip.rs,41,partial,HBC-API-WIILOAD-ZIP-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.

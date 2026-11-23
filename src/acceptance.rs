@@ -43,6 +43,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"wiiload-policy" {
         return wiiload_policy();
     }
+    if case == b"wiiload-zip" {
+        return wiiload_zip();
+    }
     if case == b"metadata-theme" {
         return metadata_theme();
     }
@@ -770,6 +773,70 @@ fn wiiload_policy() -> i32 {
         return -1;
     }
     ogc_system::report(format_args!("PASS wiiload-policy helpers\n"));
+    0
+}
+
+fn wiiload_zip() -> i32 {
+    use crate::{
+        management::ExtractionOperation,
+        wiiload_zip::{WiiloadZipClassification, WiiloadZipKind, classify_received_zip},
+    };
+
+    let app = include_bytes!("../tests/fixtures/wiiload-app.zip");
+    let classification = match classify_received_zip(app) {
+        Ok(classification) => classification,
+        Err(error) => {
+            ogc_system::report(format_args!(
+                "FAIL wiiload-zip app classification {error:?}\n"
+            ));
+            return -1;
+        }
+    };
+    let WiiloadZipClassification::App {
+        directory,
+        kind,
+        extraction,
+    } = classification
+    else {
+        ogc_system::report(format_args!("FAIL wiiload-zip app branch\n"));
+        return -1;
+    };
+    if directory != "Demo"
+        || kind != WiiloadZipKind::Elf
+        || extraction.total_bytes() != 10
+        || extraction.operations().len() != 2
+        || !extraction.operations().iter().any(|operation| {
+            matches!(
+                operation,
+                ExtractionOperation::WriteFile { path, archive_name, size: 4 }
+                    if path == "boot.elf" && archive_name == "Demo/boot.elf"
+            )
+        })
+        || !extraction.operations().iter().any(|operation| {
+            matches!(
+                operation,
+                ExtractionOperation::WriteFile { path, archive_name, size: 6 }
+                    if path == "meta.xml" && archive_name == "Demo/meta.xml"
+            )
+        })
+    {
+        ogc_system::report(format_args!("FAIL wiiload-zip app extraction plan\n"));
+        return -1;
+    }
+
+    let theme = include_bytes!("../tests/fixtures/theme-valid.zip");
+    if !matches!(
+        classify_received_zip(theme),
+        Ok(WiiloadZipClassification::Theme { package })
+            if package.metadata.description.as_deref() == Some("Dolphin")
+    ) || classify_received_zip(b"not a zip").is_ok()
+    {
+        ogc_system::report(format_args!("FAIL wiiload-zip theme or invalid branch\n"));
+        return -1;
+    }
+    ogc_system::report(format_args!(
+        "PASS wiiload-zip app, theme and invalid inputs\n"
+    ));
     0
 }
 
