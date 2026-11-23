@@ -37,6 +37,14 @@ before treating the editor as hardware verified.
 
 ## HBC-EXT-02: wireless network scan
 
+Follow-up, 2026-11-22: The scan parser now reads WPA and RSN suite counts in
+little-endian order, checks version and personal authentication suites, and
+reports invalid or unsupported security as unknown. The scan selection leaves
+the existing settings unchanged for unknown security. Entries with the same
+SSID and different security modes remain separate. Host regressions cover these
+cases. Real Wii scans and access-point connections still need verification.
+The findings below record the earlier review.
+
 Production path: `main.rs::ScanNetworks` stops the receiver, calls
 `platform/network_scan.rs::scan`, then restarts the receiver and reports both
 scan and restart failures. `ogc-wd::scan_once` locks the wireless driver, starts

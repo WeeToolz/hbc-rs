@@ -1564,12 +1564,16 @@ impl AppController {
                     .get(self.network_scan_focus)
                     .copied()
                 {
+                    let Some(encryption) = network.security.config_encryption() else {
+                        self.show_notice(
+                            "This network has unsupported or unknown security.".into(),
+                        );
+                        return Action::None;
+                    };
                     self.network_ssid.clear();
                     self.network_ssid.extend_from_slice(network.name_bytes());
                     self.network_key.clear();
-                    if let Some(encryption) = network.security.config_encryption() {
-                        self.network_encryption = encryption;
-                    }
+                    self.network_encryption = encryption;
                 }
                 self.screen = Screen::NetworkSettings;
                 Action::None
@@ -1978,6 +1982,24 @@ mod tests {
         assert_eq!(controller.network_scan_focus, 1);
         controller.handle(Input::Left, &[]);
         assert_eq!(controller.network_scan_focus, 1);
+    }
+
+    #[test]
+    fn unknown_scanned_security_does_not_change_network_settings() {
+        let mut controller = AppController::new();
+        controller.screen = Screen::NetworkScan;
+        controller.network_ssid.extend_from_slice(b"previous");
+        controller.network_key.extend_from_slice(b"password");
+        controller.network_encryption = 4;
+        controller.scanned_networks.len = 1;
+        controller.scanned_networks.entries[0].ssid[..3].copy_from_slice(b"new");
+        controller.scanned_networks.entries[0].ssid_len = 3;
+        controller.scanned_networks.entries[0].security =
+            crate::network_config::NetworkSecurity::Unknown;
+        controller.handle(Input::Confirm, &[]);
+        assert_eq!(controller.network_ssid, b"previous");
+        assert_eq!(controller.network_key, b"password");
+        assert_eq!(controller.network_encryption, 4);
     }
 
     #[test]

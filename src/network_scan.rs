@@ -69,11 +69,9 @@ pub(crate) fn parse_scan_results(bytes: &[u8]) -> Result<ScannedNetworks, Invali
 }
 
 fn add_network(list: &mut ScannedNetworks, network: ScannedNetwork) {
-    if let Some(existing) = list
-        .as_slice()
-        .iter()
-        .position(|item| item.name_bytes() == network.name_bytes())
-    {
+    if let Some(existing) = list.as_slice().iter().position(|item| {
+        item.name_bytes() == network.name_bytes() && item.security == network.security
+    }) {
         if network.signal > list.entries[existing].signal {
             list.entries[existing] = network;
         }
@@ -96,9 +94,9 @@ fn detect_security(capabilities: u16, ies: &[u8]) -> NetworkSecurity {
         };
         let data = &ies[offset..end];
         if id == 0x30 {
-            rsn = parse_security_ie(data, true);
+            rsn = Some(parse_security_ie(data, true).unwrap_or(NetworkSecurity::Unknown));
         } else if id == 0xdd && data.starts_with(&[0x00, 0x50, 0xf2, 0x01]) {
-            wpa = parse_security_ie(&data[4..], false);
+            wpa = Some(parse_security_ie(&data[4..], false).unwrap_or(NetworkSecurity::Unknown));
         }
         offset = end;
     }
@@ -119,20 +117,43 @@ fn detect_security(capabilities: u16, ies: &[u8]) -> NetworkSecurity {
 }
 
 fn parse_security_ie(data: &[u8], is_rsn: bool) -> Option<NetworkSecurity> {
-    // WPA vendor IEs carry a version before the group and pairwise suites.
-    let mut offset = 2usize;
-    if data.len() < 2 {
+    let oui = if is_rsn {
+        [0, 0x0f, 0xac]
+    } else {
+        [0, 0x50, 0xf2]
+    };
+    let le16 = |offset: usize| {
+        Some(u16::from_le_bytes(
+            data.get(offset..offset.checked_add(2)?)?.try_into().ok()?,
+        ))
+    };
+    if le16(0)? != 1 || data.get(2..5)? != oui || !matches!(*data.get(5)?, 2 | 4) {
         return None;
     }
-    offset = offset.checked_add(4)?;
-    let pairwise_count = usize::from(be16(data, offset)?);
-    offset = offset.checked_add(2)?;
+    let pairwise_count = usize::from(le16(6)?);
+    let mut offset = 8usize;
+    if pairwise_count == 0 {
+        return None;
+    }
     let suites_len = pairwise_count.checked_mul(4)?;
     let suites = data.get(offset..offset.checked_add(suites_len)?)?;
+    offset = offset.checked_add(suites_len)?;
+    let akm_count = usize::from(le16(offset)?);
+    offset = offset.checked_add(2)?;
+    let akms = data.get(offset..offset.checked_add(akm_count.checked_mul(4)?)?)?;
+    if akm_count == 0
+        || !akms
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .any(|suite| suite[..3] == oui && suite[3] == 2)
+    {
+        return None;
+    }
     let mut has_tkip = false;
     let mut has_aes = false;
     for suite in suites.as_chunks::<4>().0 {
-        if suite[..3] != [0x00, 0x0f, 0xac] && suite[..3] != [0x00, 0x50, 0xf2] {
+        if suite[..3] != oui {
             continue;
         }
         match suite[3] {
@@ -155,6 +176,43 @@ fn parse_security_ie(data: &[u8], is_rsn: bool) -> Option<NetworkSecurity> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn recognizes_personal_wpa_and_rsn_and_rejects_unsupported_security() {
+        let rsn = [
+            0x30, 20, 1, 0, 0, 0x0f, 0xac, 4, 1, 0, 0, 0x0f, 0xac, 4, 1, 0, 0, 0x0f, 0xac, 2, 0, 0,
+        ];
+        let wpa = [
+            0xdd, 22, 0, 0x50, 0xf2, 1, 1, 0, 0, 0x50, 0xf2, 2, 1, 0, 0, 0x50, 0xf2, 2, 1, 0, 0,
+            0x50, 0xf2, 2,
+        ];
+        assert_eq!(detect_security(0x10, &rsn), NetworkSecurity::Wpa2);
+        assert_eq!(detect_security(0x10, &wpa), NetworkSecurity::WpaTkip);
+        let mut enterprise = rsn;
+        enterprise[19] = 1;
+        assert_eq!(detect_security(0x10, &enterprise), NetworkSecurity::Unknown);
+        assert_eq!(
+            detect_security(0x10, &rsn[..rsn.len() - 1]),
+            NetworkSecurity::Unknown
+        );
+    }
+
+    #[test]
+    fn same_ssid_with_distinct_security_remains_separate() {
+        let mut networks = ScannedNetworks::default();
+        let mut network = networks.entries[0];
+        network.ssid[..4].copy_from_slice(b"test");
+        network.ssid_len = 4;
+        network.security = NetworkSecurity::Open;
+        network.signal = 1;
+        add_network(&mut networks, network);
+        network.security = NetworkSecurity::Wpa2;
+        network.signal = 3;
+        add_network(&mut networks, network);
+        assert_eq!(networks.len, 2);
+        assert_eq!(networks.entries[0].security, NetworkSecurity::Open);
+        assert_eq!(networks.entries[1].security, NetworkSecurity::Wpa2);
+    }
 
     #[test]
     fn parses_dolphin_count_prefix_and_64_byte_bss_info_record() {
