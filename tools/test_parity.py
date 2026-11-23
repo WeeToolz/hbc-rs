@@ -9,7 +9,7 @@ import parity
 
 class ReferenceTests(unittest.TestCase):
     def test_reborn_references_use_reborn_and_cannot_escape_its_root(self):
-        with tempfile.TemporaryDirectory(dir='/Volumes/SSD/WiiDev/tmp') as temporary:
+        with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             original = root / 'original'
             reborn = root / 'reborn'
