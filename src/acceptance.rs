@@ -674,7 +674,7 @@ fn loader_helpers() -> i32 {
 
 fn app_controller() -> i32 {
     use crate::{
-        app::{Action, AppController, Input},
+        app::{Action, AppController, Input, PointerTarget},
         catalog::{AppEntry, AppKind},
     };
 
@@ -712,8 +712,23 @@ fn app_controller() -> i32 {
         ogc_system::report(format_args!("FAIL app controller grid navigation\n"));
         return -1;
     }
+    let mut pointer_controller = AppController::new();
+    if pointer_controller.handle_pointer(Some(PointerTarget::App(3)), false, &catalog)
+        != Action::None
+        || pointer_controller.selected_index() != 3
+        || pointer_controller.pointer_target() != Some(PointerTarget::App(3))
+        || pointer_controller.handle_pointer(
+            Some(PointerTarget::Page { forward: true }),
+            true,
+            &catalog,
+        ) != Action::NextPage
+        || pointer_controller.selected_app.as_deref() != Some("app-5")
+    {
+        ogc_system::report(format_args!("FAIL app controller pointer actions\n"));
+        return -1;
+    }
     ogc_system::report(format_args!(
-        "PASS app controller page and grid navigation\n"
+        "PASS app controller page, grid and pointer navigation\n"
     ));
     0
 }
