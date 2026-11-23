@@ -171,12 +171,17 @@ pub struct AppDeletionPlan {
 /// the apps root when a catalog name is stale or comes from an invalid source.
 pub fn plan_app_deletion(directory: &str) -> Result<AppDeletionPlan, ArchivePathError> {
     validate_archive_path(directory)?;
-    if directory.contains('/') || directory.starts_with('.') {
+    if directory.contains('/') || directory.starts_with('.') || has_ambiguous_fat_suffix(directory)
+    {
         return Err(ArchivePathError::InvalidComponent);
     }
     Ok(AppDeletionPlan {
         directory: String::from(directory),
     })
+}
+
+fn has_ambiguous_fat_suffix(component: &str) -> bool {
+    component.ends_with('.') || component.ends_with(' ')
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -286,7 +291,7 @@ fn validate_fat_name_aliases(
 ) -> Result<(), ManagementError> {
     let mut folded_parent = String::new();
     for component in path.split('/') {
-        if component.ends_with('.') || component.ends_with(' ') {
+        if has_ambiguous_fat_suffix(component) {
             return Err(ManagementError::UnsafePath(
                 ArchivePathError::InvalidComponent,
             ));
@@ -555,6 +560,13 @@ mod tests {
         assert!(plan_app_deletion("../other").is_err());
         assert!(plan_app_deletion("demo/nested").is_err());
         assert!(plan_app_deletion(".hidden").is_err());
+        for name in ["demo.", "demo "] {
+            assert_eq!(
+                plan_app_deletion(name),
+                Err(ArchivePathError::InvalidComponent)
+            );
+            assert!(AppInstallPaths::new(name).is_err());
+        }
     }
 
     #[test]
