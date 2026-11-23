@@ -178,15 +178,17 @@ pub fn visible_entries(entries: &[AppEntry], filter: Filter, sort: SortOrder) ->
 
 fn compare(a: &AppEntry, b: &AppEntry, sort: SortOrder) -> Ordering {
     match sort {
-        SortOrder::Name => cmp_text(display_name(a), display_name(b))
-            .then_with(|| cmp_text(&a.directory, &b.directory)),
-        SortOrder::Custom => match (&a.metadata, &b.metadata) {
-            (Some(ma), Some(mb)) => match (ma.sort_id, mb.sort_id) {
-                (Some(a), Some(b)) => a.cmp(&b),
-                (Some(_), None) => Ordering::Less,
-                (None, Some(_)) => Ordering::Greater,
-                (None, None) => Ordering::Equal,
-            }
+        SortOrder::Name | SortOrder::Custom => match (&a.metadata, &b.metadata) {
+            (Some(ma), Some(mb)) => (if sort == SortOrder::Custom {
+                match (ma.sort_id, mb.sort_id) {
+                    (Some(a), Some(b)) => a.cmp(&b),
+                    (Some(_), None) => Ordering::Less,
+                    (None, Some(_)) => Ordering::Greater,
+                    (None, None) => Ordering::Equal,
+                }
+            } else {
+                Ordering::Equal
+            })
             .then_with(|| cmp_optional_text(ma.name.as_deref(), mb.name.as_deref()))
             .then_with(|| cmp_text(&a.directory, &b.directory)),
             (Some(_), None) => Ordering::Less,
@@ -204,14 +206,6 @@ fn compare(a: &AppEntry, b: &AppEntry, sort: SortOrder) -> Ordering {
             (None, None) => cmp_text(&a.directory, &b.directory),
         },
     }
-}
-
-fn display_name(entry: &AppEntry) -> &str {
-    entry
-        .metadata
-        .as_ref()
-        .and_then(|metadata| metadata.name.as_deref())
-        .unwrap_or(&entry.directory)
 }
 
 fn cmp_optional_text(a: Option<&str>, b: Option<&str>) -> Ordering {
@@ -401,8 +395,24 @@ mod tests {
                 .iter()
                 .map(|e| e.directory.as_str())
                 .collect::<Vec<_>>(),
-            ["a", "b", "z"]
+            ["a", "z", "b"]
         );
+    }
+
+    #[test]
+    fn name_sort_places_metadata_and_names_before_directory_fallbacks() {
+        let mut unnamed = app("aaa", None, None, false);
+        unnamed.metadata = Some(AppMetadata::default());
+        let entries = [
+            app("000", None, None, false),
+            unnamed,
+            app("zzz", Some("Zulu"), None, false),
+        ];
+        let names: Vec<_> = visible_entries(&entries, Filter::All, SortOrder::Name)
+            .iter()
+            .map(|entry| entry.directory.as_str())
+            .collect();
+        assert_eq!(names, ["zzz", "aaa", "000"]);
     }
 
     #[test]
