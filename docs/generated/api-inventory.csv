@@ -413,9 +413,9 @@ hbc_rs::settings::SettingsState::is_dirty,src/settings.rs,111,partial,HBC-API-SE
 hbc_rs::settings::SettingsState::load,src/settings.rs,132,partial,HBC-API-SETTINGS-STATE-LOAD-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::settings::SettingsState::mark_persisted,src/settings.rs,114,partial,HBC-API-SETTINGS-STATE-MARK-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::settings::SettingsState::save_if_dirty,src/settings.rs,120,partial,HBC-API-SETTINGS-STATE-SAVE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
-hbc_rs::settings::decode_settings_xml,src/settings.rs,74,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::settings::encode_settings_xml,src/settings.rs,42,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::settings::load_or_create,src/settings.rs,18,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::settings::decode_settings_xml,src/settings.rs,74,partial,HBC-API-SETTINGS-DECODE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::settings::encode_settings_xml,src/settings.rs,42,partial,HBC-API-SETTINGS-ENCODE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::settings::load_or_create,src/settings.rs,18,partial,HBC-API-SETTINGS-INIT-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::text_layout::layout_memo,src/text_layout.rs,20,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::text_layout::wrap_lines,src/text_layout.rs,90,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::text_layout::wrap_memo_lines,src/text_layout.rs,123,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.

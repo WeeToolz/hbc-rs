@@ -533,6 +533,53 @@ fn metadata_settings() -> i32 {
 }
 
 fn settings_state() -> i32 {
+    use crate::settings::{SettingsInitializationError, decode_settings_xml, encode_settings_xml};
+
+    let expected_xml = b"<?xml version=\"1.0\" encoding=\"UTF-8\"?><hbc><device>1</device><sort_order>2</sort_order><browse_mode>1</browse_mode><app_sel>sd:/apps/acceptance/boot.dol</app_sel></hbc>";
+    let expected = expected_settings();
+    if encode_settings_xml(&expected).as_deref().map(str::as_bytes) != Ok(expected_xml)
+        || decode_settings_xml(expected_xml) != Ok(expected.clone())
+    {
+        ogc_system::report(format_args!("FAIL settings-state XML codec\n"));
+        return -1;
+    }
+
+    let defaults = UserSettings::default();
+    let loaded = crate::settings::load_or_create(
+        defaults.clone(),
+        || Ok::<_, u8>(expected.clone()),
+        |_| false,
+        |_| Err(1),
+    );
+    if loaded != Ok(expected.clone()) {
+        ogc_system::report(format_args!("FAIL settings-state load existing\n"));
+        return -1;
+    }
+    let mut created = false;
+    let missing = crate::settings::load_or_create(
+        defaults.clone(),
+        || Err::<UserSettings, _>(0u8),
+        |error| *error == 0,
+        |settings| {
+            created = settings == &defaults;
+            Ok::<_, u8>(())
+        },
+    );
+    if missing != Ok(defaults.clone()) || !created {
+        ogc_system::report(format_args!("FAIL settings-state create missing\n"));
+        return -1;
+    }
+    let unreadable = crate::settings::load_or_create(
+        defaults,
+        || Err::<UserSettings, _>(1u8),
+        |_| false,
+        |_| panic!("save must not run after a read error"),
+    );
+    if unreadable != Err(SettingsInitializationError::Load(1)) {
+        ogc_system::report(format_args!("FAIL settings-state preserve read error\n"));
+        return -1;
+    }
+
     let mut state = crate::settings::SettingsState::default();
     if state.current() != &UserSettings::default() || state.is_dirty() {
         ogc_system::report(format_args!("FAIL settings-state defaults\n"));
