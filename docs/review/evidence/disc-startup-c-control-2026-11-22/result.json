@@ -1,0 +1,72 @@
+{
+  "image": "/Volumes/SSD/WiiDev/C-sources/hbc-reborn/channel/channelapp/channelapp-channel.dol",
+  "sha256": "a32c35c20e2a18ba3004aefbcea9ac10af555f0d068241e9332d6840b28fe5f6",
+  "physical_wii_tested": false,
+  "capture_complete": true,
+  "input_verification": "requires screenshot review",
+  "stages": [
+    {
+      "name": "pointer-center",
+      "screenshot": "docs/review/evidence/disc-startup-c-control-2026-11-22/dolphin-20261122-213049-310325376931500.png"
+    },
+    {
+      "name": "pointer-upper-left",
+      "screenshot": "docs/review/evidence/disc-startup-c-control-2026-11-22/dolphin-20261122-213051-310327372282708.png"
+    },
+    {
+      "name": "pointer-lower-right",
+      "screenshot": "docs/review/evidence/disc-startup-c-control-2026-11-22/dolphin-20261122-213053-310329346490083.png"
+    },
+    {
+      "name": "button-1",
+      "screenshot": "docs/review/evidence/disc-startup-c-control-2026-11-22/dolphin-20261122-213055-310331759799791.png"
+    },
+    {
+      "name": "pointer-click-app-details",
+      "screenshot": "docs/review/evidence/disc-startup-c-control-2026-11-22/dolphin-20261122-213059-310335583342500.png"
+    },
+    {
+      "name": "button-2",
+      "screenshot": "docs/review/evidence/disc-startup-c-control-2026-11-22/dolphin-20261122-213103-310339179618625.png"
+    }
+  ],
+  "fixture": {
+    "name_order": [
+      "Amber",
+      "Birch",
+      "Cedar"
+    ],
+    "date_order": [
+      "Cedar",
+      "Birch",
+      "Amber"
+    ],
+    "apps": [
+      {
+        "directory": "cedar",
+        "title": "Cedar",
+        "release_date": "20250304120000"
+      },
+      {
+        "directory": "amber",
+        "title": "Amber",
+        "release_date": "20240102120000"
+      },
+      {
+        "directory": "birch",
+        "title": "Birch",
+        "release_date": "20241203120000"
+      }
+    ]
+  },
+  "command": [
+    "/Applications/Dolphin.app/Contents/MacOS/Dolphin",
+    "-b",
+    "-u",
+    "/Volumes/SSD/WiiDev/tmp/hbc-c-input-mtcy09hh",
+    "-e",
+    "/Volumes/SSD/WiiDev/C-sources/hbc-reborn/channel/channelapp/channelapp-channel.dol"
+  ],
+  "load_focus_left": false,
+  "dolphin_exit_code": 0
+}

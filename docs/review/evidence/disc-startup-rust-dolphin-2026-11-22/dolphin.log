@@ -1,0 +1,101 @@
+31:31:880 Core/Boot/DolReader.cpp:67 W[BOOT]: DolReader: Text section 0 size is not aligned to 32 bytes and can cause issues when loaded
+31:31:880 Core/Boot/DolReader.cpp:102 W[BOOT]: DolReader: Data section 0 size is not aligned to 32 bytes and can cause issues when loaded
+31:31:880 Core/Boot/DolReader.cpp:102 W[BOOT]: DolReader: Data section 1 size is not aligned to 32 bytes and can cause issues when loaded
+31:32:043 InputCommon/ControllerInterface/SDL/SDL.cpp:127 I[CI]: system: App name: org.dolphin-emu.dolphin
+31:32:043 InputCommon/ControllerInterface/SDL/SDL.cpp:127 I[CI]: system: App version: <unspecified>
+31:32:043 InputCommon/ControllerInterface/SDL/SDL.cpp:127 I[CI]: system: App ID: <unspecified>
+31:32:043 InputCommon/ControllerInterface/SDL/SDL.cpp:127 I[CI]: system: SDL revision: SDL-3.4.12-f87239e71
+31:32:059 InputCommon/ControllerInterface/ControllerInterface.cpp:273 N[CI]: Added device: Quartz/0/Keyboard & Mouse
+31:32:059 InputCommon/ControllerInterface/ControllerInterface.cpp:273 N[CI]: Added device: Pipe/0/hbc-ui-remote
+31:32:059 InputCommon/ControllerInterface/ControllerInterface.cpp:273 N[CI]: Added device: Pipe/0/priiloader-return
+31:32:059 InputCommon/ControllerInterface/DualShockUDPClient/DualShockUDPClient.cpp:492 I[CI]: DualShockUDPClient PopulateDevices
+31:32:059 InputCommon/ControllerInterface/SteamDeck/SteamDeck.cpp:141 I[CI]: SteamDeck PopulateDevices
+31:32:072 InputCommon/ControllerInterface/SteamDeck/SteamDeck.cpp:171 I[CI]: No Steam Deck interface found
+31:32:072 Core/HW/WiimoteEmu/EmuSubroutines.cpp:185 I[Wiimote]: Attaching Motion Plus (Wiimote 0 in slot 0)
+31:32:072 Core/HW/WiimoteEmu/EmuSubroutines.cpp:185 I[Wiimote]: Attaching Motion Plus (Wiimote 1 in slot 1)
+31:32:072 Core/HW/WiimoteEmu/EmuSubroutines.cpp:185 I[Wiimote]: Attaching Motion Plus (Wiimote 2 in slot 2)
+31:32:072 Core/HW/WiimoteEmu/EmuSubroutines.cpp:185 I[Wiimote]: Attaching Motion Plus (Wiimote 3 in slot 3)
+31:32:073 Core/HW/WiimoteReal/WiimoteReal.cpp:911 N[Wiimote]: WiimoteReal::Initialize
+31:32:073 Core/HW/WiimoteReal/WiimoteReal.cpp:657 N[Wiimote]: Wiimote scanning thread has started.
+31:32:088 Core/ConfigManager.cpp:279 N[CORE]: Active title: 
+31:32:090 Core/Core.cpp:237 I[BOOT]: Starting core = Wii mode
+31:32:090 Core/Core.cpp:238 I[BOOT]: CPU Thread separate = No
+31:32:096 InputCommon/ControllerInterface/ControllerInterface.cpp:310 N[CI]: Removed device: Quartz/0/Keyboard & Mouse
+31:32:102 InputCommon/ControllerInterface/ControllerInterface.cpp:273 N[CI]: Added device: Quartz/0/Keyboard & Mouse
+31:34:117 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #0 Constructed
+31:34:117 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #1 Constructed
+31:34:117 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #2 Constructed
+31:34:117 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #3 Constructed
+31:34:117 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #4 Constructed
+31:34:121 Core/IOS/Network/MACUtils.cpp:47 I[IOS_NET]: Using MAC address: 00:17:ab:c6:29:e5
+31:34:215 Core/Boot/Boot.cpp:546 N[BOOT]: Booting from executable: /Volumes/SSD/WiiDev/WeeToolz/hbc-rs/target/hbc-rs.dol
+31:34:216 Core/IOS/ES/Formats.cpp:688 I[IOS_ES]: Title 0000000100000002 already exists in uid.sys
+31:34:217 Core/Boot/Boot_BS2Emu.cpp:435 I[BOOT]: Using serial number: 372730284
+31:34:217 Core/Boot/Boot_BS2Emu.cpp:463 I[BOOT]: Setup Wii Memory...
+31:34:218 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #0 Constructed
+31:34:218 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #1 Constructed
+31:34:218 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #2 Constructed
+31:34:218 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #3 Constructed
+31:34:218 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #4 Constructed
+31:34:219 Core/IOS/Network/MACUtils.cpp:47 I[IOS_NET]: Using MAC address: 00:17:ab:c6:29:e5
+31:34:273 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: keeping the launching channel's return stub
+31:34:276 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: initializing video
+31:34:280 Core/HW/ProcessorInterface.cpp:115 I[PI]: Wrote PI_FIFO_RESET: 00000001
+31:34:281 Core/HW/ProcessorInterface.cpp:115 I[PI]: Wrote PI_FIFO_RESET: 00000000
+31:34:348 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: video initialized
+31:34:349 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: loading settings and theme
+31:34:399 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: ES could not resolve direct-DOL title ID; using /title/00010001/48424345/data
+31:34:402 Core/IOS/ES/Views.cpp:227 I[IOS_ES]: GetTMDViewSize: 108 bytes for title 00000001000000fe
+31:34:402 Core/IOS/ES/Views.cpp:256 I[IOS_ES]: GetTMDView: 108 bytes for title 00000001000000fe
+31:34:987 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: settings and theme loaded
+31:34:988 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: startup complete; entering render loop
+31:34:988 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first lifecycle poll complete
+31:34:989 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first storage poll complete
+31:34:989 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first device poll complete
+31:34:989 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: Wiiload receiver state changed to Starting
+31:34:989 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first receiver poll complete
+31:34:990 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first controller scan starting
+31:34:993 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: Bluetooth startup: BLUETOOTH ADAPTER OPEN
+31:34:998 Core/IOS/USB/Bluetooth/BTEmu.cpp:1461 I[IOS_WIIMOTE]: Command: HCI_CMD_RESET
+31:35:003 Core/IOS/USB/Bluetooth/BTEmu.cpp:1813 I[IOS_WIIMOTE]: Command: HCI_CMD_READ_BUFFER_SIZE:
+31:35:011 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first controller scan complete
+31:35:014 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first scene construction complete
+31:35:014 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first memo layout starting
+31:35:014 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first memo layout complete
+31:35:015 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC_UI_EVENT v=1 name=bubble_target x=19 y=476
+31:35:016 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first GX scene drawing starting
+31:35:025 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first GX scene drawing complete
+31:35:025 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first framebuffer presentation starting
+31:35:025 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first GX draw wait starting
+31:35:025 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first GX draw wait complete
+31:35:025 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first VI retrace wait starting
+31:35:026 Core/IOS/USB/Bluetooth/BTEmu.cpp:1644 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_UNIT_CLASS:
+31:35:027 Core/IOS/USB/Bluetooth/BTEmu.cpp:1583 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_LOCAL_NAME:
+31:35:030 Core/IOS/USB/Bluetooth/BTEmu.cpp:1502 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_PIN_TYPE:
+31:35:030 Core/IOS/USB/Bluetooth/BTEmu.cpp:1663 I[IOS_WIIMOTE]: Command: HCI_CMD_HOST_BUFFER_SIZE:
+31:35:030 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first VI retrace wait complete
+31:35:030 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first XFB copy starting
+31:35:031 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first XFB copy queued
+31:35:031 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first XFB copy wait starting
+31:35:031 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first XFB copy wait complete
+31:35:031 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first framebuffer queued for scanout
+31:35:031 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: first scene rendered and copied to XFB
+31:35:031 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: display enabled after first rendered frame
+31:35:032 Core/IOS/USB/Bluetooth/BTEmu.cpp:1768 I[IOS_WIIMOTE]: Command: HCI_CMD_READ_LOCAL_VER:
+31:35:033 Core/IOS/USB/Bluetooth/BTEmu.cpp:1829 I[IOS_WIIMOTE]: Command: HCI_CMD_READ_BDADDR:
+31:35:035 Core/IOS/USB/Bluetooth/BTEmu.cpp:1792 I[IOS_WIIMOTE]: Command: HCI_CMD_READ_LOCAL_FEATURES:
+31:35:036 Core/IOS/USB/Bluetooth/BTEmu.cpp:1729 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_INQUIRY_MODE:
+31:35:036 Core/IOS/USB/Bluetooth/BTEmu.cpp:1751 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_PAGE_SCAN_TYPE:
+31:35:038 Core/IOS/USB/Bluetooth/BTEmu.cpp:1704 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_INQUIRY_SCAN_TYPE:
+31:35:039 Core/IOS/USB/Bluetooth/BTEmu.cpp:1644 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_UNIT_CLASS:
+31:35:039 Core/IOS/USB/Bluetooth/BTEmu.cpp:1600 I[IOS_WIIMOTE]: Command: HCI_CMD_WRITE_PAGE_TIMEOUT:
+31:35:039 Core/IOS/USB/Bluetooth/BTEmu.cpp:1526 I[IOS_WIIMOTE]: Command: HCI_CMD_READ_STORED_LINK_KEY:
+31:35:040 Core/IOS/USB/Bluetooth/BTEmu.cpp:1850 I[IOS_WIIMOTE]: Command: CommandVendorSpecific_FC4F: (callstack WUDiRemovePatch)
+31:35:040 Core/IOS/USB/Bluetooth/BTEmu.cpp:1850 I[IOS_WIIMOTE]: Command: CommandVendorSpecific_FC4F: (callstack WUDiRemovePatch)
+31:35:041 Core/IOS/USB/Bluetooth/BTEmu.cpp:1461 I[IOS_WIIMOTE]: Command: HCI_CMD_RESET
+31:35:041 Core/IOS/USB/Bluetooth/BTEmu.cpp:1813 I[IOS_WIIMOTE]: Command: HCI_CMD_READ_BUFFER_SIZE:
+31:35:042 Core/IOS/Network/NCD/Manage.cpp:112 I[IOS_NET]: NET_NCD_MANAGE: IOCTLV_NCD_GETLINKSTATUS
+31:35:043 Core/IOS/Network/IP/Top.cpp:809 I[IOS_NET]: IOCTL_SO_GETHOSTID = 192.168.1.52
+31:52:595 Core/WiiRoot.cpp:385 I[CORE]: Wii FS Cleanup: cleanup_required = false (wii_root_is_temporary = false, is netplay = false, is_netplay_write = false, is_netplay_host = false)
+31:52:832 Core/HW/WiimoteReal/WiimoteReal.cpp:750 N[Wiimote]: Wiimote scanning thread has stopped.
+31:52:833 Core/HW/WiimoteReal/WiimoteReal.cpp:930 N[Wiimote]: WiimoteReal::Shutdown
