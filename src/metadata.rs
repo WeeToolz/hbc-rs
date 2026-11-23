@@ -78,22 +78,26 @@ pub struct ThemeMetadata {
 pub fn parse_app_xml(xml: &str) -> Result<AppMetadata, String> {
     let root = parse_xml(xml)?;
     let app = root.find("app").ok_or("missing app element")?;
-    let mut author = app.text("author");
+    let mut author = app.raw_text("author");
     if author.is_none() {
-        author = app.text("coder");
+        author = app.raw_text("coder");
     }
     let arguments = app
         .find("arguments")
-        .map(|n| n.children_named("arg").filter_map(|a| a.value()).collect())
+        .map(|n| {
+            n.children_named("arg")
+                .filter_map(XmlNode::raw_value)
+                .collect()
+        })
         .unwrap_or_default();
     Ok(AppMetadata {
-        name: app.text("name"),
+        name: app.raw_text("name"),
         author,
-        version: app.text("version"),
-        short_description: app.text("short_description"),
-        long_description: app.text("long_description"),
-        release_date: app.text("release_date").and_then(|s| parse_date(&s)),
-        sort_id: app.text("sort_id").and_then(|s| parse_sort_id(&s)),
+        version: app.raw_text("version"),
+        short_description: app.raw_text("short_description"),
+        long_description: app.raw_text("long_description"),
+        release_date: app.raw_text("release_date").and_then(|s| parse_date(&s)),
+        sort_id: app.raw_text("sort_id").and_then(|s| parse_sort_id(&s)),
         arguments,
         ahb_access: app.find("ahb_access").is_some(),
         no_ios_reload: app.find("no_ios_reload").is_some(),
@@ -101,7 +105,7 @@ pub fn parse_app_xml(xml: &str) -> Result<AppMetadata, String> {
 }
 
 fn parse_sort_id(value: &str) -> Option<i32> {
-    let value = value.trim_start();
+    let value = value.trim_start_matches(|character: char| character.is_ascii_whitespace());
     let start = usize::from(value.starts_with(['+', '-']));
     let digits = value[start..]
         .bytes()
@@ -473,6 +477,9 @@ impl XmlNode {
     fn text(&self, name: &str) -> Option<String> {
         self.find(name).and_then(XmlNode::value)
     }
+    fn raw_text(&self, name: &str) -> Option<String> {
+        self.find(name).and_then(XmlNode::raw_value)
+    }
     fn value(&self) -> Option<String> {
         let s = self.text.trim();
         (!s.is_empty()).then(|| s.to_owned())
@@ -669,6 +676,22 @@ mod tests {
             let xml = format!("<app><sort_id>{input}</sort_id></app>");
             assert_eq!(parse_app_xml(&xml).unwrap().sort_id, expected);
         }
+    }
+
+    #[test]
+    fn app_metadata_keeps_cdata_and_uses_ascii_strtol_prefix() {
+        let metadata = parse_app_xml(
+            "<app><name> Demo </name><author> </author><coder>fallback</coder><version> 1 </version><short_description> note </short_description><release_date>20250101</release_date><sort_id>  +12tail</sort_id><arguments><arg> x </arg><arg>y</arg></arguments></app>",
+        )
+        .unwrap();
+        assert_eq!(metadata.name.as_deref(), Some(" Demo "));
+        assert_eq!(metadata.author.as_deref(), Some(" "));
+        assert_eq!(metadata.version.as_deref(), Some(" 1 "));
+        assert_eq!(metadata.short_description.as_deref(), Some(" note "));
+        assert_eq!(metadata.sort_id, Some(12));
+        assert_eq!(metadata.arguments, [" x ", "y"]);
+        let unicode_space = parse_app_xml("<app><sort_id>\u{a0}4</sort_id></app>").unwrap();
+        assert_eq!(unicode_space.sort_id, None);
     }
     #[test]
     fn parses_app_metadata_entities_dates_arguments_and_flags() {

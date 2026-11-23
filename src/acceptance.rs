@@ -35,6 +35,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"metadata-theme" {
         return metadata_theme();
     }
+    if case == b"metadata-app" {
+        return metadata_app();
+    }
     if case == b"disc-stop" {
         return disc_stop();
     }
@@ -199,6 +202,27 @@ fn metadata_theme() -> i32 {
         return -1;
     }
     ogc_system::report(format_args!("PASS metadata-theme atoi and target merge\n"));
+    0
+}
+
+fn metadata_app() -> i32 {
+    let xml = "<app><name> Demo </name><author> </author><coder>fallback</coder><version> 1 </version><short_description> note </short_description><sort_id>  +12tail</sort_id><arguments><arg> x </arg><arg>y</arg></arguments><ahb_access/><no_ios_reload/></app>";
+    let Ok(metadata) = crate::metadata::parse_app_xml(xml) else {
+        return -1;
+    };
+    if metadata.name.as_deref() != Some(" Demo ")
+        || metadata.author.as_deref() != Some(" ")
+        || metadata.version.as_deref() != Some(" 1 ")
+        || metadata.short_description.as_deref() != Some(" note ")
+        || metadata.sort_id != Some(12)
+        || metadata.arguments != [" x ", "y"]
+        || !metadata.ahb_access
+        || !metadata.no_ios_reload
+    {
+        ogc_system::report(format_args!("FAIL metadata-app parsed fields\n"));
+        return -1;
+    }
+    ogc_system::report(format_args!("PASS metadata-app CData and sort prefix\n"));
     0
 }
 
