@@ -124,7 +124,7 @@ def main():
     parser.add_argument('--elf', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--debug-port', type=int, default=55287)
-    parser.add_argument('--cases', nargs='+', choices=['launch-dol', 'launch-elf', 'settings', 'metadata-date', 'metadata-update', 'metadata-settings', 'metadata-theme', 'metadata-app', 'catalog', 'theme-package', 'loader-helpers', 'app-controller', 'storage-volumes', 'app-deletion', 'disc-stop'], default=['launch-dol', 'launch-elf', 'settings'])
+    parser.add_argument('--cases', nargs='+', choices=['launch-dol', 'launch-elf', 'settings', 'metadata-date', 'metadata-update', 'metadata-settings', 'metadata-theme', 'metadata-app', 'catalog', 'theme-package', 'loader-helpers', 'app-controller', 'storage-volumes', 'app-deletion', 'input-policy', 'disc-stop'], default=['launch-dol', 'launch-elf', 'settings'])
     parser.add_argument('--sdk-root', type=Path, default=Path(__file__).resolve().parents[2] / 'libogc-rs')
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=False)

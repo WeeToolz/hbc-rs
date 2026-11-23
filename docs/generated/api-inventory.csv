@@ -207,13 +207,13 @@ hbc_rs::platform::disc::wii::shutdown,src/platform/disc.rs,215,partial,HBC-API-D
 hbc_rs::platform::disc::wii::start_stop,src/platform/disc.rs,136,partial,HBC-API-DISC-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::platform::home_overlay::capture_and_save_screenshot,src/platform/home_overlay.rs,31,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::home_overlay::draw_chrome,src/platform/home_overlay.rs,50,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::platform::input::ButtonsForTest::contains,src/platform/input.rs,148,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::platform::input::initialize,src/platform/input.rs,581,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::platform::input::logical_pointer_position,src/platform/input.rs,79,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::platform::input::map_buttons,src/platform/input.rs,136,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::platform::input::map_extension_buttons,src/platform/input.rs,164,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::platform::input::remote_frame,src/platform/input.rs,1246,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::platform::input::scan,src/platform/input.rs,621,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::platform::input::ButtonsForTest::contains,src/platform/input.rs,150,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::platform::input::initialize,src/platform/input.rs,583,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::platform::input::logical_pointer_position,src/platform/input.rs,81,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::platform::input::map_buttons,src/platform/input.rs,138,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::platform::input::map_extension_buttons,src/platform/input.rs,166,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::platform::input::remote_frame,src/platform/input.rs,1253,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::platform::input::scan,src/platform/input.rs,623,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::lifecycle::ExitSignal::new,src/platform/lifecycle.rs,18,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::lifecycle::ExitSignal::request_power_off,src/platform/lifecycle.rs,26,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::lifecycle::ExitSignal::request_reset,src/platform/lifecycle.rs,22,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.

@@ -10,6 +10,8 @@ use ogc_controller::{Buttons as ControllerButtons, ControllerKind, project_stick
 
 const RIGHT_STICK_THRESHOLD: i16 = 8192;
 #[cfg(any(target_arch = "powerpc", test))]
+pub(crate) const WPAD_IDLE_TIMEOUT_SECONDS: u32 = 300;
+#[cfg(any(target_arch = "powerpc", test))]
 use ogc_controller::{
     ControllerSnapshot, ControllerSource, DigitalStickMapper, MAX_CONTROLLERS, StickDirectionError,
     StickDirectionFrame, StickDirectionSample,
@@ -563,7 +565,7 @@ fn map_screenshot_extension_buttons(mask: u32, extension: Extension, out: &mut B
 fn configure_wpad(view_width: u32, view_height: u32) -> Result<(), i32> {
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("WPAD SETTINGS");
-    wpad_sys::set_idle_timeout(120);
+    wpad_sys::set_idle_timeout(WPAD_IDLE_TIMEOUT_SECONDS);
     let ir_width = view_width.saturating_add(128);
     let ir_height = view_height.saturating_add(128);
     for channel in 0..4 {
@@ -818,6 +820,11 @@ fn extension_from_raw_type(expansion: i32) -> Option<Extension> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn wpad_idle_timeout_matches_reborn_five_minute_setting() {
+        assert_eq!(WPAD_IDLE_TIMEOUT_SECONDS, 300);
+    }
 
     #[test]
     fn maps_gamecube_and_wiimote_buttons_to_actions() {

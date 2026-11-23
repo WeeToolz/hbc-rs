@@ -58,6 +58,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"app-deletion" {
         return app_deletion();
     }
+    if case == b"input-policy" {
+        return input_policy();
+    }
     if case == b"disc-stop" {
         return disc_stop();
     }
@@ -165,6 +168,20 @@ fn app_deletion() -> i32 {
         }
     }
     ogc_system::report(format_args!("PASS app-deletion safe folder validation\n"));
+    0
+}
+
+fn input_policy() -> i32 {
+    let timeout = crate::platform::input::WPAD_IDLE_TIMEOUT_SECONDS;
+    if timeout != 300 {
+        ogc_system::report(format_args!(
+            "FAIL input-policy WPAD idle timeout {timeout}\n"
+        ));
+        return -1;
+    }
+    ogc_system::report(format_args!(
+        "PASS input-policy WPAD idle timeout {timeout}\n"
+    ));
     0
 }
 

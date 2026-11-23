@@ -49,6 +49,15 @@ A failed report submission returns the transfer error through the connection
 event path. Regression checks cover the six SDK slots and the C-compatible
 report bytes. Real player lights remain unverified until tested on the Wii.
 
+## Wii Remote idle timeout
+
+C HBC calls `WPAD_SetIdleTimeout(300)` in `source/controls.c#controls_init`,
+which sets a five-minute timeout. Rust previously called
+`wpad_sys::set_idle_timeout(120)`. Rust now uses the same 300-second timeout,
+and a host regression checks the production configuration constant. A Wii
+target build checks the WPAD configuration call. These checks do not prove the
+timeout's effect on a connected physical Remote; that check remains pending.
+
 ## Verification and limits
 
 - `cargo check` for `ogc-fat` and `wpad-sys` passed for the Wii PowerPC target
