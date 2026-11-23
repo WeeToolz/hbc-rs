@@ -61,6 +61,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"input-policy" {
         return input_policy();
     }
+    if case == b"input-mapping" {
+        return input_mapping();
+    }
     if case == b"disc-stop" {
         return disc_stop();
     }
@@ -181,6 +184,96 @@ fn input_policy() -> i32 {
     }
     ogc_system::report(format_args!(
         "PASS input-policy WPAD idle timeout {timeout}\n"
+    ));
+    0
+}
+
+fn input_mapping() -> i32 {
+    use crate::{
+        app::Input,
+        platform::input::{
+            Extension, logical_pointer_position, map_buttons, map_extension_buttons,
+        },
+    };
+
+    let all_inputs = [
+        Input::Home,
+        Input::Up,
+        Input::Down,
+        Input::Left,
+        Input::Right,
+        Input::Confirm,
+        Input::Back,
+        Input::ToggleBrowseMode,
+        Input::OpenOptions,
+        Input::PreviousPage,
+        Input::NextPage,
+    ];
+    let pad = map_buttons(
+        0x0001
+            | 0x0002
+            | 0x0004
+            | 0x0008
+            | 0x0010
+            | 0x0020
+            | 0x0040
+            | 0x0100
+            | 0x0200
+            | 0x0400
+            | 0x0800
+            | 0x1000,
+        0,
+    );
+    let remote = map_buttons(
+        0,
+        0x0001
+            | 0x0002
+            | 0x0004
+            | 0x0008
+            | 0x0010
+            | 0x0080
+            | 0x0100
+            | 0x0200
+            | 0x0400
+            | 0x0800
+            | 0x1000,
+    );
+    let classic = map_extension_buttons(
+        (0x0001
+            | 0x0002
+            | 0x0008
+            | 0x0010
+            | 0x0020
+            | 0x0040
+            | 0x0080
+            | 0x0200
+            | 0x0400
+            | 0x0800
+            | 0x1000
+            | 0x2000
+            | 0x4000
+            | 0x8000)
+            << 16,
+        Extension::Classic,
+    );
+    if all_inputs.iter().any(|input| !pad.contains(*input))
+        || all_inputs.iter().any(|input| !remote.contains(*input))
+        || all_inputs
+            .iter()
+            .any(|input| !map_buttons(0, classic).contains(*input))
+        || logical_pointer_position(64.0, 64.0)
+            != Some(crate::platform::input::PointerPosition { x: 0, y: 0 })
+        || logical_pointer_position(384.0, 304.0)
+            != Some(crate::platform::input::PointerPosition { x: 320, y: 240 })
+        || logical_pointer_position(f32::NAN, 64.0).is_some()
+    {
+        ogc_system::report(format_args!(
+            "FAIL input-mapping button or pointer values\n"
+        ));
+        return -1;
+    }
+    ogc_system::report(format_args!(
+        "PASS input-mapping PAD, WPAD, Classic and IR\n"
     ));
     0
 }

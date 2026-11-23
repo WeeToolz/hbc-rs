@@ -1,0 +1,17 @@
+{
+  "sha256": "a106c90429ee7f057590e88832d5656fb0358a9fb8b434f42bb6423832cc01d4",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-k5msdvtx",
+  "cases": [
+    {
+      "case": "input-policy",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "input-mapping",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}
