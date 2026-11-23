@@ -1,0 +1,17 @@
+{
+  "sha256": "b85df3abe2df296d9cf7a58c7fc3e0ded847f5983547b2434d15e9724575cd03",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-abk_trh_",
+  "cases": [
+    {
+      "case": "launch-dol",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "launch-elf",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

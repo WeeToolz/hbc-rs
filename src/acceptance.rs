@@ -1377,6 +1377,36 @@ fn launch(elf: bool) -> i32 {
     // The linked child is position independent and runs only after the actual
     // production trampoline has copied its image and initialized its memory.
     let payload = unsafe { core::slice::from_raw_parts(start, length) };
+
+    let arena_hi_before = ogc_system::get_arena2_hi();
+    if crate::loader::LaunchSource::try_allocate(0).is_some()
+        || crate::loader::LaunchSource::try_allocate(usize::MAX).is_some()
+    {
+        ogc_system::report(format_args!(
+            "FAIL launch source invalid allocation bounds\n"
+        ));
+        return -23;
+    }
+    let mut source_probe = match crate::loader::LaunchSource::try_allocate(64) {
+        Some(source) => source,
+        None => {
+            ogc_system::report(format_args!("FAIL launch source Arena2 allocation\n"));
+            return -24;
+        }
+    };
+    let probe_bytes = [0x5a; 64];
+    let probe_address = source_probe.as_mut_slice().as_mut_ptr() as usize;
+    source_probe.as_mut_slice().copy_from_slice(&probe_bytes);
+    if probe_address & 31 != 0 || source_probe.as_slice() != probe_bytes {
+        ogc_system::report(format_args!("FAIL launch source aligned mutable view\n"));
+        return -25;
+    }
+    drop(source_probe);
+    if ogc_system::get_arena2_hi() != arena_hi_before {
+        ogc_system::report(format_args!("FAIL launch source Arena2 release\n"));
+        return -26;
+    }
+
     let mut bytes = alloc::vec![0; 0x204];
     if elf {
         bytes[..7].copy_from_slice(b"\x7fELF\x01\x02\x01");
