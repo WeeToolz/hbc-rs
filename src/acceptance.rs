@@ -1040,6 +1040,13 @@ fn catalog() -> i32 {
     ] {
         storage.files.insert(String::from(path), bytes.to_vec());
     }
+    storage.files.insert(
+        String::from("apps/alpha/icon.png"),
+        include_bytes!("../tests/fixtures/hbc-app-icon.png").to_vec(),
+    );
+    storage
+        .files
+        .insert(String::from("apps/beta/icon.png"), b"not a PNG".to_vec());
     let entries = match scan_apps(&mut storage, "apps", 5, 3) {
         Ok(entries) => entries,
         Err(error) => {
@@ -1050,8 +1057,10 @@ fn catalog() -> i32 {
     if entries.len() != 3
         || entries[0].directory != "alpha"
         || entries[0].kind != AppKind::Elf
+        || !entries[0].has_icon
         || entries[1].directory != "beta"
         || entries[1].kind != AppKind::Dol
+        || entries[1].has_icon
         || entries[2].directory != "badmeta"
         || entries[2].metadata.is_some()
     {
@@ -1064,7 +1073,14 @@ fn catalog() -> i32 {
         .map(|entry| entry.directory.as_str())
         .collect::<Vec<_>>()
         != ["beta", "alpha"]
-        || !visible_entries(&entries, Filter::IconsOnly, SortOrder::Name).is_empty()
+        || visible_entries(&entries, Filter::IconsOnly, SortOrder::Name)
+            .iter()
+            .map(|entry| entry.directory.as_str())
+            .collect::<Vec<_>>()
+            != ["alpha"]
+        || crate::png::decode_hbc_app_icon(include_bytes!("../tests/fixtures/hbc-app-icon.png"))
+            .is_err()
+        || crate::png::decode_hbc_app_icon(b"not a PNG").is_ok()
     {
         ogc_system::report(format_args!("FAIL catalog filter or sort\n"));
         return -1;

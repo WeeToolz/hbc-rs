@@ -328,7 +328,7 @@ hbc_rs::png::GxRgba8Texture::as_ptr,src/png.rs,208,unverified,,not_run,No exact 
 hbc_rs::png::GxRgba8Texture::from_image,src/png.rs,166,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::png::GxRgba8Texture::is_empty,src/png.rs,216,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::png::GxRgba8Texture::len,src/png.rs,212,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::png::decode_hbc_app_icon,src/png.rs,222,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::png::decode_hbc_app_icon,src/png.rs,222,partial,HBC-API-APP-ICON-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::png::decode_png,src/png.rs,277,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::png::encode_rgba_png,src/png.rs,19,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::png::to_gx_rgba8,src/png.rs,318,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
