@@ -1,5 +1,14 @@
 # HBC-RS Wii Remote and DOL loading report
 
+## Parse failure diagnostics
+
+The storage launch path now records the file length, CRC32, and up to the first
+`0xe4` bytes when executable parsing fails. The header is logged as big-endian
+four-byte words with offsets and actual byte counts. Compare these values with
+the file on the SD card before changing the parser. CRC32 is an error-detection
+checksum; it is not a cryptographic identity. The original Wii failure and its
+cause remain unverified until the target run and file comparison are available.
+
 ## User report
 
 The user reports that a previously paired Wii Remote keeps blinking in

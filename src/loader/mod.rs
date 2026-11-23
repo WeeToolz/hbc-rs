@@ -9,6 +9,23 @@ use core::ops::Range;
 // C's dolheader ends after entry_point at 0xe4. The usual padding up to
 // 0x100 is optional and must not be treated as part of the required header.
 const DOL_HEADER_SIZE: usize = 0xe4;
+
+/// Record the executable bytes seen by the parser when validation fails.
+#[cfg(any(target_arch = "powerpc", test))]
+pub(crate) struct ExecutableDiagnostics<'a> {
+    pub length: usize,
+    pub crc32: u32,
+    pub prefix: &'a [u8],
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+pub(crate) fn executable_diagnostics(bytes: &[u8]) -> ExecutableDiagnostics<'_> {
+    ExecutableDiagnostics {
+        length: bytes.len(),
+        crc32: crc32fast::hash(bytes),
+        prefix: &bytes[..bytes.len().min(DOL_HEADER_SIZE)],
+    }
+}
 const ELF_HEADER_SIZE: usize = 52;
 const ELF_PHDR_SIZE: usize = 32;
 const PT_LOAD: u32 = 1;
@@ -433,6 +450,17 @@ fn be32(bytes: &[u8], offset: usize) -> Result<u32, ParseError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn executable_diagnostics_report_exact_size_crc_and_bounded_prefix() {
+        let bytes = b"123456789";
+        let info = executable_diagnostics(bytes);
+        assert_eq!(info.length, 9);
+        assert_eq!(info.crc32, 0xcbf4_3926);
+        assert_eq!(info.prefix, bytes);
+        let long = [0x5a; 300];
+        assert_eq!(executable_diagnostics(&long).prefix, &long[..0xe4]);
+    }
 
     #[test]
     fn app_metadata_preserves_independent_ios_and_ahb_requests() {

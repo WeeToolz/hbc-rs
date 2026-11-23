@@ -1309,7 +1309,24 @@ impl WiiStartup {
             AppKind::Dol => parse_dol(pending.bytes.as_slice(), Some(EXECUTABLE_MEMORY.clone())),
             AppKind::Theme => return Err(StartupError::NotExecutable),
         }
-        .map_err(StartupError::Loader)?;
+        .map_err(|error| {
+            let info = crate::loader::executable_diagnostics(pending.bytes.as_slice());
+            ogc_system::report(format_args!(
+                "HBC: executable parse failure: {error:?}; bytes={} crc32={:08x}\n",
+                info.length, info.crc32
+            ));
+            for (index, chunk) in info.prefix.chunks(4).enumerate() {
+                let mut word = [0u8; 4];
+                word[..chunk.len()].copy_from_slice(chunk);
+                ogc_system::report(format_args!(
+                    "HBC: executable header offset={:03x} bytes={} word={:08x}\n",
+                    index * 4,
+                    chunk.len(),
+                    u32::from_be_bytes(word)
+                ));
+            }
+            StartupError::Loader(error)
+        })?;
         Ok(Some(LaunchImage {
             bytes: pending.bytes,
             plan,
