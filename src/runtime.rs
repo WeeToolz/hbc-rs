@@ -224,13 +224,15 @@ impl AppRuntime {
     /// Apply settings loaded from NAND before the first rendered frame.
     pub fn load_settings(&mut self, settings: UserSettings) {
         self.controller.set_preferred_device(settings.device);
-        self.controller.sort = if settings.sort_order == 1 {
-            crate::catalog::SortOrder::ReleaseDate
-        } else {
-            crate::catalog::SortOrder::Name
+        self.controller.sort = match settings.sort_order {
+            1 => crate::catalog::SortOrder::ReleaseDate,
+            2 => crate::catalog::SortOrder::Custom,
+            _ => crate::catalog::SortOrder::Name,
         };
         self.controller.filter = match self.controller.sort {
-            crate::catalog::SortOrder::Name => crate::catalog::Filter::All,
+            crate::catalog::SortOrder::Name | crate::catalog::SortOrder::Custom => {
+                crate::catalog::Filter::All
+            }
             crate::catalog::SortOrder::ReleaseDate => crate::catalog::Filter::MetadataOnly,
         };
         self.controller.selected_app = settings.selected_app.clone();
@@ -370,6 +372,7 @@ impl AppRuntime {
         current.sort_order = match self.controller.sort {
             crate::catalog::SortOrder::Name => 0,
             crate::catalog::SortOrder::ReleaseDate => 1,
+            crate::catalog::SortOrder::Custom => 2,
         };
         current.device = self.controller.preferred_device();
         current.selected_app = self.controller.selected_app.clone();
@@ -751,6 +754,33 @@ mod tests {
     }
 
     #[test]
+    fn custom_sort_can_be_selected_and_restored() {
+        let mut runtime = AppRuntime::new(Vec::new());
+        runtime.update(&InputFrame {
+            pressed: vec![Input::OpenOptions],
+            ..InputFrame::default()
+        });
+        runtime.update_pointer(Some(PointerTarget::Option(9)), true);
+        assert_eq!(
+            runtime.controller().pending_sort(),
+            crate::catalog::SortOrder::Custom
+        );
+        assert_eq!(
+            runtime.update_pointer(Some(PointerTarget::Option(6)), true),
+            vec![Action::ApplyOptions]
+        );
+        assert_eq!(runtime.settings().current().sort_order, 2);
+        let settings = runtime.settings().current().clone();
+        let mut restored = AppRuntime::new(Vec::new());
+        restored.load_settings(settings);
+        assert_eq!(
+            restored.controller().sort,
+            crate::catalog::SortOrder::Custom
+        );
+        assert_eq!(restored.controller().filter, crate::catalog::Filter::All);
+    }
+
+    #[test]
     fn options_dialog_commits_sort_without_selecting_device_indicators() {
         let mut runtime = AppRuntime::new(Vec::new());
         runtime.load_settings(UserSettings {
@@ -766,9 +796,11 @@ mod tests {
         let actions = runtime.update(&InputFrame {
             pressed: vec![
                 Input::Left, // Back -> OK
-                Input::Left, // OK -> Date
+                Input::Left, // OK -> Custom
+                Input::Left, // Custom -> Date
                 Input::Confirm,
-                Input::Right, // Date -> OK
+                Input::Right, // Date -> Custom
+                Input::Right, // Custom -> OK
                 Input::Confirm,
             ],
             ..InputFrame::default()

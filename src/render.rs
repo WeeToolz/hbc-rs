@@ -1313,7 +1313,7 @@ pub fn browser_frame_with_language(
             let bounds = frame.button(
                 112.0,
                 248.0,
-                ButtonSize::Small,
+                ButtonSize::Tiny,
                 controller.options_focus() == 4,
                 tr("Name"),
                 if controller.pending_sort() == crate::catalog::SortOrder::Name {
@@ -1324,9 +1324,9 @@ pub fn browser_frame_with_language(
             );
             frame.hit_target(PointerTarget::Option(4), bounds);
             let bounds = frame.button(
-                328.0,
+                256.0,
                 248.0,
-                ButtonSize::Small,
+                ButtonSize::Tiny,
                 controller.options_focus() == 5,
                 tr("Date"),
                 if controller.pending_sort() == crate::catalog::SortOrder::ReleaseDate {
@@ -1336,6 +1336,19 @@ pub fn browser_frame_with_language(
                 },
             );
             frame.hit_target(PointerTarget::Option(5), bounds);
+            let bounds = frame.button(
+                400.0,
+                248.0,
+                ButtonSize::Tiny,
+                controller.options_focus() == 9,
+                tr("Custom"),
+                if controller.pending_sort() == crate::catalog::SortOrder::Custom {
+                    ACCENT
+                } else {
+                    text_color
+                },
+            );
+            frame.hit_target(PointerTarget::Option(9), bounds);
             let bounds = frame.compact_button(
                 224.0,
                 310.0,
@@ -3182,11 +3195,17 @@ mod tests {
                 if *bounds == rect(60, 44, 520, 360)
         )));
         for expected in [
-            rect(112, 248, 200, 48),
-            rect(328, 248, 200, 48),
-            rect(92, 340, 200, 48),
-            rect(348, 340, 200, 48),
+            rect(112, 248, 132, 48),
+            rect(256, 248, 132, 48),
+            rect(400, 248, 132, 48),
         ] {
+            assert!(frame.commands.iter().any(|command| matches!(
+                command,
+                FrameCommand::ThemeArt { art: ThemeArt::Button(ButtonSize::Tiny), bounds, .. }
+                    if *bounds == expected
+            )));
+        }
+        for expected in [rect(92, 340, 200, 48), rect(348, 340, 200, 48)] {
             assert!(frame.commands.iter().any(|command| matches!(
                 command,
                 FrameCommand::ThemeArt { art: ThemeArt::Button(ButtonSize::Small), bounds, .. }

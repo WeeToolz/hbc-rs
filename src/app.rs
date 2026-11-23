@@ -1416,18 +1416,26 @@ impl AppController {
     pub fn option_enabled(&self, index: usize) -> bool {
         match index {
             0..=3 => false,
-            4..=8 => true,
+            4..=9 => true,
             _ => false,
         }
     }
 
     fn move_options_focus(&mut self, input: Input) {
-        let enabled: [bool; 9] = core::array::from_fn(|index| self.option_enabled(index));
+        let enabled: [bool; 10] = core::array::from_fn(|index| self.option_enabled(index));
         if matches!(input, Input::Left | Input::Right) {
-            move_focus_c_style(&mut self.options_focus, &enabled, input, 9);
+            const ORDER: [usize; 6] = [4, 5, 9, 6, 7, 8];
+            if let Some(position) = ORDER.iter().position(|&item| item == self.options_focus) {
+                let next = if input == Input::Right {
+                    (position + 1).min(ORDER.len() - 1)
+                } else {
+                    position.saturating_sub(1)
+                };
+                self.options_focus = ORDER[next];
+            }
             return;
         }
-        const ROWS: [&[usize]; 5] = [&[0, 1], &[2, 3], &[4, 5], &[8], &[6, 7]];
+        const ROWS: [&[usize]; 5] = [&[0, 1], &[2, 3], &[4, 5, 9], &[8], &[6, 7]];
         let Some(row) = ROWS
             .iter()
             .position(|items| items.contains(&self.options_focus))
@@ -1476,11 +1484,15 @@ impl AppController {
                     self.pending_sort = SortOrder::ReleaseDate;
                     Action::None
                 }
+                9 => {
+                    self.pending_sort = SortOrder::Custom;
+                    Action::None
+                }
                 6 => {
                     self.preferred_device = self.pending_device;
                     self.sort = self.pending_sort;
                     self.filter = match self.pending_sort {
-                        SortOrder::Name => Filter::All,
+                        SortOrder::Name | SortOrder::Custom => Filter::All,
                         SortOrder::ReleaseDate => Filter::MetadataOnly,
                     };
                     self.reconcile_selection(catalog);
@@ -1774,37 +1786,6 @@ pub enum NetworkConfigEditError {
     MissingSnapshot,
     Profile(crate::network_config::NetworkProfileError),
     Wifi(crate::network_config::WifiValidationError),
-}
-
-fn move_focus_c_style(focus: &mut usize, enabled: &[bool], input: Input, vertical_count: usize) {
-    let Some(direction) = (match input {
-        Input::Left | Input::Up => Some(-1isize),
-        Input::Right | Input::Down => Some(1isize),
-        _ => None,
-    }) else {
-        return;
-    };
-    let horizontal = matches!(input, Input::Left | Input::Right);
-    if horizontal {
-        let mut next = *focus as isize + direction;
-        while (0..enabled.len() as isize).contains(&next) {
-            if enabled[next as usize] {
-                *focus = next as usize;
-                break;
-            }
-            next += direction;
-        }
-    } else {
-        // C options move two widgets at a time, then four when the first
-        // target is a label, disabled device, or outside the dialog.
-        for distance in [2, 4] {
-            let next = *focus as isize + direction * distance;
-            if (0..vertical_count as isize).contains(&next) && enabled[next as usize] {
-                *focus = next as usize;
-                break;
-            }
-        }
-    }
 }
 
 fn move_network_focus(focus: &mut usize, input: Input) {

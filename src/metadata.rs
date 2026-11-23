@@ -24,6 +24,7 @@ pub struct AppMetadata {
     pub long_description: Option<String>,
     /// Numeric `YYYYMMDDhhmmss` form for deterministic comparisons.
     pub release_date: Option<u64>,
+    pub sort_id: Option<i32>,
     pub arguments: Vec<String>,
     pub ahb_access: bool,
     pub no_ios_reload: bool,
@@ -92,10 +93,29 @@ pub fn parse_app_xml(xml: &str) -> Result<AppMetadata, String> {
         short_description: app.text("short_description"),
         long_description: app.text("long_description"),
         release_date: app.text("release_date").and_then(|s| parse_date(&s)),
+        sort_id: app.text("sort_id").and_then(|s| parse_sort_id(&s)),
         arguments,
         ahb_access: app.find("ahb_access").is_some(),
         no_ios_reload: app.find("no_ios_reload").is_some(),
     })
+}
+
+fn parse_sort_id(value: &str) -> Option<i32> {
+    let value = value.trim_start();
+    let start = usize::from(value.starts_with(['+', '-']));
+    let digits = value[start..]
+        .bytes()
+        .take_while(u8::is_ascii_digit)
+        .count();
+    if digits == 0 {
+        return None;
+    }
+    let number = &value[..start + digits];
+    Some(number.parse::<i32>().unwrap_or(if number.starts_with('-') {
+        i32::MIN
+    } else {
+        i32::MAX
+    }))
 }
 
 pub fn parse_update_xml(xml: &str) -> Result<UpdateMetadata, String> {
@@ -446,6 +466,19 @@ fn decode(s: &str) -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn parses_reborn_sort_id_like_signed_decimal_prefix() {
+        for (input, expected) in [
+            (" -12tail", Some(-12)),
+            ("+7", Some(7)),
+            ("x", None),
+            ("999999999999", Some(i32::MAX)),
+            ("-999999999999", Some(i32::MIN)),
+        ] {
+            let xml = format!("<app><sort_id>{input}</sort_id></app>");
+            assert_eq!(parse_app_xml(&xml).unwrap().sort_id, expected);
+        }
+    }
     #[test]
     fn parses_app_metadata_entities_dates_arguments_and_flags() {
         let m=parse_app_xml("<app><name>A &amp; B</name><coder>fallback</coder><release_date>20240203112233</release_date><arguments><arg>x</arg><arg>two &lt; three</arg></arguments><no_ios_reload/></app>").unwrap();

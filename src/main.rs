@@ -1490,10 +1490,10 @@ fn report_sort_if_changed(previous_order: i32, runtime: &hbc_rs::runtime::AppRun
     if settings.sort_order == previous_order {
         return;
     }
-    let key = if settings.sort_order == 1 {
-        "date"
-    } else {
-        "name"
+    let key = match settings.sort_order {
+        1 => "date",
+        2 => "custom",
+        _ => "name",
     };
     let visible = runtime.controller().visible_apps(runtime.catalog());
     let mut titles_hex = String::new();

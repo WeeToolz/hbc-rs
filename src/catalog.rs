@@ -35,6 +35,7 @@ pub enum SortOrder {
     #[default]
     Name,
     ReleaseDate,
+    Custom,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -179,6 +180,19 @@ fn compare(a: &AppEntry, b: &AppEntry, sort: SortOrder) -> Ordering {
     match sort {
         SortOrder::Name => cmp_text(display_name(a), display_name(b))
             .then_with(|| cmp_text(&a.directory, &b.directory)),
+        SortOrder::Custom => match (&a.metadata, &b.metadata) {
+            (Some(ma), Some(mb)) => match (ma.sort_id, mb.sort_id) {
+                (Some(a), Some(b)) => a.cmp(&b),
+                (Some(_), None) => Ordering::Less,
+                (None, Some(_)) => Ordering::Greater,
+                (None, None) => Ordering::Equal,
+            }
+            .then_with(|| cmp_optional_text(ma.name.as_deref(), mb.name.as_deref()))
+            .then_with(|| cmp_text(&a.directory, &b.directory)),
+            (Some(_), None) => Ordering::Less,
+            (None, Some(_)) => Ordering::Greater,
+            (None, None) => cmp_text(&a.directory, &b.directory),
+        },
         SortOrder::ReleaseDate => match (&a.metadata, &b.metadata) {
             (Some(ma), Some(mb)) => mb
                 .release_date
@@ -338,12 +352,29 @@ mod tests {
                 short_description: None,
                 long_description: None,
                 release_date: date,
+                sort_id: None,
                 arguments: vec![],
                 ahb_access: false,
                 no_ios_reload: false,
             }),
         }
     }
+    #[test]
+    fn custom_sort_uses_reborn_sort_ids_and_keeps_unset_entries() {
+        let mut entries = [
+            app("late", Some("Late"), None, false),
+            app("unset", Some("Alpha"), None, false),
+            app("early", Some("Early"), None, false),
+        ];
+        entries[0].metadata.as_mut().unwrap().sort_id = Some(8);
+        entries[2].metadata.as_mut().unwrap().sort_id = Some(-2);
+        let order: Vec<_> = visible_entries(&entries, Filter::All, SortOrder::Custom)
+            .iter()
+            .map(|entry| entry.directory.as_str())
+            .collect();
+        assert_eq!(order, ["early", "late", "unset"]);
+    }
+
     #[test]
     fn filters_and_sorts_deterministically() {
         let entries = [
@@ -384,6 +415,7 @@ mod tests {
             short_description: None,
             long_description: None,
             release_date: None,
+            sort_id: None,
             arguments: vec![],
             ahb_access: false,
             no_ios_reload: false,
