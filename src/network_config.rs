@@ -29,8 +29,7 @@ pub(crate) fn active_storage_backup_path(
     prefix: &str,
     device_id: u32,
 ) -> Option<alloc::string::String> {
-    matches!(prefix, "sd:" | "usb:" | "carda:" | "cardb:")
-        .then(|| alloc::format!("{prefix}/apps/hbc-rs/netcfg-{device_id:08x}.v1"))
+    active_storage_path(prefix, device_id, "netcfg")
 }
 
 #[cfg(any(target_arch = "powerpc", test))]
@@ -38,8 +37,13 @@ pub(crate) fn active_storage_current_backup_path(
     prefix: &str,
     device_id: u32,
 ) -> Option<alloc::string::String> {
+    active_storage_path(prefix, device_id, "netcur")
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+fn active_storage_path(prefix: &str, device_id: u32, name: &str) -> Option<alloc::string::String> {
     matches!(prefix, "sd:" | "usb:" | "carda:" | "cardb:")
-        .then(|| alloc::format!("{prefix}/apps/hbc-rs/netcur-{device_id:08x}.v1"))
+        .then(|| alloc::format!("{prefix}/apps/hbc-rs/{name}-{device_id:08x}.v1"))
 }
 
 /// Encode a console-bound backup record. CRC protects the record from damage;
@@ -60,10 +64,8 @@ pub(crate) fn encode_external_backup(
     record[8..12].copy_from_slice(&device_id.to_be_bytes());
     record[12..16].copy_from_slice(&(CONFIG_LEN as u32).to_be_bytes());
     record[EXTERNAL_BACKUP_HEADER_LEN..].copy_from_slice(config);
-    let mut integrity = crc32fast::Hasher::new();
-    integrity.update(&record[..16]);
-    integrity.update(&record[EXTERNAL_BACKUP_HEADER_LEN..]);
-    record[16..20].copy_from_slice(&integrity.finalize().to_be_bytes());
+    let integrity = external_backup_crc(&record);
+    record[16..20].copy_from_slice(&integrity.to_be_bytes());
     Some(record)
 }
 
@@ -80,13 +82,18 @@ pub(crate) fn decode_external_backup(record: &[u8], device_id: u32, kind: u8) ->
     {
         return None;
     }
-    let mut integrity = crc32fast::Hasher::new();
-    integrity.update(&record[..16]);
-    integrity.update(&record[EXTERNAL_BACKUP_HEADER_LEN..]);
-    if integrity.finalize().to_be_bytes() != record[16..20] {
+    if external_backup_crc(record).to_be_bytes() != record[16..20] {
         return None;
     }
     Some(&record[EXTERNAL_BACKUP_HEADER_LEN..])
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+fn external_backup_crc(record: &[u8]) -> u32 {
+    let mut integrity = crc32fast::Hasher::new();
+    integrity.update(&record[..16]);
+    integrity.update(&record[EXTERNAL_BACKUP_HEADER_LEN..]);
+    integrity.finalize()
 }
 
 #[derive(Debug, Eq, PartialEq)]
