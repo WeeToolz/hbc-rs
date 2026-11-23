@@ -9,7 +9,7 @@ from pathlib import Path
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-CATALOGS = ROOT / ".." / ".." / "C-sources" / "hbc" / "channel" / "channelapp" / "i18n"
+CATALOGS = ROOT / ".." / ".." / "C-sources" / "hbc-reborn" / "channel" / "channelapp" / "i18n"
 OUTPUT = ROOT / "src" / "localization_catalog.rs"
 LANGUAGES = {
     "spanish": "Spanish",

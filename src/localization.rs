@@ -719,6 +719,13 @@ mod tests {
         );
     }
     #[test]
+    fn reborn_labels_use_the_translated_catalog() {
+        assert_eq!(Language::Spanish.text("Custom"), "Propio");
+        assert_eq!(Language::French.text("Receiving"), "Réception");
+        assert_eq!(Language::Japanese.text("Sending"), "送信中");
+    }
+
+    #[test]
     fn translates_catalog_labels_and_preserves_unknown_strings() {
         assert_eq!(Language::Spanish.text("Back"), "Atrás");
         assert_eq!(Language::Spanish.text("Warning"), "Advertencia");

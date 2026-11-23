@@ -38,6 +38,9 @@ const SPANISH: &[(&str, &str)] = &[
     ("Sort applications by:", "Ordenar aplicaciones por:"),
     ("Name", "Nombre"),
     ("Date", "Fecha"),
+    ("Custom", "Propio"),
+    ("Receiving", "Recibiendo"),
+    ("Sending", "Enviando"),
     (
         "<YourLanguageHere> translation by <YourNickNameHere>",
         "Traducción al español - marcan",
@@ -127,6 +130,9 @@ const FRENCH: &[(&str, &str)] = &[
     ("Sort applications by:", "Trier les applications par:"),
     ("Name", "Nom"),
     ("Date", "Date"),
+    ("Custom", "Perso"),
+    ("Receiving", "Réception"),
+    ("Sending", "Envoi"),
     (
         "<YourLanguageHere> translation by <YourNickNameHere>",
         "Traduction française par Chandler et Strangerke",
@@ -219,6 +225,9 @@ const GERMAN: &[(&str, &str)] = &[
     ("Sort applications by:", "Anwendungen sortieren nach:"),
     ("Name", "Name"),
     ("Date", "Datum"),
+    ("Custom", "Eigene"),
+    ("Receiving", "Empfange"),
+    ("Sending", "Sende"),
     (
         "<YourLanguageHere> translation by <YourNickNameHere>",
         "Deutsche Übersetzung: Elena Vectoradvenberg",
@@ -308,6 +317,9 @@ const DUTCH: &[(&str, &str)] = &[
     ("Sort applications by:", "Sorteer applicaties op:"),
     ("Name", "Naam"),
     ("Date", "Datum"),
+    ("Custom", "Eigen"),
+    ("Receiving", "Ontvangen"),
+    ("Sending", "Verzenden"),
     (
         "<YourLanguageHere> translation by <YourNickNameHere>",
         "Nederlandse vertaling door bLAStY en ChronoX",
@@ -400,6 +412,9 @@ const ITALIAN: &[(&str, &str)] = &[
     ("Sort applications by:", "Ordina applicazioni per:"),
     ("Name", "Nome"),
     ("Date", "Data"),
+    ("Custom", "Personale"),
+    ("Receiving", "Ricezione"),
+    ("Sending", "Invio"),
     (
         "<YourLanguageHere> translation by <YourNickNameHere>",
         "Traduzione italiana di EnricoBr\nAggiornata da The Lemon Man",
@@ -492,6 +507,9 @@ const JAPANESE: &[(&str, &str)] = &[
     ("Sort applications by:", "アプリケーションの並べ替え順序 "),
     ("Name", "名前"),
     ("Date", "日付"),
+    ("Custom", "カスタム"),
+    ("Receiving", "受信中"),
+    ("Sending", "送信中"),
     (
         "<YourLanguageHere> translation by <YourNickNameHere>",
         "日本語、JEEB氏による翻訳",
