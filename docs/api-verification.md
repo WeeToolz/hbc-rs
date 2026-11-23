@@ -89,3 +89,10 @@ The latest controller acceptance record is
 [`reborn-app-controller-rust-dolphin-2026-11-23-r7`](review/evidence/reborn-app-controller-rust-dolphin-2026-11-23-r7/README.md).
 Rendered widget geometry, transition animation, and physical controller
 behavior remain separate checks.
+
+A fresh production acceptance sweep passed 22 named Dolphin cases for launch,
+settings state, Wiiload, metadata, catalog, themes, loader helpers, app
+controller state, storage policy, input, rendering, and disc control. See
+[`reborn-api-sweep-rust-dolphin-2026-11-23-r2`](review/evidence/reborn-api-sweep-rust-dolphin-2026-11-23-r2/README.md).
+The sweep adds current run evidence for those named cases; it does not promote
+unrelated APIs or complete the full contracts for the APIs that it calls.

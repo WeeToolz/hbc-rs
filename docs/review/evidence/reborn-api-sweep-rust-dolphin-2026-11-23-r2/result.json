@@ -1,0 +1,121 @@
+{
+  "sha256": "61c9fdd578d26f1d6b9af0c67ee4f4afc21d7dd719e0133d0720ba3ffc6f1f75",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-mdttcvw6",
+  "cases": [
+    {
+      "case": "launch-dol",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "launch-elf",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "settings-state",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "wiiload-header",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "wiiload-policy",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "wiiload-zip",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "wiiload-controller",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "metadata-date",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "metadata-update",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "metadata-settings",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "metadata-theme",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "metadata-app",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "catalog",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "theme-package",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "loader-helpers",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "app-controller",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "storage-volumes",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "app-deletion",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "input-policy",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "input-mapping",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "render-hit-test",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "disc-stop",
+      "success": true,
+      "encoded_result": 1141309697,
+      "disc_callback_mask": 7,
+      "disc_open_succeeded": true,
+      "disc_stop_succeeded": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}
