@@ -635,7 +635,7 @@ fn settings_state() -> i32 {
 }
 
 fn wiiload_header() -> i32 {
-    use crate::wiiload::{WiiloadError, WiiloadHeader};
+    use crate::wiiload::{WIILOAD_MAX_ARGS, WIILOAD_MAX_DATA, WiiloadError, WiiloadHeader};
 
     let wire_header = [b'H', b'A', b'X', b'X', 0, 5, 0, 3, 0, 0, 0, 4, 0, 0, 0, 0];
     let header = match WiiloadHeader::decode(&wire_header) {
@@ -701,6 +701,35 @@ fn wiiload_header() -> i32 {
     {
         ogc_system::report(format_args!(
             "FAIL wiiload-header decompressed size check\n"
+        ));
+        return -1;
+    }
+    let max_data = WIILOAD_MAX_DATA as u32;
+    let mut max_header = [b'H', b'A', b'X', b'X', 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    max_header[6..8].copy_from_slice(&(WIILOAD_MAX_ARGS as u16).to_be_bytes());
+    max_header[8..12].copy_from_slice(&max_data.to_be_bytes());
+    max_header[12..16].copy_from_slice(&max_data.to_be_bytes());
+    let expected_body_len = WIILOAD_MAX_DATA + WIILOAD_MAX_ARGS;
+    if !matches!(WiiloadHeader::decode(&max_header), Ok(header)
+        if header.validate() == Ok(()) && header.body_len() == Ok(expected_body_len))
+    {
+        ogc_system::report(format_args!(
+            "FAIL wiiload-header maximum accepted bounds\n"
+        ));
+        return -1;
+    }
+    let mut too_much_data = max_header;
+    too_much_data[8..12].copy_from_slice(&(max_data + 1).to_be_bytes());
+    let mut too_much_output = max_header;
+    too_much_output[12..16].copy_from_slice(&(max_data + 1).to_be_bytes());
+    let mut too_many_args = max_header;
+    too_many_args[6..8].copy_from_slice(&((WIILOAD_MAX_ARGS as u16) + 1).to_be_bytes());
+    if WiiloadHeader::decode(&too_much_data) != Err(WiiloadError::PayloadTooLarge)
+        || WiiloadHeader::decode(&too_much_output) != Err(WiiloadError::PayloadTooLarge)
+        || WiiloadHeader::decode(&too_many_args) != Err(WiiloadError::ArgumentsTooLarge)
+    {
+        ogc_system::report(format_args!(
+            "FAIL wiiload-header maximum rejected bounds\n"
         ));
         return -1;
     }
