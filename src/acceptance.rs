@@ -64,6 +64,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"archive-api" {
         return archive_api();
     }
+    if case == b"png-api" {
+        return png_api();
+    }
     if case == b"loader-helpers" {
         return loader_helpers();
     }
@@ -1192,6 +1195,98 @@ fn archive_api() -> i32 {
     ogc_system::report(format_args!(
         "PASS archive API parse, lookup, extraction and paths\n"
     ));
+    0
+}
+
+fn png_api() -> i32 {
+    use crate::png::{
+        GxRgba8Texture, PngError, PngLimits, RgbaImage, decode_png, encode_rgba_png, to_gx_rgba8,
+    };
+
+    let pixels = [0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0];
+    let encoded = match encode_rgba_png(2, 1, &pixels) {
+        Ok(encoded) => encoded,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL PNG API encode {error:?}\n"));
+            return -1;
+        }
+    };
+    let limits = PngLimits {
+        max_width: 2,
+        max_height: 1,
+        max_pixels: 2,
+        max_input_bytes: 1024,
+    };
+    let decoded = match decode_png(&encoded, limits) {
+        Ok(decoded) => decoded,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL PNG API decode {error:?}\n"));
+            return -1;
+        }
+    };
+    if encoded.get(..8) != Some(b"\x89PNG\r\n\x1a\n")
+        || encoded.get(16..24) != Some(&[0, 0, 0, 2, 0, 0, 0, 1])
+        || decoded.width != 2
+        || decoded.height != 1
+        || decoded.pixels != pixels
+        || decode_png(
+            include_bytes!("../tests/fixtures/hbc-app-icon.png"),
+            PngLimits {
+                max_width: 128,
+                max_height: 48,
+                max_pixels: 128 * 48,
+                max_input_bytes: crate::png::HBC_APP_ICON_MAX_PNG_BYTES,
+            },
+        )
+        .map(|image| (image.width, image.height, image.pixels.len()))
+            != Ok((128, 48, 128 * 48 * 4))
+    {
+        ogc_system::report(format_args!("FAIL PNG API encoded or decoded pixels\n"));
+        return -1;
+    }
+
+    let image = RgbaImage {
+        width: 1,
+        height: 1,
+        pixels: alloc::vec![1, 2, 3, 4],
+    };
+    let tiled = match to_gx_rgba8(&image) {
+        Ok(tiled) => tiled,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL PNG API GX conversion {error:?}\n"));
+            return -1;
+        }
+    };
+    let texture = match GxRgba8Texture::from_image(&image) {
+        Ok(texture) => texture,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL PNG API texture {error:?}\n"));
+            return -1;
+        }
+    };
+    if tiled.len() != 64
+        || tiled[..2] != [4, 1]
+        || tiled[2..32].iter().any(|byte| *byte != 0)
+        || tiled[32..34] != [2, 3]
+        || tiled[34..].iter().any(|byte| *byte != 0)
+        || texture.width != 1
+        || texture.height != 1
+        || texture.as_bytes() != tiled
+        || texture.as_ptr() != texture.as_bytes().as_ptr()
+        || texture.as_ptr() as usize & 31 != 0
+        || texture.len() != 64
+        || texture.is_empty()
+    {
+        ogc_system::report(format_args!(
+            "FAIL PNG API GX texture layout or ownership\n"
+        ));
+        return -1;
+    }
+    if decode_png(b"not a PNG", limits) != Err(PngError::InvalidSignature) {
+        ogc_system::report(format_args!("FAIL PNG API invalid signature\n"));
+        return -1;
+    }
+    ogc_system::report(format_args!("PASS PNG API encode, decode and GX texture\n"));
     0
 }
 

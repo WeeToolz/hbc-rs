@@ -79,6 +79,10 @@ The lower-level `ZipArchive` APIs now also have a direct production Dolphin
 case for parsing, entry listing and lookup, bounded extraction, entry limits,
 and path validation. The [archive API record](review/evidence/reborn-api-archive-rust-dolphin-2026-11-23/README.md)
 records the tested behaviors and the remaining safety and compatibility gaps.
+The PNG encoder, decoder, GX tile conversion, and owned texture accessors have
+a direct production case with fixed pixel and tile results. See the
+[PNG API record](review/evidence/reborn-api-png-rust-dolphin-2026-11-23/README.md)
+for the tested contract and the remaining image and hardware checks.
 
 The loader helper case calls the policy, argument-building, and plan-validation
 APIs directly in Dolphin. IOS and AHB hardware effects remain pending. Rust
