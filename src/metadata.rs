@@ -22,7 +22,7 @@ pub struct AppMetadata {
     pub version: Option<String>,
     pub short_description: Option<String>,
     pub long_description: Option<String>,
-    /// Numeric `YYYYMMDDhhmmss` form for deterministic comparisons.
+    /// Reborn-normalized numeric `YYYYMMDDhhmmss` form for comparisons.
     pub release_date: Option<u64>,
     pub sort_id: Option<i32>,
     pub arguments: Vec<String>,
@@ -233,37 +233,73 @@ fn parse_date(s: &str) -> Option<u64> {
     if digits.len() != 8 && digits.len() != 14 {
         return None;
     }
-    let year: u32 = digits[0..4].parse().ok()?;
-    let month: u32 = digits[4..6].parse().ok()?;
-    let day: u32 = digits[6..8].parse().ok()?;
+    let mut year: u32 = digits[0..4].parse().ok()?;
+    let mut month: u32 = digits[4..6].parse().ok()?;
+    let mut day: u32 = digits[6..8].parse().ok()?;
     if !(1..=12).contains(&month) {
         return None;
     }
-    let leap = year.is_multiple_of(4) && (!year.is_multiple_of(100) || year.is_multiple_of(400));
-    let max_day = match month {
-        2 if leap => 29,
-        2 => 28,
-        4 | 6 | 9 | 11 => 30,
-        _ => 31,
-    };
+    let max_day = days_in_month(year, month);
     if day == 0 || day > max_day {
         return None;
     }
-    if digits.len() == 14 {
+    let (mut hour, mut minute, mut second) = if digits.len() == 14 {
         let hour: u32 = digits[8..10].parse().ok()?;
         let minute: u32 = digits[10..12].parse().ok()?;
         let second: u32 = digits[12..14].parse().ok()?;
         if hour > 23 || minute > 59 || second > 60 {
             return None;
         }
-    }
-    let value: u64 = digits.parse().ok()?;
-    // Reborn sets the time to 01:00:00 for the date-only form.
-    Some(if digits.len() == 8 {
-        value * 1_000_000 + 10_000
+        (hour, minute, second)
     } else {
-        value
-    })
+        (1, 0, 0)
+    };
+    // Reborn passes the one-based XML month directly to tm_mon. mktime
+    // therefore advances it by one month before normalizing the day.
+    month += 1;
+    if month == 13 {
+        month = 1;
+        year += 1;
+    }
+    if second == 60 {
+        second = 0;
+        minute += 1;
+        if minute == 60 {
+            minute = 0;
+            hour += 1;
+            if hour == 24 {
+                hour = 0;
+                day += 1;
+            }
+        }
+    }
+    if day > days_in_month(year, month) {
+        day -= days_in_month(year, month);
+        month += 1;
+        if month == 13 {
+            month = 1;
+            year += 1;
+        }
+    }
+    Some(
+        u64::from(year) * 10_000_000_000
+            + u64::from(month) * 100_000_000
+            + u64::from(day) * 1_000_000
+            + u64::from(hour) * 10_000
+            + u64::from(minute) * 100
+            + u64::from(second),
+    )
+}
+
+fn days_in_month(year: u32, month: u32) -> u32 {
+    match month {
+        2 if year.is_multiple_of(4) && (!year.is_multiple_of(100) || year.is_multiple_of(400)) => {
+            29
+        }
+        2 => 28,
+        4 | 6 | 9 | 11 => 30,
+        _ => 31,
+    }
 }
 
 #[derive(Debug)]
@@ -490,7 +526,7 @@ mod tests {
         let m=parse_app_xml("<app><name>A &amp; B</name><coder>fallback</coder><release_date>20240203112233</release_date><arguments><arg>x</arg><arg>two &lt; three</arg></arguments><no_ios_reload/></app>").unwrap();
         assert_eq!(m.name.as_deref(), Some("A & B"));
         assert_eq!(m.author.as_deref(), Some("fallback"));
-        assert_eq!(m.release_date, Some(20240203112233));
+        assert_eq!(m.release_date, Some(20240303112233));
         assert_eq!(m.arguments, ["x", "two < three"]);
         assert!(!m.ahb_access);
         assert!(m.no_ios_reload);
@@ -528,10 +564,18 @@ mod tests {
         assert_eq!(theme.description.as_ref().unwrap().len(), 64);
     }
     #[test]
+    fn release_date_normalizes_reborn_month_and_time_boundaries() {
+        assert_eq!(parse_date("20240131"), Some(20240302010000));
+        assert_eq!(parse_date("20250131"), Some(20250303010000));
+        assert_eq!(parse_date("20241231"), Some(20250131010000));
+        assert_eq!(parse_date("20250131235960"), Some(20250304000000));
+    }
+
+    #[test]
     fn rejects_bad_xml_and_invalid_dates() {
         assert!(parse_app_xml("<app><name>x</app>").is_err());
         assert_eq!(parse_date("20241332"), None);
-        assert_eq!(parse_date("20250102"), Some(20250102010000));
+        assert_eq!(parse_date("20250102"), Some(20250202010000));
     }
 
     #[test]

@@ -354,6 +354,35 @@ mod tests {
         }
     }
     #[test]
+    fn date_sort_matches_reborn_month_end_normalization() {
+        let entries = [
+            AppEntry {
+                metadata: Some(
+                    crate::metadata::parse_app_xml(
+                        "<app><release_date>20250201</release_date></app>",
+                    )
+                    .unwrap(),
+                ),
+                ..app("february", Some("February"), None, false)
+            },
+            AppEntry {
+                metadata: Some(
+                    crate::metadata::parse_app_xml(
+                        "<app><release_date>20250131</release_date></app>",
+                    )
+                    .unwrap(),
+                ),
+                ..app("january", Some("January"), None, false)
+            },
+        ];
+        let order: Vec<_> = visible_entries(&entries, Filter::MetadataOnly, SortOrder::ReleaseDate)
+            .iter()
+            .map(|entry| entry.directory.as_str())
+            .collect();
+        assert_eq!(order, ["january", "february"]);
+    }
+
+    #[test]
     fn date_sort_compares_date_only_and_timestamp_entries_chronologically() {
         let mut older = app("older", Some("Older"), None, false);
         older.metadata = Some(
