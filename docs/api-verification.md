@@ -68,3 +68,8 @@ controlled storage fixture. It checks file priority, size limits, folder
 filtering, optional metadata, catalog filters, and custom sort IDs. It does not
 replace a Wii scan over FAT or verify device failure behavior. Rust keeps stable
 tie ordering where Reborn's `qsort` does not define it.
+
+The theme package APIs have one Dolphin case for validation, root XML selection,
+and file extraction. It checks two fixed archive fixtures. It does not compare
+every ZIP edge case with Reborn's minizip path or prove the full theme install
+flow. Rust's extra path and integrity checks are retained for safety.

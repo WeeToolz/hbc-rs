@@ -43,6 +43,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"catalog" {
         return catalog();
     }
+    if case == b"theme-package" {
+        return theme_package();
+    }
     if case == b"disc-stop" {
         return disc_stop();
     }
@@ -339,6 +342,38 @@ fn catalog() -> i32 {
         return -1;
     }
     ogc_system::report(format_args!("PASS catalog scan and sort\n"));
+    0
+}
+
+fn theme_package() -> i32 {
+    let bytes = include_bytes!("../tests/fixtures/theme-valid.zip");
+    let package = match crate::theme::ThemePackage::parse(bytes) {
+        Ok(package) => package,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL theme package parse {error:?}\n"));
+            return -1;
+        }
+    };
+    if package.theme_xml_name() != "theme.xml"
+        || package.metadata.description.as_deref() != Some("Dolphin")
+        || package.extract_file(bytes, "BUTTON.PNG", 32).as_deref()
+            != Ok(b"theme-button-bytes".as_slice())
+        || package.extract_file(bytes, "missing.png", 32).is_ok()
+    {
+        ogc_system::report(format_args!("FAIL theme package outputs\n"));
+        return -1;
+    }
+    let invalid = include_bytes!("../tests/fixtures/theme-invalid-entry.zip");
+    if !matches!(
+        crate::theme::ThemePackage::parse(invalid),
+        Err(crate::theme::ThemePackageError::InvalidEntry)
+    ) {
+        ogc_system::report(format_args!("FAIL theme package entry validation\n"));
+        return -1;
+    }
+    ogc_system::report(format_args!(
+        "PASS theme package validation and extraction\n"
+    ));
     0
 }
 

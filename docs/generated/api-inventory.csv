@@ -419,9 +419,9 @@ hbc_rs::settings::load_or_create,src/settings.rs,18,unverified,,not_run,No exact
 hbc_rs::text_layout::layout_memo,src/text_layout.rs,20,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::text_layout::wrap_lines,src/text_layout.rs,90,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::text_layout::wrap_memo_lines,src/text_layout.rs,123,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::theme::ThemePackage::extract_file,src/theme.rs,160,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::theme::ThemePackage::parse,src/theme.rs,97,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::theme::ThemePackage::theme_xml_name,src/theme.rs,155,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::theme::ThemePackage::extract_file,src/theme.rs,160,partial,HBC-API-THEME-EXTRACT-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::theme::ThemePackage::parse,src/theme.rs,97,partial,HBC-API-THEME-PACKAGE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::theme::ThemePackage::theme_xml_name,src/theme.rs,155,partial,HBC-API-THEME-NAME-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::wiiload::WiiloadHeader::body_len,src/wiiload.rs,233,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::wiiload::WiiloadHeader::decode,src/wiiload.rs,198,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::wiiload::WiiloadHeader::decode_body,src/wiiload.rs,245,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
