@@ -283,7 +283,9 @@ fn input_mapping() -> i32 {
 
 fn render_hit_test() -> i32 {
     use crate::{
-        app::{Action, AppController, Input, OPTION_OK, PointerTarget},
+        app::{
+            Action, AppController, Input, OPTION_BACK, OPTION_OK, OPTION_SORT_DATE, PointerTarget,
+        },
         catalog::{AppEntry, AppKind},
         render::{Frame, Rect, browser_frame},
     };
@@ -346,8 +348,10 @@ fn render_hit_test() -> i32 {
     options.set_active_device(Some(0));
     options.handle(Input::OpenOptions, &catalog);
     if options.device_available(4) != Some(true)
+        || options.options_focus() != OPTION_BACK
         || options.pending_device() != 0
         || options.preferred_device() != 0
+        || options.pending_sort() != crate::catalog::SortOrder::Name
     {
         ogc_system::report(format_args!("FAIL render-hit-test initial device state\n"));
         return -1;
@@ -370,8 +374,16 @@ fn render_hit_test() -> i32 {
     if usb2_target != Some(PointerTarget::Option(4))
         || !options.option_enabled(4)
         || options.handle_pointer(usb2_target, true, &catalog) != Action::None
+        || options.options_focus() != 4
         || options.pending_device() != 4
         || options.preferred_device() != 0
+        || options.handle_pointer(
+            Some(PointerTarget::Option(OPTION_SORT_DATE)),
+            true,
+            &catalog,
+        ) != Action::None
+        || options.options_focus() != OPTION_SORT_DATE
+        || options.pending_sort() != crate::catalog::SortOrder::ReleaseDate
         || options.handle_pointer(Some(PointerTarget::Option(OPTION_OK)), true, &catalog)
             != Action::ApplyOptions
         || options.preferred_device() != 4
