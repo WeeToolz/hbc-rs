@@ -71,6 +71,12 @@ run is recorded in
 It does not replace a Wii scan over FAT or verify device failure behavior. Rust
 keeps stable tie ordering where Reborn's `qsort` does not define it.
 
+The archive management APIs have a production Dolphin case for the extraction
+plan, output operations, byte total, staged commit, and rollback policy. The
+[management API record](review/evidence/reborn-api-management-rust-dolphin-2026-11-23-r2/README.md)
+states that commit and rollback use a controlled rename callback; it does not
+prove physical FAT writes or recovery.
+
 The theme package APIs have one Dolphin case for validation, root XML selection,
 and file extraction. It checks two fixed archive fixtures. It does not compare
 every ZIP edge case with Reborn's minizip path or prove the full theme install

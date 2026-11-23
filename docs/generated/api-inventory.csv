@@ -156,12 +156,12 @@ hbc_rs::loader::wii::transfer_control,src/loader/wii.rs,417,partial,HBC-API-LOAD
 hbc_rs::localization::Language::from_console,src/localization.rs,23,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::localization::Language::received_zip_confirmation,src/localization.rs,660,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::localization::Language::text,src/localization.rs,37,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::management::ExtractionPlan::operations,src/management.rs,98,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::management::ExtractionPlan::total_bytes,src/management.rs,102,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::management::commit_staged_directory,src/management.rs,127,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::management::ExtractionPlan::operations,src/management.rs,98,partial,HBC-API-EXTRACTION-OPERATIONS-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::management::ExtractionPlan::total_bytes,src/management.rs,102,partial,HBC-API-EXTRACTION-TOTAL-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::management::commit_staged_directory,src/management.rs,127,partial,HBC-API-INSTALL-COMMIT-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::management::plan_app_deletion,src/management.rs,172,partial,HBC-API-APP-DELETE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
-hbc_rs::management::plan_extraction,src/management.rs,205,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::management::rollback_staged_directory,src/management.rs,147,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::management::plan_extraction,src/management.rs,205,partial,HBC-API-EXTRACTION-PLAN-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::management::rollback_staged_directory,src/management.rs,147,partial,HBC-API-INSTALL-ROLLBACK-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::metadata::parse_app_xml,src/metadata.rs,78,partial,HBC-API-DATE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::metadata::parse_settings_xml,src/metadata.rs,175,partial,HBC-API-SETTINGS-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::metadata::parse_theme_xml,src/metadata.rs,194,partial,HBC-API-THEME-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.

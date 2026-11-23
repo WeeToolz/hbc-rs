@@ -67,6 +67,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"png-api" {
         return png_api();
     }
+    if case == b"management-api" {
+        return management_api();
+    }
     if case == b"loader-helpers" {
         return loader_helpers();
     }
@@ -1287,6 +1290,122 @@ fn png_api() -> i32 {
         return -1;
     }
     ogc_system::report(format_args!("PASS PNG API encode, decode and GX texture\n"));
+    0
+}
+
+fn management_api() -> i32 {
+    use crate::{
+        archive::ZipArchive,
+        management::{
+            DirectoryCommitError, ExtractionLimits, ExtractionOperation, commit_staged_directory,
+            plan_extraction, rollback_staged_directory,
+        },
+    };
+
+    let bytes = include_bytes!("../tests/fixtures/wiiload-app.zip");
+    let archive = match ZipArchive::parse(bytes) {
+        Ok(archive) => archive,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL management API archive {error:?}\n"));
+            return -1;
+        }
+    };
+    let plan = match plan_extraction(
+        &archive,
+        ExtractionLimits {
+            max_entries: 1024,
+            max_file_bytes: 1024,
+            max_total_bytes: 2048,
+        },
+    ) {
+        Ok(plan) => plan,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL management API plan {error:?}\n"));
+            return -1;
+        }
+    };
+    if plan.total_bytes() != 10
+        || plan.operations().len() != 3
+        || !plan
+            .operations()
+            .contains(&ExtractionOperation::CreateDirectory {
+                path: String::from("Demo"),
+            })
+        || !plan.operations().contains(&ExtractionOperation::WriteFile {
+            path: String::from("Demo/boot.elf"),
+            archive_name: String::from("Demo/boot.elf"),
+            size: 4,
+        })
+        || !plan.operations().contains(&ExtractionOperation::WriteFile {
+            path: String::from("Demo/meta.xml"),
+            archive_name: String::from("Demo/meta.xml"),
+            size: 6,
+        })
+    {
+        ogc_system::report(format_args!("FAIL management API extraction plan\n"));
+        return -1;
+    }
+
+    let target = "apps/Demo";
+    let stage = "apps/.Demo.hbc-stage";
+    let backup = "apps/.Demo.hbc-backup";
+    let mut commit_calls = Vec::new();
+    if !matches!(
+        commit_staged_directory(true, target, stage, backup, |from, to| {
+            commit_calls.push((String::from(from), String::from(to)));
+            Ok::<(), ()>(())
+        }),
+        Ok(())
+    ) || commit_calls
+        != [
+            (String::from(target), String::from(backup)),
+            (String::from(stage), String::from(target)),
+        ]
+    {
+        ogc_system::report(format_args!("FAIL management API commit order\n"));
+        return -1;
+    }
+
+    let mut failure_calls = Vec::new();
+    let failure = commit_staged_directory(true, target, stage, backup, |from, to| {
+        failure_calls.push((String::from(from), String::from(to)));
+        if from == stage {
+            Err("stage rename failed")
+        } else {
+            Ok(())
+        }
+    });
+    if failure != Err(DirectoryCommitError::Install("stage rename failed"))
+        || failure_calls
+            != [
+                (String::from(target), String::from(backup)),
+                (String::from(stage), String::from(target)),
+                (String::from(backup), String::from(target)),
+            ]
+    {
+        ogc_system::report(format_args!("FAIL management API commit rollback\n"));
+        return -1;
+    }
+
+    let mut rollback_calls = Vec::new();
+    if rollback_staged_directory(true, target, stage, backup, |from, to| {
+        rollback_calls.push((String::from(from), String::from(to)));
+        Ok::<(), ()>(())
+    })
+    .is_err()
+        || rollback_calls
+            != [
+                (String::from(target), String::from(stage)),
+                (String::from(backup), String::from(target)),
+            ]
+    {
+        ogc_system::report(format_args!("FAIL management API rollback order\n"));
+        return -1;
+    }
+
+    ogc_system::report(format_args!(
+        "PASS management API planning and staged rename policy\n"
+    ));
     0
 }
 

@@ -1,0 +1,12 @@
+{
+  "sha256": "248d7ec7d95bae68873986c8105857fc07e5f96872ad6f57d11d19e0b50e8e6a",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-tpxxeela",
+  "cases": [
+    {
+      "case": "management-api",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}
