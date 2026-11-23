@@ -83,7 +83,9 @@ behavior extensions; Reborn uses one space-joined command string and validates
 while relocating.
 
 The browser controller case checks list-page movement, boundary stops, grid
-mode changes, selection identity, and grid row movement with a seven-entry
-catalog. It calls the production controller APIs in Dolphin. Rendered widget
-geometry, transition animation, and physical controller behavior remain
-separate checks.
+mode changes, selection identity, grid row movement, and detail memo dragging
+with a seven-entry catalog. It calls the production controller APIs in Dolphin.
+The latest controller acceptance record is
+[`reborn-app-controller-rust-dolphin-2026-11-23-r7`](review/evidence/reborn-app-controller-rust-dolphin-2026-11-23-r7/README.md).
+Rendered widget geometry, transition animation, and physical controller
+behavior remain separate checks.

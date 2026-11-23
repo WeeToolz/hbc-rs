@@ -13,7 +13,7 @@ hbc_rs::app::AppController::finish_wiiload_installing,src/app.rs,451,partial,HBC
 hbc_rs::app::AppController::finish_wiiload_receiving,src/app.rs,418,partial,HBC-API-WIILOAD-RECEIVE-FINISH-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::handle,src/app.rs,947,partial,HBC-API-APP-CONTROLLER-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::handle_pointer,src/app.rs,1140,partial,HBC-API-APP-POINTER-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
-hbc_rs::app::AppController::handle_pointer_frame,src/app.rs,1149,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::app::AppController::handle_pointer_frame,src/app.rs,1149,partial,HBC-API-APP-POINTER-FRAME-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::keyboard_char,src/app.rs,720,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::app::AppController::keyboard_command_label,src/app.rs,738,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::app::AppController::keyboard_focus,src/app.rs,712,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.

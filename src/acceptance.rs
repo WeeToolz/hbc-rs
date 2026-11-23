@@ -1288,8 +1288,43 @@ fn app_controller() -> i32 {
         ogc_system::report(format_args!("FAIL app controller pointer actions\n"));
         return -1;
     }
+    let mut detail_catalog = catalog.clone();
+    detail_catalog[0].metadata = Some(crate::metadata::AppMetadata {
+        long_description: Some("Scrollable description ".repeat(80)),
+        ..crate::metadata::AppMetadata::default()
+    });
+    let mut detail_controller = AppController::new();
+    detail_controller.handle(Input::Confirm, &detail_catalog);
+    detail_controller.set_measured_memo(12, 9);
+    detail_controller.handle(Input::Down, &detail_catalog);
+    detail_controller.handle(Input::Down, &detail_catalog);
+    if detail_controller.detail_description_scroll() != 2 {
+        ogc_system::report(format_args!(
+            "FAIL app controller detail memo initial scroll\n"
+        ));
+        return -1;
+    }
+    detail_controller.handle_pointer_frame(
+        Some(PointerTarget::DetailMemo),
+        Some(200),
+        true,
+        false,
+        &detail_catalog,
+    );
+    detail_controller.handle_pointer_frame(None, Some(-88), false, true, &detail_catalog);
+    if detail_controller.detail_description_scroll() != 1 {
+        ogc_system::report(format_args!("FAIL app controller detail memo drag\n"));
+        return -1;
+    }
+    detail_controller.handle_pointer_frame(None, None, false, false, &detail_catalog);
+    if detail_controller.detail_description_scroll() != 1 {
+        ogc_system::report(format_args!(
+            "FAIL app controller detail memo drag release\n"
+        ));
+        return -1;
+    }
     ogc_system::report(format_args!(
-        "PASS app controller page, grid and pointer navigation\n"
+        "PASS app controller page, grid, pointer navigation and detail memo drag\n"
     ));
     0
 }
