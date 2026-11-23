@@ -1,0 +1,12 @@
+{
+  "sha256": "70b5d160b5c15b17f8e60d9ebbd1fb5f70923b87c61e40ce70a9b1c26b0bf5ee",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-j5w5dydb",
+  "cases": [
+    {
+      "case": "app-deletion",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

@@ -55,6 +55,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"storage-volumes" {
         return storage_volumes();
     }
+    if case == b"app-deletion" {
+        return app_deletion();
+    }
     if case == b"disc-stop" {
         return disc_stop();
     }
@@ -102,12 +105,18 @@ fn storage_volumes() -> i32 {
             || volume.settings_index() != index as i32
             || volume.mount_name() != names[index]
         {
-            ogc_system::report(format_args!("FAIL storage-volumes settings index {index}\n"));
+            ogc_system::report(format_args!(
+                "FAIL storage-volumes settings index {index}\n"
+            ));
             return -1;
         }
         let order = device_scan_order(index as i32);
         if order[0] != volume
-            || order.iter().filter(|candidate| **candidate == volume).count() != 1
+            || order
+                .iter()
+                .filter(|candidate| **candidate == volume)
+                .count()
+                != 1
             || order.iter().any(|candidate| !VOLUMES.contains(candidate))
         {
             ogc_system::report(format_args!("FAIL storage-volumes scan order {index}\n"));
@@ -119,10 +128,43 @@ fn storage_volumes() -> i32 {
         || device_scan_order(-1)[0] != Volume::Sd
         || device_scan_order(DEVICE_COUNT as i32)[0] != Volume::Sd
     {
-        ogc_system::report(format_args!("FAIL storage-volumes invalid preference fallback\n"));
+        ogc_system::report(format_args!(
+            "FAIL storage-volumes invalid preference fallback\n"
+        ));
         return -1;
     }
-    ogc_system::report(format_args!("PASS storage-volumes indices, names and scan order\n"));
+    ogc_system::report(format_args!(
+        "PASS storage-volumes indices, names and scan order\n"
+    ));
+    0
+}
+
+fn app_deletion() -> i32 {
+    use crate::management::plan_app_deletion;
+
+    let Ok(plan) = plan_app_deletion("demo") else {
+        ogc_system::report(format_args!("FAIL app-deletion valid folder\n"));
+        return -1;
+    };
+    if plan.directory != "demo" {
+        ogc_system::report(format_args!("FAIL app-deletion folder result\n"));
+        return -1;
+    }
+    for name in [
+        "../other",
+        "demo/nested",
+        ".hidden",
+        "demo.",
+        "demo ",
+        "demo\\nested",
+        "C:",
+    ] {
+        if plan_app_deletion(name).is_ok() {
+            ogc_system::report(format_args!("FAIL app-deletion accepted unsafe name\n"));
+            return -1;
+        }
+    }
+    ogc_system::report(format_args!("PASS app-deletion safe folder validation\n"));
     0
 }
 

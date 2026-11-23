@@ -159,7 +159,7 @@ hbc_rs::localization::Language::text,src/localization.rs,37,unverified,,not_run,
 hbc_rs::management::ExtractionPlan::operations,src/management.rs,98,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::management::ExtractionPlan::total_bytes,src/management.rs,102,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::management::commit_staged_directory,src/management.rs,127,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::management::plan_app_deletion,src/management.rs,172,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::management::plan_app_deletion,src/management.rs,172,partial,HBC-API-APP-DELETE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::management::plan_extraction,src/management.rs,205,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::management::rollback_staged_directory,src/management.rs,147,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::metadata::parse_app_xml,src/metadata.rs,78,partial,HBC-API-DATE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
