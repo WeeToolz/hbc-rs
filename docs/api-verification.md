@@ -104,3 +104,5 @@ controller state, storage policy, input, rendering, and disc control. See
 [`reborn-api-sweep-rust-dolphin-2026-11-23-r2`](review/evidence/reborn-api-sweep-rust-dolphin-2026-11-23-r2/README.md).
 The sweep adds current run evidence for those named cases; it does not promote
 unrelated APIs or complete the full contracts for the APIs that it calls.
+The five `CatalogStorage` trait methods also have exact inventory entries tied
+to a current `catalog` case; see the [trait API record](review/evidence/reborn-api-catalog-trait-rust-dolphin-2026-11-23/README.md).
