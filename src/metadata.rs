@@ -213,27 +213,28 @@ pub fn parse_theme_xml(xml: &str) -> Result<ThemeMetadata, String> {
         colors.and_then(|v| v.try_into().ok())
     });
     for font in node.children_named("font") {
+        let has_target = font
+            .attrs
+            .get("target")
+            .is_some_and(|value| !value.is_empty());
         let targets: Vec<String> = font
             .attrs
             .get("target")
-            .map(|v| {
-                v.split(|c: char| c == ',' || c.is_whitespace())
-                    .filter(|s| !s.is_empty())
-                    .map(str::to_owned)
-                    .collect()
-            })
+            .map(|value| parse_font_targets(value))
             .unwrap_or_default();
         let color = font.find("color").and_then(parse_color);
         let size = font
-            .text("size")
-            .and_then(|v| v.parse().ok())
-            .filter(|v| *v > 0);
+            .find("size")
+            .and_then(XmlNode::raw_value)
+            .and_then(|value| scan_atoi(&value))
+            .filter(|value| *value > 0)
+            .map(|value| value as u32);
         let parsed_font = ThemeFont {
             file: font.text("file"),
             size,
             color,
         };
-        if targets.is_empty() {
+        if !has_target {
             // HBC uses an untargeted <font> as the base font. Its values
             // override the legacy <font_color> value field by field.
             if parsed_font.file.is_some() {
@@ -246,14 +247,35 @@ pub fn parse_theme_xml(xml: &str) -> Result<ThemeMetadata, String> {
                 theme.default_font.color = parsed_font.color;
             }
         } else {
-            theme.fonts.push((targets, parsed_font));
+            for target in targets {
+                if let Some((_, existing)) =
+                    theme.fonts.iter_mut().find(|(names, _)| names[0] == target)
+                {
+                    if parsed_font.file.is_some() {
+                        existing.file = parsed_font.file.clone();
+                    }
+                    if parsed_font.size.is_some() {
+                        existing.size = parsed_font.size;
+                    }
+                    if parsed_font.color.is_some() {
+                        existing.color = parsed_font.color;
+                    }
+                } else {
+                    theme.fonts.push((alloc::vec![target], parsed_font.clone()));
+                }
+            }
         }
     }
     Ok(theme)
 }
 
 fn parse_color(node: &XmlNode) -> Option<Rgba> {
-    let channel = |name| node.text(name).and_then(|s| s.parse::<u8>().ok());
+    let channel = |name| {
+        node.find(name)
+            .and_then(XmlNode::raw_value)
+            .and_then(|value| scan_atoi(&value))
+            .and_then(|value| u8::try_from(value).ok())
+    };
     Some(Rgba(
         channel("red")?,
         channel("green")?,
@@ -261,6 +283,39 @@ fn parse_color(node: &XmlNode) -> Option<Rgba> {
         channel("alpha")?,
     ))
 }
+
+fn parse_font_targets(value: &str) -> Vec<String> {
+    const TARGETS: [&str; 7] = [
+        "label",
+        "dlgtitle",
+        "memo",
+        "appname",
+        "appdesc",
+        "button",
+        "button_desel",
+    ];
+    let start = value
+        .bytes()
+        .position(|byte| !matches!(byte, b',' | b' '))
+        .unwrap_or(value.len());
+    let rest = &value[start..];
+    let first_end = rest.find([',', ' ']).unwrap_or(rest.len());
+    let mut tokens = alloc::vec![&rest[..first_end]];
+    if first_end < rest.len() {
+        // Reborn uses strtok(" , ") once, then strtok(",") for later tokens.
+        tokens.extend(
+            rest[first_end + 1..]
+                .split(',')
+                .filter(|token| !token.is_empty()),
+        );
+    }
+    tokens
+        .into_iter()
+        .filter(|token| TARGETS.contains(token))
+        .map(str::to_owned)
+        .collect()
+}
+
 fn number(node: &XmlNode, key: &str, fallback: i32) -> i32 {
     let Some(text) = node.find(key).and_then(XmlNode::raw_value) else {
         return fallback;
@@ -674,6 +729,20 @@ mod tests {
         );
         let non_ascii_space = parse_settings_xml("<hbc><device>\u{a0}4</device></hbc>").unwrap();
         assert_eq!(non_ascii_space.device, 0);
+    }
+
+    #[test]
+    fn theme_fonts_merge_per_target_and_colors_use_atoi() {
+        let theme = parse_theme_xml(
+            "<theme><font target='appname'><size>  +12px</size></font><font target='appname'><color><red>255tail</red><green>0</green><blue> 7x</blue><alpha>255</alpha></color></font><font target='APPNAME'><size>20</size></font></theme>",
+        )
+        .unwrap();
+        assert_eq!(theme.fonts.len(), 1);
+        assert_eq!(theme.fonts[0].0, ["appname"]);
+        assert_eq!(theme.fonts[0].1.size, Some(12));
+        assert_eq!(theme.fonts[0].1.color, Some(Rgba(255, 0, 7, 255)));
+        assert_eq!(parse_font_targets("appname button"), ["appname", "button"]);
+        assert_eq!(parse_font_targets("appname, button"), ["appname"]);
     }
 
     #[test]

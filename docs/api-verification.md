@@ -43,6 +43,14 @@ The update API comparison records that Rust keeps `None` for absent or invalid
 dates, while C leaves its zero-initialized field at zero. It does not verify the
 disabled update service.
 
+The `parse_settings_xml` API has Dolphin cases for Reborn's `atoi` prefix rules,
+present invalid values, and missing-field defaults. The `parse_theme_xml` API
+checks the same numeric conversion for theme colors and font sizes, supported
+font targets, and field-wise updates across repeated font entries. These are
+partial parser checks; they do not verify the full theme renderer or physical
+Wii behavior. C `atoi` overflow is undefined, and Rust keeps its checked
+conversion.
+
 To expand coverage, select related entries from the generated CSV, review each
 contract against the HBC Reborn C source, then add API-specific production
 checks and named evidence. Run the relevant host tests, target build, and

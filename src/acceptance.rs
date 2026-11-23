@@ -32,6 +32,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"metadata-settings" {
         return metadata_settings();
     }
+    if case == b"metadata-theme" {
+        return metadata_theme();
+    }
     if case == b"disc-stop" {
         return disc_stop();
     }
@@ -178,6 +181,24 @@ fn metadata_settings() -> i32 {
         }
         ogc_system::report(format_args!("PASS metadata-settings {index}\n"));
     }
+    0
+}
+
+fn metadata_theme() -> i32 {
+    let xml = "<theme><font_color><red>  +4tail</red><green>5</green><blue>6</blue><alpha>255</alpha></font_color><font target='appname'><size>12px</size></font><font target='appname'><color><red>255tail</red><green>0</green><blue>7x</blue><alpha>255</alpha></color></font><font target='APPNAME'><size>20</size></font></theme>";
+    let Ok(theme) = crate::metadata::parse_theme_xml(xml) else {
+        return -1;
+    };
+    if theme.default_font.color != Some(crate::metadata::Rgba(4, 5, 6, 255))
+        || theme.fonts.len() != 1
+        || theme.fonts[0].0 != ["appname"]
+        || theme.fonts[0].1.size != Some(12)
+        || theme.fonts[0].1.color != Some(crate::metadata::Rgba(255, 0, 7, 255))
+    {
+        ogc_system::report(format_args!("FAIL metadata-theme parsed fields\n"));
+        return -1;
+    }
+    ogc_system::report(format_args!("PASS metadata-theme atoi and target merge\n"));
     0
 }
 
