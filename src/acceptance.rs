@@ -1044,9 +1044,13 @@ fn catalog() -> i32 {
         String::from("apps/alpha/icon.png"),
         include_bytes!("../tests/fixtures/hbc-app-icon.png").to_vec(),
     );
+    storage.files.insert(
+        String::from("apps/beta/icon.png"),
+        include_bytes!("../tests/fixtures/hbc-app-icon-wrong-size.png").to_vec(),
+    );
     storage
         .files
-        .insert(String::from("apps/beta/icon.png"), b"not a PNG".to_vec());
+        .insert(String::from("apps/badmeta/icon.png"), b"not a PNG".to_vec());
     let entries = match scan_apps(&mut storage, "apps", 5, 3) {
         Ok(entries) => entries,
         Err(error) => {
@@ -1080,6 +1084,10 @@ fn catalog() -> i32 {
             != ["alpha"]
         || crate::png::decode_hbc_app_icon(include_bytes!("../tests/fixtures/hbc-app-icon.png"))
             .is_err()
+        || crate::png::decode_hbc_app_icon(include_bytes!(
+            "../tests/fixtures/hbc-app-icon-wrong-size.png"
+        ))
+        .is_ok()
         || crate::png::decode_hbc_app_icon(b"not a PNG").is_ok()
     {
         ogc_system::report(format_args!("FAIL catalog filter or sort\n"));
