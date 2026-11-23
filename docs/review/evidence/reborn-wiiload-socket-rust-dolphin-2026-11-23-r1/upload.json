@@ -1,0 +1,16 @@
+{
+  "completed_unix_ms": 1795474216367,
+  "compressed": true,
+  "destination": "tcp:192.168.1.52",
+  "elapsed_ms": 6,
+  "error": null,
+  "host_written_bytes": 1351033,
+  "input": "/private/tmp/hbc-wiiload-target-verification/wad-package-r2/hbc-rs-debug.dol",
+  "input_bytes": 2492928,
+  "input_sha256": "c629626a88fb6a20c0677c8f5cea60261184916f1b5779e2887ce56e65a6e1c2",
+  "port": 4299,
+  "result": "host_write_complete",
+  "schema_version": 1,
+  "status": "written",
+  "transfer_bytes": 1350999
+}

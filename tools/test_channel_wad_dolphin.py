@@ -52,6 +52,30 @@ def validate_self_load_log(text):
     return checks
 
 
+def validate_self_load_protocol(parent_reply, child_reply, upload, expected_dol_sha256):
+    """Prove an uploaded DOL starts a new HBC instance through the live API."""
+    parent_session = parent_reply.get('session')
+    child_session = child_reply.get('session')
+    checks = {
+        'sender_completed': upload.get('status') == 'written'
+        and upload.get('result') == 'host_write_complete'
+        and upload.get('error') is None
+        and upload.get('host_written_bytes', 0) > 0,
+        'uploaded_dol_matches_build': upload.get('input_sha256') == expected_dol_sha256,
+        'upload_was_compressed': upload.get('compressed') is True,
+        'child_replied_to_hbc_protocol': child_reply.get('state') == 'unknown'
+        and child_reply.get('message') == 'No retained result for this request',
+        'hbc_session_changed_after_upload': isinstance(parent_session, int)
+        and isinstance(child_session, int)
+        and parent_session > 0
+        and child_session > 0
+        and parent_session != child_session,
+    }
+    if not all(checks.values()):
+        raise RuntimeError(f'Self-load protocol evidence is incomplete: {checks}')
+    return checks
+
+
 def validate_storage_launch_log(text, no_ios_reload):
     checks = validate_self_load_log(text)
     before, _, handoff = text.partition('HBC: transferring executable control')
@@ -181,7 +205,20 @@ def self_load(args, result, profile, hotkey_fd, ui_remote_fd, process, started):
         raise RuntimeError(f'Wiiload sender failed: {upload.returncode}; see upload.log')
     result['upload_completed_seconds_since_launch'] = round(time.monotonic() - started, 3)
     wait_ready('dol_startup_after_upload', upload_started, first_session)
-    result['launch_log_checks'] = validate_self_load_log((profile / 'Logs/dolphin.log').read_text(errors='replace'))
+    log_text = (profile / 'Logs/dolphin.log').read_text(errors='replace')
+    try:
+        result['launch_log_checks'] = validate_self_load_log(log_text)
+        result['launch_verification'] = 'runtime_log'
+    except RuntimeError as error:
+        result['launch_log_error'] = str(error)
+        upload_record = json.loads((args.output / 'upload.json').read_text())
+        result['launch_protocol_checks'] = validate_self_load_protocol(
+            result['wad_startup']['reply'],
+            result['dol_startup_after_upload']['reply'],
+            upload_record,
+            result['dol_sha256'],
+        )
+        result['launch_verification'] = 'compressed_upload_and_new_hbc_session'
     if not result['screenshots']:
         raise RuntimeError('No Dolphin screenshot was saved')
 

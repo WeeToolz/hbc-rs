@@ -14,9 +14,11 @@ Host tests cover multiple input chunks and exact output size. The final 96 KiB
 `wiiload-header` Dolphin acceptance run passes through
 `WiiloadHeader::decode_body`. The normal 32 KiB PowerPC worker stack audit
 passes with a measured direct call path of 2,080 bytes and 30,688 bytes
-remaining. These checks do not exercise the TCP worker. Live compressed
-uploads, progress, application entry, and physical Wii cache/DMA behavior
-remain pending. See the r2 evidence README and HBC-WIILOAD-01 ledger row.
+remaining. The separate r1 channel-WAD run exercises the production TCP
+worker: Wiiload-RS sent the matching compressed DOL, and the child reached
+startup with its listener active. Physical Wii upload, progress, application
+entry, and cache/DMA behavior remain pending. See the r1 and r2 evidence
+READMEs and the HBC-WIILOAD-01 ledger row.
 
 Authoritative C comparison: `C-sources/hbc-reborn/channel/channelapp/source/loader.c`
 and `loader_reloc.c`. The existing ledger IDs remain the status source.
