@@ -9,8 +9,6 @@ use crate::{
 };
 
 pub const WIILOAD_ZIP_MAX_ENTRIES: usize = 1024;
-const MAX_FILE_BYTES: u64 = 64 * 1024 * 1024;
-const MAX_TOTAL_BYTES: u64 = 128 * 1024 * 1024;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum WiiloadZipKind {
@@ -61,8 +59,7 @@ fn classify_app(data: &[u8]) -> Result<WiiloadZipClassification, WiiloadZipError
         &archive,
         ExtractionLimits {
             max_entries: WIILOAD_ZIP_MAX_ENTRIES,
-            max_file_bytes: MAX_FILE_BYTES,
-            max_total_bytes: MAX_TOTAL_BYTES,
+            ..ExtractionLimits::default()
         },
     )
     .map_err(|_| WiiloadZipError::InvalidApp)?;
