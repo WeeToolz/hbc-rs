@@ -153,7 +153,7 @@ class Debugger:
         return reply
 
 
-def verified_artifact(dol, elf, workspace):
+def verified_artifact(dol, elf, workspace, sdk_root=None):
     import hashlib
     import json
     import subprocess
@@ -170,7 +170,7 @@ def verified_artifact(dol, elf, workspace):
         raise RuntimeError('DOL does not match its manifest')
     with tempfile.TemporaryDirectory(prefix='verify-dolphin-elf-', dir=workspace / 'tmp') as temporary:
         converted = Path(temporary) / 'verified.dol'
-        subprocess.run(['cargo', 'xtask', 'elf-to-dol', str(elf), str(converted)], cwd=workspace / 'Devtools/libogc-rs', check=True, capture_output=True)
+        subprocess.run(['cargo', 'xtask', 'elf-to-dol', str(elf), str(converted)], cwd=sdk_root or workspace / 'Devtools/libogc-rs', check=True, capture_output=True)
         if converted.read_bytes() != dol.read_bytes():
             raise RuntimeError('ELF does not produce the selected DOL; use its matching archived ELF')
     return names, digest, manifest

@@ -333,7 +333,7 @@ mod tests {
         }
     }
 
-    fn app(dir: &str, name: Option<&str>, date: Option<u64>, icon: bool) -> AppEntry {
+    fn app(dir: &str, name: Option<&str>, date: Option<i64>, icon: bool) -> AppEntry {
         AppEntry {
             directory: dir.into(),
             kind: AppKind::Elf,

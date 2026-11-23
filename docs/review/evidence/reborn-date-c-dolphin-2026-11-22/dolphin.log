@@ -1,0 +1,46 @@
+50:13:359 InputCommon/ControllerInterface/SDL/SDL.cpp:127 I[CI]: system: App name: org.dolphin-emu.dolphin
+50:13:359 InputCommon/ControllerInterface/SDL/SDL.cpp:127 I[CI]: system: App version: <unspecified>
+50:13:359 InputCommon/ControllerInterface/SDL/SDL.cpp:127 I[CI]: system: App ID: <unspecified>
+50:13:359 InputCommon/ControllerInterface/SDL/SDL.cpp:127 I[CI]: system: SDL revision: SDL-3.4.12-f87239e71
+50:13:376 InputCommon/ControllerInterface/ControllerInterface.cpp:273 N[CI]: Added device: Quartz/0/Keyboard & Mouse
+50:13:376 InputCommon/ControllerInterface/ControllerInterface.cpp:273 N[CI]: Added device: Pipe/0/hbc-ui-remote
+50:13:376 InputCommon/ControllerInterface/ControllerInterface.cpp:273 N[CI]: Added device: Pipe/0/priiloader-return
+50:13:376 InputCommon/ControllerInterface/DualShockUDPClient/DualShockUDPClient.cpp:492 I[CI]: DualShockUDPClient PopulateDevices
+50:13:376 InputCommon/ControllerInterface/SteamDeck/SteamDeck.cpp:141 I[CI]: SteamDeck PopulateDevices
+50:13:389 InputCommon/ControllerInterface/SteamDeck/SteamDeck.cpp:171 I[CI]: No Steam Deck interface found
+50:13:389 Core/HW/WiimoteEmu/EmuSubroutines.cpp:185 I[Wiimote]: Attaching Motion Plus (Wiimote 0 in slot 0)
+50:13:389 Core/HW/WiimoteEmu/EmuSubroutines.cpp:185 I[Wiimote]: Attaching Motion Plus (Wiimote 1 in slot 1)
+50:13:389 Core/HW/WiimoteEmu/EmuSubroutines.cpp:185 I[Wiimote]: Attaching Motion Plus (Wiimote 2 in slot 2)
+50:13:389 Core/HW/WiimoteEmu/EmuSubroutines.cpp:185 I[Wiimote]: Attaching Motion Plus (Wiimote 3 in slot 3)
+50:13:390 Core/HW/WiimoteReal/WiimoteReal.cpp:911 N[Wiimote]: WiimoteReal::Initialize
+50:13:390 Core/HW/WiimoteReal/WiimoteReal.cpp:657 N[Wiimote]: Wiimote scanning thread has started.
+50:13:406 Core/ConfigManager.cpp:279 N[CORE]: Active title: 
+50:13:409 Core/Core.cpp:237 I[BOOT]: Starting core = Wii mode
+50:13:409 Core/Core.cpp:238 I[BOOT]: CPU Thread separate = No
+50:13:415 InputCommon/ControllerInterface/ControllerInterface.cpp:310 N[CI]: Removed device: Quartz/0/Keyboard & Mouse
+50:13:421 InputCommon/ControllerInterface/ControllerInterface.cpp:273 N[CI]: Added device: Quartz/0/Keyboard & Mouse
+50:15:339 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #0 Constructed
+50:15:339 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #1 Constructed
+50:15:339 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #2 Constructed
+50:15:339 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #3 Constructed
+50:15:339 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #4 Constructed
+50:15:343 Core/IOS/Network/MACUtils.cpp:47 I[IOS_NET]: Using MAC address: 00:17:ab:f2:e3:cf
+50:15:437 Core/Boot/Boot.cpp:546 N[BOOT]: Booting from executable: /Volumes/SSD/WiiDev/WeeToolz/hbc-rs/target/reborn-date-c/probe.dol
+50:15:439 Core/IOS/ES/Formats.cpp:688 I[IOS_ES]: Title 0000000100000002 already exists in uid.sys
+50:15:439 Core/Boot/Boot_BS2Emu.cpp:435 I[BOOT]: Using serial number: 372730284
+50:15:439 Core/Boot/Boot_BS2Emu.cpp:463 I[BOOT]: Setup Wii Memory...
+50:15:440 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #0 Constructed
+50:15:440 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #1 Constructed
+50:15:440 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #2 Constructed
+50:15:440 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #3 Constructed
+50:15:440 Core/IOS/USB/Bluetooth/WiimoteDevice.cpp:62 I[IOS_WIIMOTE]: Wiimote: #4 Constructed
+50:15:441 Core/IOS/Network/MACUtils.cpp:47 I[IOS_NET]: Using MAC address: 00:17:ab:f2:e3:cf
+50:15:498 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC_DATE input=20241332 count=3 epoch=1741050000 normalized=2025,3,4,1,0,0
+50:15:498 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC_DATE input=20250000 count=3 epoch=1735606800 normalized=2024,12,31,1,0,0
+50:15:498 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC_DATE input=20250101999999 count=6 epoch=1738730439 normalized=2025,2,5,4,40,39
+50:15:498 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC_DATE input=2025-01-02 count=3 epoch=1735693200 normalized=2025,1,1,1,0,0
+50:15:498 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC_DATE input=20250101-1-1-1 count=6 epoch=1738364339 normalized=2025,1,31,22,58,59
+50:15:498 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC_DATE input=19691201000000 count=6 epoch=0 normalized=1970,1,1,0,0,0
+50:15:498 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC_DATE input=-0010101 count=3 epoch=-62196073200 normalized=-1,2,1,1,0,0
+50:15:498 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC_DATE input=2025010112 count=3 epoch=1738371600 normalized=2025,2,1,1,0,0
+50:15:498 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC_DATE done cases=8

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 from pathlib import Path
 import sys
 
@@ -29,7 +30,21 @@ FIELDS = (
 )
 COVERAGE = {"implemented", "partial", "open", "out_of_scope"}
 REVIEW = {"not_reviewed", "source_reviewed", "needs_followup", "excluded"}
-VERIFICATION = {"not_run", "host_tested", "target_checked", "hardware_pending", "not_applicable"}
+VERIFICATION = {"not_run", "host_tested", "target_checked", "dolphin_tested", "hardware_pending", "not_applicable"}
+
+
+def validate_dolphin_evidence(path: Path, case: str) -> None:
+    try:
+        report = json.loads(path.read_text(encoding="utf-8"))
+        cases = report.get("cases", [])
+        matched = [item for item in cases if item.get("case") == case]
+        if not case or report.get("success") is not True or len(matched) != 1:
+            raise ValueError("missing successful named Dolphin case")
+        result = matched[0].get("result")
+        if matched[0].get("success") is not True or type(result) is not int or result != 0:
+            raise ValueError("Dolphin case did not pass")
+    except (OSError, json.JSONDecodeError, AttributeError, TypeError, ValueError) as error:
+        raise ValueError(f"{path}: invalid Dolphin evidence: {error}") from error
 
 
 def load_rows() -> list[dict[str, str]]:
@@ -59,6 +74,11 @@ def load_rows() -> list[dict[str, str]]:
         evidence = row["evidence"]
         if evidence and not (ROOT / evidence.split("#", 1)[0]).is_file():
             raise ValueError(f"{LEDGER}:{line}: missing evidence file {evidence}")
+        if row["verification"] == "dolphin_tested":
+            evidence_path, separator, case = evidence.partition("#")
+            if not separator:
+                raise ValueError(f"{LEDGER}:{line}: Dolphin evidence needs a named case")
+            validate_dolphin_evidence(ROOT / evidence_path, case)
         if row["coverage"] in {"partial", "open"} and not row["next_step"].strip():
             raise ValueError(f"{LEDGER}:{line}: unresolved row needs a next_step")
     if not rows:
@@ -91,7 +111,7 @@ def validate_ref(reference: str, base: Path, ledger: Path, line: int) -> None:
 def render(rows: list[dict[str, str]]) -> str:
     counts = {state: sum(row["coverage"] == state for row in rows) for state in COVERAGE}
     review_counts = {state: sum(row["review"] == state for row in rows) for state in REVIEW}
-    hardware_pending = sum(row["verification"] == "hardware_pending" for row in rows)
+    hardware_pending = sum(row["verification"] in {"hardware_pending", "dolphin_tested"} for row in rows)
     lines = [
         "# HBC C-to-Rust parity status",
         "",
@@ -106,8 +126,10 @@ def render(rows: list[dict[str, str]]) -> str:
         "",
         f"Source review: **{review_counts['source_reviewed']} reviewed**, "
         f"**{review_counts['not_reviewed']} pending**, "
-        f"**{review_counts['needs_followup']} need follow-up**. "
-        f"Real Wii verification pending for **{hardware_pending}** areas.",
+        f"**{review_counts['needs_followup']} need follow-up**.",
+        f"Dolphin tested: **{sum(row['verification'] == 'dolphin_tested' for row in rows)}**. "
+        f"Wii evidence explicitly pending: **{hardware_pending}**. "
+        "Other states may also need Wii evidence; see each next step.",
         "",
         "| ID | Area | C reference | Rust reference | Coverage | Review | Verification | Next step |",
         "|---|---|---|---|---|---|---|---|",
@@ -130,6 +152,7 @@ def render(rows: list[dict[str, str]]) -> str:
             "- `open`: Rust work or source comparison remains.",
             "- `out_of_scope`: the behavior is excluded from the running HBC application parity target.",
             "- `source_reviewed`: a recorded source comparison is complete for this area.",
+            "- `dolphin_tested`: the named case passed in Dolphin; real Wii behavior remains unverified.",
             "- `hardware_pending`: real Wii behavior has not been verified.",
             "",
             "Unprefixed C references use `C-sources/hbc-reborn/channel/channelapp`. "

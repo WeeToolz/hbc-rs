@@ -22,8 +22,8 @@ pub struct AppMetadata {
     pub version: Option<String>,
     pub short_description: Option<String>,
     pub long_description: Option<String>,
-    /// Reborn-normalized numeric `YYYYMMDDhhmmss` form for comparisons.
-    pub release_date: Option<u64>,
+    /// Reborn-normalized signed date key for comparisons; zero epoch is absent.
+    pub release_date: Option<i64>,
     pub sort_id: Option<i32>,
     pub arguments: Vec<String>,
     pub ahb_access: bool,
@@ -228,7 +228,7 @@ fn number(node: &XmlNode, key: &str, fallback: i32) -> i32 {
         .and_then(|v| v.parse().ok())
         .unwrap_or(fallback)
 }
-fn parse_date(s: &str) -> Option<u64> {
+fn parse_date(s: &str) -> Option<i64> {
     let mut remaining = s.as_bytes();
     let mut fields = [0i32; 6];
     let mut count = 0;
@@ -259,10 +259,10 @@ fn parse_date(s: &str) -> Option<u64> {
         } else {
             month -= 1;
         }
-        day += days_in_month(u32::try_from(year).ok()?, month) as i32;
+        day += days_in_month(year, month) as i32;
     }
     loop {
-        let days = days_in_month(u32::try_from(year).ok()?, month) as i32;
+        let days = days_in_month(year, month) as i32;
         if day <= days {
             break;
         }
@@ -273,18 +273,21 @@ fn parse_date(s: &str) -> Option<u64> {
             year += 1;
         }
     }
-    let year = u32::try_from(year).ok()?;
     let day = day as u32;
     let hour = second_of_day / 3600;
     let minute = second_of_day / 60 % 60;
     let second = second_of_day % 60;
+    // Reborn treats a zero time_t as an absent release date.
+    if (year, month, day, second_of_day) == (1970, 1, 1, 0) {
+        return None;
+    }
     Some(
-        u64::from(year) * 10_000_000_000
-            + u64::from(month) * 100_000_000
-            + u64::from(day) * 1_000_000
-            + u64::from(hour) * 10_000
-            + u64::from(minute) * 100
-            + u64::from(second),
+        i64::from(year) * 10_000_000_000
+            + i64::from(month) * 100_000_000
+            + i64::from(day) * 1_000_000
+            + i64::from(hour) * 10_000
+            + i64::from(minute) * 100
+            + i64::from(second),
     )
 }
 
@@ -308,9 +311,11 @@ fn scan_decimal(input: &mut &[u8], width: usize) -> Option<i32> {
     Some(if negative { -value } else { value })
 }
 
-fn days_in_month(year: u32, month: u32) -> u32 {
+fn days_in_month(year: i32, month: u32) -> u32 {
     match month {
-        2 if year.is_multiple_of(4) && (!year.is_multiple_of(100) || year.is_multiple_of(400)) => {
+        2 if year.rem_euclid(4) == 0
+            && (year.rem_euclid(100) != 0 || year.rem_euclid(400) == 0) =>
+        {
             29
         }
         2 => 28,
@@ -580,6 +585,13 @@ mod tests {
         .unwrap();
         assert_eq!(theme.description.as_ref().unwrap().len(), 64);
     }
+    #[test]
+    fn release_date_preserves_negative_year_and_zero_epoch_semantics() {
+        assert_eq!(parse_date("-0010101"), Some(-9_798_990_000));
+        assert_eq!(parse_date("19691201000000"), None);
+        assert!(parse_date("-0010101") < parse_date("00000101"));
+    }
+
     #[test]
     fn release_date_normalizes_out_of_range_fields_like_reborn() {
         assert_eq!(parse_date("20241332"), Some(20250304010000));

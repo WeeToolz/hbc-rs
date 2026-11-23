@@ -1,0 +1,49 @@
+{
+  "image": "/Volumes/SSD/WiiDev/WeeToolz/hbc-rs/target/reborn-date-c/probe.dol",
+  "sha256": "479334cad73385224eb7c51343a2b19131cef8759aeef013a8d5a0d2d6c2615a",
+  "physical_wii_tested": false,
+  "capture_complete": false,
+  "input_verification": "requires screenshot review",
+  "stages": [],
+  "fixture": {
+    "name_order": [
+      "Amber",
+      "Birch",
+      "Cedar"
+    ],
+    "date_order": [
+      "Cedar",
+      "Birch",
+      "Amber"
+    ],
+    "apps": [
+      {
+        "directory": "cedar",
+        "title": "Cedar",
+        "release_date": "20250304120000"
+      },
+      {
+        "directory": "amber",
+        "title": "Amber",
+        "release_date": "20240102120000"
+      },
+      {
+        "directory": "birch",
+        "title": "Birch",
+        "release_date": "20241203120000"
+      }
+    ]
+  },
+  "command": [
+    "/Applications/Dolphin.app/Contents/MacOS/Dolphin",
+    "-b",
+    "-u",
+    "/Volumes/SSD/WiiDev/tmp/hbc-c-input-ek7_5v1v",
+    "-e",
+    "/Volumes/SSD/WiiDev/WeeToolz/hbc-rs/target/reborn-date-c/probe.dol"
+  ],
+  "load_focus_left": false,
+  "error": "Dolphin did not save a screenshot after the Y hotkey",
+  "cleanup_error": "Dolphin required forced termination",
+  "dolphin_exit_code": -9
+}

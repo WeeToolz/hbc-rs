@@ -102,10 +102,11 @@ def main():
     parser.add_argument('--elf', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--debug-port', type=int, default=55287)
-    parser.add_argument('--cases', nargs='+', choices=['launch-dol', 'launch-elf', 'settings'], default=['launch-dol', 'launch-elf', 'settings'])
+    parser.add_argument('--cases', nargs='+', choices=['launch-dol', 'launch-elf', 'settings', 'metadata-date'], default=['launch-dol', 'launch-elf', 'settings'])
+    parser.add_argument('--sdk-root', type=Path, default=Path(__file__).resolve().parents[2] / 'libogc-rs')
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=False)
-    names, digest, manifest = verified_artifact(args.dol.resolve(), args.elf.resolve(), ROOT)
+    names, digest, manifest = verified_artifact(args.dol.resolve(), args.elf.resolve(), ROOT, args.sdk_root.resolve())
     if manifest['development'] or manifest['target'] != 'emulator-acceptance':
         raise RuntimeError('Use the normal emulator-acceptance test binary')
     profile = Path(tempfile.mkdtemp(prefix='hbc-production-acceptance-', dir=ROOT / 'tmp'))

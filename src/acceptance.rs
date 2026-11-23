@@ -23,6 +23,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
         return -22;
     }
     let case = unsafe { core::ffi::CStr::from_ptr(pointer.cast()) }.to_bytes();
+    if case == b"metadata-date" {
+        return metadata_date();
+    }
     let result = match case {
         b"settings-save" => settings::save(&expected_settings()),
         b"settings-load" => settings::load().and_then(|actual| {
@@ -53,6 +56,29 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
             -5
         }
     }
+}
+
+fn metadata_date() -> i32 {
+    let cases = [
+        ("20241332", Some(20250304010000)),
+        ("20250000", Some(20241231010000)),
+        ("20250101999999", Some(20250205044039)),
+        ("2025-01-02", Some(20250101010000)),
+        ("20250101-1-1-1", Some(20250131225859)),
+        ("19691201000000", None),
+        ("-0010101", Some(-9_798_990_000)),
+        ("2025010112", Some(20250201010000)),
+    ];
+    for (index, (input, expected)) in cases.iter().enumerate() {
+        let xml = alloc::format!("<app><release_date>{input}</release_date></app>");
+        let actual = crate::metadata::parse_app_xml(&xml).map(|entry| entry.release_date);
+        if actual != Ok(*expected) {
+            ogc_system::report(format_args!("FAIL metadata-date {index}: {actual:?}\n"));
+            return -1;
+        }
+        ogc_system::report(format_args!("PASS metadata-date {index}\n"));
+    }
+    0
 }
 
 fn expect_banner_error() -> Result<(), settings::SettingsIoError> {

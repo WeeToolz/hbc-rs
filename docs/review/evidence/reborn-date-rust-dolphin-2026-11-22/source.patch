@@ -1,0 +1,151 @@
+diff --git a/src/acceptance.rs b/src/acceptance.rs
+index 1b3df47..0adf51f 100644
+--- a/src/acceptance.rs
++++ b/src/acceptance.rs
+@@ -23,6 +23,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
+         return -22;
+     }
+     let case = unsafe { core::ffi::CStr::from_ptr(pointer.cast()) }.to_bytes();
++    if case == b"metadata-date" {
++        return metadata_date();
++    }
+     let result = match case {
+         b"settings-save" => settings::save(&expected_settings()),
+         b"settings-load" => settings::load().and_then(|actual| {
+@@ -55,6 +58,29 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
+     }
+ }
+ 
++fn metadata_date() -> i32 {
++    let cases = [
++        ("20241332", Some(20250304010000)),
++        ("20250000", Some(20241231010000)),
++        ("20250101999999", Some(20250205044039)),
++        ("2025-01-02", Some(20250101010000)),
++        ("20250101-1-1-1", Some(20250131225859)),
++        ("19691201000000", None),
++        ("-0010101", Some(-9_798_990_000)),
++        ("2025010112", Some(20250201010000)),
++    ];
++    for (index, (input, expected)) in cases.iter().enumerate() {
++        let xml = alloc::format!("<app><release_date>{input}</release_date></app>");
++        let actual = crate::metadata::parse_app_xml(&xml).map(|entry| entry.release_date);
++        if actual != Ok(*expected) {
++            ogc_system::report(format_args!("FAIL metadata-date {index}: {actual:?}\n"));
++            return -1;
++        }
++        ogc_system::report(format_args!("PASS metadata-date {index}\n"));
++    }
++    0
++}
++
+ fn expect_banner_error() -> Result<(), settings::SettingsIoError> {
+     match settings::save(&expected_settings()) {
+         Err(settings::SettingsIoError::Isfs(-1022)) => Ok(()),
+diff --git a/src/catalog.rs b/src/catalog.rs
+index 589067e..6af352f 100644
+--- a/src/catalog.rs
++++ b/src/catalog.rs
+@@ -333,7 +333,7 @@ mod tests {
+         }
+     }
+ 
+-    fn app(dir: &str, name: Option<&str>, date: Option<u64>, icon: bool) -> AppEntry {
++    fn app(dir: &str, name: Option<&str>, date: Option<i64>, icon: bool) -> AppEntry {
+         AppEntry {
+             directory: dir.into(),
+             kind: AppKind::Elf,
+diff --git a/src/metadata.rs b/src/metadata.rs
+index d39a7cc..00117b5 100644
+--- a/src/metadata.rs
++++ b/src/metadata.rs
+@@ -22,8 +22,8 @@ pub struct AppMetadata {
+     pub version: Option<String>,
+     pub short_description: Option<String>,
+     pub long_description: Option<String>,
+-    /// Reborn-normalized numeric `YYYYMMDDhhmmss` form for comparisons.
+-    pub release_date: Option<u64>,
++    /// Reborn-normalized signed date key for comparisons; zero epoch is absent.
++    pub release_date: Option<i64>,
+     pub sort_id: Option<i32>,
+     pub arguments: Vec<String>,
+     pub ahb_access: bool,
+@@ -228,7 +228,7 @@ fn number(node: &XmlNode, key: &str, fallback: i32) -> i32 {
+         .and_then(|v| v.parse().ok())
+         .unwrap_or(fallback)
+ }
+-fn parse_date(s: &str) -> Option<u64> {
++fn parse_date(s: &str) -> Option<i64> {
+     let mut remaining = s.as_bytes();
+     let mut fields = [0i32; 6];
+     let mut count = 0;
+@@ -259,10 +259,10 @@ fn parse_date(s: &str) -> Option<u64> {
+         } else {
+             month -= 1;
+         }
+-        day += days_in_month(u32::try_from(year).ok()?, month) as i32;
++        day += days_in_month(year, month) as i32;
+     }
+     loop {
+-        let days = days_in_month(u32::try_from(year).ok()?, month) as i32;
++        let days = days_in_month(year, month) as i32;
+         if day <= days {
+             break;
+         }
+@@ -273,18 +273,21 @@ fn parse_date(s: &str) -> Option<u64> {
+             year += 1;
+         }
+     }
+-    let year = u32::try_from(year).ok()?;
+     let day = day as u32;
+     let hour = second_of_day / 3600;
+     let minute = second_of_day / 60 % 60;
+     let second = second_of_day % 60;
++    // Reborn treats a zero time_t as an absent release date.
++    if (year, month, day, second_of_day) == (1970, 1, 1, 0) {
++        return None;
++    }
+     Some(
+-        u64::from(year) * 10_000_000_000
+-            + u64::from(month) * 100_000_000
+-            + u64::from(day) * 1_000_000
+-            + u64::from(hour) * 10_000
+-            + u64::from(minute) * 100
+-            + u64::from(second),
++        i64::from(year) * 10_000_000_000
++            + i64::from(month) * 100_000_000
++            + i64::from(day) * 1_000_000
++            + i64::from(hour) * 10_000
++            + i64::from(minute) * 100
++            + i64::from(second),
+     )
+ }
+ 
+@@ -308,9 +311,11 @@ fn scan_decimal(input: &mut &[u8], width: usize) -> Option<i32> {
+     Some(if negative { -value } else { value })
+ }
+ 
+-fn days_in_month(year: u32, month: u32) -> u32 {
++fn days_in_month(year: i32, month: u32) -> u32 {
+     match month {
+-        2 if year.is_multiple_of(4) && (!year.is_multiple_of(100) || year.is_multiple_of(400)) => {
++        2 if year.rem_euclid(4) == 0
++            && (year.rem_euclid(100) != 0 || year.rem_euclid(400) == 0) =>
++        {
+             29
+         }
+         2 => 28,
+@@ -580,6 +585,13 @@ mod tests {
+         .unwrap();
+         assert_eq!(theme.description.as_ref().unwrap().len(), 64);
+     }
++    #[test]
++    fn release_date_preserves_negative_year_and_zero_epoch_semantics() {
++        assert_eq!(parse_date("-0010101"), Some(-9_798_990_000));
++        assert_eq!(parse_date("19691201000000"), None);
++        assert!(parse_date("-0010101") < parse_date("00000101"));
++    }
++
+     #[test]
+     fn release_date_normalizes_out_of_range_fields_like_reborn() {
+         assert_eq!(parse_date("20241332"), Some(20250304010000));
