@@ -116,8 +116,8 @@ while relocating.
 The browser controller case checks list-page movement, boundary stops, grid
 mode changes, selection identity, grid row movement, and detail memo dragging
 with a seven-entry catalog. It calls the production controller APIs in Dolphin.
-The latest controller acceptance record is
-[`reborn-app-controller-rust-dolphin-2026-11-23-r7`](review/evidence/reborn-app-controller-rust-dolphin-2026-11-23-r7/README.md).
+The latest direct API acceptance record is
+[`reborn-api-controller-rust-dolphin-2026-11-23-r8`](review/evidence/reborn-api-controller-rust-dolphin-2026-11-23-r8/README.md).
 Rendered widget geometry, transition animation, and physical controller
 behavior remain separate checks.
 
