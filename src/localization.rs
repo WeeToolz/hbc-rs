@@ -38,6 +38,11 @@ impl Language {
         localization_catalog::lookup(self, source).unwrap_or_else(|| self.extension_text(source))
     }
 
+    #[cfg(all(target_arch = "powerpc", feature = "emulator-acceptance"))]
+    pub(crate) fn catalog_entries(self) -> &'static [(&'static str, &'static str)] {
+        localization_catalog::entries(self)
+    }
+
     fn extension_text(self, source: &str) -> &str {
         use Language::*;
         match (self, source) {

@@ -16,6 +16,19 @@ pub(super) fn lookup(language: Language, source: &str) -> Option<&'static str> {
         .find_map(|(key, value)| (*key == source).then_some(*value))
 }
 
+#[cfg(all(target_arch = "powerpc", feature = "emulator-acceptance"))]
+pub(super) fn entries(language: Language) -> &'static [(&'static str, &'static str)] {
+    match language {
+        Language::English => &[],
+        Language::Spanish => SPANISH,
+        Language::French => FRENCH,
+        Language::German => GERMAN,
+        Language::Dutch => DUTCH,
+        Language::Italian => ITALIAN,
+        Language::Japanese => JAPANESE,
+    }
+}
+
 const SPANISH: &[(&str, &str)] = &[
     ("no description available", "descripción no disponible"),
     ("Information", "Información"),

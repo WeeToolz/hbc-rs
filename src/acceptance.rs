@@ -3638,6 +3638,30 @@ fn localization_api() -> i32 {
         ogc_system::report(format_args!("FAIL localization API catalog lookup\n"));
         return -1;
     }
+    let mut checked_translations = 0usize;
+    for language in [
+        Language::Spanish,
+        Language::French,
+        Language::German,
+        Language::Dutch,
+        Language::Italian,
+        Language::Japanese,
+    ] {
+        for (source, expected) in language.catalog_entries() {
+            if language.text(source) != *expected {
+                ogc_system::report(format_args!(
+                    "FAIL localization API catalog entry for {:?}: {}\n",
+                    language, source
+                ));
+                return -2;
+            }
+            checked_translations += 1;
+        }
+    }
+    if checked_translations == 0 {
+        ogc_system::report(format_args!("FAIL localization API empty catalogs\n"));
+        return -3;
+    }
     let plain = Language::English.received_zip_confirmation("demo", 2048, false);
     let overwrite = Language::German.received_zip_confirmation("demo", 1024 * 1024, true);
     if !plain.contains("2 KB of free space")
@@ -3650,7 +3674,8 @@ fn localization_api() -> i32 {
         return -1;
     }
     ogc_system::report(format_args!(
-        "PASS localization API selection, catalog and ZIP text\n"
+        "PASS localization API selection, {} catalog translations and ZIP text\n",
+        checked_translations
     ));
     0
 }

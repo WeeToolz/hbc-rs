@@ -83,6 +83,17 @@ def render() -> str:
     for stem, language in LANGUAGES.items():
         lines.append(f"        Language::{language} => {stem.upper()},")
     lines.extend(["    };", "    catalog.iter().find_map(|(key, value)| (*key == source).then_some(*value))", "}", ""])
+    lines.extend(
+        [
+            '#[cfg(all(target_arch = "powerpc", feature = "emulator-acceptance"))]',
+            "pub(super) fn entries(language: Language) -> &'static [(&'static str, &'static str)] {",
+            "    match language {",
+            "        Language::English => &[],",
+        ]
+    )
+    for stem, language in LANGUAGES.items():
+        lines.append(f"        Language::{language} => {stem.upper()},")
+    lines.extend(["    }", "}", ""])
     for stem, language in LANGUAGES.items():
         catalog = catalogs[language]
         lines.append(f"const {stem.upper()}: &[(&str, &str)] = &[")

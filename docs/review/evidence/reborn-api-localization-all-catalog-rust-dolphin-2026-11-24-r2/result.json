@@ -1,0 +1,15 @@
+{
+  "sha256": "b81cc2e6e35e6eb214d70a6cf09eb66a3f78f4285595c74fbf90501b09700001",
+  "dolphin_arch": "x86_64",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-74g8ukfw",
+  "sd_fixture": null,
+  "theme_fixture": null,
+  "cases": [
+    {
+      "case": "localization-api",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}
