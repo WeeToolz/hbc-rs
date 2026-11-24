@@ -2756,11 +2756,12 @@ fn wii_startup_theme_api() -> i32 {
 }
 
 fn metadata_theme() -> i32 {
-    let xml = "<theme><description> first <b>nested</b>last</description><font_color><red>  +4tail</red><green>5</green><blue>6</blue><alpha>255</alpha></font_color><font><file> font.ttf </file></font><font target='appname'><size>12px</size></font><font target='appname'><color><red>255tail</red><green>0</green><blue>7x</blue><alpha>255</alpha></color></font><font target='APPNAME'><size>20</size></font></theme>";
+    let xml = "<theme langs='ja, zh'><description> first <b>nested</b>last</description><font_color><red>  +4tail</red><green>5</green><blue>6</blue><alpha>255</alpha></font_color><font><file> font.ttf </file></font><font target='appname'><size>12px</size></font><font target='appname'><color><red>255tail</red><green>0</green><blue>7x</blue><alpha>255</alpha></color></font><font target='APPNAME'><size>20</size></font></theme>";
     let Ok(theme) = crate::metadata::parse_theme_xml(xml) else {
         return -1;
     };
     if theme.default_font.color != Some(crate::metadata::Rgba(4, 5, 6, 255))
+        || theme.languages != ["ja"]
         || theme.description.as_deref() != Some(" first ")
         || theme.default_font.file.as_deref() != Some(" font.ttf ")
         || theme.fonts.len() != 1

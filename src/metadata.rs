@@ -198,13 +198,7 @@ pub fn parse_theme_xml(xml: &str) -> Result<ThemeMetadata, String> {
     let node = root.find("theme").ok_or("missing theme element")?;
     let mut theme = ThemeMetadata::default();
     if let Some(langs) = node.attrs.get("langs") {
-        theme.languages = langs
-            .split(|c: char| c == ',' || c.is_whitespace())
-            .filter(|s| matches!(*s, "ja" | "ko" | "zh"))
-            .map(str::to_owned)
-            .collect();
-        theme.languages.sort();
-        theme.languages.dedup();
+        theme.languages = parse_theme_languages(langs);
     }
     theme.description = node
         .raw_text("description")
@@ -273,6 +267,28 @@ pub fn parse_theme_xml(xml: &str) -> Result<ThemeMetadata, String> {
         }
     }
     Ok(theme)
+}
+
+fn parse_theme_languages(value: &str) -> Vec<String> {
+    let first = value.trim_start_matches([',', ' ']);
+    let (first_token, remaining) = first.find([',', ' ']).map_or((first, None), |separator| {
+        (&first[..separator], Some(&first[separator + 1..]))
+    });
+    let mut languages = alloc::vec::Vec::new();
+    if matches!(first_token, "ja" | "ko" | "zh") {
+        languages.push(first_token.to_owned());
+    }
+    if let Some(remaining) = remaining {
+        languages.extend(
+            remaining
+                .split(',')
+                .filter(|token| matches!(*token, "ja" | "ko" | "zh"))
+                .map(str::to_owned),
+        );
+    }
+    languages.sort();
+    languages.dedup();
+    languages
 }
 
 fn parse_color(node: &XmlNode) -> Option<Rgba> {
@@ -730,7 +746,9 @@ mod tests {
         assert_eq!(u.date, Some(123));
         assert_eq!(u.hash.as_deref(), Some("x"));
         let t=parse_theme_xml("<theme langs='ja, zh'><description>Demo</description><font_color><red>1</red><green>2</green><blue>3</blue><alpha>255</alpha></font_color></theme>").unwrap();
-        assert_eq!(t.languages, ["ja", "zh"]);
+        assert_eq!(t.languages, ["ja"]);
+        let leading_space = parse_theme_xml("<theme langs=' ja,zh' />").unwrap();
+        assert_eq!(leading_space.languages, ["ja", "zh"]);
         assert_eq!(t.default_font.color, Some(Rgba(1, 2, 3, 255)));
         let base = parse_theme_xml("<theme><font_color><red>1</red><green>2</green><blue>3</blue><alpha>255</alpha></font_color><font><file>theme.ttf</file><size>14</size><color><red>9</red><green>8</green><blue>7</blue><alpha>6</alpha></color></font><font target='appname'><size>10</size></font></theme>").unwrap();
         assert_eq!(base.default_font.file.as_deref(), Some("theme.ttf"));
