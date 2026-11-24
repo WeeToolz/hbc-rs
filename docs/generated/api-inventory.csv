@@ -363,10 +363,10 @@ hbc_rs::render::Rect::intersect,src/render.rs,70,extension,HBC-API-EXT-RENDER-PR
 hbc_rs::render::Rect::is_valid,src/render.rs,54,extension,HBC-API-EXT-RENDER-PRIMITIVES-01,not_applicable,Rust Rect geometry helpers and the opaque RGB constructor are Rust drawing primitives without matching public C HBC APIs
 hbc_rs::render::Rect::right,src/render.rs,62,extension,HBC-API-EXT-RENDER-PRIMITIVES-01,not_applicable,Rust Rect geometry helpers and the opaque RGB constructor are Rust drawing primitives without matching public C HBC APIs
 hbc_rs::render::browser_frame,src/render.rs,1021,partial,HBC-API-BROWSER-HITS-01;HBC-API-OPTIONS-FRAME-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
-hbc_rs::render::browser_frame_with_language,src/render.rs,1051,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::render::browser_frame_with_theme,src/render.rs,1026,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::render::browser_frame_with_viewport,src/render.rs,1035,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::render::map_rect,src/render.rs,1931,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::render::browser_frame_with_language,src/render.rs,1051,partial,HBC-API-RENDER-FRAME-LANGUAGE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::render::browser_frame_with_theme,src/render.rs,1026,partial,HBC-API-RENDER-FRAME-THEME-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::render::browser_frame_with_viewport,src/render.rs,1035,partial,HBC-API-RENDER-FRAME-VIEWPORT-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::render::map_rect,src/render.rs,1931,partial,HBC-API-RENDER-MAP-RECT-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::runtime::AppRuntime::apply_theme,src/runtime.rs,150,partial,HBC-API-RUNTIME-THEME-SET-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::runtime::AppRuntime::catalog,src/runtime.rs,138,partial,HBC-API-RUNTIME-CATALOG-GET-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::runtime::AppRuntime::clear_network_config,src/runtime.rs,134,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API

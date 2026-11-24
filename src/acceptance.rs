@@ -61,6 +61,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"text-layout-api" {
         return text_layout_api();
     }
+    if case == b"render-frame-api" {
+        return render_frame_api();
+    }
     if case == b"metadata-theme" {
         return metadata_theme();
     }
@@ -1478,6 +1481,98 @@ fn text_layout_api() -> i32 {
 
     ogc_system::report(format_args!(
         "PASS text layout measurement, wrapping and scroll boundaries\n"
+    ));
+    0
+}
+
+fn render_frame_api() -> i32 {
+    use crate::{
+        app::{AppController, Input, PointerTarget},
+        catalog::{AppEntry, AppKind},
+        localization::Language,
+        metadata::{Rgba, ThemeFont, ThemeMetadata},
+        render::{
+            Color, Rect, browser_frame_with_language, browser_frame_with_theme,
+            browser_frame_with_viewport, map_rect,
+        },
+    };
+
+    let catalog = [AppEntry {
+        directory: String::from("frame-api"),
+        kind: AppKind::Dol,
+        size: 1,
+        has_icon: false,
+        metadata: None,
+    }];
+    let controller = AppController::new();
+    let standard = browser_frame_with_viewport(&controller, &catalog, None, 640);
+    let wide = browser_frame_with_viewport(&controller, &catalog, None, 852);
+    if standard.logical_width() != 640
+        || wide.logical_width() != 852
+        || !standard
+            .hit_targets
+            .iter()
+            .any(|hit| hit.target == PointerTarget::App(0))
+        || !wide
+            .hit_targets
+            .iter()
+            .any(|hit| hit.target == PointerTarget::App(0))
+    {
+        ogc_system::report(format_args!("FAIL render frame viewport API\n"));
+        return -1;
+    }
+
+    let theme = ThemeMetadata {
+        default_font: ThemeFont {
+            color: Some(Rgba(20, 40, 60, 255)),
+            ..ThemeFont::default()
+        },
+        ..ThemeMetadata::default()
+    };
+    let themed = browser_frame_with_theme(&controller, &catalog, Some(&theme));
+    if !themed
+        .text_runs
+        .iter()
+        .any(|run| run.color == Color::rgb(20, 40, 60))
+    {
+        ogc_system::report(format_args!("FAIL render frame theme API\n"));
+        return -2;
+    }
+
+    let mut options = AppController::new();
+    options.handle(Input::OpenOptions, &catalog);
+    let localized = browser_frame_with_language(&options, &catalog, None, 640, Language::German);
+    if !localized
+        .text_runs
+        .iter()
+        .any(|run| run.value == "Einstellungen")
+    {
+        ogc_system::report(format_args!("FAIL render frame language API\n"));
+        return -3;
+    }
+
+    if map_rect(
+        Rect {
+            x: -10.0,
+            y: 20.0,
+            width: 40.0,
+            height: 30.0,
+        },
+        640,
+        480,
+        852,
+        480,
+    )
+    .map(|rect| [rect.x, rect.y, rect.width, rect.height])
+        != Some([0.0, 20.0, 39.9375, 30.0])
+        || map_rect(Rect::default(), 640, 480, 0, 480).is_some()
+    {
+        ogc_system::report(format_args!("FAIL render frame rectangle mapping\n"));
+        return -4;
+    }
+
+    ogc_system::report(format_args!(
+        "PASS render frame viewport, theme, language and mapping APIs\n"
     ));
     0
 }
