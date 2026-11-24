@@ -966,7 +966,8 @@ fn read_exact(
                     .store(offset as u32, Ordering::Release);
             }
             idle_polls = 0;
-        } else if read < 0 && !socket_would_block(read) {
+        } else if !socket_would_block(read) {
+            // Zero means the peer closed its write side before the body ended.
             return Err(ReceiveError::Invalid);
         } else {
             idle_polls += 1;

@@ -43,6 +43,7 @@ def main():
     parser.add_argument("--control", action="store_true", help="also test the direct terminal command service")
     parser.add_argument("--reborn-keys", action="store_true", help="check Reborn HBCK replies")
     parser.add_argument("--reborn-key-transitions", action="store_true", help="check HBCK screen transitions in a diagnostic build")
+    parser.add_argument("--reborn-key-eof", action="store_true", help="check an interrupted HBCK body")
     parser.add_argument("--nand", type=Path, required=True, help="Source NAND; only a private copy is used")
     parser.add_argument("--dolphin", type=Path, required=True, help="Dolphin executable")
     parser.add_argument("--output", type=Path, required=True, help="New result directory, including its private profile")
@@ -88,6 +89,20 @@ def main():
             if "panic" in text.lower(): raise RuntimeError("guest panic during startup")
             time.sleep(.25)
         else: raise RuntimeError("guest listener did not become ready")
+        if args.reborn_key_eof:
+            with socket.create_connection((args.host, 4299), timeout=5) as connection:
+                connection.settimeout(3)
+                connection.sendall(b"HBCK\0\x02".ljust(16, b"\0") + b"h")
+                connection.shutdown(socket.SHUT_WR)
+                reply = bytearray()
+                while len(reply) < 8:
+                    chunk = connection.recv(8 - len(reply))
+                    if not chunk:
+                        raise RuntimeError("truncated HBCK error reply")
+                    reply.extend(chunk)
+                if bytes(reply) != (-22).to_bytes(4, "big", signed=True) + bytes(4):
+                    raise RuntimeError(f"unexpected HBCK error reply: {reply!r}")
+            print("Interrupted HBCK body rejected without delaying the listener", flush=True)
         if args.reborn_key_transitions:
             def send_keys(payload):
                 packet = (b"HBCK" + len(payload).to_bytes(2, "big")).ljust(16, b"\0") + payload
