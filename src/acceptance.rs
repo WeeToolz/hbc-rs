@@ -88,6 +88,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"home-overlay-app-api" {
         return home_overlay_app_api();
     }
+    if case == b"network-restart-api" {
+        return network_restart_api();
+    }
     if case == b"app-notice-api" {
         return app_notice_api();
     }
@@ -2043,6 +2046,81 @@ fn home_overlay_app_api() -> i32 {
     }
     ogc_system::report(format_args!(
         "PASS app HOME overlay API defaults, slots, input, drawing, actions and confirmation\n"
+    ));
+    0
+}
+
+fn network_restart_api() -> i32 {
+    use crate::{
+        platform::network_restart::{
+            ConnectionCheck, ConnectionError, StopError, StopWorkRestartResult, stop_work_restart,
+        },
+        wiiload::ReceiverStatus,
+    };
+
+    let check = ConnectionCheck::new(100);
+    if check.poll(ReceiverStatus::Starting, None, 10_000).is_some()
+        || check
+            .poll(ReceiverStatus::Listening, None, 60_099)
+            .is_some()
+        || check.poll(ReceiverStatus::Listening, Some([192, 168, 1, 8]), 101)
+            != Some(Ok([192, 168, 1, 8]))
+        || check.poll(ReceiverStatus::Stopped, None, 101)
+            != Some(Err(ConnectionError::Receiver(ReceiverStatus::Stopped)))
+        || check.poll(ReceiverStatus::Starting, None, 60_100) != Some(Err(ConnectionError::Timeout))
+    {
+        ogc_system::report(format_args!("FAIL network restart connection check\n"));
+        return -1;
+    }
+
+    let calls = core::cell::RefCell::new(Vec::new());
+    let pending = stop_work_restart(
+        ReceiverStatus::PayloadReady,
+        || {
+            calls.borrow_mut().push("stop");
+            Ok::<(), i32>(())
+        },
+        || {
+            calls.borrow_mut().push("work");
+            Ok::<(), i32>(())
+        },
+        || {
+            calls.borrow_mut().push("start");
+            Ok::<(), i32>(())
+        },
+    );
+    if pending != Err(StopError::UploadPending) || !calls.borrow().is_empty() {
+        ogc_system::report(format_args!("FAIL network restart upload guard\n"));
+        return -2;
+    }
+
+    let stopped = stop_work_restart(
+        ReceiverStatus::Listening,
+        || {
+            calls.borrow_mut().push("stop");
+            Ok::<(), i32>(())
+        },
+        || {
+            calls.borrow_mut().push("work");
+            Err::<(), i32>(-7)
+        },
+        || {
+            calls.borrow_mut().push("start");
+            Ok::<(), i32>(())
+        },
+    );
+    if stopped
+        != Ok(StopWorkRestartResult {
+            work: Err(-7),
+            restart: Ok(()),
+        })
+        || *calls.borrow() != ["stop", "work", "start"]
+    {
+        ogc_system::report(format_args!("FAIL network restart work ordering\n"));
+        return -3;
+    }
+    ogc_system::report(format_args!(
+        "PASS network restart connection, upload guard and work ordering\n"
     ));
     0
 }
