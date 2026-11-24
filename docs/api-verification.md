@@ -30,9 +30,12 @@ infer either state from a build, source review, or a broad subsystem test.
 row explicitly marks as Rust-only with one or more exact `api_prefix=` scope
 entries. These APIs remain listed, but they do not count as C parity work. Do
 not add a prefix unless the named APIs have no matching C HBC contract.
-The network profile extension scope includes its virtual keyboard accessors
-and the controller operation that clears an edited profile; Reborn has no
-network editor or virtual keyboard API.
+The network profile extension scope includes its storage APIs, virtual keyboard
+accessors, and the controller operation that clears an edited profile. The
+wireless scan extension scope includes the platform scan API, its error message,
+and controller state. Reborn has no network editor, virtual keyboard, or
+wireless scan API. Physical network profile storage and wireless scanning remain
+pending as recorded in HBC-EXT-01 and HBC-EXT-02.
 
 API-specific runtime evidence includes 17 `parse_app_xml` date cases and 8
 `parse_update_xml` date cases compared with an independent C-runtime probe in

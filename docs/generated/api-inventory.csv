@@ -29,7 +29,7 @@ hbc_rs::app::AppController::network_encryption,src/app.rs,707,extension,HBC-API-
 hbc_rs::app::AppController::network_focus,src/app.rs,711,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
 hbc_rs::app::AppController::network_key,src/app.rs,699,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
 hbc_rs::app::AppController::network_key_visible,src/app.rs,703,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
-hbc_rs::app::AppController::network_scan_focus,src/app.rs,804,extension,HBC-API-EXT-SCAN-01,not_applicable,Rust wireless scan controller APIs have no matching C HBC API
+hbc_rs::app::AppController::network_scan_focus,src/app.rs,804,extension,HBC-API-EXT-SCAN-01,not_applicable,Rust wireless scan APIs and controller state have no matching C HBC API
 hbc_rs::app::AppController::network_ssid,src/app.rs,695,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
 hbc_rs::app::AppController::new,src/app.rs,322,partial,HBC-API-APP-NEW-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::notice,src/app.rs,606,partial,HBC-API-NOTICE-GET-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
@@ -47,7 +47,7 @@ hbc_rs::app::AppController::pointer_target,src/app.rs,845,partial,HBC-API-APP-PO
 hbc_rs::app::AppController::preferred_device,src/app.rs,683,partial,HBC-API-OPTIONS-PREFERRED-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::reconcile_catalog,src/app.rs,891,partial,HBC-API-APP-RECONCILE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::request_wiiload_zip_confirmation,src/app.rs,352,partial,HBC-API-WIILOAD-CONFIRM-REQUEST-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
-hbc_rs::app::AppController::scanned_networks,src/app.rs,800,extension,HBC-API-EXT-SCAN-01,not_applicable,Rust wireless scan controller APIs have no matching C HBC API
+hbc_rs::app::AppController::scanned_networks,src/app.rs,800,extension,HBC-API-EXT-SCAN-01,not_applicable,Rust wireless scan APIs and controller state have no matching C HBC API
 hbc_rs::app::AppController::scroll_active_memo_by_stick,src/app.rs,469,partial,HBC-API-APP-STICK-MEMO-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::scroll_detail_by_stick,src/app.rs,465,partial,HBC-API-APP-STICK-DETAIL-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::selected_index,src/app.rs,331,partial,HBC-API-APP-SELECTED-INDEX-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
@@ -62,7 +62,7 @@ hbc_rs::app::AppController::set_measured_memo,src/app.rs,528,partial,HBC-API-APP
 hbc_rs::app::AppController::set_network_config,src/app.rs,772,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
 hbc_rs::app::AppController::set_operation_progress,src/app.rs,428,partial,HBC-API-WIILOAD-PROGRESS-SET-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::set_preferred_device,src/app.rs,857,partial,HBC-API-OPTIONS-PREFERRED-SET-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
-hbc_rs::app::AppController::set_scanned_networks,src/app.rs,794,extension,HBC-API-EXT-SCAN-01,not_applicable,Rust wireless scan controller APIs have no matching C HBC API
+hbc_rs::app::AppController::set_scanned_networks,src/app.rs,794,extension,HBC-API-EXT-SCAN-01,not_applicable,Rust wireless scan APIs and controller state have no matching C HBC API
 hbc_rs::app::AppController::set_wiiload_confirmation_text,src/app.rs,378,partial,HBC-API-WIILOAD-CONFIRM-TEXT-SET-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::set_wiiload_install_progress,src/app.rs,424,partial,HBC-API-WIILOAD-INSTALL-PROGRESS-SET-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::show_executable_loading,src/app.rs,413,partial,HBC-API-EXEC-LOAD-SHOW-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
@@ -227,18 +227,18 @@ hbc_rs::platform::lifecycle::run_handoff_cleanup,src/platform/lifecycle.rs,161,p
 hbc_rs::platform::lifecycle::take_debugger_break,src/platform/lifecycle.rs,115,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::lifecycle::take_ready_exit,src/platform/lifecycle.rs,125,partial,HBC-API-TAKE-READY-EXIT-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::platform::lifecycle::take_request,src/platform/lifecycle.rs,191,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::platform::network_config::load,src/platform/network_config.rs,184,extension,HBC-API-EXT-NETCFG-OPS-01,not_applicable,"Rust network profile loading, no-backup save, and error formatting have no matching C HBC API"
-hbc_rs::platform::network_config::save,src/platform/network_config.rs,232,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::platform::network_config::save_error_message,src/platform/network_config.rs,79,extension,HBC-API-EXT-NETCFG-OPS-01,not_applicable,"Rust network profile loading, no-backup save, and error formatting have no matching C HBC API"
-hbc_rs::platform::network_config::save_without_backup,src/platform/network_config.rs,246,extension,HBC-API-EXT-NETCFG-OPS-01,not_applicable,"Rust network profile loading, no-backup save, and error formatting have no matching C HBC API"
+hbc_rs::platform::network_config::load,src/platform/network_config.rs,184,extension,HBC-API-EXT-NETCFG-OPS-01,not_applicable,"Rust network profile load, backed-up and no-backup save, and error formatting have no matching C HBC API"
+hbc_rs::platform::network_config::save,src/platform/network_config.rs,232,extension,HBC-API-EXT-NETCFG-OPS-01,not_applicable,"Rust network profile load, backed-up and no-backup save, and error formatting have no matching C HBC API"
+hbc_rs::platform::network_config::save_error_message,src/platform/network_config.rs,79,extension,HBC-API-EXT-NETCFG-OPS-01,not_applicable,"Rust network profile load, backed-up and no-backup save, and error formatting have no matching C HBC API"
+hbc_rs::platform::network_config::save_without_backup,src/platform/network_config.rs,246,extension,HBC-API-EXT-NETCFG-OPS-01,not_applicable,"Rust network profile load, backed-up and no-backup save, and error formatting have no matching C HBC API"
 hbc_rs::platform::network_restart::ConnectionCheck::new,src/platform/network_restart.rs,46,partial,HBC-API-NETWORK-CHECK-NEW-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::platform::network_restart::ConnectionCheck::poll,src/platform/network_restart.rs,51,partial,HBC-API-NETWORK-CHECK-POLL-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::platform::network_restart::now_ms,src/platform/network_restart.rs,118,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::network_restart::restart,src/platform/network_restart.rs,129,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::network_restart::start,src/platform/network_restart.rs,123,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::network_restart::stop_work_restart,src/platform/network_restart.rs,102,extension,HBC-API-EXT-NETWORK-WORK-01,not_applicable,Rust safety helper orders work between receiver stop and restart and blocks while upload data is pending
-hbc_rs::platform::network_scan::ScanError::user_message,src/platform/network_scan.rs,15,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::platform::network_scan::scan,src/platform/network_scan.rs,47,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::platform::network_scan::ScanError::user_message,src/platform/network_scan.rs,15,extension,HBC-API-EXT-SCAN-01,not_applicable,Rust wireless scan APIs and controller state have no matching C HBC API
+hbc_rs::platform::network_scan::scan,src/platform/network_scan.rs,47,extension,HBC-API-EXT-SCAN-01,not_applicable,Rust wireless scan APIs and controller state have no matching C HBC API
 hbc_rs::platform::renderer::draw_frame,src/platform/renderer.rs,61,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::renderer::layout_memos,src/platform/renderer.rs,36,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::settings::load,src/platform/settings.rs,272,partial,HBC-API-SETTINGS-NAND-LOAD-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
@@ -391,7 +391,7 @@ hbc_rs::runtime::AppRuntime::set_measured_memo,src/runtime.rs,63,partial,HBC-API
 hbc_rs::runtime::AppRuntime::set_network_config,src/runtime.rs,111,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
 hbc_rs::runtime::AppRuntime::set_operation_progress,src/runtime.rs,99,partial,HBC-API-RUNTIME-WIILOAD-PROGRESS-SET-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::runtime::AppRuntime::set_preferred_device,src/runtime.rs,187,partial,HBC-API-RUNTIME-PREFERRED-DEVICE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
-hbc_rs::runtime::AppRuntime::set_scanned_networks,src/runtime.rs,120,extension,HBC-API-EXT-SCAN-01,not_applicable,Rust wireless scan controller APIs have no matching C HBC API
+hbc_rs::runtime::AppRuntime::set_scanned_networks,src/runtime.rs,120,extension,HBC-API-EXT-SCAN-01,not_applicable,Rust wireless scan APIs and controller state have no matching C HBC API
 hbc_rs::runtime::AppRuntime::set_settings_persistence_enabled,src/runtime.rs,220,extension,HBC-API-EXT-RUNTIME-SETTINGS-PERSISTENCE-01,not_applicable,Rust records settings load validity and disables later writes after an unreadable settings file to avoid overwriting user data
 hbc_rs::runtime::AppRuntime::set_widescreen,src/runtime.rs,182,partial,HBC-API-RUNTIME-WIDESCREEN-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::runtime::AppRuntime::set_wiiload_confirmation_text,src/runtime.rs,71,partial,HBC-API-RUNTIME-WIILOAD-TEXT-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
