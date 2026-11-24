@@ -58,6 +58,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"runtime-measured-memo-api" {
         return runtime_measured_memo_api();
     }
+    if case == b"text-layout-api" {
+        return text_layout_api();
+    }
     if case == b"metadata-theme" {
         return metadata_theme();
     }
@@ -1406,6 +1409,75 @@ fn runtime_measured_memo_api() -> i32 {
 
     ogc_system::report(format_args!(
         "PASS runtime measured memo line height and scroll bound\n"
+    ));
+    0
+}
+
+fn text_layout_api() -> i32 {
+    use crate::text_layout::{MemoSpec, layout_memo, wrap_lines, wrap_memo_lines};
+
+    let measure = |value: &str| {
+        value
+            .chars()
+            .map(|character| match character {
+                'W' => 10.0,
+                'i' => 2.0,
+                _ => 3.0,
+            })
+            .sum::<f32>()
+    };
+    let spec = MemoSpec {
+        width: 27.0,
+        height: 20.0,
+        scroll: 0,
+    };
+    let memo = match layout_memo("WW ii WW\n\nWWWW", spec, 10.0, measure) {
+        Ok(memo) => memo,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL text layout measured memo {error:?}\n"));
+            return -1;
+        }
+    };
+    if memo.lines != ["WW ii", "WW"] || memo.max_scroll != 3 || memo.line_height != 10.0 {
+        ogc_system::report(format_args!("FAIL text layout measured rows\n"));
+        return -2;
+    }
+    let end = match layout_memo(
+        "WW ii WW\n\nWWWW",
+        MemoSpec {
+            scroll: 999,
+            ..spec
+        },
+        10.0,
+        measure,
+    ) {
+        Ok(memo) => memo,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL text layout end scroll {error:?}\n"));
+            return -3;
+        }
+    };
+    if end.lines != ["WW", "WW"]
+        || layout_memo("text", MemoSpec { width: 0.0, ..spec }, 10.0, measure)
+            != Err(crate::font::FontError::InvalidSize)
+    {
+        ogc_system::report(format_args!("FAIL text layout end bounds\n"));
+        return -4;
+    }
+
+    if wrap_lines("one two three", 7) != ["one two", "three"]
+        || wrap_lines("abcdefgh", 3) != ["abc", "def", "gh"]
+        || !wrap_lines("text", 0).is_empty()
+        || wrap_memo_lines("First paragraph\n\nSecond paragraph", 40)
+            != ["First paragraph", "", "Second paragraph"]
+        || wrap_memo_lines("\n", 40) != ["", ""]
+    {
+        ogc_system::report(format_args!("FAIL text layout wrapping boundaries\n"));
+        return -5;
+    }
+
+    ogc_system::report(format_args!(
+        "PASS text layout measurement, wrapping and scroll boundaries\n"
     ));
     0
 }
