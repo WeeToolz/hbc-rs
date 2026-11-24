@@ -124,7 +124,7 @@ def main():
     parser.add_argument('--elf', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--debug-port', type=int, default=55287)
-    parser.add_argument('--cases', nargs='+', choices=['launch-dol', 'launch-elf', 'settings', 'theme-storage-api', 'settings-state', 'wiiload-header', 'wiiload-policy', 'wiiload-zip', 'wiiload-controller', 'metadata-date', 'metadata-update', 'metadata-settings', 'metadata-theme', 'metadata-app', 'catalog', 'theme-package', 'theme-textures-api', 'archive-api', 'png-api', 'management-api', 'font-api', 'localization-api', 'overlay-control-api', 'app-notice-api', 'about-api', 'loader-helpers', 'app-controller', 'main-menu-api', 'executable-loading-api', 'detail-focus-api', 'catalog-reconcile-api', 'storage-volumes', 'device-availability-api', 'app-deletion', 'input-policy', 'input-mapping', 'render-hit-test', 'disc-stop'], default=['launch-dol', 'launch-elf', 'settings'])
+    parser.add_argument('--cases', nargs='+', choices=['launch-dol', 'launch-elf', 'settings', 'theme-storage-api', 'playtime-reset-api', 'settings-state', 'wiiload-header', 'wiiload-policy', 'wiiload-zip', 'wiiload-controller', 'metadata-date', 'metadata-update', 'metadata-settings', 'metadata-theme', 'metadata-app', 'catalog', 'theme-package', 'theme-textures-api', 'archive-api', 'png-api', 'management-api', 'font-api', 'localization-api', 'overlay-control-api', 'app-notice-api', 'about-api', 'loader-helpers', 'app-controller', 'main-menu-api', 'executable-loading-api', 'detail-focus-api', 'catalog-reconcile-api', 'storage-volumes', 'device-availability-api', 'app-deletion', 'input-policy', 'input-mapping', 'render-hit-test', 'disc-stop'], default=['launch-dol', 'launch-elf', 'settings'])
     parser.add_argument('--sdk-root', type=Path, default=Path(__file__).resolve().parents[2] / 'libogc-rs')
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=False)
@@ -136,7 +136,7 @@ def main():
     if manifest['development'] or manifest['target'] != 'emulator-acceptance':
         raise RuntimeError('Use the normal emulator-acceptance test binary')
     profile = Path(tempfile.mkdtemp(prefix='hbc-production-acceptance-', dir=TEMP_ROOT))
-    if any(case in ('settings', 'theme-storage-api') for case in args.cases):
+    if any(case in ('settings', 'theme-storage-api', 'playtime-reset-api') for case in args.cases):
         shutil.copytree(Path.home() / 'Library/Application Support/Dolphin/Wii', profile / 'Wii')
     else:
         (profile / 'Wii').mkdir()
@@ -145,6 +145,20 @@ def main():
     write_dolphin_config(config, '[Core]\nCPUThread=False\nWiiSDCard=False\n[Interface]\nConfirmStop=False\nUsePanicHandlers=False\n')
     results = []
     for case in args.cases:
+        if case == 'playtime-reset-api':
+            record = profile / 'Wii/title/00000001/00000002/data/play_rec.dat'
+            before = record.read_bytes()
+            if len(before) < 4 or not any(before[:4]):
+                raise RuntimeError('Playtime fixture must have a nonzero four-byte prefix')
+            result = run_case(args.dol.resolve(), names, profile, args.output, case, args.debug_port)
+            if result['success']:
+                after = record.read_bytes()
+                if len(after) != len(before) or after[:4] != bytes(4) or after[4:] != before[4:]:
+                    result.update(success=False, error='Reset did not clear only the committed four-byte prefix')
+                else:
+                    result['playtime_prefix_reset'] = True
+            results.append(result)
+            continue
         if case != 'settings':
             results.append(run_case(args.dol.resolve(), names, profile, args.output, case, args.debug_port))
             continue

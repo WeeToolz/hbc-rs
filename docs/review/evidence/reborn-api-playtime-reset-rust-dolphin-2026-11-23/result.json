@@ -1,0 +1,13 @@
+{
+  "sha256": "f3cec9cf37de5474c054074bf93244076f226cfc927119a9c5f48b74acf1a215",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-lb47a35h",
+  "cases": [
+    {
+      "case": "playtime-reset-api",
+      "success": true,
+      "result": 0,
+      "playtime_prefix_reset": true
+    }
+  ],
+  "success": true
+}

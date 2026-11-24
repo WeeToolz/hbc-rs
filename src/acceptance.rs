@@ -115,6 +115,18 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"device-availability-api" {
         return device_availability_api();
     }
+    if case == b"playtime-reset-api" {
+        return match settings::reset_playtime_record() {
+            Ok(()) => {
+                ogc_system::report(format_args!("PASS playtime reset API\n"));
+                0
+            }
+            Err(error) => {
+                ogc_system::report(format_args!("FAIL playtime reset API {error:?}\n"));
+                -5
+            }
+        };
+    }
     if case == b"app-deletion" {
         return app_deletion();
     }
