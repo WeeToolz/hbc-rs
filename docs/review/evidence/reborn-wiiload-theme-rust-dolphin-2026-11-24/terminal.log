@@ -1,0 +1,7 @@
+Isolated profile: /private/tmp/hbc-rs/wiiload-theme-after-r4/profile
+PASS: Test NAND copied into Dolphin profile
+Received theme applied without a confirmation prompt
+HOME: main-loop input completion received
+Invalid command rejected; release consumed
+Analog/pointer input consumed; receiver still works after hold expiry
+PASS: production socket and main-loop input path in Dolphin; real Wii verification remains required

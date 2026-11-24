@@ -46,7 +46,9 @@ def main():
     parser.add_argument("--reborn-key-transitions", action="store_true", help="check HBCK screen transitions in a diagnostic build")
     parser.add_argument("--reborn-key-eof", action="store_true", help="check an interrupted HBCK body")
     parser.add_argument("--wiiload-eof", action="store_true", help="check interrupted Wiiload reads")
+    parser.add_argument("--wiiload-theme", action="store_true", help="check received theme application")
     parser.add_argument("--nand", type=Path, required=True, help="Source NAND; only a private copy is used")
+    parser.add_argument("--sd-image", type=Path, help="Clone an existing private SD image into the test profile")
     parser.add_argument("--dolphin", type=Path, required=True, help="Dolphin executable")
     parser.add_argument("--output", type=Path, required=True, help="New result directory, including its private profile")
     args = parser.parse_args()
@@ -70,6 +72,12 @@ def main():
         raise RuntimeError("Source NAND network configuration not found")
 
     shutil.copytree(nand, profile / "Wii")
+    if args.sd_image:
+        (profile / "Load").mkdir()
+        subprocess.run(["/bin/cp", "-c", str(args.sd_image.resolve(strict=True)),
+                        str(profile / "Load/WiiSD.raw")], check=True)
+    if args.wiiload_theme:
+        (profile / "Wii/title/00010001/48424345/data").mkdir(parents=True, exist_ok=True)
     print(f"Isolated profile: {profile}", flush=True)
     print("PASS: Test NAND copied into Dolphin profile", flush=True)
     output_log = (args.output / "process.log").open("w")
@@ -91,6 +99,29 @@ def main():
             if "panic" in text.lower(): raise RuntimeError("guest panic during startup")
             time.sleep(.25)
         else: raise RuntimeError("guest listener did not become ready")
+        if args.wiiload_theme:
+            theme = (ROOT / "tests/fixtures/theme-valid.zip").read_bytes()
+            header = b"HAXX\0\x05\0\0" + len(theme).to_bytes(4, "big") + bytes(4)
+            with socket.create_connection((args.host, 4299), timeout=5) as connection:
+                connection.sendall(header + theme)
+            deadline = time.monotonic() + 20
+            while time.monotonic() < deadline:
+                content = log.read_text(errors="replace")
+                if "HBC: received theme applied" in content:
+                    break
+                if "to=WiiloadConfirm" in content:
+                    raise RuntimeError("received theme unexpectedly requested confirmation")
+                if "HBC: received theme failed" in content:
+                    raise RuntimeError("received theme failed to apply")
+                if process.poll() is not None:
+                    raise RuntimeError("Dolphin exited while applying received theme")
+                time.sleep(.1)
+            else:
+                raise RuntimeError("received theme did not finish")
+            saved_theme = profile / "Wii/title/00010001/48424345/data/theme.zip"
+            if not saved_theme.is_file() or saved_theme.read_bytes() != theme:
+                raise RuntimeError("received theme archive did not persist intact")
+            print("Received theme applied without a confirmation prompt", flush=True)
         if args.wiiload_eof:
             header = b"HAXX\0\x05\0\x02\0\0\0\x04\0\0\0\0"
             compressed = zlib.compress(b"A" * 4096)

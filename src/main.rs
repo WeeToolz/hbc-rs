@@ -475,8 +475,20 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                             .show_notice("Could not check the target storage folder."),
                     },
                     Ok(hbc_rs::wiiload_zip::WiiloadZipClassification::Theme { .. }) => {
-                        pending_zip = Some(payload.data);
-                        startup.runtime_mut().request_wiiload_zip_confirmation();
+                        match startup.start_received_zip(payload.data) {
+                            Ok(()) => {
+                                ogc_system::report(format_args!("HBC: received theme applied\n"))
+                            }
+                            Err(error) => {
+                                ogc_system::report(format_args!(
+                                    "HBC: received theme failed: {error:?}\n"
+                                ));
+                                startup.runtime_mut().show_notice_with_kind(
+                                    "Could not apply the received theme.",
+                                    hbc_rs::app::NoticeKind::Error,
+                                );
+                            }
+                        }
                     }
                     Err(_) => startup
                         .runtime_mut()

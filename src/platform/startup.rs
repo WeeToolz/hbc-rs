@@ -589,15 +589,8 @@ impl WiiStartup {
             crate::wiiload_zip::WiiloadZipError::InvalidApp => StartupError::NotExecutable,
         })? {
             WiiloadZipClassification::Theme { package } => {
-                let textures = super::theme::ThemeTextures::load_for_viewport(
-                    Some((&package, &bytes)),
-                    self.widescreen,
-                );
-                super::theme::save(&bytes).map_err(StartupError::ThemeStorage)?;
-                self.apply_theme(PreparedTheme {
-                    metadata: package.metadata,
-                    textures,
-                });
+                let theme = self.prepare_theme_replacement(package, &bytes)?;
+                self.apply_theme(theme);
             }
             WiiloadZipClassification::App {
                 directory,
@@ -1367,14 +1360,22 @@ impl WiiStartup {
             return Err(StartupError::MissingExecutable);
         }
         let package = crate::theme::ThemePackage::parse(&bytes).map_err(StartupError::Theme)?;
-        super::theme::save(&bytes).map_err(StartupError::ThemeStorage)?;
+        self.prepare_theme_replacement(package, &bytes)
+    }
+
+    fn prepare_theme_replacement(
+        &mut self,
+        package: crate::theme::ThemePackage,
+        bytes: &[u8],
+    ) -> Result<PreparedTheme, StartupError> {
+        super::theme::save(bytes).map_err(StartupError::ThemeStorage)?;
         let previous = core::mem::replace(
             &mut self.theme_textures,
             super::theme::ThemeTextures::empty_for_replacement(self.widescreen),
         );
         drop(previous);
         let textures = super::theme::ThemeTextures::load_for_viewport(
-            Some((&package, &bytes)),
+            Some((&package, bytes)),
             self.widescreen,
         );
         Ok(PreparedTheme {

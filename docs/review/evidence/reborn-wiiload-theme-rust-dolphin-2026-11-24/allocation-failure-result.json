@@ -1,0 +1,8 @@
+{
+  "dol_sha256": "3056e40c8b638b07445f2428b4859113cc2c4c0125355a54e9c4beb1c1f4b918",
+  "success": false,
+  "transport": "HBC TCP input protocol",
+  "control": false,
+  "reborn_keys": false,
+  "error": "received theme did not finish"
+}
