@@ -67,6 +67,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"video-platform-api" {
         return video_platform_api();
     }
+    if case == b"renderer-draw-frame-api" {
+        return renderer_draw_frame_api();
+    }
     if case == b"background-animation-api" {
         return background_animation_api();
     }
@@ -2228,6 +2231,67 @@ fn video_platform_api() -> i32 {
     video::shutdown();
     ogc_system::report(format_args!(
         "PASS video, HOME overlay GX chrome, screenshot PNG, EFB capture and presentation\n"
+    ));
+    0
+}
+
+fn renderer_draw_frame_api() -> i32 {
+    use crate::platform::{renderer, theme::ThemeTextures, video};
+
+    let video = match video::initialize(false) {
+        Ok(video) => video,
+        Err(error) => {
+            ogc_system::report(format_args!(
+                "FAIL renderer video initialization {error:?}\n"
+            ));
+            return -1;
+        }
+    };
+    let theme = ThemeTextures::load(None);
+    let background_color = [22, 112, 157, 255];
+    let frame = crate::render::browser_frame(&crate::app::AppController::new(), &[]);
+    if let Err(error) = unsafe { renderer::draw_frame(&video, &frame, &[], &theme) } {
+        video::shutdown();
+        ogc_system::report(format_args!("FAIL production GX frame drawing {error:?}\n"));
+        return -3;
+    };
+    let captured = match video.capture_efb_rgba() {
+        Ok(image) => image,
+        Err(error) => {
+            video::shutdown();
+            ogc_system::report(format_args!("FAIL renderer EFB capture {error:?}\n"));
+            return -4;
+        }
+    };
+    let sample_x = 2usize;
+    let sample_y = 2usize;
+    let actual_offset = (sample_y * captured.width as usize + sample_x) * 4;
+    let actual_pixel = captured.pixels.get(actual_offset..actual_offset + 4);
+    if captured.width != 640 || captured.height != 480 {
+        video::shutdown();
+        ogc_system::report(format_args!("FAIL production GX background dimensions\n"));
+        return -5;
+    }
+    if actual_pixel != Some(&background_color) {
+        let result = actual_pixel
+            .map(|pixel| i32::from_be_bytes([pixel[0], pixel[1], pixel[2], pixel[3]]))
+            .unwrap_or(-5);
+        ogc_system::report(format_args!(
+            "FAIL production GX background pixel expected {background_color:?}, actual {actual_pixel:?}\n"
+        ));
+        video::shutdown();
+        return result;
+    }
+    if let Err(error) = unsafe { video.present() } {
+        video::shutdown();
+        ogc_system::report(format_args!("FAIL renderer frame presentation {error:?}\n"));
+        return -6;
+    }
+    video.wait_vsync();
+    video.show();
+    video::shutdown();
+    ogc_system::report(format_args!(
+        "PASS production GX frame and known background EFB pixel\n"
     ));
     0
 }

@@ -1,0 +1,13 @@
+{
+  "sha256": "7713e49ff0ce92de78e44e409198f63940b1c5b1faccf9ac02e3ec6e02b0b533",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-vcsqk5nm",
+  "cases": [
+    {
+      "case": "renderer-draw-frame-api",
+      "success": false,
+      "result": 4294967291,
+      "error": "Production acceptance failed: 0xfffffffb"
+    }
+  ],
+  "success": false
+}
