@@ -2770,6 +2770,26 @@ fn metadata_app() -> i32 {
         ogc_system::report(format_args!("FAIL metadata-app parsed fields\n"));
         return -1;
     }
+    let cdata_xml = "<app><name>first<b>nested</b>last</name><author><![CDATA[ignored]]></author><coder>fallback</coder><version><![CDATA[ignored]]>visible</version><short_description><!--skip-->first</short_description></app>";
+    let Ok(cdata_metadata) = crate::metadata::parse_app_xml(cdata_xml) else {
+        return -2;
+    };
+    if cdata_metadata.name.as_deref() != Some("first")
+        || cdata_metadata.author.as_deref() != Some("fallback")
+        || cdata_metadata.version.as_deref() != Some("visible")
+        || cdata_metadata.short_description.as_deref() != Some("first")
+    {
+        ogc_system::report(format_args!("FAIL metadata-app first opaque text\n"));
+        return -2;
+    }
+    let Ok(nested_only) = crate::metadata::parse_app_xml("<app><name><b>nested</b></name></app>")
+    else {
+        return -3;
+    };
+    if nested_only.name.is_some() {
+        ogc_system::report(format_args!("FAIL metadata-app nested-only text\n"));
+        return -3;
+    }
     ogc_system::report(format_args!("PASS metadata-app CData and sort prefix\n"));
     0
 }

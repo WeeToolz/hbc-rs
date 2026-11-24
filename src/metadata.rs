@@ -518,7 +518,6 @@ fn parse_xml(input: &str) -> Result<XmlNode, String> {
         }
         if input[pos..].starts_with("<![CDATA[") {
             let end = input[pos + 9..].find("]]>").ok_or("unclosed CDATA")?;
-            append_xml_text(&mut stack, &input[pos + 9..pos + 9 + end])?;
             pos += 9 + end + 3;
             continue;
         }
@@ -589,12 +588,12 @@ fn parse_xml(input: &str) -> Result<XmlNode, String> {
 }
 fn append_xml_text(stack: &mut [XmlNode], text: &str) -> Result<(), String> {
     let current = stack.last_mut().ok_or("invalid XML parser state")?;
-    let new_len = current
-        .text
-        .len()
-        .checked_add(text.len())
-        .ok_or("XML text exceeds limit")?;
-    if new_len > MAX_XML_TEXT_PER_NODE {
+    // Reborn's MXML_OPAQUE_CALLBACK lookup returns the first direct opaque
+    // child. Do not merge text after comments or child elements into it.
+    if !current.text.is_empty() {
+        return Ok(());
+    }
+    if text.len() > MAX_XML_TEXT_PER_NODE {
         return Err("XML text exceeds limit".into());
     }
     current.text.push_str(text);
@@ -702,6 +701,21 @@ mod tests {
         assert_eq!(m.arguments, ["x", "two < three"]);
         assert!(!m.ahb_access);
         assert!(m.no_ios_reload);
+    }
+
+    #[test]
+    fn app_metadata_uses_first_direct_opaque_text_like_reborn() {
+        let metadata = parse_app_xml(
+            "<app><name>first<b>nested</b>last</name><author><![CDATA[ignored]]></author><coder>fallback</coder><version><![CDATA[ignored]]>visible</version><short_description><!--skip-->first</short_description></app>",
+        )
+        .unwrap();
+        assert_eq!(metadata.name.as_deref(), Some("first"));
+        assert_eq!(metadata.author.as_deref(), Some("fallback"));
+        assert_eq!(metadata.version.as_deref(), Some("visible"));
+        assert_eq!(metadata.short_description.as_deref(), Some("first"));
+
+        let nested_only = parse_app_xml("<app><name><b>nested</b></name></app>").unwrap();
+        assert_eq!(nested_only.name, None);
     }
     #[test]
     fn parses_settings_update_and_theme_defaults() {

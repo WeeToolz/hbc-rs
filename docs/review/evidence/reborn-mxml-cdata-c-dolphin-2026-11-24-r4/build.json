@@ -1,0 +1,37 @@
+{
+  "compiler": "/opt/devkitpro/devkitPPC/bin/powerpc-eabi-gcc",
+  "elf2dol": "/opt/devkitpro/tools/bin/elf2dol",
+  "mini_xml_version": "3.3.1",
+  "source_sha256": "b8add12224124edaba0a84c396e1396499239066eb69f301bfa3b9266b7d85cd",
+  "dol_sha256": "9f7789f10184c20f9091166e6420c1eb4d08e8909d28d1f10f61bf561f6f4750",
+  "source_path": "probe.c",
+  "reference_function": "/Volumes/SSD/WiiDev/C-sources/hbc-reborn/channel/channelapp/source/xml.c#_get_cdata",
+  "dolphin_build": "409881c34357d0f105fd473167d15ab0bd9c1628",
+  "working_directory": "/Volumes/SSD/WiiDev/C-sources/hbc-reborn/channel/channelapp",
+  "compile_command": [
+    "/opt/devkitpro/devkitPPC/bin/powerpc-eabi-gcc",
+    "-DGEKKO",
+    "-mrvl",
+    "-mcpu=750",
+    "-meabi",
+    "-mhard-float",
+    "-Os",
+    "-Wall",
+    "-I/opt/devkitpro/libogc/include",
+    "-I/opt/devkitpro/portlibs/ppc/include",
+    "-L/opt/devkitpro/libogc/lib/wii",
+    "-L/opt/devkitpro/portlibs/ppc/lib",
+    "/Volumes/SSD/WiiDev/WeeToolz/hbc-rs/docs/review/evidence/reborn-mxml-cdata-c-dolphin-2026-11-24-r4/probe.c",
+    "-specs=newrvl.spec",
+    "-lmxml",
+    "-logc",
+    "-lm",
+    "-o",
+    "probe.elf"
+  ],
+  "convert_command": [
+    "/opt/devkitpro/tools/bin/elf2dol",
+    "probe.elf",
+    "probe.dol"
+  ]
+}

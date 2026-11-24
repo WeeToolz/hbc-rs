@@ -1,0 +1,23 @@
+{
+  "command": [
+    "/usr/bin/arch",
+    "-x86_64",
+    "/Applications/Dolphin.app/Contents/MacOS/Dolphin",
+    "-b",
+    "-u",
+    "/private/tmp/hbc-rs-mxml-cdata-profile-r4",
+    "-e",
+    "/private/tmp/reborn_mxml_cdata_probe.dol"
+  ],
+  "source_sha256": "b8add12224124edaba0a84c396e1396499239066eb69f301bfa3b9266b7d85cd",
+  "dol_sha256": "9f7789f10184c20f9091166e6420c1eb4d08e8909d28d1f10f61bf561f6f4750",
+  "completion_marker": true,
+  "records": [
+    "22:36:876 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC_CDATA index=0 value=first",
+    "22:36:881 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC_CDATA index=1 value=first",
+    "22:36:882 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC_CDATA index=2 value=<none>",
+    "22:36:884 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC_CDATA index=3 value=last",
+    "22:36:884 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC_CDATA index=4 value=<none>"
+  ],
+  "success": true
+}

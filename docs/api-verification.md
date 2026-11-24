@@ -53,6 +53,15 @@ and [the combined C probe evidence](review/evidence/reborn-metadata-c-dolphin-20
 No physical Wii API result is implied by Dolphin. Hardware checks remain
 separate in the parity ledger.
 
+The `parse_app_xml` check also compares Mini-XML field text with Reborn's
+`_get_cdata` behavior. A direct opaque text node supplies the field value;
+CDATA is skipped, and text after comments or nested elements does not replace
+the first direct value. The independent C and Rust Dolphin records are linked
+from HBC-API-DATE-01. Rust stores metadata arguments as separate values but
+encodes them into the same NUL-separated `__argv.commandLine` byte sequence as
+Reborn. This does not establish behavior for every XML input or app-specific
+argument parser.
+
 The `start_stop` and `shutdown` APIs now have a named Dolphin acceptance case
 for Reborn's `/dev/di` callback chain. It checks open, ioctl `0xe3`, close,
 callback completion, and the drain result. The [direct API record](review/evidence/disc-stop-rust-dolphin-2026-11-22-r8/README.md)
