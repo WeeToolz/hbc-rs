@@ -1,0 +1,13 @@
+{
+  "build_command": "cargo xtask build-dol hbc-rs --bin emulator-acceptance --features emulator-acceptance --manifest-path ../hbc-rs/Cargo.toml --output ../hbc-rs/target/hbc-rs-video-overlay-acceptance.dol",
+  "target": "emulator-acceptance",
+  "target_triple": "powerpc-nintendo-none",
+  "profile": "release",
+  "features": [
+    "emulator-acceptance"
+  ],
+  "dol_bytes": 2511392,
+  "dol_sha256": "d2785a90c15472bfbafd854798aeefe6d2825229428b3cfe91843f2ac90c0aab",
+  "source_revision": "330d086751a0e1741188ac91a521e16174d0daf4",
+  "sdk_revision": "b25827a6c49b8dbe2d6c2f901aadaaec670f86c3"
+}

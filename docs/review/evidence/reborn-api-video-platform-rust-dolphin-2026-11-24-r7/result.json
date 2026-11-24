@@ -1,0 +1,12 @@
+{
+  "sha256": "d2785a90c15472bfbafd854798aeefe6d2825229428b3cfe91843f2ac90c0aab",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-n999qafo",
+  "cases": [
+    {
+      "case": "video-platform-api",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

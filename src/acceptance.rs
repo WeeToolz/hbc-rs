@@ -2107,6 +2107,19 @@ fn video_platform_api() -> i32 {
         ogc_system::report(format_args!("FAIL video texture drawing {error:?}\n"));
         return -5;
     }
+    let mut overlay = crate::home_overlay_app::AppHomeOverlay::default();
+    if overlay.open_programmatically().is_err() {
+        video::shutdown();
+        ogc_system::report(format_args!("FAIL video HOME overlay setup\n"));
+        return -5;
+    }
+    video.configure_2d();
+    video.begin_frame();
+    if let Err(error) = crate::platform::home_overlay::draw_chrome(&video, &overlay) {
+        video::shutdown();
+        ogc_system::report(format_args!("FAIL video HOME overlay drawing {error:?}\n"));
+        return -5;
+    }
     let captured = match video.capture_efb_rgba() {
         Ok(image) => image,
         Err(error) => {
@@ -2143,6 +2156,67 @@ fn video_platform_api() -> i32 {
         ogc_system::report(format_args!("FAIL video EFB texture result\n"));
         return -9;
     }
+    for (name, x, y, expected) in [
+        ("HOME panel", 20usize, 410usize, [16, 22, 35, 255]),
+        ("HOME selection", 440usize, 449usize, [92, 153, 218, 255]),
+    ] {
+        let offset = (y * captured.width as usize + x) * 4;
+        if captured.pixels.get(offset..offset + 4) != Some(&expected[..]) {
+            video::shutdown();
+            ogc_system::report(format_args!("FAIL video {name} EFB pixel\n"));
+            return -9;
+        }
+    }
+
+    let mut save_called = false;
+    if !matches!(
+        crate::platform::home_overlay::capture_and_save_screenshot(&video, false, |_| {
+            save_called = true;
+            Ok::<_, ()>(alloc::string::String::from("unused"))
+        }),
+        Err(crate::platform::home_overlay::ScreenshotActionError::NoStorage)
+    ) || save_called
+    {
+        video::shutdown();
+        ogc_system::report(format_args!("FAIL video screenshot storage guard\n"));
+        return -9;
+    }
+    let mut saved_png = None;
+    let screenshot =
+        crate::platform::home_overlay::capture_and_save_screenshot(&video, true, |bytes| {
+            saved_png = Some(bytes.to_vec());
+            Ok::<_, ()>(alloc::string::String::from("screenshots/acceptance.png"))
+        });
+    if !matches!(screenshot, Ok(ref path) if path == "screenshots/acceptance.png") {
+        video::shutdown();
+        ogc_system::report(format_args!("FAIL video screenshot save result\n"));
+        return -9;
+    }
+    let Some(saved_png) = saved_png else {
+        video::shutdown();
+        ogc_system::report(format_args!("FAIL video screenshot save callback\n"));
+        return -9;
+    };
+    let screenshot = match crate::png::decode_png(&saved_png, crate::png::PngLimits::default()) {
+        Ok(image) => image,
+        Err(error) => {
+            video::shutdown();
+            ogc_system::report(format_args!("FAIL video screenshot PNG {error:?}\n"));
+            return -9;
+        }
+    };
+    let screenshot_panel = (410 * screenshot.width as usize + 20) * 4;
+    if screenshot.width != u32::from(info.width)
+        || screenshot.height != captured.height
+        || screenshot
+            .pixels
+            .get(screenshot_panel..screenshot_panel + 4)
+            != Some(&[16, 22, 35, 255][..])
+    {
+        video::shutdown();
+        ogc_system::report(format_args!("FAIL video screenshot PNG image\n"));
+        return -9;
+    }
 
     if let Err(error) = unsafe { video.present() } {
         video::shutdown();
@@ -2153,7 +2227,7 @@ fn video_platform_api() -> i32 {
     video.show();
     video::shutdown();
     ogc_system::report(format_args!(
-        "PASS video framebuffer, solid and textured GX draw, EFB capture, present and shutdown\n"
+        "PASS video, HOME overlay GX chrome, screenshot PNG, EFB capture and presentation\n"
     ));
     0
 }
