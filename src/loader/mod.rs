@@ -594,6 +594,25 @@ mod tests {
     }
 
     #[test]
+    fn rejects_the_section_header_reported_by_the_wii_load_failure() {
+        let mut dol = vec![0u8; 0x100];
+        // The Wii reported offset 48 and size 48. Keep this malformed input
+        // rejected until the bytes read from the card are independently fixed.
+        put32(&mut dol, 0, 48);
+        put32(&mut dol, 0x48, 0x8000_4000);
+        put32(&mut dol, 0x90, 48);
+        put32(&mut dol, 0xe0, 0x8000_4000);
+        assert_eq!(
+            parse_dol(&dol, None),
+            Err(ParseError::DolHeaderOverlap {
+                section: 0,
+                offset: 48,
+                size: 48,
+            })
+        );
+    }
+
+    #[test]
     fn rejects_short_dol_and_bad_section_ranges() {
         assert_eq!(parse_dol(&[], None), Err(ParseError::Truncated));
         let mut dol = vec![0u8; DOL_HEADER_SIZE];
