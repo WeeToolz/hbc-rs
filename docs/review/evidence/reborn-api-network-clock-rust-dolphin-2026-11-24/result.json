@@ -1,0 +1,12 @@
+{
+  "sha256": "7eb6ef226df109b3d04cad24bb6fc9dc6fadf3e1c43e6ba9b64b1746899efc42",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-xl3jsoua",
+  "cases": [
+    {
+      "case": "network-restart-api",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

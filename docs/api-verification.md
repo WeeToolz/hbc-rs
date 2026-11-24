@@ -248,3 +248,5 @@ stopped-state result is checked through the production receiver in the
 Live network and Gecko state still require device evidence.
 
 A fresh Dolphin 2609a run on 2026-11-24 passed the established 22-case production API acceptance sweep. The [sweep record](review/evidence/reborn-api-sweep-rust-dolphin-2026-11-24/README.md) lists the cases and DOL identity. It refreshes those named paths only; it does not resolve unrelated APIs or physical Wii checks.
+
+The network restart millisecond clock now has a production Dolphin check. It advances after a 10 ms LWP sleep; this is partial timer evidence and does not verify live IOS networking or exact Wii timing. See the [network clock evidence](review/evidence/reborn-api-network-clock-rust-dolphin-2026-11-24/README.md).

@@ -2869,10 +2869,21 @@ fn home_overlay_app_api() -> i32 {
 fn network_restart_api() -> i32 {
     use crate::{
         platform::network_restart::{
-            ConnectionCheck, ConnectionError, StopError, StopWorkRestartResult, stop_work_restart,
+            ConnectionCheck, ConnectionError, StopError, StopWorkRestartResult, now_ms,
+            stop_work_restart,
         },
         wiiload::ReceiverStatus,
     };
+
+    let before_sleep = now_ms();
+    ogc_lwp::sys::sleep_ticks((ogc_lwp::sys::TICKS_PER_SECOND / 100).max(1));
+    let after_sleep = now_ms();
+    if after_sleep <= before_sleep {
+        ogc_system::report(format_args!(
+            "FAIL network restart millisecond clock did not advance\n"
+        ));
+        return -4;
+    }
 
     let check = ConnectionCheck::new(100);
     if check.poll(ReceiverStatus::Starting, None, 10_000).is_some()
