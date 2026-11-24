@@ -4333,7 +4333,7 @@ fn about_api() -> i32 {
 fn loader_helpers() -> i32 {
     use crate::loader::{
         IosLaunchPolicy, LoadPlan, LoadSegment, ParseError, app_ios_launch_policy,
-        build_launch_arguments, ios_launch_policy, validate_load_plan,
+        build_launch_arguments, ios_launch_policy, parse_dol, validate_load_plan,
     };
 
     if ios_launch_policy(true)
@@ -4388,6 +4388,22 @@ fn loader_helpers() -> i32 {
         })
     {
         return -1;
+    }
+
+    let mut malformed_dol = alloc::vec![0; 0x100];
+    put32(&mut malformed_dol, 0, 48);
+    put32(&mut malformed_dol, 0x48, 0x8000_4000);
+    put32(&mut malformed_dol, 0x90, 48);
+    put32(&mut malformed_dol, 0xe0, 0x8000_4000);
+    if parse_dol(&malformed_dol, None)
+        != Err(ParseError::DolHeaderOverlap {
+            section: 0,
+            offset: 48,
+            size: 48,
+        })
+    {
+        ogc_system::report(format_args!("FAIL reported DOL header overlap\n"));
+        return -2;
     }
 
     let arguments = alloc::vec![String::from("--safe"), String::from("two words")];
