@@ -183,3 +183,9 @@ progress, and completion behavior in Dolphin. See the [executable loading
 evidence](review/evidence/reborn-api-executable-loading-rust-dolphin-2026-11-23/README.md).
 Reborn uses its loader caption and activity indicator. This does not prove
 rendered or physical Wii loading behavior.
+
+The app detail focus API now has a direct Dolphin case for the Load default,
+action order, and focus boundaries. Source comparison found that Rust had
+focused Back by default and wrapped between actions; Reborn focuses Load and
+keeps focus within the first and last usable widgets. See the [detail focus
+evidence](review/evidence/reborn-api-detail-focus-rust-dolphin-2026-11-23/README.md).

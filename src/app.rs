@@ -1355,7 +1355,7 @@ impl AppController {
             }
             Input::Confirm if self.selected_app.is_some() => {
                 self.screen = Screen::AppDetails;
-                self.detail_focus = 10;
+                self.detail_focus = 9;
                 self.detail_description_scroll = 0;
                 self.detail_description_max_scroll = 0;
                 self.detail_scroll_app = None;
@@ -1775,14 +1775,11 @@ impl AppController {
     }
 
     fn move_detail_focus(&mut self, forward: bool) {
-        self.detail_focus = match (self.detail_focus, forward) {
-            (8, false) => 10,
-            (9, false) => 8,
-            (10, false) => 9,
-            (8, true) => 9,
-            (9, true) => 10,
-            (10, true) => 8,
-            _ => 10,
+        let focus = self.detail_focus.clamp(8, 10);
+        self.detail_focus = if forward {
+            focus.saturating_add(1).min(10)
+        } else {
+            focus.saturating_sub(1).max(8)
         };
     }
 
@@ -2098,7 +2095,7 @@ mod tests {
     }
 
     #[test]
-    fn browser_navigation_and_detail_back_keep_identity() {
+    fn browser_navigation_and_detail_focus_match_reborn_order() {
         let catalog = [app("one", "One", true), app("two", "Two", true)];
         let mut controller = AppController::new();
         assert_eq!(controller.selected_app.as_deref(), None);
@@ -2106,16 +2103,14 @@ mod tests {
         assert_eq!(controller.selected_app.as_deref(), Some("two"));
         controller.handle(Input::Confirm, &catalog);
         assert_eq!(controller.screen, Screen::AppDetails);
-        assert_eq!(controller.detail_focus(), 10);
-        assert_eq!(controller.handle(Input::Confirm, &catalog), Action::None);
-        assert_eq!(controller.screen, Screen::Browser);
-        controller.handle(Input::Confirm, &catalog);
-        assert_eq!(controller.handle(Input::Left, &catalog), Action::None);
         assert_eq!(controller.detail_focus(), 9);
         assert_eq!(
             controller.handle(Input::Confirm, &catalog),
             Action::LaunchSelected
         );
+        assert_eq!(controller.screen, Screen::AppDetails);
+        controller.handle(Input::Left, &catalog);
+        assert_eq!(controller.detail_focus(), 8);
         controller.handle(Input::Left, &catalog);
         assert_eq!(controller.detail_focus(), 8);
         assert_eq!(controller.handle(Input::Confirm, &catalog), Action::None);
@@ -2123,6 +2118,14 @@ mod tests {
         controller.handle(Input::Back, &catalog);
         assert_eq!(controller.screen, Screen::AppDetails);
         assert_eq!(controller.detail_focus(), 8);
+        controller.handle(Input::Right, &catalog);
+        assert_eq!(controller.detail_focus(), 9);
+        controller.handle(Input::Right, &catalog);
+        assert_eq!(controller.detail_focus(), 10);
+        controller.handle(Input::Right, &catalog);
+        assert_eq!(controller.detail_focus(), 10);
+        controller.handle(Input::Confirm, &catalog);
+        assert_eq!(controller.screen, Screen::Browser);
         assert_eq!(controller.selected_app.as_deref(), Some("two"));
     }
 
@@ -2138,13 +2141,13 @@ mod tests {
         controller.handle(Input::Down, &catalog);
         controller.handle(Input::Down, &catalog);
         assert_eq!(controller.detail_description_scroll(), 2);
-        assert_eq!(controller.detail_focus(), 10);
+        assert_eq!(controller.detail_focus(), 9);
 
         controller.handle(Input::Up, &catalog);
         controller.handle(Input::Up, &catalog);
         controller.handle(Input::Up, &catalog);
         assert_eq!(controller.detail_description_scroll(), 0);
-        assert_eq!(controller.detail_focus(), 10);
+        assert_eq!(controller.detail_focus(), 9);
 
         for _ in 0..100 {
             controller.handle(Input::Down, &catalog);
@@ -2645,7 +2648,6 @@ mod tests {
         let mut controller = AppController::new();
         controller.handle(Input::Confirm, &catalog);
         assert_eq!(controller.screen, Screen::AppDetails);
-        controller.handle(Input::Left, &catalog);
         assert_eq!(controller.detail_focus(), 9);
         assert_eq!(
             controller.handle(Input::Confirm, &catalog),

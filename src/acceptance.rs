@@ -97,6 +97,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"executable-loading-api" {
         return executable_loading_api();
     }
+    if case == b"detail-focus-api" {
+        return detail_focus_api();
+    }
     if case == b"storage-volumes" {
         return storage_volumes();
     }
@@ -2148,6 +2151,54 @@ fn executable_loading_api() -> i32 {
 
     ogc_system::report(format_args!(
         "PASS executable loading start, progress and finish APIs\n"
+    ));
+    0
+}
+
+fn detail_focus_api() -> i32 {
+    use crate::{app::AppController, catalog::AppEntry};
+
+    let catalog = [AppEntry {
+        directory: String::from("focus-demo"),
+        kind: crate::catalog::AppKind::Dol,
+        size: 1,
+        has_icon: false,
+        metadata: None,
+    }];
+    let mut controller = AppController::new();
+    controller.handle(crate::app::Input::Confirm, &catalog);
+    if controller.detail_focus() != 9 {
+        ogc_system::report(format_args!("FAIL detail focus default Load item\n"));
+        return -1;
+    }
+    controller.handle(crate::app::Input::Left, &catalog);
+    if controller.detail_focus() != 8 {
+        ogc_system::report(format_args!("FAIL detail focus previous item\n"));
+        return -1;
+    }
+    controller.handle(crate::app::Input::Left, &catalog);
+    if controller.detail_focus() != 8 {
+        ogc_system::report(format_args!("FAIL detail focus previous boundary\n"));
+        return -1;
+    }
+    controller.handle(crate::app::Input::Right, &catalog);
+    if controller.detail_focus() != 9 {
+        ogc_system::report(format_args!("FAIL detail focus return to Load\n"));
+        return -1;
+    }
+    controller.handle(crate::app::Input::Right, &catalog);
+    if controller.detail_focus() != 10 {
+        ogc_system::report(format_args!("FAIL detail focus Back item\n"));
+        return -1;
+    }
+    controller.handle(crate::app::Input::Right, &catalog);
+    if controller.detail_focus() != 10 {
+        ogc_system::report(format_args!("FAIL detail focus next boundary\n"));
+        return -1;
+    }
+
+    ogc_system::report(format_args!(
+        "PASS detail focus default, order and boundaries\n"
     ));
     0
 }
