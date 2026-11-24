@@ -3317,6 +3317,31 @@ mod tests {
     }
 
     #[test]
+    fn rectangle_geometry_helpers_use_valid_half_open_bounds() {
+        let first = rect(2, 3, 7, 11);
+        let second = rect(5, 8, 10, 10);
+        assert!(first.is_valid());
+        assert_eq!(first.right(), 9.0);
+        assert_eq!(first.bottom(), 14.0);
+        assert_eq!(first.intersect(second), Some(rect(5, 8, 4, 6)));
+        assert_eq!(first.intersect(rect(9, 3, 2, 2)), None);
+        assert_eq!(first.intersect(rect(f32::NAN, 0, 2, 2)), None);
+    }
+
+    #[test]
+    fn rgb_constructor_uses_opaque_alpha() {
+        assert_eq!(
+            Color::rgb(12, 34, 56),
+            Color {
+                red: 12,
+                green: 34,
+                blue: 56,
+                alpha: 255,
+            }
+        );
+    }
+
+    #[test]
     fn rect_mapping_clips_then_scales_for_widescreen() {
         assert_eq!(
             map_rect(rect(-10, 20, 40, 30), 640, 480, 852, 480),
