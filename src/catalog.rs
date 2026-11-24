@@ -416,6 +416,22 @@ mod tests {
     }
 
     #[test]
+    fn equal_release_dates_use_deterministic_name_order() {
+        let entries = [
+            app("zulu", Some("Zulu"), Some(20250101), false),
+            app("alpha", Some("Alpha"), Some(20250101), false),
+            app("same-b", Some("Same"), Some(20250101), false),
+            app("same-a", Some("Same"), Some(20250101), false),
+        ];
+
+        let order: Vec<_> = visible_entries(&entries, Filter::MetadataOnly, SortOrder::ReleaseDate)
+            .iter()
+            .map(|entry| entry.directory.as_str())
+            .collect();
+        assert_eq!(order, ["alpha", "same-a", "same-b", "zulu"]);
+    }
+
+    #[test]
     fn custom_sort_uses_reborn_sort_ids_and_keeps_unset_entries() {
         let mut entries = [
             app("late", Some("Late"), None, false),

@@ -3097,6 +3097,13 @@ fn catalog() -> i32 {
         dated_entry("undated", "Undated", None),
     ];
     let date_order = visible_entries(&date_entries, Filter::MetadataOnly, SortOrder::ReleaseDate);
+    let date_ties = [
+        dated_entry("zulu", "Zulu", Some("20250102")),
+        dated_entry("same-z", "Same", Some("20250102")),
+        dated_entry("same-a", "Same", Some("20250102")),
+        dated_entry("alpha", "Alpha", Some("20250102")),
+    ];
+    let date_tie_order = visible_entries(&date_ties, Filter::MetadataOnly, SortOrder::ReleaseDate);
     if custom
         .iter()
         .map(|entry| entry.directory.as_str())
@@ -3122,6 +3129,11 @@ fn catalog() -> i32 {
             .map(|entry| entry.directory.as_str())
             .collect::<Vec<_>>()
             != ["newer", "older", "undated"]
+        || date_tie_order
+            .iter()
+            .map(|entry| entry.directory.as_str())
+            .collect::<Vec<_>>()
+            != ["alpha", "same-a", "same-z", "zulu"]
         || crate::png::decode_hbc_app_icon(include_bytes!("../tests/fixtures/hbc-app-icon.png"))
             .is_err()
         || crate::png::decode_hbc_app_icon(include_bytes!(
