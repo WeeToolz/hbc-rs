@@ -697,6 +697,35 @@ mod tests {
     }
 
     #[test]
+    fn scan_skips_optional_files_over_their_read_limits() {
+        let root = "sd:/apps";
+        let mut fs = MemoryStorage::default();
+        fs.directories.insert(
+            root.into(),
+            vec![DirectoryEntry {
+                name: "large-optional-files".into(),
+                is_directory: true,
+            }],
+        );
+        fs.sizes
+            .insert(format!("{root}/large-optional-files/boot.dol"), 10);
+        let mut metadata = b"<app><name>".to_vec();
+        metadata.resize(1024 * 1024, b'x');
+        metadata.extend_from_slice(b"</name></app>");
+        fs.files
+            .insert(format!("{root}/large-optional-files/meta.xml"), metadata);
+        fs.files.insert(
+            format!("{root}/large-optional-files/icon.png"),
+            vec![0; crate::png::HBC_APP_ICON_MAX_PNG_BYTES + 1],
+        );
+
+        let apps = scan_apps(&mut fs, root, 100, 50).unwrap();
+        assert_eq!(apps.len(), 1);
+        assert!(apps[0].metadata.is_none());
+        assert!(!apps[0].has_icon);
+    }
+
+    #[test]
     fn scan_returns_optional_file_read_failures() {
         let root = "sd:/apps";
         for optional_file in ["meta.xml", "icon.png"] {

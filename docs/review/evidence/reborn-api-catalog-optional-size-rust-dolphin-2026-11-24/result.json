@@ -1,0 +1,15 @@
+{
+  "sha256": "e01dffa92b9b0742beb1cce8db54b2825afcc420bc0b52d081f6963da56f6332",
+  "dolphin_arch": "x86_64",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-j1sjx_6n",
+  "sd_fixture": null,
+  "theme_fixture": null,
+  "cases": [
+    {
+      "case": "catalog",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

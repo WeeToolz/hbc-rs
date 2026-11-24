@@ -2855,6 +2855,7 @@ struct MemoryCatalogStorage {
     files: BTreeMap<String, Vec<u8>>,
     fail_next_entry_at: Option<usize>,
     directory_closed: bool,
+    read_limits: BTreeMap<String, usize>,
 }
 
 impl crate::catalog::CatalogStorage for MemoryCatalogStorage {
@@ -2887,6 +2888,7 @@ impl crate::catalog::CatalogStorage for MemoryCatalogStorage {
     }
 
     fn read_file(&mut self, path: &str, max_bytes: usize) -> Result<Option<Vec<u8>>, Self::Error> {
+        self.read_limits.insert(String::from(path), max_bytes);
         Ok(self
             .files
             .get(path)
@@ -2904,6 +2906,7 @@ fn catalog() -> i32 {
         ("alpha", true),
         ("beta", true),
         ("badmeta", true),
+        ("oversized", true),
         (".hidden", true),
         ("unsafe/name", true),
         ("large", true),
@@ -2922,6 +2925,7 @@ fn catalog() -> i32 {
         files: BTreeMap::new(),
         fail_next_entry_at: None,
         directory_closed: true,
+        read_limits: BTreeMap::new(),
     };
     for (path, bytes) in [
         ("apps/alpha/boot.elf", b"elf".as_slice()),
@@ -2931,6 +2935,7 @@ fn catalog() -> i32 {
         ("apps/badmeta/boot.dol", b"dol".as_slice()),
         ("apps/large/boot.elf", b"123456".as_slice()),
         ("apps/theme-large/theme.zip", b"1234".as_slice()),
+        ("apps/oversized/boot.dol", b"dol".as_slice()),
         (
             "apps/alpha/meta.xml",
             b"<app><name>Zeta</name><sort_id>2</sort_id></app>".as_slice(),
@@ -2954,6 +2959,16 @@ fn catalog() -> i32 {
     storage
         .files
         .insert(String::from("apps/badmeta/icon.png"), b"not a PNG".to_vec());
+    let mut oversized_metadata = b"<app><name>".to_vec();
+    oversized_metadata.resize(1024 * 1024, b'x');
+    oversized_metadata.extend_from_slice(b"</name></app>");
+    storage
+        .files
+        .insert(String::from("apps/oversized/meta.xml"), oversized_metadata);
+    storage.files.insert(
+        String::from("apps/oversized/icon.png"),
+        vec![0; crate::png::HBC_APP_ICON_MAX_PNG_BYTES + 1],
+    );
     let entries = match scan_apps(&mut storage, "apps", 5, 3) {
         Ok(entries) => entries,
         Err(error) => {
@@ -2961,7 +2976,7 @@ fn catalog() -> i32 {
             return -1;
         }
     };
-    if entries.len() != 3
+    if entries.len() != 4
         || entries[0].directory != "alpha"
         || entries[0].kind != AppKind::Elf
         || !entries[0].has_icon
@@ -2970,6 +2985,12 @@ fn catalog() -> i32 {
         || entries[1].has_icon
         || entries[2].directory != "badmeta"
         || entries[2].metadata.is_some()
+        || entries[3].directory != "oversized"
+        || entries[3].metadata.is_some()
+        || entries[3].has_icon
+        || storage.read_limits.get("apps/oversized/meta.xml") != Some(&(1024 * 1024))
+        || storage.read_limits.get("apps/oversized/icon.png")
+            != Some(&crate::png::HBC_APP_ICON_MAX_PNG_BYTES)
     {
         ogc_system::report(format_args!("FAIL catalog entries {entries:?}\n"));
         return -1;
@@ -2983,6 +3004,7 @@ fn catalog() -> i32 {
         files: BTreeMap::from([(String::from("apps/alpha/boot.dol"), b"dol".to_vec())]),
         fail_next_entry_at: Some(1),
         directory_closed: true,
+        read_limits: BTreeMap::new(),
     };
     if !matches!(
         scan_apps(&mut interrupted_scan, "apps", 5, 3),
