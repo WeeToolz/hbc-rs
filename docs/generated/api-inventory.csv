@@ -4,7 +4,7 @@ hbc_rs::app::AppController::bootmii_available,src/app.rs,679,partial,HBC-API-MAI
 hbc_rs::app::AppController::browser_layout,src/app.rs,896,partial,HBC-API-APP-LAYOUT-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::clear_network_config,src/app.rs,841,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::app::AppController::delete_confirmation_yes,src/app.rs,602,partial,HBC-API-APP-DELETE-CONFIRM-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
-hbc_rs::app::AppController::detail_description_max_scroll,src/app.rs,461,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::app::AppController::detail_description_max_scroll,src/app.rs,461,partial,HBC-API-APP-DETAIL-MAX-SCROLL-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::detail_description_scroll,src/app.rs,457,partial,HBC-API-APP-DETAIL-SCROLL-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::detail_focus,src/app.rs,348,partial,HBC-API-DETAIL-FOCUS-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::device_available,src/app.rs,865,partial,HBC-API-OPTIONS-DEVICE-STATE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.

@@ -190,6 +190,11 @@ focused Back by default and wrapped between actions; Reborn focuses Load and
 keeps focus within the first and last usable widgets. See the [detail focus
 evidence](review/evidence/reborn-api-detail-focus-rust-dolphin-2026-11-23/README.md).
 
+The detail memo maximum-scroll accessor now has an exact Dolphin check. The
+case sets the measured bound to three lines and verifies that the public API
+returns three. Rendered text layout and physical Wii pointer behavior remain
+open. See the [maximum scroll evidence](review/evidence/reborn-api-detail-max-scroll-rust-dolphin-2026-11-23/README.md).
+
 The catalog reconciliation API has a direct production Dolphin case for
 selection retention after insertion, page position, removal fallback, and an
 empty catalog. See the [catalog reconciliation evidence](review/evidence/reborn-api-catalog-reconcile-rust-dolphin-2026-11-23/README.md).

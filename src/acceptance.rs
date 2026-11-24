@@ -2170,6 +2170,11 @@ fn detail_focus_api() -> i32 {
     }];
     let mut controller = AppController::new();
     controller.handle(crate::app::Input::Confirm, &catalog);
+    controller.set_measured_memo(3, 12);
+    if controller.detail_description_max_scroll() != 3 {
+        ogc_system::report(format_args!("FAIL detail description maximum scroll\n"));
+        return -1;
+    }
     if controller.detail_focus() != 9 {
         ogc_system::report(format_args!("FAIL detail focus default Load item\n"));
         return -1;
