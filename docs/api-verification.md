@@ -95,6 +95,10 @@ case. It checks the bundled 640 by 480 and 852 by 480 backgrounds, required
 fallback textures, and that a valid packaged list card replaces its fallback.
 Other installed theme images and physical GX output remain open; see the
 [theme texture API record](review/evidence/reborn-api-theme-textures-rust-dolphin-2026-11-23-r4/README.md).
+The theme archive storage APIs have a separate Dolphin round trip in a private
+NAND copy. It checks save, replacement, exact readback, and that empty input
+does not replace the saved archive. Wii NAND commit and recovery remain
+pending; see the [theme storage record](review/evidence/reborn-api-theme-storage-rust-dolphin-2026-11-23/README.md).
 The lower-level `ZipArchive` APIs now also have a direct production Dolphin
 case for parsing, entry listing and lookup, bounded extraction, entry limits,
 and path validation. The [archive API record](review/evidence/reborn-api-archive-rust-dolphin-2026-11-23/README.md)

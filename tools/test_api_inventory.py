@@ -73,6 +73,20 @@ class InventoryTests(unittest.TestCase):
                 'src/home_overlay.rs#pub fn request', by_source_name, 'HBC-API-REQUEST-02'
             )
 
+    def test_qualified_module_function_reference_disambiguates_same_named_apis(self):
+        apis = [
+            {'api': 'hbc_rs::platform::theme::load', 'source': 'src/platform/theme.rs',
+             'name': 'load'},
+            {'api': 'hbc_rs::platform::theme::ThemeTextures::load',
+             'source': 'src/platform/theme.rs', 'name': 'load'},
+        ]
+        by_source_name = {('src/platform/theme.rs', 'load'): apis}
+        resolved = api_inventory.resolve_api_reference(
+            'src/platform/theme.rs#platform::theme::load', by_source_name,
+            'HBC-API-THEME-STORAGE-LOAD-01'
+        )
+        self.assertEqual(resolved['api'], 'hbc_rs::platform::theme::load')
+
     def test_unknown_rustdoc_format_and_missing_api_are_rejected(self):
         self.document['format_version'] = 999
         with self.assertRaises(ValueError):

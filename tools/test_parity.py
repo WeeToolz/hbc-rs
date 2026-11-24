@@ -64,6 +64,19 @@ class ReferenceTests(unittest.TestCase):
                     parity.validate_ref('reborn-sdk:../channelapp/agent.c#hbc_agent_home_pending',
                                         original, root / 'ledger', 1)
 
+    def test_rust_module_function_reference_is_qualified_by_its_source_path(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / 'src' / 'platform' / 'theme.rs'
+            source.parent.mkdir(parents=True)
+            source.write_text('pub fn load() {}\nimpl ThemeTextures { pub fn load() {} }\n')
+            with patch.object(parity, 'ROOT', root):
+                parity.validate_ref('src/platform/theme.rs#platform::theme::load',
+                                    root, root / 'ledger', 1)
+                with self.assertRaises(ValueError):
+                    parity.validate_ref('src/platform/theme.rs#other::theme::load',
+                                        root, root / 'ledger', 1)
+
 
 if __name__ == '__main__':
     unittest.main()

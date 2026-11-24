@@ -64,6 +64,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"theme-textures-api" {
         return theme_textures_api();
     }
+    if case == b"theme-storage-api" {
+        return theme_storage_api();
+    }
     if case == b"archive-api" {
         return archive_api();
     }
@@ -1302,6 +1305,43 @@ fn theme_textures_api() -> i32 {
 
     ogc_system::report(format_args!(
         "PASS theme texture defaults and widescreen background APIs\n"
+    ));
+    0
+}
+
+fn theme_storage_api() -> i32 {
+    let archive = include_bytes!("../tests/fixtures/theme-texture-override.zip");
+    let archive_is_installed = || matches!(crate::platform::theme::load(), Ok(Some(bytes)) if bytes.as_slice() == archive.as_slice());
+    if crate::theme::ThemePackage::parse(archive).is_err() {
+        ogc_system::report(format_args!("FAIL theme storage fixture validation\n"));
+        return -1;
+    }
+
+    if let Err(error) = crate::platform::theme::save(archive) {
+        ogc_system::report(format_args!("FAIL theme storage save {error:?}\n"));
+        return -1;
+    }
+    if !archive_is_installed() {
+        ogc_system::report(format_args!("FAIL theme storage saved archive readback\n"));
+        return -1;
+    }
+    if crate::platform::theme::save(archive).is_err() || !archive_is_installed() {
+        ogc_system::report(format_args!("FAIL theme storage replacement readback\n"));
+        return -1;
+    }
+
+    if crate::platform::theme::save(&[])
+        != Err(crate::platform::settings::SettingsIoError::InvalidFileSize)
+        || !archive_is_installed()
+    {
+        ogc_system::report(format_args!(
+            "FAIL theme storage invalid-save preservation\n"
+        ));
+        return -1;
+    }
+
+    ogc_system::report(format_args!(
+        "PASS theme storage save, load and invalid-input preservation APIs\n"
     ));
     0
 }

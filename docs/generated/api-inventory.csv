@@ -300,8 +300,8 @@ hbc_rs::platform::storage::Volume::settings_index,src/platform/storage.rs,127,un
 hbc_rs::platform::storage::device_scan_order,src/platform/storage.rs,148,partial,HBC-API-STORAGE-VOLUME-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::platform::theme::ThemeTextures::load,src/platform/theme.rs,124,partial,HBC-API-THEME-TEXTURES-LOAD-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::platform::theme::ThemeTextures::load_for_viewport,src/platform/theme.rs,128,partial,HBC-API-THEME-TEXTURES-WIDE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
-hbc_rs::platform::theme::load,src/platform/theme.rs,443,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::platform::theme::save,src/platform/theme.rs,482,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::platform::theme::load,src/platform/theme.rs,443,partial,HBC-API-THEME-STORAGE-LOAD-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::platform::theme::save,src/platform/theme.rs,482,partial,HBC-API-THEME-STORAGE-SAVE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::platform::video::VideoSystem::begin_frame,src/platform/video.rs,158,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::video::VideoSystem::capture_efb_rgba,src/platform/video.rs,35,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::video::VideoSystem::configure_2d,src/platform/video.rs,144,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.

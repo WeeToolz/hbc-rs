@@ -110,11 +110,18 @@ def validate_ref(reference: str, base: Path, ledger: Path, line: int) -> None:
         raise ValueError(f"{ledger}:{line}: reference needs path#symbol: {reference}")
     source = path.read_text(encoding="utf-8", errors="replace")
     qualified_method = symbol.split("::") if base == ROOT else []
-    qualified_found = (
-        len(qualified_method) == 2
-        and qualified_method[0] in source
-        and f"pub fn {qualified_method[1]}" in source
-    )
+    qualified_found = False
+    if len(qualified_method) >= 2:
+        owner = "::".join(qualified_method[:-1])
+        name = qualified_method[-1]
+        try:
+            module_path = "::".join(path.relative_to(base.resolve() / "src").with_suffix("").parts)
+        except ValueError:
+            module_path = ""
+        qualified_found = (
+            (owner == module_path or (len(qualified_method) == 2 and owner in source))
+            and f"pub fn {name}" in source
+        )
     if symbol not in source and not qualified_found:
         raise ValueError(f"{ledger}:{line}: symbol {symbol!r} not found in {path}")
 
