@@ -2075,12 +2075,35 @@ fn video_platform_api() -> i32 {
         ogc_system::report(format_args!("FAIL video rectangle drawing {error:?}\n"));
         return -3;
     }
+    video.configure_textured_2d();
+    let texture_color = [26, 173, 222, 255];
+    let texture_image = crate::png::RgbaImage {
+        width: 4,
+        height: 4,
+        pixels: alloc::vec![texture_color; 16]
+            .into_iter()
+            .flatten()
+            .collect(),
+    };
+    let texture = match crate::png::GxRgba8Texture::from_image(&texture_image) {
+        Ok(texture) => texture,
+        Err(error) => {
+            video::shutdown();
+            ogc_system::report(format_args!("FAIL video texture creation {error:?}\n"));
+            return -4;
+        }
+    };
+    if let Err(error) = unsafe { video.draw_texture(&texture, 100.0, 40.0, 32.0, 32.0) } {
+        video::shutdown();
+        ogc_system::report(format_args!("FAIL video texture drawing {error:?}\n"));
+        return -5;
+    }
     let captured = match video.capture_efb_rgba() {
         Ok(image) => image,
         Err(error) => {
             video::shutdown();
             ogc_system::report(format_args!("FAIL video EFB capture {error:?}\n"));
-            return -4;
+            return -6;
         }
     };
     let center_x = 60usize;
@@ -2089,12 +2112,12 @@ fn video_platform_api() -> i32 {
     if captured.width != u32::from(info.width) || captured.height == 0 {
         video::shutdown();
         ogc_system::report(format_args!("FAIL video EFB capture dimensions\n"));
-        return -5;
+        return -7;
     }
     let Some(pixel) = captured.pixels.get(offset..offset + 4) else {
         video::shutdown();
         ogc_system::report(format_args!("FAIL video EFB pixel bounds\n"));
-        return -6;
+        return -8;
     };
     if pixel != [color.r, color.g, color.b, color.a] {
         let value = i32::from_be_bytes([pixel[0], pixel[1], pixel[2], pixel[3]]);
@@ -2105,17 +2128,23 @@ fn video_platform_api() -> i32 {
         video::shutdown();
         return value;
     }
+    let texture_offset = (56 * captured.width as usize + 116) * 4;
+    if captured.pixels.get(texture_offset..texture_offset + 4) != Some(&texture_color[..]) {
+        video::shutdown();
+        ogc_system::report(format_args!("FAIL video EFB texture result\n"));
+        return -9;
+    }
 
     if let Err(error) = unsafe { video.present() } {
         video::shutdown();
         ogc_system::report(format_args!("FAIL video frame presentation {error:?}\n"));
-        return -7;
+        return -10;
     }
     video.wait_vsync();
     video.show();
     video::shutdown();
     ogc_system::report(format_args!(
-        "PASS video framebuffer, GX draw, EFB capture, present and shutdown\n"
+        "PASS video framebuffer, solid and textured GX draw, EFB capture, present and shutdown\n"
     ));
     0
 }
