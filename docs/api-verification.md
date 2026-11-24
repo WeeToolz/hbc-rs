@@ -172,3 +172,8 @@ disables activation. Rust now keeps the item in the list, prevents keyboard and
 pointer activation, and skips it during focus movement. Dolphin verifies the
 controller behavior. Actual IOS254 detection, rendered disabled styling, and
 BootMii launch on Wii hardware remain pending.
+
+The app-deletion production case now also checks the controller's public delete
+confirmation state and keyboard and pointer choices. Reborn starts its Yes/No
+dialog with No selected. See the [app deletion evidence](review/evidence/reborn-app-delete-rust-dolphin-2026-11-23/README.md).
+Rendered dialog behavior and FAT deletion remain separate checks.

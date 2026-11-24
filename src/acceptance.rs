@@ -191,7 +191,11 @@ fn storage_volumes() -> i32 {
 }
 
 fn app_deletion() -> i32 {
-    use crate::management::plan_app_deletion;
+    use crate::{
+        app::{Action, AppController, Input, PointerTarget, Screen},
+        catalog::{AppEntry, AppKind},
+        management::plan_app_deletion,
+    };
 
     let Ok(plan) = plan_app_deletion("demo") else {
         ogc_system::report(format_args!("FAIL app-deletion valid folder\n"));
@@ -215,7 +219,73 @@ fn app_deletion() -> i32 {
             return -1;
         }
     }
-    ogc_system::report(format_args!("PASS app-deletion safe folder validation\n"));
+
+    let catalog = [AppEntry {
+        directory: String::from("demo"),
+        kind: AppKind::Dol,
+        size: 1,
+        has_icon: false,
+        metadata: None,
+    }];
+    let mut controller = AppController::new();
+    if controller.delete_confirmation_yes()
+        || controller.handle(Input::Confirm, &catalog) != Action::None
+    {
+        ogc_system::report(format_args!("FAIL app-deletion initial selection\n"));
+        return -1;
+    }
+    controller.handle(Input::Left, &catalog);
+    controller.handle(Input::Left, &catalog);
+    controller.handle(Input::Confirm, &catalog);
+    if controller.screen != Screen::DeleteConfirm || controller.delete_confirmation_yes() {
+        ogc_system::report(format_args!("FAIL app-deletion default No state\n"));
+        return -1;
+    }
+    if controller.handle(Input::Confirm, &catalog) != Action::None
+        || controller.screen != Screen::AppDetails
+    {
+        ogc_system::report(format_args!("FAIL app-deletion No choice\n"));
+        return -1;
+    }
+    controller.handle(Input::Confirm, &catalog);
+    controller.handle(Input::Right, &catalog);
+    if !controller.delete_confirmation_yes()
+        || controller.handle(Input::Confirm, &catalog) != Action::DeleteSelected
+        || controller.screen != Screen::Browser
+    {
+        ogc_system::report(format_args!("FAIL app-deletion Yes choice\n"));
+        return -1;
+    }
+
+    let mut pointer_controller = AppController::new();
+    pointer_controller.handle(Input::Confirm, &catalog);
+    pointer_controller.handle(Input::Left, &catalog);
+    pointer_controller.handle(Input::Left, &catalog);
+    pointer_controller.handle(Input::Confirm, &catalog);
+    if pointer_controller.handle_pointer(
+        Some(PointerTarget::DeleteChoice { yes: false }),
+        true,
+        &catalog,
+    ) != Action::None
+        || pointer_controller.delete_confirmation_yes()
+    {
+        ogc_system::report(format_args!("FAIL app-deletion pointer No choice\n"));
+        return -1;
+    }
+    pointer_controller.handle(Input::Confirm, &catalog);
+    pointer_controller.handle(Input::Left, &catalog);
+    if pointer_controller.handle_pointer(
+        Some(PointerTarget::DeleteChoice { yes: true }),
+        true,
+        &catalog,
+    ) != Action::DeleteSelected
+    {
+        ogc_system::report(format_args!("FAIL app-deletion pointer Yes choice\n"));
+        return -1;
+    }
+    ogc_system::report(format_args!(
+        "PASS app-deletion path safety and Yes/No confirmation API\n"
+    ));
     0
 }
 

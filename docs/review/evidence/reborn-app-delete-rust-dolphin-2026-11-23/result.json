@@ -1,6 +1,6 @@
 {
-  "sha256": "70b5d160b5c15b17f8e60d9ebbd1fb5f70923b87c61e40ce70a9b1c26b0bf5ee",
-  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-j5w5dydb",
+  "sha256": "ce58803ab48438b0cab160ef87e8bc063e1746e4ee40711fd25d0c97c9f63fcf",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-2ji5owyc",
   "cases": [
     {
       "case": "app-deletion",
