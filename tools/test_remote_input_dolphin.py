@@ -44,6 +44,7 @@ def main():
     parser.add_argument("--reborn-keys", action="store_true", help="check Reborn HBCK replies")
     parser.add_argument("--reborn-key-transitions", action="store_true", help="check HBCK screen transitions in a diagnostic build")
     parser.add_argument("--reborn-key-eof", action="store_true", help="check an interrupted HBCK body")
+    parser.add_argument("--wiiload-eof", action="store_true", help="check interrupted Wiiload reads")
     parser.add_argument("--nand", type=Path, required=True, help="Source NAND; only a private copy is used")
     parser.add_argument("--dolphin", type=Path, required=True, help="Dolphin executable")
     parser.add_argument("--output", type=Path, required=True, help="New result directory, including its private profile")
@@ -89,6 +90,19 @@ def main():
             if "panic" in text.lower(): raise RuntimeError("guest panic during startup")
             time.sleep(.25)
         else: raise RuntimeError("guest listener did not become ready")
+        if args.wiiload_eof:
+            header = b"HAXX\0\x05\0\x02\0\0\0\x04\0\0\0\0"
+            for name, packet in (("header", header[:8]), ("data", header + b"ab"),
+                                 ("arguments", header + b"abcdx")):
+                with socket.create_connection((args.host, 4299), timeout=5) as connection:
+                    connection.settimeout(3)
+                    connection.sendall(packet)
+                    connection.shutdown(socket.SHUT_WR)
+                    if connection.recv(1) != b"":
+                        raise RuntimeError(f"unexpected Wiiload {name} reply")
+                if exchange(args.host, b"HBCK".ljust(16, b"\0")) != bytes(8):
+                    raise RuntimeError(f"listener did not recover after Wiiload {name}")
+                print(f"Interrupted Wiiload {name} closed; next client succeeded", flush=True)
         if args.reborn_key_eof:
             with socket.create_connection((args.host, 4299), timeout=5) as connection:
                 connection.settimeout(3)
