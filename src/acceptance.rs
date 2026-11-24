@@ -227,8 +227,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
 
 fn lifecycle_api() -> i32 {
     use crate::platform::lifecycle::{
-        ExitCleanupStep, ExitRequest, ExitSignal, Handoff, defer_exit, run_exit_cleanup,
-        run_handoff_cleanup, take_ready_exit,
+        DebuggerMode, ExitCleanupStep, ExitRequest, ExitSignal, Handoff, debugger_mode, defer_exit,
+        initialize_debugger, register_callbacks, run_exit_cleanup, run_handoff_cleanup,
+        take_debugger_break, take_ready_exit, take_request,
     };
 
     let signal = ExitSignal::new();
@@ -292,8 +293,16 @@ fn lifecycle_api() -> i32 {
         return -1;
     }
 
+    if debugger_mode() != DebuggerMode::Off || initialize_debugger() || take_debugger_break() {
+        return -2;
+    }
+    register_callbacks();
+    if take_request().is_some() {
+        return -2;
+    }
+
     ogc_system::report(format_args!(
-        "PASS lifecycle API requests, readiness and cleanup ordering\n"
+        "PASS lifecycle requests, debugger defaults, callbacks and cleanup ordering\n"
     ));
     0
 }

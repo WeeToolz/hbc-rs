@@ -59,6 +59,12 @@ callback completion, and the drain result. The [direct API record](review/eviden
 and [standard HBC startup capture](review/evidence/disc-startup-rust-async-2026-11-22-r2/README.md)
 are separate evidence. They do not prove physical Wii behavior.
 
+The lifecycle acceptance case also calls the production debugger mode, debugger
+startup, pending-break, callback-registration, and deferred-request APIs. It
+checks the normal build with no debugger adapter and confirms callback setup
+does not queue an exit request. USB Gecko and network debugger builds, plus
+physical reset and power callback delivery, remain open.
+
 The update API comparison records that Rust keeps `None` for absent or invalid
 dates, while C leaves its zero-initialized field at zero. It does not verify the
 disabled update service.

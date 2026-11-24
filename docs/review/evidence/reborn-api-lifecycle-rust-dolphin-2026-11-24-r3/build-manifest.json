@@ -1,0 +1,13 @@
+{
+  "build_command": "cargo xtask build-dol hbc-rs --bin emulator-acceptance --features emulator-acceptance --manifest-path ../hbc-rs/Cargo.toml --output ../hbc-rs/target/hbc-rs-lifecycle-acceptance.dol",
+  "target": "emulator-acceptance",
+  "target_triple": "powerpc-nintendo-none",
+  "profile": "release",
+  "features": [
+    "emulator-acceptance"
+  ],
+  "dol_bytes": 2501568,
+  "dol_sha256": "f6055b670d616cd497dee4c2b84693f7b7cf517ab86cb193a93741704cf14120",
+  "source_revision": "8aa18ab3442d001352657d66989bd3951deaa87f",
+  "sdk_revision": "b25827a6c49b8dbe2d6c2f901aadaaec670f86c3"
+}
