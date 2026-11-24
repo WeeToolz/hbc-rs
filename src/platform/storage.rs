@@ -112,6 +112,18 @@ pub const VOLUMES: [Volume; 5] = [
 ];
 pub const DEVICE_COUNT: usize = VOLUMES.len();
 
+#[cfg(any(test, target_arch = "powerpc"))]
+fn unmount_name(prefix: &str) -> Option<&'static core::ffi::CStr> {
+    match prefix {
+        "sd:" => Some(c"sd"),
+        "usb:" => Some(c"usb"),
+        "usb2:" => Some(c"usb2"),
+        "carda:" => Some(c"carda"),
+        "cardb:" => Some(c"cardb"),
+        _ => None,
+    }
+}
+
 impl Volume {
     pub fn from_settings_index(index: i32) -> Option<Self> {
         match index {
@@ -163,7 +175,7 @@ pub fn device_scan_order(preference: i32) -> [Volume; DEVICE_COUNT] {
 mod device_selection_tests {
     use super::{
         OptionsStoragePlan, StorageFailureNotice, StoragePresence, VOLUMES, Volume,
-        classify_device_presence, device_scan_order, plan_options_storage,
+        classify_device_presence, device_scan_order, plan_options_storage, unmount_name,
     };
 
     #[test]
@@ -265,6 +277,20 @@ mod device_selection_tests {
         for volume in VOLUMES {
             assert_eq!(order.iter().filter(|entry| **entry == volume).count(), 1);
         }
+    }
+
+    #[test]
+    fn every_mounted_volume_prefix_has_a_matching_unmount_name() {
+        for (volume, prefix) in [
+            (Volume::Sd, "sd:"),
+            (Volume::Usb, "usb:"),
+            (Volume::CardA, "carda:"),
+            (Volume::CardB, "cardb:"),
+            (Volume::Usb2, "usb2:"),
+        ] {
+            assert_eq!(unmount_name(prefix), Some(volume.mount_name()));
+        }
+        assert_eq!(unmount_name("unknown:"), None);
     }
 
     #[test]
@@ -530,12 +556,8 @@ impl FatStorage {
     }
 
     pub fn unmount(self) -> Result<(), StorageError> {
-        let name = match self.prefix {
-            "sd:" => c"sd",
-            "usb:" => c"usb",
-            "carda:" => c"carda",
-            "cardb:" => c"cardb",
-            _ => return Err(StorageError::InvalidPath),
+        let Some(name) = unmount_name(self.prefix) else {
+            return Err(StorageError::InvalidPath);
         };
         ogc_fat::unmount(name).map_err(StorageError::Fat)
     }
