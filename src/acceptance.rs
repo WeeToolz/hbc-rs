@@ -49,6 +49,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"wiiload-controller" {
         return wiiload_controller();
     }
+    if case == b"runtime-state-api" {
+        return runtime_state_api();
+    }
     if case == b"metadata-theme" {
         return metadata_theme();
     }
@@ -1172,6 +1175,121 @@ fn wiiload_controller() -> i32 {
     }
     ogc_system::report(format_args!(
         "PASS wiiload-controller confirmation and progress\n"
+    ));
+    0
+}
+
+fn runtime_state_api() -> i32 {
+    use crate::{
+        app::{NoticeKind, Screen},
+        catalog::{AppEntry, AppKind},
+        metadata::{ThemeMetadata, UserSettings},
+        runtime::{AppRuntime, ExitSettingsOutcome, SettingsSaveError},
+    };
+
+    let make_entry = |directory: &str| AppEntry {
+        directory: String::from(directory),
+        kind: AppKind::Dol,
+        size: 1,
+        has_icon: false,
+        metadata: None,
+    };
+    let mut runtime = AppRuntime::new(alloc::vec![make_entry("first"), make_entry("selected")]);
+    runtime.load_settings(UserSettings {
+        selected_app: Some(String::from("selected")),
+        ..UserSettings::default()
+    });
+    runtime.replace_catalog(alloc::vec![make_entry("selected"), make_entry("new")]);
+    if runtime.catalog().len() != 2
+        || runtime.controller().selected_app.as_deref() != Some("selected")
+    {
+        ogc_system::report(format_args!("FAIL runtime catalog replacement selection\n"));
+        return -1;
+    }
+
+    runtime.set_widescreen(true);
+    runtime.update(&crate::platform::input::InputFrame {
+        pressed: alloc::vec![crate::app::Input::ToggleBrowseMode],
+        ..Default::default()
+    });
+    if runtime.controller().browser_layout().columns != 4 {
+        ogc_system::report(format_args!("FAIL runtime widescreen columns\n"));
+        return -2;
+    }
+    runtime.set_widescreen(false);
+    if runtime.controller().browser_layout().columns != 3 {
+        ogc_system::report(format_args!("FAIL runtime standard columns\n"));
+        return -3;
+    }
+
+    let theme = ThemeMetadata {
+        description: Some(String::from("Runtime theme description")),
+        ..ThemeMetadata::default()
+    };
+    runtime.apply_theme(theme.clone());
+    if runtime.theme() != Some(&theme) {
+        ogc_system::report(format_args!("FAIL runtime theme application\n"));
+        return -4;
+    }
+
+    runtime.show_notice("Storage unavailable");
+    if runtime.controller().screen != Screen::Notice
+        || runtime.controller().notice() != Some("Storage unavailable")
+        || runtime.controller().notice_kind() != NoticeKind::Generic
+    {
+        ogc_system::report(format_args!("FAIL runtime generic notice\n"));
+        return -5;
+    }
+    runtime.show_notice_with_kind("NAND write failed", NoticeKind::Error);
+    if runtime.controller().notice() != Some("NAND write failed")
+        || runtime.controller().notice_kind() != NoticeKind::Error
+        || !runtime.controller().timed_notice_active()
+    {
+        ogc_system::report(format_args!("FAIL runtime error notice\n"));
+        return -6;
+    }
+
+    runtime.set_preferred_device(2);
+    if runtime.save_settings_if_dirty(|settings| {
+        if settings.device == 2 {
+            Err(-22)
+        } else {
+            Ok(())
+        }
+    }) != Err(SettingsSaveError::Backend(-22))
+        || !runtime.settings().is_dirty()
+    {
+        ogc_system::report(format_args!("FAIL runtime settings save error\n"));
+        return -7;
+    }
+    let mut saved_device = None;
+    if runtime.save_settings_if_dirty(|settings| {
+        saved_device = Some(settings.device);
+        Ok::<(), i32>(())
+    }) != Ok(true)
+        || saved_device != Some(2)
+        || runtime.settings().is_dirty()
+    {
+        ogc_system::report(format_args!("FAIL runtime settings save success\n"));
+        return -8;
+    }
+
+    runtime.set_preferred_device(3);
+    runtime.set_settings_persistence_enabled(false);
+    let mut save_called = false;
+    if runtime.prepare_settings_for_exit(|_| {
+        save_called = true;
+        Ok::<(), i32>(())
+    }) != Ok(ExitSettingsOutcome::PreservedAfterLoadFailure)
+        || save_called
+        || !runtime.settings().is_dirty()
+    {
+        ogc_system::report(format_args!("FAIL runtime preserve unreadable settings\n"));
+        return -9;
+    }
+
+    ogc_system::report(format_args!(
+        "PASS runtime catalog, display, theme, notice and settings APIs\n"
     ));
     0
 }
