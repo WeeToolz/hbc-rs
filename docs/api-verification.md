@@ -165,9 +165,12 @@ language glyphs on Wii hardware.
 
 The loader helper case calls the policy, argument-building, and plan-validation
 APIs directly in Dolphin. IOS and AHB hardware effects remain pending. Rust
-keeps NUL-separated arguments and complete preflight validation as safety and
-behavior extensions; Reborn uses one space-joined command string and validates
-while relocating.
+builds the same NUL-separated `__argv.commandLine` bytes that Reborn copies. If
+metadata arguments are empty or do not fit with the executable path in the
+1,024-byte buffer, both implementations omit the complete metadata argument
+list. Rust rejects embedded NUL bytes as a safety check. Complete preflight
+validation remains a Rust safety extension; Reborn validates while relocating.
+The expanded argument cases are recorded in the [loader helper evidence](review/evidence/reborn-api-loader-helpers-rust-dolphin-2026-11-24-r5/README.md).
 
 The browser controller case checks list-page movement, boundary stops, grid
 mode changes, selection identity, grid row movement, and detail memo dragging

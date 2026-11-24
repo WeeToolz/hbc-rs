@@ -121,19 +121,36 @@ pub fn build_launch_arguments(
     {
         return Err(ParseError::InvalidFormat("launch arguments contain NUL"));
     }
-    let mut length = executable_path
+    let path_length = executable_path
         .len()
         .checked_add(2)
         .ok_or(ParseError::OutOfBounds)?;
-    for argument in arguments {
-        length = length
-            .checked_add(argument.len())
-            .and_then(|length| length.checked_add(1))
-            .ok_or(ParseError::OutOfBounds)?;
+    if path_length > MAX_LAUNCH_ARGUMENT_BYTES {
+        return Err(ParseError::InvalidFormat("launch path exceeds limit"));
     }
-    if length > MAX_LAUNCH_ARGUMENT_BYTES {
-        return Err(ParseError::InvalidFormat("launch arguments exceed limit"));
-    }
+
+    // Reborn drops all metadata arguments when they exceed its argument
+    // buffer or do not fit after the executable path. Empty XML args have no
+    // C data node and are skipped by its parser.
+    let arguments: Vec<_> = arguments.iter().filter(|arg| !arg.is_empty()).collect();
+    let metadata_length = arguments.iter().try_fold(0usize, |length, argument| {
+        let separator = usize::from(length != 0);
+        length
+            .checked_add(separator)
+            .and_then(|length| length.checked_add(argument.len()))
+            .ok_or(ParseError::OutOfBounds)
+    })?;
+    let length = path_length
+        .checked_add(metadata_length)
+        .and_then(|length| length.checked_add(1))
+        .ok_or(ParseError::OutOfBounds)?;
+    let include_arguments =
+        metadata_length < MAX_LAUNCH_ARGUMENT_BYTES && length <= MAX_LAUNCH_ARGUMENT_BYTES;
+    let length = if include_arguments {
+        length
+    } else {
+        path_length
+    };
 
     let mut bytes = Vec::new();
     bytes
@@ -141,9 +158,11 @@ pub fn build_launch_arguments(
         .map_err(|_| ParseError::OutOfBounds)?;
     bytes.extend_from_slice(executable_path.as_bytes());
     bytes.push(0);
-    for argument in arguments {
-        bytes.extend_from_slice(argument.as_bytes());
-        bytes.push(0);
+    if include_arguments {
+        for argument in arguments {
+            bytes.extend_from_slice(argument.as_bytes());
+            bytes.push(0);
+        }
     }
     bytes.push(0);
     Ok(bytes)
@@ -599,14 +618,36 @@ mod tests {
     }
 
     #[test]
-    fn rejects_invalid_or_oversized_launch_arguments() {
+    fn omits_empty_or_oversized_metadata_arguments_like_reborn() {
+        let empty = alloc::vec![String::new()];
+        assert_eq!(
+            build_launch_arguments("boot.dol", &empty).unwrap(),
+            b"boot.dol\0\0"
+        );
+
+        let exact_fit = build_launch_arguments("x", &["y".repeat(1020)]).unwrap();
+        assert_eq!(exact_fit.len(), MAX_LAUNCH_ARGUMENT_BYTES);
+        assert_eq!(&exact_fit[..3], b"x\0y");
+        assert_eq!(&exact_fit[exact_fit.len() - 2..], b"\0\0");
+
+        // The metadata arguments fit Reborn's own limit, but not together
+        // with this path. Reborn launches with the path and no metadata args.
+        let combined_overflow = alloc::vec!["x".repeat(1019)];
+        assert_eq!(
+            build_launch_arguments("boot.dol", &combined_overflow).unwrap(),
+            b"boot.dol\0\0"
+        );
+
+        // Reborn also drops the complete metadata argument list when it is
+        // larger than its argument buffer.
+        let metadata_overflow = alloc::vec!["x".repeat(1024)];
+        assert_eq!(
+            build_launch_arguments("boot.dol", &metadata_overflow).unwrap(),
+            b"boot.dol\0\0"
+        );
+
         assert!(matches!(
             build_launch_arguments("bad\0path", &[]),
-            Err(ParseError::InvalidFormat(_))
-        ));
-        let long = String::from("x").repeat(MAX_LAUNCH_ARGUMENT_BYTES);
-        assert!(matches!(
-            build_launch_arguments("boot.elf", &[long]),
             Err(ParseError::InvalidFormat(_))
         ));
     }

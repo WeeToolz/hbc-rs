@@ -4105,8 +4105,17 @@ fn loader_helpers() -> i32 {
     }
 
     let arguments = alloc::vec![String::from("--safe"), String::from("two words")];
+    let exact_fit = build_launch_arguments("x", &["y".repeat(1020)]);
     if build_launch_arguments("sd:/apps/demo/boot.dol", &arguments)
         != Ok(b"sd:/apps/demo/boot.dol\0--safe\0two words\0\0".to_vec())
+        || !exact_fit.as_ref().is_ok_and(|bytes| {
+            bytes.len() == crate::loader::MAX_LAUNCH_ARGUMENT_BYTES
+                && bytes.starts_with(b"x\0y")
+                && bytes.ends_with(b"\0\0")
+        })
+        || build_launch_arguments("boot.dol", &["x".repeat(1019)]) != Ok(b"boot.dol\0\0".to_vec())
+        || build_launch_arguments("boot.dol", &["x".repeat(1024)]) != Ok(b"boot.dol\0\0".to_vec())
+        || build_launch_arguments("boot.dol", &[String::new()]) != Ok(b"boot.dol\0\0".to_vec())
         || build_launch_arguments("bad\0path", &[]).is_ok()
     {
         return -1;
