@@ -2943,6 +2943,27 @@ fn catalog() -> i32 {
     let ascii_names = [named_entry("zzz", "Alpha"), named_entry("aaa", "alpha")];
     let utf8_order = visible_entries(&utf8_names, Filter::All, SortOrder::Name);
     let ascii_order = visible_entries(&ascii_names, Filter::All, SortOrder::Name);
+    let dated_entry = |directory: &str, name: &str, release_date: Option<&str>| AppEntry {
+        directory: String::from(directory),
+        kind: AppKind::Elf,
+        size: 1,
+        has_icon: false,
+        metadata: Some(
+            crate::metadata::parse_app_xml(&alloc::format!(
+                "<app><name>{name}</name>{}</app>",
+                release_date
+                    .map(|date| alloc::format!("<release_date>{date}</release_date>"))
+                    .unwrap_or_default()
+            ))
+            .unwrap(),
+        ),
+    };
+    let date_entries = [
+        dated_entry("older", "Older", Some("20200102")),
+        dated_entry("newer", "Newer", Some("20250102")),
+        dated_entry("undated", "Undated", None),
+    ];
+    let date_order = visible_entries(&date_entries, Filter::MetadataOnly, SortOrder::ReleaseDate);
     if custom
         .iter()
         .map(|entry| entry.directory.as_str())
@@ -2963,6 +2984,11 @@ fn catalog() -> i32 {
             .map(|entry| entry.directory.as_str())
             .collect::<Vec<_>>()
             != ["aaa", "zzz"]
+        || date_order
+            .iter()
+            .map(|entry| entry.directory.as_str())
+            .collect::<Vec<_>>()
+            != ["newer", "older", "undated"]
         || crate::png::decode_hbc_app_icon(include_bytes!("../tests/fixtures/hbc-app-icon.png"))
             .is_err()
         || crate::png::decode_hbc_app_icon(include_bytes!(
