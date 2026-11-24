@@ -542,7 +542,7 @@ fn parse_xml(input: &str) -> Result<XmlNode, String> {
             pos = end;
             continue;
         }
-        let end = input[pos..].find('>').ok_or("unclosed XML tag")? + pos;
+        let end = find_xml_tag_end(input, pos + 1).ok_or("unclosed XML tag")?;
         let mut raw = input[pos + 1..end].trim();
         pos = end + 1;
         if raw.starts_with('!') {
@@ -597,6 +597,23 @@ fn parse_xml(input: &str) -> Result<XmlNode, String> {
     }
     Ok(stack.remove(0).children.remove(0))
 }
+
+fn find_xml_tag_end(input: &str, start: usize) -> Option<usize> {
+    let mut quote = None;
+    for (offset, character) in input[start..].char_indices() {
+        match quote {
+            Some(delimiter) if character == delimiter => quote = None,
+            Some(_) => {}
+            None => match character {
+                '\'' | '"' => quote = Some(character),
+                '>' => return Some(start + offset),
+                _ => {}
+            },
+        }
+    }
+    None
+}
+
 fn append_xml_text(stack: &mut [XmlNode], text: &str) -> Result<(), String> {
     let current = stack.last_mut().ok_or("invalid XML parser state")?;
     // Reborn's MXML_OPAQUE_CALLBACK lookup returns the first direct opaque
@@ -920,6 +937,12 @@ mod tests {
             parse_xml(&"x".repeat(MAX_XML_BYTES + 1)).unwrap_err(),
             "XML exceeds size limit"
         );
+    }
+
+    #[test]
+    fn parses_greater_than_inside_quoted_attributes() {
+        let theme = parse_theme_xml("<theme langs='ja> zh'/>").unwrap();
+        assert_eq!(theme.languages, ["zh"]);
     }
 
     #[test]

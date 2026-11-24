@@ -2760,8 +2760,12 @@ fn metadata_theme() -> i32 {
     let Ok(theme) = crate::metadata::parse_theme_xml(xml) else {
         return -1;
     };
+    let Ok(quoted_attribute) = crate::metadata::parse_theme_xml("<theme langs='ja> zh'/>") else {
+        return -2;
+    };
     if theme.default_font.color != Some(crate::metadata::Rgba(4, 5, 6, 255))
         || theme.languages != ["ja"]
+        || quoted_attribute.languages != ["zh"]
         || theme.description.as_deref() != Some(" first ")
         || theme.default_font.file.as_deref() != Some(" font.ttf ")
         || theme.fonts.len() != 1
