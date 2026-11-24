@@ -1568,7 +1568,8 @@ fn render_frame_api() -> i32 {
         localization::Language,
         metadata::{Rgba, ThemeFont, ThemeMetadata},
         render::{
-            Color, Rect, browser_frame_with_language, browser_frame_with_theme,
+            BackgroundBubble, Color, Frame, FrameCommand, Rect, StatusIndicator, ThemeArt,
+            TextRun, browser_frame_with_language, browser_frame_with_theme,
             browser_frame_with_viewport, map_rect,
         },
     };
@@ -1647,8 +1648,86 @@ fn render_frame_api() -> i32 {
         return -4;
     }
 
+    let mut frame = Frame::default();
+    if frame.logical_width() != 640 {
+        return -5;
+    }
+    frame.status_indicators(true, false);
+    if !frame.commands.iter().any(|command| {
+        matches!(command, FrameCommand::StatusIndicator {
+            indicator: StatusIndicator::Network { active: true }, ..
+        })
+    }) || !frame.commands.iter().any(|command| {
+        matches!(command, FrameCommand::StatusIndicator {
+            indicator: StatusIndicator::Gecko { active: false }, ..
+        })
+    }) {
+        return -6;
+    }
+
+    frame.pointer_cursor(100.0, 120.0, true);
+    frame.storage_loading();
+    if !frame.commands.iter().any(|command| {
+        matches!(command, FrameCommand::ThemeArt {
+            art: ThemeArt::Cursor { dragging: true, shade: false }, ..
+        })
+    }) || !frame
+        .commands
+        .iter()
+        .any(|command| matches!(command, FrameCommand::ThemeArt { art: ThemeArt::Throbber, .. }))
+    {
+        return -7;
+    }
+
+    let bubble = BackgroundBubble {
+        texture: 9,
+        bounds: Rect {
+            x: 1.0,
+            y: 2.0,
+            width: 3.0,
+            height: 4.0,
+        },
+    };
+    frame.set_background_bubbles(&[bubble]);
+    if frame.bubbles != [bubble]
+        || !matches!(frame.commands.first(), Some(FrameCommand::Bubble { texture: 2, .. }))
+    {
+        return -8;
+    }
+
+    frame.text_runs.push(TextRun {
+        x: 5.0,
+        y: 10.0,
+        value: String::from("memo source"),
+        scale: 1.0,
+        color: Color::rgb(1, 2, 3),
+        file: None,
+        fallback_file: None,
+        size: 12,
+        memo: Some(crate::text_layout::MemoSpec {
+            width: 40.0,
+            height: 20.0,
+            scroll: 0,
+        }),
+        right_align: false,
+    });
+    let resolved = frame.resolve_memos(|_, _| {
+        Ok(crate::text_layout::MemoLayout {
+            lines: vec![String::from("memo one"), String::from("memo two")],
+            max_scroll: 1,
+            line_height: 10.0,
+        })
+    });
+    if resolved != Ok(Some((1, 10)))
+        || frame.text_runs.iter().map(|run| run.value.as_str()).collect::<Vec<_>>()
+            != ["memo one", "memo two"]
+        || frame.text_runs.iter().any(|run| run.memo.is_some())
+    {
+        return -9;
+    }
+
     ogc_system::report(format_args!(
-        "PASS render frame viewport, theme, language and mapping APIs\n"
+        "PASS render frame construction, memo, indicators, bubbles and mapping APIs\n"
     ));
     0
 }

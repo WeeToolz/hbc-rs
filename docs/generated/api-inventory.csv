@@ -352,12 +352,12 @@ hbc_rs::render::BackgroundAnimation::tick,src/render.rs,229,unverified,,not_run,
 hbc_rs::render::Color::rgb,src/render.rs,34,extension,HBC-API-EXT-RENDER-PRIMITIVES-01,not_applicable,Rust Rect geometry helpers and the opaque RGB constructor are Rust drawing primitives without matching public C HBC APIs
 hbc_rs::render::Frame::hit_target,src/render.rs,493,partial,HBC-API-RENDER-HIT-TARGET-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::render::Frame::hit_test,src/render.rs,480,partial,HBC-API-RENDER-HITTEST-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
-hbc_rs::render::Frame::logical_width,src/render.rs,471,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::render::Frame::pointer_cursor,src/render.rs,498,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::render::Frame::resolve_memos,src/render.rs,435,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::render::Frame::set_background_bubbles,src/render.rs,637,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::render::Frame::status_indicators,src/render.rs,619,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::render::Frame::storage_loading,src/render.rs,518,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::render::Frame::logical_width,src/render.rs,471,partial,HBC-API-FRAME-WIDTH-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::render::Frame::pointer_cursor,src/render.rs,498,partial,HBC-API-FRAME-POINTER-CURSOR-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::render::Frame::resolve_memos,src/render.rs,435,partial,HBC-API-FRAME-MEMO-RESOLVE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::render::Frame::set_background_bubbles,src/render.rs,637,partial,HBC-API-FRAME-BUBBLES-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::render::Frame::status_indicators,src/render.rs,619,partial,HBC-API-FRAME-STATUS-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::render::Frame::storage_loading,src/render.rs,518,partial,HBC-API-FRAME-STORAGE-LOADING-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::render::Rect::bottom,src/render.rs,65,extension,HBC-API-EXT-RENDER-PRIMITIVES-01,not_applicable,Rust Rect geometry helpers and the opaque RGB constructor are Rust drawing primitives without matching public C HBC APIs
 hbc_rs::render::Rect::intersect,src/render.rs,70,extension,HBC-API-EXT-RENDER-PRIMITIVES-01,not_applicable,Rust Rect geometry helpers and the opaque RGB constructor are Rust drawing primitives without matching public C HBC APIs
 hbc_rs::render::Rect::is_valid,src/render.rs,54,extension,HBC-API-EXT-RENDER-PRIMITIVES-01,not_applicable,Rust Rect geometry helpers and the opaque RGB constructor are Rust drawing primitives without matching public C HBC APIs
