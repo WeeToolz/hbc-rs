@@ -73,6 +73,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"zip-install-error-api" {
         return zip_install_error_api();
     }
+    if case == b"renderer-layout-memos-api" {
+        return renderer_layout_memos_api();
+    }
     if case == b"lifecycle-api" {
         return lifecycle_api();
     }
@@ -417,6 +420,71 @@ fn zip_install_error_api() -> i32 {
 
     ogc_system::report(format_args!(
         "PASS ZIP install operation and worker error messages\n"
+    ));
+    0
+}
+
+fn renderer_layout_memos_api() -> i32 {
+    use crate::{
+        font::{DEFAULT_REGULAR_FONT_KEY, FontError},
+        platform::{renderer, theme::ThemeTextures, video::VideoError},
+        render::{Color, Frame, TextRun},
+        text_layout::MemoSpec,
+    };
+
+    let theme = ThemeTextures::load(None);
+    let mut frame = Frame::default();
+    frame.text_runs.push(TextRun {
+        x: 10.0,
+        y: 20.0,
+        value: String::from("alpha beta gamma delta"),
+        scale: 1.0,
+        color: Color::rgb(255, 255, 255),
+        file: Some(String::from(DEFAULT_REGULAR_FONT_KEY)),
+        fallback_file: None,
+        size: 12,
+        memo: Some(MemoSpec {
+            width: 44.0,
+            height: 180.0,
+            scroll: 0,
+        }),
+        right_align: false,
+    });
+    let result = renderer::layout_memos(&mut frame, &theme);
+    if !matches!(result, Ok(Some((0, line_height))) if line_height > 0)
+        || frame.text_runs.len() < 2
+        || frame.text_runs.iter().any(|run| run.memo.is_some())
+        || frame.text_runs[0].value != "alpha"
+    {
+        ogc_system::report(format_args!("FAIL renderer memo layout API result\n"));
+        return -1;
+    }
+    let mut invalid = Frame::default();
+    invalid.text_runs.push(TextRun {
+        x: 0.0,
+        y: 0.0,
+        value: String::from("invalid"),
+        scale: 1.0,
+        color: Color::rgb(255, 255, 255),
+        file: Some(String::from(DEFAULT_REGULAR_FONT_KEY)),
+        fallback_file: None,
+        size: 12,
+        memo: Some(MemoSpec {
+            width: 0.0,
+            height: 20.0,
+            scroll: 0,
+        }),
+        right_align: false,
+    });
+    if renderer::layout_memos(&mut invalid, &theme) != Err(VideoError::Font(FontError::InvalidSize))
+        || invalid.text_runs[0].memo.is_none()
+    {
+        ogc_system::report(format_args!("FAIL renderer memo layout error preservation\n"));
+        return -2;
+    }
+
+    ogc_system::report(format_args!(
+        "PASS renderer production font memo wrapping and bounds error\n"
     ));
     0
 }
