@@ -227,10 +227,10 @@ hbc_rs::platform::lifecycle::run_handoff_cleanup,src/platform/lifecycle.rs,161,u
 hbc_rs::platform::lifecycle::take_debugger_break,src/platform/lifecycle.rs,115,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::lifecycle::take_ready_exit,src/platform/lifecycle.rs,125,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::lifecycle::take_request,src/platform/lifecycle.rs,191,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::platform::network_config::load,src/platform/network_config.rs,184,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::platform::network_config::load,src/platform/network_config.rs,184,extension,HBC-API-EXT-NETCFG-OPS-01,not_applicable,"Rust network profile loading, no-backup save, and error formatting have no matching C HBC API"
 hbc_rs::platform::network_config::save,src/platform/network_config.rs,232,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::platform::network_config::save_error_message,src/platform/network_config.rs,79,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::platform::network_config::save_without_backup,src/platform/network_config.rs,246,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::platform::network_config::save_error_message,src/platform/network_config.rs,79,extension,HBC-API-EXT-NETCFG-OPS-01,not_applicable,"Rust network profile loading, no-backup save, and error formatting have no matching C HBC API"
+hbc_rs::platform::network_config::save_without_backup,src/platform/network_config.rs,246,extension,HBC-API-EXT-NETCFG-OPS-01,not_applicable,"Rust network profile loading, no-backup save, and error formatting have no matching C HBC API"
 hbc_rs::platform::network_restart::ConnectionCheck::new,src/platform/network_restart.rs,46,partial,HBC-API-NETWORK-CHECK-NEW-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::platform::network_restart::ConnectionCheck::poll,src/platform/network_restart.rs,51,partial,HBC-API-NETWORK-CHECK-POLL-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::platform::network_restart::now_ms,src/platform/network_restart.rs,118,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
