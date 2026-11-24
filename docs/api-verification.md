@@ -152,3 +152,10 @@ The sweep adds current run evidence for those named cases; it does not promote
 unrelated APIs or complete the full contracts for the APIs that it calls.
 The five `CatalogStorage` trait methods also have exact inventory entries tied
 to a current `catalog` case; see the [trait API record](review/evidence/reborn-api-catalog-trait-rust-dolphin-2026-11-23/README.md).
+
+A fresh eight-case Dolphin run on 2026-11-23 passed the localization, HOME
+control, notice, About, application controller, render hit-test, metadata, and
+catalog production API checks. The archived logs and result record are in
+[`reborn-api-refresh-rust-dolphin-2026-11-23`](review/evidence/reborn-api-refresh-rust-dolphin-2026-11-23/README.md).
+These results refresh only APIs named by those cases; they do not reduce the
+remaining source-review, full-contract, or physical Wii requirements.

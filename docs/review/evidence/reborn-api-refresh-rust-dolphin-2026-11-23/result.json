@@ -1,0 +1,47 @@
+{
+  "sha256": "aa5bcab78487e9b983b45288375a6f488348ab6b194e86291906b66b164554fa",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-behii1zf",
+  "cases": [
+    {
+      "case": "localization-api",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "overlay-control-api",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "app-notice-api",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "about-api",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "app-controller",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "render-hit-test",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "metadata-app",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "catalog",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}
