@@ -99,6 +99,10 @@ The theme archive storage APIs have a separate Dolphin round trip in a private
 NAND copy. It checks save, replacement, exact readback, and that empty input
 does not replace the saved archive. Wii NAND commit and recovery remain
 pending; see the [theme storage record](review/evidence/reborn-api-theme-storage-rust-dolphin-2026-11-23/README.md).
+The public settings NAND `load` and `save` APIs now link to the isolated
+settings acceptance sequence. It checks saved XML bytes, loaded values, and
+loading from the recovery backup path. Physical Wii storage behavior remains
+pending; see the [settings storage record](review/evidence/reborn-api-settings-storage-rust-dolphin-2026-11-23/README.md).
 The lower-level `ZipArchive` APIs now also have a direct production Dolphin
 case for parsing, entry listing and lookup, bounded extraction, entry limits,
 and path validation. The [archive API record](review/evidence/reborn-api-archive-rust-dolphin-2026-11-23/README.md)

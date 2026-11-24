@@ -1,0 +1,39 @@
+{
+  "sha256": "df8f2c6729eacea00d0804af8576fde772a150cca3240c562104af1d3b7d7e8d",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-7tbznwdw",
+  "cases": [
+    {
+      "case": "settings-direct",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "settings-save",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "settings-load",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "settings-load-recovery",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "settings-banner-error",
+      "success": true,
+      "injected_error": -1022,
+      "result": 0
+    },
+    {
+      "case": "settings-banner-retry",
+      "success": true,
+      "injected_error": -1022,
+      "result": 0
+    }
+  ],
+  "success": true
+}

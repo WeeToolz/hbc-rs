@@ -164,7 +164,7 @@ def main():
         backup = data / '_bak'
         backup.mkdir(exist_ok=True)
         settings.rename(backup / 'settings.xml')
-        results.append(run_case(args.dol.resolve(), names, profile, args.output, 'settings-load', args.debug_port))
+        results.append(run_case(args.dol.resolve(), names, profile, args.output, 'settings-load-recovery', args.debug_port))
         if not settings.exists() or settings.read_bytes() != EXPECTED_XML:
             raise RuntimeError('Restart did not recover the persisted backup')
         banner = data / 'banner.bin'

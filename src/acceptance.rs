@@ -129,7 +129,7 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     }
     let result = match case {
         b"settings-save" => settings::save(&expected_settings()),
-        b"settings-load" => settings::load().and_then(|actual| {
+        b"settings-load" | b"settings-load-recovery" => settings::load().and_then(|actual| {
             if actual == expected_settings() {
                 Ok(())
             } else {
