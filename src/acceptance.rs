@@ -124,6 +124,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"network-restart-api" {
         return network_restart_api();
     }
+    if case == b"network-restart-worker-api" {
+        return network_restart_worker_api();
+    }
     if case == b"input-platform-api" {
         return input_platform_api();
     }
@@ -372,14 +375,7 @@ fn wiiload_start_api() -> i32 {
         return -1;
     }
 
-    let mut worker_status = ReceiverStatus::Starting;
-    for _ in 0..1500 {
-        worker_status = wiiload::status();
-        if worker_status != ReceiverStatus::Starting {
-            break;
-        }
-        ogc_lwp::sys::sleep_ticks((ogc_lwp::sys::TICKS_PER_SECOND / 100).max(1));
-    }
+    let worker_status = wait_for_wiiload_worker();
     if worker_status == ReceiverStatus::Starting {
         let _ = wiiload::stop();
         ogc_system::report(format_args!("FAIL Wiiload worker startup deadline\n"));
@@ -410,6 +406,19 @@ fn wiiload_start_api() -> i32 {
         "PASS Wiiload worker started as {worker_status:?}, stopped, and cleared indicators\n"
     ));
     0
+}
+
+fn wait_for_wiiload_worker() -> crate::wiiload::ReceiverStatus {
+    use crate::{platform::wiiload, wiiload::ReceiverStatus};
+
+    for _ in 0..1500 {
+        let status = wiiload::status();
+        if status != ReceiverStatus::Starting {
+            return status;
+        }
+        ogc_lwp::sys::sleep_ticks((ogc_lwp::sys::TICKS_PER_SECOND / 100).max(1));
+    }
+    ReceiverStatus::Starting
 }
 
 fn zip_install_error_api() -> i32 {
@@ -3002,6 +3011,121 @@ fn network_restart_api() -> i32 {
     }
     ogc_system::report(format_args!(
         "PASS network restart connection, upload guard and work ordering\n"
+    ));
+    0
+}
+
+fn network_restart_worker_api() -> i32 {
+    use crate::{
+        platform::{network_restart, wiiload},
+        wiiload::{IndicatorState, ReceiverStatus},
+    };
+
+    let first_check = match network_restart::start() {
+        Ok(check) => check,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL network restart start API {error:?}\n"));
+            return -1;
+        }
+    };
+    let first_status = wait_for_wiiload_worker();
+    if first_status == ReceiverStatus::Starting {
+        let _ = wiiload::stop();
+        ogc_system::report(format_args!("FAIL network restart start deadline\n"));
+        return -2;
+    }
+    let first_result =
+        first_check.poll(first_status, wiiload::local_ip(), network_restart::now_ms());
+    if matches!(first_status, ReceiverStatus::Listening)
+        && first_result.is_some_and(|result| result.is_err())
+    {
+        let _ = wiiload::stop();
+        ogc_system::report(format_args!(
+            "FAIL network restart initial connection result\n"
+        ));
+        return -3;
+    }
+    if matches!(
+        first_status,
+        ReceiverStatus::NetworkUnavailable
+            | ReceiverStatus::ListenerError
+            | ReceiverStatus::CleanupError
+            | ReceiverStatus::Stopped
+    ) && first_result
+        != Some(Err(network_restart::ConnectionError::Receiver(
+            first_status,
+        )))
+    {
+        let _ = wiiload::stop();
+        ogc_system::report(format_args!(
+            "FAIL network restart initial failure result\n"
+        ));
+        return -4;
+    }
+
+    let second_check = match network_restart::restart() {
+        Ok(check) => check,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL network restart restart API {error:?}\n"));
+            return -5;
+        }
+    };
+    let second_status = wait_for_wiiload_worker();
+    if second_status == ReceiverStatus::Starting {
+        let _ = wiiload::stop();
+        ogc_system::report(format_args!("FAIL network restart restart deadline\n"));
+        return -6;
+    }
+    let second_result = second_check.poll(
+        second_status,
+        wiiload::local_ip(),
+        network_restart::now_ms(),
+    );
+    if matches!(second_status, ReceiverStatus::Listening)
+        && second_result.is_some_and(|result| result.is_err())
+    {
+        let _ = wiiload::stop();
+        ogc_system::report(format_args!("FAIL restarted connection result\n"));
+        return -7;
+    }
+    if matches!(
+        second_status,
+        ReceiverStatus::NetworkUnavailable
+            | ReceiverStatus::ListenerError
+            | ReceiverStatus::CleanupError
+            | ReceiverStatus::Stopped
+    ) && second_result
+        != Some(Err(network_restart::ConnectionError::Receiver(
+            second_status,
+        )))
+    {
+        let _ = wiiload::stop();
+        ogc_system::report(format_args!("FAIL restarted receiver failure result\n"));
+        return -8;
+    }
+
+    let stop = wiiload::stop();
+    let status = wiiload::status();
+    let indicators = wiiload::indicator_state();
+    let stopped = stop.is_ok() && status == ReceiverStatus::Stopped;
+    let cleanup_reported = matches!(stop, Err(wiiload::ReceiverError::Cleanup(code))
+        if wiiload::cleanup_error() == Some(code)
+            && status == ReceiverStatus::CleanupError);
+    if (!stopped && !cleanup_reported)
+        || indicators
+            != (IndicatorState {
+                network_active: false,
+                gecko_active: false,
+            })
+    {
+        ogc_system::report(format_args!(
+            "FAIL network restart final cleanup {stop:?} {status:?}\n"
+        ));
+        return -9;
+    }
+
+    ogc_system::report(format_args!(
+        "PASS network restart start and restart statuses {first_status:?} {second_status:?}\n"
     ));
     0
 }
