@@ -10,8 +10,8 @@ Rust match these C results.
 
 The production Rust `font-api` case passed in Dolphin 2609a with all 570
 printable ASCII expected widths from the C probe, plus the existing bundled
-and custom-font width cases. The 570-byte fixture contains the C results in
-size and character order. A host comparison also matched all 570 values.
+and custom-font width cases. The original fixture contained the C results in size and character order.
+It was later expanded in the [ASCII sweep](../reborn-font-ascii-sweep-rust-dolphin-2026-11-24/README.md). A host comparison also matched all 570 values.
 The run result and raw log are included. The C diagnostic DOL SHA-256 is
 `77811c3c5176e3db40d6654a7410431db994367e6cf54e7829690ff5b0888ceb`.
 Its source and raw output are included. The date runner reports failure because

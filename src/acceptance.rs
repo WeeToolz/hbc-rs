@@ -3710,7 +3710,7 @@ fn font_api() -> i32 {
         }
     }
     let ascii_widths = include_bytes!("../tests/fixtures/droid-ascii-widths.bin");
-    for (size_index, size) in [8, 12, 16, 18, 24, 32].into_iter().enumerate() {
+    for (size_index, size) in (7..=40).enumerate() {
         for character in 32u8..=126 {
             let mut encoded = [0u8; 4];
             let text = char::from(character).encode_utf8(&mut encoded);
