@@ -64,6 +64,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"render-frame-api" {
         return render_frame_api();
     }
+    if case == b"lifecycle-api" {
+        return lifecycle_api();
+    }
     if case == b"metadata-theme" {
         return metadata_theme();
     }
@@ -196,6 +199,45 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
             -5
         }
     }
+}
+
+fn lifecycle_api() -> i32 {
+    use crate::platform::lifecycle::{ExitRequest, ExitSignal, defer_exit, take_ready_exit};
+
+    let signal = ExitSignal::new();
+    if signal.take().is_some() {
+        return -1;
+    }
+    signal.request_reset();
+    if signal.take() != Some(ExitRequest::ReturnToMenu) || signal.take().is_some() {
+        return -1;
+    }
+    signal.request_power_off();
+    if signal.take() != Some(ExitRequest::PowerOff) || signal.take().is_some() {
+        return -1;
+    }
+    signal.request_reset();
+    signal.request_power_off();
+    if signal.take() != Some(ExitRequest::PowerOff) || signal.take().is_some() {
+        return -1;
+    }
+
+    let mut pending = None;
+    defer_exit(&mut pending, ExitRequest::ReturnToMenu);
+    defer_exit(&mut pending, ExitRequest::PowerOff);
+    defer_exit(&mut pending, ExitRequest::ReturnToMenu);
+    if take_ready_exit(&mut pending, true).is_some()
+        || take_ready_exit(&mut pending, false) != Some(ExitRequest::PowerOff)
+        || pending.is_some()
+        || take_ready_exit(&mut pending, false).is_some()
+    {
+        return -1;
+    }
+
+    ogc_system::report(format_args!(
+        "PASS lifecycle API reset, power and deferred exit priority\n"
+    ));
+    0
 }
 
 fn storage_volumes() -> i32 {
