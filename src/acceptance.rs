@@ -202,7 +202,10 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
 }
 
 fn lifecycle_api() -> i32 {
-    use crate::platform::lifecycle::{ExitRequest, ExitSignal, defer_exit, take_ready_exit};
+    use crate::platform::lifecycle::{
+        ExitCleanupStep, ExitRequest, ExitSignal, Handoff, defer_exit, run_exit_cleanup,
+        run_handoff_cleanup, take_ready_exit,
+    };
 
     let signal = ExitSignal::new();
     if signal.take().is_some() {
@@ -234,8 +237,39 @@ fn lifecycle_api() -> i32 {
         return -1;
     }
 
+    let mut events = Vec::new();
+    if run_exit_cleanup(|step| {
+        events.push(step);
+        Ok::<(), ()>(())
+    })
+    .is_err()
+        || events
+            != [
+                ExitCleanupStep::Disc,
+                ExitCleanupStep::NetworkReceiver,
+                ExitCleanupStep::Storage,
+                ExitCleanupStep::Controllers,
+            ]
+    {
+        return -1;
+    }
+
+    let mut events = Vec::new();
+    if run_handoff_cleanup(Handoff::Application, |step| {
+        events.push(step);
+        if step == ExitCleanupStep::Disc {
+            Err(-37)
+        } else {
+            Ok(())
+        }
+    }) != Err((ExitCleanupStep::Disc, -37))
+        || events != [ExitCleanupStep::Storage, ExitCleanupStep::Disc]
+    {
+        return -1;
+    }
+
     ogc_system::report(format_args!(
-        "PASS lifecycle API reset, power and deferred exit priority\n"
+        "PASS lifecycle API requests, readiness and cleanup ordering\n"
     ));
     0
 }

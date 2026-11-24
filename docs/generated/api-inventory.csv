@@ -222,8 +222,8 @@ hbc_rs::platform::lifecycle::debugger_mode,src/platform/lifecycle.rs,75,unverifi
 hbc_rs::platform::lifecycle::defer_exit,src/platform/lifecycle.rs,119,partial,HBC-API-DEFER-EXIT-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::platform::lifecycle::initialize_debugger,src/platform/lifecycle.rs,105,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::lifecycle::register_callbacks,src/platform/lifecycle.rs,183,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::platform::lifecycle::run_exit_cleanup,src/platform/lifecycle.rs,176,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::platform::lifecycle::run_handoff_cleanup,src/platform/lifecycle.rs,161,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::platform::lifecycle::run_exit_cleanup,src/platform/lifecycle.rs,176,partial,HBC-API-EXIT-CLEANUP-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::platform::lifecycle::run_handoff_cleanup,src/platform/lifecycle.rs,161,partial,HBC-API-HANDOFF-CLEANUP-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::platform::lifecycle::take_debugger_break,src/platform/lifecycle.rs,115,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::lifecycle::take_ready_exit,src/platform/lifecycle.rs,125,partial,HBC-API-TAKE-READY-EXIT-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::platform::lifecycle::take_request,src/platform/lifecycle.rs,191,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
