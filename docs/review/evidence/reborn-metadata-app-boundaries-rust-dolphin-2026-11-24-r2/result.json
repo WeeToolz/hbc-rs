@@ -1,0 +1,15 @@
+{
+  "sha256": "1fc9427d5fa9c57459bd4eda72600afc13162a5ef4304e555ecb16e43ef97970",
+  "dolphin_arch": "x86_64",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-3_5iaigk",
+  "sd_fixture": null,
+  "theme_fixture": null,
+  "cases": [
+    {
+      "case": "metadata-app",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

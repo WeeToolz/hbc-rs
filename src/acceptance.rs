@@ -2784,7 +2784,7 @@ fn metadata_theme() -> i32 {
 }
 
 fn metadata_app() -> i32 {
-    let xml = "<app><name> Demo </name><author> </author><coder>fallback</coder><version> 1 </version><short_description> note </short_description><sort_id>  +12tail</sort_id><arguments><wrapper><arg>nested ignored</arg></wrapper><arg> x </arg><arg>y</arg></arguments><ahb_access/><no_ios_reload/></app>";
+    let xml = "<app><name> Demo </name><author> </author><coder>fallback</coder><version> 1 </version><short_description> note </short_description><long_description> details </long_description><sort_id>  +12tail</sort_id><arguments><wrapper><arg>nested ignored</arg></wrapper><arg> x </arg><arg>two &amp; three</arg></arguments><ahb_access/><no_ios_reload/></app>";
     let Ok(metadata) = crate::metadata::parse_app_xml(xml) else {
         return -1;
     };
@@ -2792,13 +2792,28 @@ fn metadata_app() -> i32 {
         || metadata.author.as_deref() != Some(" ")
         || metadata.version.as_deref() != Some(" 1 ")
         || metadata.short_description.as_deref() != Some(" note ")
+        || metadata.long_description.as_deref() != Some(" details ")
         || metadata.sort_id != Some(12)
-        || metadata.arguments != [" x ", "y"]
+        || metadata.arguments != [" x ", "two & three"]
         || !metadata.ahb_access
         || !metadata.no_ios_reload
     {
         ogc_system::report(format_args!("FAIL metadata-app parsed fields\n"));
         return -1;
+    }
+    for (input, expected) in [
+        ("2147483647tail", Some(i32::MAX)),
+        ("2147483648tail", Some(i32::MAX)),
+        ("-2147483648tail", Some(i32::MIN)),
+        ("-2147483649tail", Some(i32::MIN)),
+        ("+tail", None),
+        ("\u{a0}4", None),
+    ] {
+        let xml = alloc::format!("<app><sort_id>{input}</sort_id></app>");
+        if !matches!(crate::metadata::parse_app_xml(&xml), Ok(value) if value.sort_id == expected) {
+            ogc_system::report(format_args!("FAIL metadata-app sort_id {input:?}\n"));
+            return -4;
+        }
     }
     let cdata_xml = "<app><name>first<b>nested</b>last</name><author><![CDATA[ignored]]></author><coder>fallback</coder><version><![CDATA[ignored]]>visible</version><short_description><!--skip-->first</short_description></app>";
     let Ok(cdata_metadata) = crate::metadata::parse_app_xml(cdata_xml) else {
