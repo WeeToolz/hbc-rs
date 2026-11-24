@@ -1,0 +1,36 @@
+{
+  "compiler": "/opt/devkitpro/devkitPPC/bin/powerpc-eabi-gcc",
+  "elf2dol": "/opt/devkitpro/tools/bin/elf2dol",
+  "mini_xml_version": "3.3.1",
+  "source_sha256": "2b737b4be628c6d186e28bc85c30c7b4216cf1ad9a8ff23aa6314e0ea28630e6",
+  "dol_sha256": "a5d2b0bbdf296effe4e86a4c997b22fd82b6fa2b5ee0ea56cd6ee74952ad48ba",
+  "source_path": "probe.c",
+  "reference_function": "/Volumes/SSD/WiiDev/C-sources/hbc-reborn/channel/channelapp/source/xml.c#_get_args",
+  "working_directory": "/Volumes/SSD/WiiDev/C-sources/hbc-reborn/channel/channelapp",
+  "compile_command": [
+    "/opt/devkitpro/devkitPPC/bin/powerpc-eabi-gcc",
+    "-DGEKKO",
+    "-mrvl",
+    "-mcpu=750",
+    "-meabi",
+    "-mhard-float",
+    "-Os",
+    "-Wall",
+    "-I/opt/devkitpro/libogc/include",
+    "-I/opt/devkitpro/portlibs/ppc/include",
+    "-L/opt/devkitpro/libogc/lib/wii",
+    "-L/opt/devkitpro/portlibs/ppc/lib",
+    "/Volumes/SSD/WiiDev/WeeToolz/hbc-rs/docs/review/evidence/reborn-args-traversal-c-dolphin-2026-11-24/probe.c",
+    "-specs=newrvl.spec",
+    "-lmxml",
+    "-logc",
+    "-lm",
+    "-o",
+    "/Volumes/SSD/WiiDev/WeeToolz/hbc-rs/target/reborn-args-traversal-c-dolphin-2026-11-24.elf"
+  ],
+  "convert_command": [
+    "/opt/devkitpro/tools/bin/elf2dol",
+    "/Volumes/SSD/WiiDev/WeeToolz/hbc-rs/target/reborn-args-traversal-c-dolphin-2026-11-24.elf",
+    "/Volumes/SSD/WiiDev/WeeToolz/hbc-rs/target/reborn-args-traversal-c-dolphin-2026-11-24.dol"
+  ]
+}

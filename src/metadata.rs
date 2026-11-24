@@ -705,7 +705,7 @@ mod tests {
     }
     #[test]
     fn parses_app_metadata_entities_dates_arguments_and_flags() {
-        let m=parse_app_xml("<app><name>A &amp; B</name><coder>fallback</coder><release_date>20240203112233</release_date><arguments><arg>x</arg><arg>two &lt; three</arg></arguments><no_ios_reload/></app>").unwrap();
+        let m=parse_app_xml("<app><name>A &amp; B</name><coder>fallback</coder><release_date>20240203112233</release_date><arguments><wrapper><arg>nested ignored</arg></wrapper><arg>x</arg><arg>two &lt; three</arg></arguments><no_ios_reload/></app>").unwrap();
         assert_eq!(m.name.as_deref(), Some("A & B"));
         assert_eq!(m.author.as_deref(), Some("fallback"));
         assert_eq!(m.release_date, Some(20240303112233));

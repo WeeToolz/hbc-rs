@@ -9,6 +9,11 @@ returns no value, and CDATA is ignored. Empty author data falls back to `coder`.
 The independent C probe in
 [`reborn-mxml-cdata-c-dolphin-2026-11-24-r4`](../reborn-mxml-cdata-c-dolphin-2026-11-24-r4/README.md)
 uses Reborn's `_get_cdata` traversal and confirms the same outcomes in Dolphin.
+The C argument traversal probe in
+[`reborn-args-traversal-c-dolphin-2026-11-24`](../reborn-args-traversal-c-dolphin-2026-11-24/README.md)
+confirms that nested `<arg>` elements are ignored and only direct argument
+children are collected. The matching Rust production API case runs in
+[`reborn-api-metadata-args-rust-dolphin-2026-11-24-r1`](../reborn-api-metadata-args-rust-dolphin-2026-11-24-r1/result.json).
 The Rust acceptance DOL hash and source revisions are in `build.json`;
 `result.json` records result zero. Dolphin ran as x86_64 under Rosetta with build
 ID `409881c34357d0f105fd473167d15ab0bd9c1628`.

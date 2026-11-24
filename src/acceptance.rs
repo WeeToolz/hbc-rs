@@ -2777,7 +2777,7 @@ fn metadata_theme() -> i32 {
 }
 
 fn metadata_app() -> i32 {
-    let xml = "<app><name> Demo </name><author> </author><coder>fallback</coder><version> 1 </version><short_description> note </short_description><sort_id>  +12tail</sort_id><arguments><arg> x </arg><arg>y</arg></arguments><ahb_access/><no_ios_reload/></app>";
+    let xml = "<app><name> Demo </name><author> </author><coder>fallback</coder><version> 1 </version><short_description> note </short_description><sort_id>  +12tail</sort_id><arguments><wrapper><arg>nested ignored</arg></wrapper><arg> x </arg><arg>y</arg></arguments><ahb_access/><no_ios_reload/></app>";
     let Ok(metadata) = crate::metadata::parse_app_xml(xml) else {
         return -1;
     };

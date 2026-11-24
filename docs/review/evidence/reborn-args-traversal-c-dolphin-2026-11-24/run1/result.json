@@ -1,0 +1,30 @@
+{
+  "sha256": "a5d2b0bbdf296effe4e86a4c997b22fd82b6fa2b5ee0ea56cd6ee74952ad48ba",
+  "dolphin_arch": "x86_64",
+  "success": true,
+  "command": [
+    "/usr/bin/arch",
+    "-x86_64",
+    "/Applications/Dolphin.app/Contents/MacOS/Dolphin",
+    "-b",
+    "-u",
+    "/private/tmp/hbc-rs/hbc-args-c-63gu_uxm",
+    "-e",
+    "/Volumes/SSD/WiiDev/WeeToolz/hbc-rs/target/reborn-args-traversal-c-dolphin-2026-11-24.dol"
+  ],
+  "profile": "/private/tmp/hbc-rs/hbc-args-c-63gu_uxm",
+  "completion_marker": true,
+  "forced_termination_after_marker": true,
+  "dolphin_exit_code": -9,
+  "records": [
+    "39:56:419 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC_ARGS index=0 item=0 value=direct-a",
+    "39:56:421 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC_ARGS index=0 item=1 value=direct-b",
+    "39:56:422 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC_ARGS index=0 count=2",
+    "39:56:424 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC_ARGS index=1 item=0 value=direct",
+    "39:56:425 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC_ARGS index=1 count=1",
+    "39:56:425 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC_ARGS index=2 item=0 value=direct-a",
+    "39:56:425 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC_ARGS index=2 item=1 value=direct-b",
+    "39:56:425 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC_ARGS index=2 count=2",
+    "39:56:426 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC_ARGS done cases=3"
+  ]
+}
