@@ -1,0 +1,12 @@
+{
+  "sha256": "b129b98cadc2802ccf10be92e8c41e8b5c6db2c1aa6bbf42df108b925f39ca85",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-heeqd5y4",
+  "cases": [
+    {
+      "case": "device-availability-api",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

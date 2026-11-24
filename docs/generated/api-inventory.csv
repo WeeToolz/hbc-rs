@@ -383,14 +383,14 @@ hbc_rs::runtime::AppRuntime::prepare_settings_for_exit,src/runtime.rs,206,unveri
 hbc_rs::runtime::AppRuntime::replace_catalog,src/runtime.rs,250,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::request_wiiload_zip_confirmation,src/runtime.rs,67,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::save_settings_if_dirty,src/runtime.rs,192,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::runtime::AppRuntime::set_active_device,src/runtime.rs,171,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::runtime::AppRuntime::set_active_device,src/runtime.rs,171,partial,HBC-API-RUNTIME-ACTIVE-DEVICE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::runtime::AppRuntime::set_bootmii_available,src/runtime.rs,167,partial,HBC-API-RUNTIME-BOOTMII-SET-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::runtime::AppRuntime::set_device_availability,src/runtime.rs,175,partial,HBC-API-RUNTIME-DEVICE-AVAILABILITY-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::runtime::AppRuntime::set_main_menu_status,src/runtime.rs,115,partial,HBC-API-RUNTIME-MAIN-STATUS-SET-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::runtime::AppRuntime::set_measured_memo,src/runtime.rs,63,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::set_network_config,src/runtime.rs,111,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
 hbc_rs::runtime::AppRuntime::set_operation_progress,src/runtime.rs,99,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::runtime::AppRuntime::set_preferred_device,src/runtime.rs,187,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::runtime::AppRuntime::set_preferred_device,src/runtime.rs,187,partial,HBC-API-RUNTIME-PREFERRED-DEVICE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::runtime::AppRuntime::set_scanned_networks,src/runtime.rs,120,extension,HBC-API-EXT-SCAN-01,not_applicable,Rust wireless scan controller APIs have no matching C HBC API
 hbc_rs::runtime::AppRuntime::set_settings_persistence_enabled,src/runtime.rs,220,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::set_widescreen,src/runtime.rs,182,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.

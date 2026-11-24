@@ -250,8 +250,23 @@ fn device_availability_api() -> i32 {
             }
         }
     }
+    let mut runtime = AppRuntime::default();
+    runtime.set_preferred_device(1);
+    if runtime.settings().current().device != 1 || !runtime.settings().is_dirty() {
+        ogc_system::report(format_args!("FAIL preferred device settings sync\n"));
+        return -2;
+    }
+    runtime.set_active_device(Some(4));
+    runtime.update(&crate::platform::input::InputFrame {
+        pressed: alloc::vec![crate::app::Input::OpenOptions],
+        ..Default::default()
+    });
+    if runtime.controller().pending_device() != 4 {
+        ogc_system::report(format_args!("FAIL active device priority\n"));
+        return -3;
+    }
     ogc_system::report(format_args!(
-        "PASS device availability snapshot, runtime forwarding and Options state\n"
+        "PASS device availability, active and preferred device forwarding\n"
     ));
     0
 }
