@@ -317,7 +317,7 @@ hbc_rs::platform::video::shutdown,src/platform/video.rs,587,partial,HBC-API-VIDE
 hbc_rs::platform::wiiload::cleanup_error,src/platform/wiiload.rs,247,extension,HBC-API-EXT-WIILOAD-INFO-01,not_applicable,Rust receiver cleanup and local network address queries have no matching public Reborn C APIs
 hbc_rs::platform::wiiload::indicator_state,src/platform/wiiload.rs,234,partial,HBC-API-WIILOAD-PLATFORM-INDICATOR-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::platform::wiiload::local_ip,src/platform/wiiload.rs,253,extension,HBC-API-EXT-WIILOAD-INFO-01,not_applicable,Rust receiver cleanup and local network address queries have no matching public Reborn C APIs
-hbc_rs::platform::wiiload::merge_reborn_keys,src/platform/wiiload.rs,124,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::platform::wiiload::merge_reborn_keys,src/platform/wiiload.rs,124,partial,HBC-API-HBCK-MERGE-01,target_checked,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::platform::wiiload::merge_remote_input,src/platform/wiiload.rs,143,extension,HBC-REMOTE-INPUT-01,not_applicable,Rust development control extension
 hbc_rs::platform::wiiload::receive_progress,src/platform/wiiload.rs,240,partial,HBC-API-WIILOAD-RECEIVE-PROGRESS-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::platform::wiiload::start,src/platform/wiiload.rs,162,partial,HBC-API-WIILOAD-START-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
@@ -333,13 +333,13 @@ hbc_rs::png::decode_hbc_app_icon,src/png.rs,222,partial,HBC-API-APP-ICON-01,dolp
 hbc_rs::png::decode_png,src/png.rs,277,partial,HBC-API-PNG-DECODE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::png::encode_rgba_png,src/png.rs,19,partial,HBC-API-PNG-ENCODE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::png::to_gx_rgba8,src/png.rs,318,partial,HBC-API-PNG-GX-CONVERT-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
-hbc_rs::reborn_keys::KeyPacer::next,src/reborn_keys.rs,91,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::reborn_keys::KeyQueue::new,src/reborn_keys.rs,43,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::reborn_keys::KeyQueue::pop,src/reborn_keys.rs,64,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::reborn_keys::KeyQueue::push,src/reborn_keys.rs,51,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::reborn_keys::KeyQueue::take_home,src/reborn_keys.rs,74,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::reborn_keys::body_length,src/reborn_keys.rs,21,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::reborn_keys::input_for_key,src/reborn_keys.rs,6,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::reborn_keys::KeyPacer::next,src/reborn_keys.rs,91,partial,HBC-API-HBCK-PACE-01,host_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::reborn_keys::KeyQueue::new,src/reborn_keys.rs,43,partial,HBC-API-HBCK-NEW-01,host_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::reborn_keys::KeyQueue::pop,src/reborn_keys.rs,64,partial,HBC-API-HBCK-POP-01,host_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::reborn_keys::KeyQueue::push,src/reborn_keys.rs,51,partial,HBC-API-HBCK-PUSH-01,host_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::reborn_keys::KeyQueue::take_home,src/reborn_keys.rs,74,partial,HBC-API-HBCK-HOME-01,host_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::reborn_keys::body_length,src/reborn_keys.rs,21,partial,HBC-API-HBCK-LENGTH-01,host_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::reborn_keys::input_for_key,src/reborn_keys.rs,6,partial,HBC-API-HBCK-MAP-01,host_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::remote_control::Mailbox::finish,src/remote_control.rs,260,extension,HBC-API-EXT-REMOTE-CONTROL-01,not_applicable,"Version 1 HBCC/HBCQ request IDs, mailbox lifecycle, replies, observations, and command dispatch have no matching Reborn C API"
 hbc_rs::remote_control::Mailbox::new,src/remote_control.rs,159,extension,HBC-API-EXT-REMOTE-CONTROL-01,not_applicable,"Version 1 HBCC/HBCQ request IDs, mailbox lifecycle, replies, observations, and command dispatch have no matching Reborn C API"
 hbc_rs::remote_control::Mailbox::request,src/remote_control.rs,171,extension,HBC-API-EXT-REMOTE-CONTROL-01,not_applicable,"Version 1 HBCC/HBCQ request IDs, mailbox lifecycle, replies, observations, and command dispatch have no matching Reborn C API"
