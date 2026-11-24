@@ -370,7 +370,7 @@ hbc_rs::render::map_rect,src/render.rs,1931,unverified,,not_run,No exact API-spe
 hbc_rs::runtime::AppRuntime::apply_theme,src/runtime.rs,150,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::catalog,src/runtime.rs,138,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::clear_network_config,src/runtime.rs,134,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
-hbc_rs::runtime::AppRuntime::controller,src/runtime.rs,59,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::runtime::AppRuntime::controller,src/runtime.rs,59,partial,HBC-API-RUNTIME-CONTROLLER-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::runtime::AppRuntime::finish_executable_loading,src/runtime.rs,107,partial,HBC-API-RUNTIME-EXEC-LOAD-FINISH-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::runtime::AppRuntime::finish_wiiload_installing,src/runtime.rs,91,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::finish_wiiload_receiving,src/runtime.rs,87,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
@@ -396,14 +396,14 @@ hbc_rs::runtime::AppRuntime::set_settings_persistence_enabled,src/runtime.rs,220
 hbc_rs::runtime::AppRuntime::set_widescreen,src/runtime.rs,182,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::set_wiiload_confirmation_text,src/runtime.rs,71,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::set_wiiload_install_progress,src/runtime.rs,95,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::runtime::AppRuntime::settings,src/runtime.rs,142,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::runtime::AppRuntime::settings,src/runtime.rs,142,partial,HBC-API-RUNTIME-SETTINGS-GET-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::runtime::AppRuntime::show_executable_loading,src/runtime.rs,83,partial,HBC-API-RUNTIME-EXEC-LOAD-SHOW-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::runtime::AppRuntime::show_notice,src/runtime.rs,158,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::show_notice_with_kind,src/runtime.rs,162,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::show_wiiload_installing,src/runtime.rs,75,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::show_wiiload_receiving,src/runtime.rs,79,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::theme,src/runtime.rs,146,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::runtime::AppRuntime::update,src/runtime.rs,259,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::runtime::AppRuntime::update,src/runtime.rs,259,partial,HBC-API-RUNTIME-UPDATE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::runtime::AppRuntime::update_frame_with_pointer,src/runtime.rs,344,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::update_pointer,src/runtime.rs,319,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::update_pointer_frame,src/runtime.rs,323,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
