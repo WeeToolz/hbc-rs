@@ -1,0 +1,5 @@
+{
+  "case": "video-platform-api",
+  "success": false,
+  "error": "The existing custom ELF did not produce the original DOL. Dolphin did not start."
+}

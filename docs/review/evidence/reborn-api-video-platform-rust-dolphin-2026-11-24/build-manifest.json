@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "package": "hbc-rs",
+  "target": "emulator-acceptance",
+  "target_triple": "powerpc-nintendo-none",
+  "profile": "release",
+  "features": [
+    "emulator-acceptance"
+  ],
+  "dol_bytes": 2495648,
+  "dol_sha256": "fef0ffcbad345709030e5db8a8e91c2056da7aee480e275c8f0ce8e73b13a1b4",
+  "source_revision": "a87ba03f95fcf2e2a01ec6b3526cae99803cf149",
+  "sdk_revision": "b25827a6c49b8dbe2d6c2f901aadaaec670f86c3"
+}

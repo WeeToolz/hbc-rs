@@ -64,6 +64,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"render-frame-api" {
         return render_frame_api();
     }
+    if case == b"video-platform-api" {
+        return video_platform_api();
+    }
     if case == b"background-animation-api" {
         return background_animation_api();
     }
@@ -2035,6 +2038,84 @@ fn render_frame_api() -> i32 {
 
     ogc_system::report(format_args!(
         "PASS render frame construction, memo, indicators, bubbles and mapping APIs\n"
+    ));
+    0
+}
+
+fn video_platform_api() -> i32 {
+    use crate::platform::video;
+
+    let video = match video::initialize(false) {
+        Ok(video) => video,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL video initialization {error:?}\n"));
+            return -1;
+        }
+    };
+    let info = video.info();
+    if info.width == 0
+        || info.height == 0
+        || u64::from(info.byte_len) < u64::from(info.width) * u64::from(info.height) * 2
+    {
+        video::shutdown();
+        ogc_system::report(format_args!("FAIL video framebuffer info {info:?}\n"));
+        return -2;
+    }
+
+    video.configure_2d();
+    video.begin_frame();
+    let color = ogc_gx::GxColor {
+        r: 201,
+        g: 37,
+        b: 91,
+        a: 255,
+    };
+    if let Err(error) = unsafe { video.draw_solid_rect(40.0, 40.0, 40.0, 40.0, color) } {
+        video::shutdown();
+        ogc_system::report(format_args!("FAIL video rectangle drawing {error:?}\n"));
+        return -3;
+    }
+    let captured = match video.capture_efb_rgba() {
+        Ok(image) => image,
+        Err(error) => {
+            video::shutdown();
+            ogc_system::report(format_args!("FAIL video EFB capture {error:?}\n"));
+            return -4;
+        }
+    };
+    let center_x = 60usize;
+    let center_y = 60usize;
+    let offset = (center_y * captured.width as usize + center_x) * 4;
+    if captured.width != u32::from(info.width) || captured.height == 0 {
+        video::shutdown();
+        ogc_system::report(format_args!("FAIL video EFB capture dimensions\n"));
+        return -5;
+    }
+    let Some(pixel) = captured.pixels.get(offset..offset + 4) else {
+        video::shutdown();
+        ogc_system::report(format_args!("FAIL video EFB pixel bounds\n"));
+        return -6;
+    };
+    if pixel != [color.r, color.g, color.b, color.a] {
+        let value = i32::from_be_bytes([pixel[0], pixel[1], pixel[2], pixel[3]]);
+        ogc_system::report(format_args!(
+            "FAIL video EFB rectangle pixel {:02X}{:02X}{:02X}{:02X}\n",
+            pixel[0], pixel[1], pixel[2], pixel[3]
+        ));
+        video::shutdown();
+        return value;
+    }
+
+    if let Err(error) = unsafe { video.present() } {
+        video::shutdown();
+        ogc_system::report(format_args!("FAIL video frame presentation {error:?}\n"));
+        return -7;
+    }
+    video.wait_vsync();
+    video.show();
+    video::shutdown();
+    ogc_system::report(format_args!(
+        "PASS video framebuffer, GX draw, EFB capture, present and shutdown\n"
     ));
     0
 }
