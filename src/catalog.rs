@@ -726,6 +726,25 @@ mod tests {
     }
 
     #[test]
+    fn scan_keeps_reborn_zero_size_candidate_priority() {
+        let root = "sd:/apps";
+        let mut fs = MemoryStorage::default();
+        fs.directories.insert(
+            root.into(),
+            vec![DirectoryEntry {
+                name: "directory-candidate".into(),
+                is_directory: true,
+            }],
+        );
+        fs.sizes
+            .insert(format!("{root}/directory-candidate/boot.elf"), 0);
+        fs.sizes
+            .insert(format!("{root}/directory-candidate/boot.dol"), 10);
+
+        assert!(scan_apps(&mut fs, root, 100, 50).unwrap().is_empty());
+    }
+
+    #[test]
     fn scan_returns_optional_file_read_failures() {
         let root = "sd:/apps";
         for optional_file in ["meta.xml", "icon.png"] {

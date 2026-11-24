@@ -2484,6 +2484,7 @@ fn wii_startup_state_api() -> i32 {
 fn fat_storage_api() -> i32 {
     use crate::{
         archive::ZipArchive,
+        catalog::CatalogStorage,
         management::{ExtractionLimits, plan_extraction},
         platform::storage::{FatStorage, StorageError, Volume},
     };
@@ -2518,6 +2519,22 @@ fn fat_storage_api() -> i32 {
     {
         ogc_system::report(format_args!("FAIL FAT storage directory entries\n"));
         return -4;
+    }
+    if storage
+        .ensure_directory("acceptance/catalog-candidate")
+        .is_err()
+        || storage
+            .ensure_directory("acceptance/catalog-meta-dir")
+            .is_err()
+        || storage
+            .ensure_directory("acceptance/catalog-icon-dir")
+            .is_err()
+        || CatalogStorage::file_size(&mut storage, "acceptance/catalog-candidate") != Ok(Some(0))
+        || CatalogStorage::read_file(&mut storage, "acceptance/catalog-meta-dir", 1024) != Ok(None)
+        || CatalogStorage::read_file(&mut storage, "acceptance/catalog-icon-dir", 1024) != Ok(None)
+    {
+        ogc_system::report(format_args!("FAIL FAT catalog stat path semantics\n"));
+        return -23;
     }
 
     let expected = b"fat-payload";
@@ -2853,6 +2870,7 @@ struct MemoryCatalogStorage {
     folders: Vec<crate::catalog::DirectoryEntry>,
     next_folder: usize,
     files: BTreeMap<String, Vec<u8>>,
+    file_directories: Vec<String>,
     fail_next_entry_at: Option<usize>,
     directory_closed: bool,
     read_limits: BTreeMap<String, usize>,
@@ -2884,11 +2902,25 @@ impl crate::catalog::CatalogStorage for MemoryCatalogStorage {
     }
 
     fn file_size(&mut self, path: &str) -> Result<Option<u64>, Self::Error> {
+        if self
+            .file_directories
+            .iter()
+            .any(|directory| directory == path)
+        {
+            return Ok(Some(0));
+        }
         Ok(self.files.get(path).map(|bytes| bytes.len() as u64))
     }
 
     fn read_file(&mut self, path: &str, max_bytes: usize) -> Result<Option<Vec<u8>>, Self::Error> {
         self.read_limits.insert(String::from(path), max_bytes);
+        if self
+            .file_directories
+            .iter()
+            .any(|directory| directory == path)
+        {
+            return Ok(None);
+        }
         Ok(self
             .files
             .get(path)
@@ -2907,6 +2939,8 @@ fn catalog() -> i32 {
         ("beta", true),
         ("badmeta", true),
         ("oversized", true),
+        ("directory-candidate", true),
+        ("directory-optional", true),
         (".hidden", true),
         ("unsafe/name", true),
         ("large", true),
@@ -2923,6 +2957,11 @@ fn catalog() -> i32 {
             .collect(),
         next_folder: 0,
         files: BTreeMap::new(),
+        file_directories: vec![
+            String::from("apps/directory-candidate/boot.elf"),
+            String::from("apps/directory-optional/meta.xml"),
+            String::from("apps/directory-optional/icon.png"),
+        ],
         fail_next_entry_at: None,
         directory_closed: true,
         read_limits: BTreeMap::new(),
@@ -2936,6 +2975,8 @@ fn catalog() -> i32 {
         ("apps/large/boot.elf", b"123456".as_slice()),
         ("apps/theme-large/theme.zip", b"1234".as_slice()),
         ("apps/oversized/boot.dol", b"dol".as_slice()),
+        ("apps/directory-candidate/boot.dol", b"dol".as_slice()),
+        ("apps/directory-optional/boot.dol", b"dol".as_slice()),
         (
             "apps/alpha/meta.xml",
             b"<app><name>Zeta</name><sort_id>2</sort_id></app>".as_slice(),
@@ -2976,7 +3017,7 @@ fn catalog() -> i32 {
             return -1;
         }
     };
-    if entries.len() != 4
+    if entries.len() != 5
         || entries[0].directory != "alpha"
         || entries[0].kind != AppKind::Elf
         || !entries[0].has_icon
@@ -2988,6 +3029,9 @@ fn catalog() -> i32 {
         || entries[3].directory != "oversized"
         || entries[3].metadata.is_some()
         || entries[3].has_icon
+        || entries[4].directory != "directory-optional"
+        || entries[4].metadata.is_some()
+        || entries[4].has_icon
         || storage.read_limits.get("apps/oversized/meta.xml") != Some(&(1024 * 1024))
         || storage.read_limits.get("apps/oversized/icon.png")
             != Some(&crate::png::HBC_APP_ICON_MAX_PNG_BYTES)
@@ -3002,6 +3046,7 @@ fn catalog() -> i32 {
         }],
         next_folder: 0,
         files: BTreeMap::from([(String::from("apps/alpha/boot.dol"), b"dol".to_vec())]),
+        file_directories: Vec::new(),
         fail_next_entry_at: Some(1),
         directory_closed: true,
         read_limits: BTreeMap::new(),

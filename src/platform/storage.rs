@@ -757,8 +757,8 @@ impl CatalogStorage for FatStorage {
 
     fn file_size(&mut self, path: &str) -> Result<Option<u64>, Self::Error> {
         let path = self.full_path(path)?;
-        match ogc_fat::FatFile::open(&path) {
-            Ok(file) => Ok(Some(file.len() as u64)),
+        match ogc_fat::stat(&path) {
+            Ok(metadata) => Ok(Some(u64::from(metadata.size))),
             Err(ogc_fat::FatError::NotFound) => Ok(None),
             Err(error) => Err(StorageError::Fat(error)),
         }
@@ -768,7 +768,9 @@ impl CatalogStorage for FatStorage {
         let path = self.full_path(path)?;
         let mut file = match ogc_fat::FatFile::open(&path) {
             Ok(file) => file,
-            Err(ogc_fat::FatError::NotFound) => return Ok(None),
+            Err(ogc_fat::FatError::NotFound | ogc_fat::FatError::IsDirectory) => {
+                return Ok(None);
+            }
             Err(error) => return Err(StorageError::Fat(error)),
         };
         let len = file.len() as usize;
