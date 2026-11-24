@@ -177,3 +177,9 @@ The app-deletion production case now also checks the controller's public delete
 confirmation state and keyboard and pointer choices. Reborn starts its Yes/No
 dialog with No selected. See the [app deletion evidence](review/evidence/reborn-app-delete-rust-dolphin-2026-11-23/README.md).
 Rendered dialog behavior and FAT deletion remain separate checks.
+
+The executable-loading API case checks controller and runtime entry, bounded
+progress, and completion behavior in Dolphin. See the [executable loading
+evidence](review/evidence/reborn-api-executable-loading-rust-dolphin-2026-11-23/README.md).
+Reborn uses its loader caption and activity indicator. This does not prove
+rendered or physical Wii loading behavior.

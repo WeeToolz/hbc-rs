@@ -94,6 +94,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"main-menu-api" {
         return main_menu_api();
     }
+    if case == b"executable-loading-api" {
+        return executable_loading_api();
+    }
     if case == b"storage-volumes" {
         return storage_volumes();
     }
@@ -2095,6 +2098,56 @@ fn main_menu_api() -> i32 {
 
     ogc_system::report(format_args!(
         "PASS main menu BootMii state, focus clamp and status labels\n"
+    ));
+    0
+}
+
+fn executable_loading_api() -> i32 {
+    use crate::{app::AppController, runtime::AppRuntime};
+
+    let mut controller = AppController::new();
+    controller.show_executable_loading();
+    if controller.screen != crate::app::Screen::ExecutableLoading
+        || controller.operation_progress() != 0
+    {
+        ogc_system::report(format_args!("FAIL executable loading initial state\n"));
+        return -1;
+    }
+    controller.set_operation_progress(43);
+    if controller.operation_progress() != 43 {
+        ogc_system::report(format_args!("FAIL executable loading progress\n"));
+        return -1;
+    }
+    controller.set_operation_progress(255);
+    if controller.operation_progress() != 100 {
+        ogc_system::report(format_args!("FAIL executable loading progress bound\n"));
+        return -1;
+    }
+    controller.finish_executable_loading();
+    if controller.screen != crate::app::Screen::Browser {
+        ogc_system::report(format_args!("FAIL executable loading finish\n"));
+        return -1;
+    }
+    controller.finish_executable_loading();
+    if controller.screen != crate::app::Screen::Browser {
+        ogc_system::report(format_args!("FAIL executable loading repeated finish\n"));
+        return -1;
+    }
+
+    let mut runtime = AppRuntime::default();
+    runtime.show_executable_loading();
+    if runtime.controller().screen != crate::app::Screen::ExecutableLoading {
+        ogc_system::report(format_args!("FAIL executable loading runtime start\n"));
+        return -1;
+    }
+    runtime.finish_executable_loading();
+    if runtime.controller().screen != crate::app::Screen::Browser {
+        ogc_system::report(format_args!("FAIL executable loading runtime finish\n"));
+        return -1;
+    }
+
+    ogc_system::report(format_args!(
+        "PASS executable loading start, progress and finish APIs\n"
     ));
     0
 }

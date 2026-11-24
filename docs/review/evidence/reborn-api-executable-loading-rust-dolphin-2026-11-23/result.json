@@ -1,0 +1,12 @@
+{
+  "sha256": "0673130f1b42afcc6d981611689228e68c873686c94228bc204c11d2135f1669",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-14j5_ts5",
+  "cases": [
+    {
+      "case": "executable-loading-api",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}
