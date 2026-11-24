@@ -1,0 +1,14 @@
+{
+  "sha256": "31fd0d040c33a3d7012b6e071adcf9cb6d2ec6097a1fdca3b6835e416410524e",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-u7d_wnha",
+  "sd_fixture": null,
+  "theme_fixture": "/private/tmp/hbc-rs/hbc-production-acceptance-u7d_wnha/Load/WiiSDSync/apps/ThemeProbe",
+  "cases": [
+    {
+      "case": "wii-startup-theme-api",
+      "success": false,
+      "error": "Emulator debugger response timed out"
+    }
+  ],
+  "success": false
+}

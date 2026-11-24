@@ -1,0 +1,14 @@
+{
+  "sha256": "9927e7b5ebd28eb3cf96f73da7dab7819a014a5a51da224e0745d3612a32d793",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-1osq8_x5",
+  "sd_fixture": null,
+  "theme_fixture": "/private/tmp/hbc-rs/hbc-production-acceptance-1osq8_x5/Load/WiiSDSync/apps/ThemeProbe",
+  "cases": [
+    {
+      "case": "wii-startup-theme-api",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

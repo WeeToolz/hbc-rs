@@ -1367,11 +1367,16 @@ impl WiiStartup {
             return Err(StartupError::MissingExecutable);
         }
         let package = crate::theme::ThemePackage::parse(&bytes).map_err(StartupError::Theme)?;
+        super::theme::save(&bytes).map_err(StartupError::ThemeStorage)?;
+        let previous = core::mem::replace(
+            &mut self.theme_textures,
+            super::theme::ThemeTextures::empty_for_replacement(self.widescreen),
+        );
+        drop(previous);
         let textures = super::theme::ThemeTextures::load_for_viewport(
             Some((&package, &bytes)),
             self.widescreen,
         );
-        super::theme::save(&bytes).map_err(StartupError::ThemeStorage)?;
         Ok(PreparedTheme {
             metadata: package.metadata,
             textures,

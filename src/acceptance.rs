@@ -73,6 +73,12 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"wii-startup-state-api" {
         return wii_startup_state_api();
     }
+    if case == b"fat-storage-api" {
+        return fat_storage_api();
+    }
+    if case == b"wii-startup-theme-api" {
+        return wii_startup_theme_api();
+    }
     if case == b"background-animation-api" {
         return background_animation_api();
     }
@@ -2438,6 +2444,293 @@ fn wii_startup_state_api() -> i32 {
 
     ogc_system::report(format_args!(
         "PASS Wii startup, empty storage scan, device probe and no-media actions\n"
+    ));
+    0
+}
+
+fn fat_storage_api() -> i32 {
+    use crate::{
+        archive::ZipArchive,
+        management::{ExtractionLimits, plan_extraction},
+        platform::storage::{FatStorage, StorageError, Volume},
+    };
+
+    let mut storage = match FatStorage::mount(Volume::Sd) {
+        Ok(storage) => storage,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL FAT storage SD mount {error:?}\n"));
+            return -1;
+        }
+    };
+    if storage.prefix() != "sd:"
+        || storage.path_exists("acceptance/missing") != Ok(false)
+        || storage.path_is_directory("acceptance") != Ok(true)
+        || storage.file_size("acceptance/payload.bin") != Ok(Some(11))
+        || storage.file_size("acceptance") != Err(StorageError::InvalidPath)
+    {
+        ogc_system::report(format_args!("FAIL FAT storage path queries\n"));
+        return -2;
+    }
+
+    let entries = match storage.read_dir("acceptance") {
+        Ok(entries) => entries,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL FAT storage read directory {error:?}\n"));
+            return -3;
+        }
+    };
+    if !entries
+        .iter()
+        .any(|entry| entry.name == "payload.bin" && !entry.is_directory)
+    {
+        ogc_system::report(format_args!("FAIL FAT storage directory entries\n"));
+        return -4;
+    }
+
+    let expected = b"fat-payload";
+    let mut buffer = [0u8; 32];
+    if storage.read_file_into("acceptance/payload.bin", &mut buffer) != Ok(Some(expected.len()))
+        || &buffer[..expected.len()] != expected
+        || storage.read_file_into("acceptance/payload.bin", &mut buffer[..3]) != Ok(None)
+        || storage.read_file_into("acceptance/missing", &mut buffer) != Ok(None)
+    {
+        ogc_system::report(format_args!("FAIL FAT storage bounded file reads\n"));
+        return -5;
+    }
+    let mut file = match storage.open_file("acceptance/payload.bin") {
+        Ok(Some(file)) => file,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL FAT storage open file {error:?}\n"));
+            return -6;
+        }
+        Ok(None) => {
+            ogc_system::report(format_args!("FAIL FAT storage open file missing\n"));
+            return -6;
+        }
+    };
+    let mut opened_bytes = [0u8; 11];
+    if file.read(&mut opened_bytes) != Ok(11) || &opened_bytes != expected {
+        ogc_system::report(format_args!("FAIL FAT storage opened file read\n"));
+        return -7;
+    }
+    drop(file);
+    if !matches!(storage.open_file("acceptance/missing"), Ok(None))
+        || storage.path_exists("../escape") != Err(StorageError::InvalidPath)
+    {
+        ogc_system::report(format_args!(
+            "FAIL FAT storage missing file and path checks\n"
+        ));
+        return -8;
+    }
+
+    if storage.ensure_directory("acceptance/idempotent").is_err()
+        || storage.ensure_directory("acceptance/idempotent").is_err()
+        || storage.ensure_directory("acceptance/payload.bin")
+            != Err(StorageError::Fat(ogc_fat::FatError::PathError))
+    {
+        ogc_system::report(format_args!("FAIL FAT storage directory creation policy\n"));
+        return -9;
+    }
+
+    let archive_bytes = include_bytes!("../tests/fixtures/wiiload-app.zip");
+    let archive = match ZipArchive::parse(archive_bytes) {
+        Ok(archive) => archive,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL FAT storage archive parse {error:?}\n"));
+            return -10;
+        }
+    };
+    let plan = match plan_extraction(
+        &archive,
+        ExtractionLimits {
+            max_entries: 8,
+            max_file_bytes: 64,
+            max_total_bytes: 128,
+        },
+    ) {
+        Ok(plan) => plan,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL FAT storage extraction plan {error:?}\n"));
+            return -11;
+        }
+    };
+    if storage.ensure_directory("acceptance/extracted").is_err()
+        || storage
+            .ensure_directory("acceptance/extracted-again")
+            .is_err()
+    {
+        ogc_system::report(format_args!("FAIL FAT storage extraction roots\n"));
+        return -12;
+    }
+    let mut progress = Vec::new();
+    if let Err(error) = storage.extract_archive_with_progress(
+        archive_bytes,
+        &archive,
+        &plan,
+        "acceptance/extracted",
+        |done, total| {
+            progress.push((done, total));
+        },
+    ) {
+        ogc_system::report(format_args!(
+            "FAIL FAT storage archive extraction {error:?}\n"
+        ));
+        return -12;
+    }
+    if progress.first() != Some(&(0, plan.total_bytes()))
+        || progress.last() != Some(&(plan.total_bytes(), plan.total_bytes()))
+    {
+        ogc_system::report(format_args!(
+            "FAIL FAT storage progress callbacks count={} first={:?} last={:?} total={}\n",
+            progress.len(),
+            progress.first(),
+            progress.last(),
+            plan.total_bytes()
+        ));
+        return -21;
+    }
+    if storage.file_size("acceptance/extracted/Demo/boot.elf") != Ok(Some(4)) {
+        ogc_system::report(format_args!("FAIL FAT storage extraction file readback\n"));
+        return -22;
+    }
+    if storage
+        .extract_archive(archive_bytes, &archive, &plan, "acceptance/extracted-again")
+        .is_err()
+        || storage.file_size("acceptance/extracted-again/Demo/meta.xml") != Ok(Some(6))
+    {
+        ogc_system::report(format_args!("FAIL FAT storage archive extraction\n"));
+        return -13;
+    }
+
+    if storage
+        .ensure_directory("acceptance/rename-primary")
+        .is_err()
+        || storage.ensure_directory("acceptance/rename-alias").is_err()
+        || storage.repair_interrupted_directory_rename(
+            "acceptance/rename-primary",
+            "acceptance/rename-alias",
+        ) != Ok(false)
+    {
+        ogc_system::report(format_args!("FAIL FAT storage interrupted rename repair\n"));
+        return -14;
+    }
+    if storage
+        .rename_path("acceptance/rename-primary", "acceptance/rename-final")
+        .is_err()
+        || storage.path_is_directory("acceptance/rename-final") != Ok(true)
+    {
+        ogc_system::report(format_args!("FAIL FAT storage rename\n"));
+        return -15;
+    }
+
+    let screenshot_png = match crate::png::encode_rgba_png(1, 1, &[0x12, 0x34, 0x56, 0xff]) {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL FAT storage screenshot PNG {error:?}\n"));
+            return -16;
+        }
+    };
+    let screenshot = match storage.save_screenshot_png(&screenshot_png) {
+        Ok(path) => path,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL FAT storage screenshot save {error:?}\n"));
+            return -17;
+        }
+    };
+    if storage.path_exists(&screenshot) != Ok(true)
+        || storage.file_size(&screenshot) != Ok(Some(screenshot_png.len() as u64))
+    {
+        ogc_system::report(format_args!("FAIL FAT storage screenshot readback\n"));
+        return -18;
+    }
+
+    if storage.ensure_directory("apps").is_err()
+        || storage.ensure_directory("apps/DeleteProbe").is_err()
+        || storage.ensure_directory("apps/DeleteProbe/nested").is_err()
+        || storage
+            .extract_archive(archive_bytes, &archive, &plan, "apps/DeleteProbe")
+            .is_err()
+        || storage.remove_app_folder("DeleteProbe").is_err()
+        || storage.path_exists("apps/DeleteProbe") != Ok(false)
+        || storage
+            .remove_directory_tree("acceptance/extracted-again")
+            .is_err()
+        || storage.path_exists("acceptance/extracted-again") != Ok(false)
+    {
+        ogc_system::report(format_args!("FAIL FAT storage recursive deletion\n"));
+        return -19;
+    }
+
+    if storage.unmount().is_err() {
+        ogc_system::report(format_args!("FAIL FAT storage unmount\n"));
+        return -20;
+    }
+
+    drop(entries);
+    drop(progress);
+    drop(plan);
+    drop(archive);
+    drop(screenshot_png);
+    drop(screenshot);
+    ogc_system::report(format_args!(
+        "PASS FAT storage SD APIs, extraction and cleanup\n"
+    ));
+    0
+}
+
+fn wii_startup_theme_api() -> i32 {
+    let mut startup = crate::platform::startup::WiiStartup::initialize(
+        crate::render::LOGICAL_WIDTH,
+        crate::render::LOGICAL_HEIGHT,
+    );
+    let mut storage_scan_finished = false;
+    for _ in 0..500 {
+        if startup.poll_storage_scan() {
+            storage_scan_finished = true;
+            break;
+        }
+        ogc_lwp::sys::sleep_ticks((ogc_lwp::sys::TICKS_PER_SECOND / 1_000).max(1));
+    }
+    if !storage_scan_finished
+        || !startup.has_storage()
+        || !startup.runtime().catalog().iter().any(|entry| {
+            entry.directory == "ThemeProbe" && entry.kind == crate::catalog::AppKind::Theme
+        })
+    {
+        ogc_system::report(format_args!("FAIL Wii startup theme catalog scan\n"));
+        return -21;
+    }
+    startup
+        .runtime_mut()
+        .load_settings(crate::metadata::UserSettings {
+            device: 0,
+            sort_order: 0,
+            browse_mode: 0,
+            selected_app: Some(String::from("ThemeProbe")),
+        });
+    let prepared_theme = match startup.prepare_selected_theme() {
+        Ok(theme) => theme,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL Wii startup prepare theme {error:?}\n"));
+            return -22;
+        }
+    };
+    startup.apply_theme(prepared_theme);
+    let expected_theme = crate::metadata::ThemeMetadata {
+        description: Some(String::from("Dolphin")),
+        ..crate::metadata::ThemeMetadata::default()
+    };
+    let persisted_theme = crate::platform::theme::load().ok().flatten();
+    if startup.runtime().theme() != Some(&expected_theme)
+        || startup.theme_textures().background_width != 640
+        || !matches!(persisted_theme.as_deref(), Some(bytes) if bytes == include_bytes!("../tests/fixtures/theme-valid.zip"))
+        || startup.unmount_storage().is_err()
+    {
+        ogc_system::report(format_args!("FAIL Wii startup apply theme\n"));
+        return -23;
+    }
+    ogc_system::report(format_args!(
+        "PASS Wii startup theme preparation and apply APIs\n"
     ));
     0
 }

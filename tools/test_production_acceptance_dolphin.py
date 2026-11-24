@@ -16,6 +16,7 @@ import time
 from dolphin_test_support import Debugger, verified_artifact, write_dolphin_config
 
 ROOT = Path(__file__).resolve().parents[3]
+REPO = Path(__file__).resolve().parents[1]
 TEMP_ROOT = Path('/private/tmp/hbc-rs')
 EXPECTED_XML = (b'<?xml version="1.0" encoding="UTF-8"?><hbc><device>1</device>'
                 b'<sort_order>2</sort_order><browse_mode>1</browse_mode>'
@@ -124,7 +125,7 @@ def main():
     parser.add_argument('--elf', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--debug-port', type=int, default=55287)
-    parser.add_argument('--cases', nargs='+', choices=['launch-dol', 'launch-elf', 'settings', 'theme-storage-api', 'playtime-reset-api', 'settings-state', 'wiiload-header', 'wiiload-policy', 'wiiload-zip', 'wiiload-controller', 'runtime-state-api', 'runtime-pointer-api', 'runtime-measured-memo-api', 'text-layout-api', 'render-frame-api', 'video-platform-api', 'renderer-draw-frame-api', 'wii-startup-state-api', 'background-animation-api', 'wiiload-state-api', 'wiiload-start-api', 'zip-install-error-api', 'renderer-layout-memos-api', 'lifecycle-api', 'metadata-date', 'metadata-update', 'metadata-settings', 'metadata-theme', 'metadata-app', 'catalog', 'theme-package', 'theme-textures-api', 'archive-api', 'png-api', 'management-api', 'font-api', 'localization-api', 'overlay-control-api', 'home-overlay-app-api', 'network-restart-api', 'network-restart-worker-api', 'input-platform-api', 'remote-input-api', 'app-notice-api', 'about-api', 'loader-helpers', 'app-controller', 'main-menu-api', 'executable-loading-api', 'detail-focus-api', 'catalog-reconcile-api', 'storage-volumes', 'device-availability-api', 'app-deletion', 'input-policy', 'input-mapping', 'render-hit-test', 'disc-stop'], default=['launch-dol', 'launch-elf', 'settings'])
+    parser.add_argument('--cases', nargs='+', choices=['launch-dol', 'launch-elf', 'settings', 'theme-storage-api', 'fat-storage-api', 'wii-startup-theme-api', 'playtime-reset-api', 'settings-state', 'wiiload-header', 'wiiload-policy', 'wiiload-zip', 'wiiload-controller', 'runtime-state-api', 'runtime-pointer-api', 'runtime-measured-memo-api', 'text-layout-api', 'render-frame-api', 'video-platform-api', 'renderer-draw-frame-api', 'wii-startup-state-api', 'background-animation-api', 'wiiload-state-api', 'wiiload-start-api', 'zip-install-error-api', 'renderer-layout-memos-api', 'lifecycle-api', 'metadata-date', 'metadata-update', 'metadata-settings', 'metadata-theme', 'metadata-app', 'catalog', 'theme-package', 'theme-textures-api', 'archive-api', 'png-api', 'management-api', 'font-api', 'localization-api', 'overlay-control-api', 'home-overlay-app-api', 'network-restart-api', 'network-restart-worker-api', 'input-platform-api', 'remote-input-api', 'app-notice-api', 'about-api', 'loader-helpers', 'app-controller', 'main-menu-api', 'executable-loading-api', 'detail-focus-api', 'catalog-reconcile-api', 'storage-volumes', 'device-availability-api', 'app-deletion', 'input-policy', 'input-mapping', 'render-hit-test', 'disc-stop'], default=['launch-dol', 'launch-elf', 'settings'])
     parser.add_argument('--sdk-root', type=Path, default=Path(__file__).resolve().parents[2] / 'libogc-rs')
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=False)
@@ -142,7 +143,28 @@ def main():
         (profile / 'Wii').mkdir()
     config = profile / 'Config'
     config.mkdir()
-    write_dolphin_config(config, '[Core]\nCPUThread=False\nWiiSDCard=False\n[Interface]\nConfirmStop=False\nUsePanicHandlers=False\n')
+    if any(case in ('fat-storage-api', 'wii-startup-theme-api') for case in args.cases):
+        (config / 'Logger.ini').write_text(
+            '[Options]\nWriteToFile=True\nVerbosity=4\n'
+            '[Logs]\nOSREPORT=True\nCORE=True\nBOOT=True\nIOS_ES=True\n'
+            'IOS_NET=True\n', encoding='utf-8')
+    sd_fixture = None
+    theme_fixture = None
+    if 'fat-storage-api' in args.cases:
+        sd_fixture = profile / 'Load/WiiSDSync/acceptance'
+        sd_fixture.mkdir(parents=True)
+        (sd_fixture / 'payload.bin').write_bytes(b'fat-payload')
+    if any(case in ('fat-storage-api', 'wii-startup-theme-api') for case in args.cases):
+        theme_fixture = profile / 'Load/WiiSDSync/apps/ThemeProbe'
+        theme_fixture.mkdir(parents=True)
+        (theme_fixture / 'meta.xml').write_text(
+            '<app><name>Theme Probe</name></app>\n', encoding='utf-8')
+        shutil.copyfile(REPO / 'tests/fixtures/theme-valid.zip', theme_fixture / 'theme.zip')
+    if 'wii-startup-theme-api' in args.cases:
+        (profile / 'Wii/title/00010001/48424345/data').mkdir(parents=True, exist_ok=True)
+    sd_enabled = any(case in ('fat-storage-api', 'wii-startup-theme-api') for case in args.cases)
+    sd_config = 'WiiSDCard=True\nWiiSDCardAllowWrites=True\nWiiSDCardEnableFolderSync=True' if sd_enabled else 'WiiSDCard=False'
+    write_dolphin_config(config, f'[Core]\nCPUThread=False\n{sd_config}\n[Interface]\nConfirmStop=False\nUsePanicHandlers=False\n')
     results = []
     for case in args.cases:
         if case == 'playtime-reset-api':
@@ -193,7 +215,9 @@ def main():
         results.append(run_case(args.dol.resolve(), names, profile, args.output, 'settings-banner-retry', args.debug_port))
         if banner.read_bytes() != (ROOT / 'RustPorts/hbc-rs/assets/save_banner.bin').read_bytes():
             raise RuntimeError('Banner retry did not commit the required asset bytes')
-    report = {'sha256': digest, 'profile': str(profile), 'cases': results, 'success': all(r['success'] for r in results)}
+    report = {'sha256': digest, 'profile': str(profile), 'sd_fixture': str(sd_fixture) if sd_fixture else None,
+              'theme_fixture': str(theme_fixture) if theme_fixture else None, 'cases': results,
+              'success': all(r['success'] for r in results)}
     (args.output / 'result.json').write_text(json.dumps(report, indent=2) + '\n')
     return 0 if report['success'] else 1
 

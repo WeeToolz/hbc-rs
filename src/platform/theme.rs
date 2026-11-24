@@ -121,6 +121,50 @@ pub struct ThemeTextures {
 }
 
 impl ThemeTextures {
+    pub(crate) fn empty_for_replacement(widescreen: bool) -> Self {
+        Self {
+            fonts: Vec::new(),
+            font_textures: RefCell::new(Vec::new()),
+            background: None,
+            background_width: if widescreen {
+                WIDE_BACKGROUND_WIDTH
+            } else {
+                BACKGROUND_WIDTH
+            },
+            logo: None,
+            list_card: None,
+            list_card_focused: None,
+            grid_card: None,
+            grid_card_focused: None,
+            previous_arrow: None,
+            previous_arrow_focused: None,
+            next_arrow: None,
+            next_arrow_focused: None,
+            dialog: None,
+            dialog_info: None,
+            dialog_confirm: None,
+            dialog_warning: None,
+            dialog_error: None,
+            large_button: None,
+            large_button_focused: None,
+            small_button: None,
+            small_button_focused: None,
+            tiny_button: None,
+            tiny_button_focused: None,
+            about: None,
+            throbber: None,
+            bubbles: [None, None, None],
+            progress: None,
+            memo_arrow_up: None,
+            memo_arrow_down: None,
+            network_icon: None,
+            network_icon_active: None,
+            gecko_icon: None,
+            gecko_icon_active: None,
+            cursor: [None, None, None, None],
+        }
+    }
+
     pub fn load(package: Option<(&crate::theme::ThemePackage, &[u8])>) -> Self {
         Self::load_for_viewport(package, false)
     }

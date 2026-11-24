@@ -268,3 +268,11 @@ The production VI/GX video case checks initialization, framebuffer information, 
 The production GX scene renderer has a separate Dolphin API case. It builds a browser frame, uses the bundled HBC theme textures, and checks the EFB background pixel at (2, 2) against the independently decoded value from the bundled background image. This checks the real renderer path and one known pixel. Full scene output, theme variation, and physical Wii video behavior remain pending.
 
 The production Wii startup state API now has a no-media Dolphin case. It checks initialization, runtime state, storage guards, ZIP install rejection without storage, icon and device refresh paths, worker completion, options handling, and unmount. FAT-backed scans, install, themes, persistence, and real device probing remain unverified on Wii. See the [Wii startup API evidence](review/evidence/reborn-api-wii-startup-rust-dolphin-2026-11-24/README.md).
+
+
+The production FAT storage API case now runs with a private folder-synced SD fixture in Dolphin. It checks mount, metadata and file reads, directory creation, both ZIP extraction paths and progress, rename behavior, PNG save and readback, recursive deletion of files, and unmount. This does not prove physical SD, hot-plug, Wii I/O failure recovery, or IOS DMA/cache behavior. The rename recovery case checks only its safe no-op result for distinct directories. See the [FAT storage API evidence](review/evidence/reborn-api-fat-storage-rust-dolphin-2026-11-24-r6/README.md).
+
+
+The FAT storage case now passes against the target production APIs with a private SD fixture in Dolphin. It checks file operations, ZIP extraction, progress callbacks, screenshot persistence, recursive deletion, and unmount. See the [FAT storage API evidence](review/evidence/reborn-api-fat-storage-rust-dolphin-2026-11-24-r12/README.md).
+
+The production startup theme case now checks theme discovery on SD, preparation, application, and exact archive readback from a minimal private NAND fixture. The replacement path drops the old theme textures before allocating the new set, which matches Reborn theme deinitialization order and fixes the measured Dolphin allocation failure. Physical Wii theme and NAND behavior remain pending. See the [startup theme evidence](review/evidence/reborn-api-wii-startup-theme-rust-dolphin-2026-11-24-r5/README.md).

@@ -1,0 +1,23 @@
+{
+  "schema_version": 2,
+  "package": "hbc-rs",
+  "target": "emulator-acceptance",
+  "target_triple": "powerpc-nintendo-none",
+  "profile": "release",
+  "features": [
+    "emulator-acceptance"
+  ],
+  "dol_bytes": 2771936,
+  "dol_sha256": "9927e7b5ebd28eb3cf96f73da7dab7819a014a5a51da224e0745d3612a32d793",
+  "source_revision": "164576ba2d57507c0fbc16ea66282316b598101b",
+  "sdk_revision": "b25827a6c49b8dbe2d6c2f901aadaaec670f86c3",
+  "source_changes": [
+    "src/acceptance.rs",
+    "src/platform/startup.rs",
+    "src/platform/theme.rs"
+  ],
+  "runner_changes": [
+    "tools/test_production_acceptance_dolphin.py"
+  ],
+  "dolphin_version": "2609a"
+}
