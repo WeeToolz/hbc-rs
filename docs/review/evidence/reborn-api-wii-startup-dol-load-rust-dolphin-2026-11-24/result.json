@@ -1,0 +1,15 @@
+{
+  "sha256": "976b3b330e1f0a861aa352c3325ebfce7954888017a4aa81633e654f37c920bd",
+  "dolphin_arch": "x86_64",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-3h73y79x",
+  "sd_fixture": "/private/tmp/hbc-rs/hbc-production-acceptance-3h73y79x/Load/WiiSDSync/apps",
+  "theme_fixture": null,
+  "cases": [
+    {
+      "case": "wii-startup-dol-load-api",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

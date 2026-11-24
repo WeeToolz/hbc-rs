@@ -17,6 +17,13 @@ rejects them. This protects the safety check; it does not show where the Wii
 read path changed the header bytes. See the
 [Dolphin evidence](evidence/reborn-api-loader-helpers-rust-dolphin-2026-11-24-r6/README.md).
 
+A second production Dolphin case reads valid and malformed DOL files through
+the real `WiiStartup` FAT-backed loading path. It confirms bounded reads,
+successful validation for the valid fixture, and the reported overlap error for
+the malformed fixture. This checks the Rust FAT and parsing path under Dolphin;
+the same capture is still needed from a physical Wii. See the
+[FAT-backed loader evidence](evidence/reborn-api-wii-startup-dol-load-rust-dolphin-2026-11-24/README.md).
+
 C Reborn's `source/loader_reloc.c#reloc_dol` checks section file bounds before
 copying each section. Rust first reads the whole selected file, validates the
 complete plan, and only then stages memory writes. That ordering is a deliberate

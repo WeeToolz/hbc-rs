@@ -73,6 +73,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"wii-startup-state-api" {
         return wii_startup_state_api();
     }
+    if case == b"wii-startup-dol-load-api" {
+        return wii_startup_dol_load_api();
+    }
     if case == b"fat-storage-api" {
         return fat_storage_api();
     }
@@ -2477,6 +2480,133 @@ fn wii_startup_state_api() -> i32 {
 
     ogc_system::report(format_args!(
         "PASS Wii startup, empty storage scan, device probe and no-media actions\n"
+    ));
+    0
+}
+
+fn wii_startup_dol_load_api() -> i32 {
+    use crate::{
+        app::Input,
+        catalog::AppKind,
+        loader::ParseError,
+        platform::input::InputFrame,
+        platform::startup::{StartupError, WiiStartup},
+    };
+
+    let mut startup =
+        WiiStartup::initialize(crate::render::LOGICAL_WIDTH, crate::render::LOGICAL_HEIGHT);
+    let mut scan_finished = false;
+    for _ in 0..5_000 {
+        if startup.poll_storage_scan() {
+            scan_finished = true;
+            break;
+        }
+        ogc_lwp::sys::sleep_ticks((ogc_lwp::sys::TICKS_PER_SECOND / 1_000).max(1));
+    }
+    if !scan_finished || !startup.has_storage() {
+        ogc_system::report(format_args!("FAIL DOL load fixture storage scan\n"));
+        return -1;
+    }
+
+    let catalog = startup.runtime().catalog();
+    for (directory, expected_size) in [("AValidDOL", 0x104), ("ZBadDOL", 0x100)] {
+        if !catalog.iter().any(|entry| {
+            entry.directory == directory
+                && entry.kind == AppKind::Dol
+                && entry.size == expected_size
+        }) {
+            ogc_system::report(format_args!("FAIL DOL load fixture catalog {directory}\n"));
+            return -2;
+        }
+    }
+
+    if startup.runtime().controller().selected_app.as_deref() != Some("AValidDOL") {
+        startup.runtime_mut().update(&InputFrame {
+            pressed: alloc::vec![Input::Down],
+            ..InputFrame::default()
+        });
+    }
+    if startup.runtime().controller().selected_app.as_deref() != Some("AValidDOL") {
+        ogc_system::report(format_args!("FAIL valid DOL selection\n"));
+        return -3;
+    }
+    if startup.begin_selected_executable_load().is_err() || !startup.executable_load_pending() {
+        ogc_system::report(format_args!("FAIL valid DOL load begin\n"));
+        return -3;
+    }
+    let mut valid_image = None;
+    for _ in 0..128 {
+        match startup.advance_selected_executable_load() {
+            Ok(Some(image)) => {
+                valid_image = Some(image);
+                break;
+            }
+            Ok(None) => {}
+            Err(error) => {
+                ogc_system::report(format_args!("FAIL valid DOL load result {error:?}\n"));
+                return -4;
+            }
+        }
+    }
+    let Some(valid_image) = valid_image else {
+        ogc_system::report(format_args!(
+            "FAIL valid DOL load did not complete progress={}\n",
+            startup.runtime().operation_progress()
+        ));
+        return -4;
+    };
+    if startup.executable_load_pending() {
+        ogc_system::report(format_args!("FAIL valid DOL load remained pending\n"));
+        return -5;
+    }
+    drop(valid_image);
+
+    startup.runtime_mut().finish_executable_loading();
+    let select_other = if startup.runtime().controller().selected_index() == 0 {
+        Input::Down
+    } else {
+        Input::Up
+    };
+    startup.runtime_mut().update(&InputFrame {
+        pressed: alloc::vec![select_other],
+        ..InputFrame::default()
+    });
+    if startup.runtime().controller().selected_app.as_deref() != Some("ZBadDOL") {
+        ogc_system::report(format_args!("FAIL malformed DOL selection\n"));
+        return -6;
+    }
+    if startup.begin_selected_executable_load().is_err() || !startup.executable_load_pending() {
+        ogc_system::report(format_args!("FAIL malformed DOL load begin\n"));
+        return -7;
+    }
+    let mut malformed_error = None;
+    for _ in 0..128 {
+        match startup.advance_selected_executable_load() {
+            Ok(Some(_)) => {
+                ogc_system::report(format_args!("FAIL malformed DOL was accepted\n"));
+                return -8;
+            }
+            Ok(None) => {}
+            Err(error) => {
+                malformed_error = Some(error);
+                break;
+            }
+        }
+    }
+    if !matches!(
+        malformed_error,
+        Some(StartupError::Loader(ParseError::DolHeaderOverlap {
+            section: 0,
+            offset: 48,
+            size: 48,
+        }))
+    ) || startup.executable_load_pending()
+    {
+        ogc_system::report(format_args!("FAIL malformed DOL read result\n"));
+        return -9;
+    }
+    ogc_system::report(format_args!(
+        "PASS FAT-backed valid and malformed DOL loading\n"
     ));
     0
 }

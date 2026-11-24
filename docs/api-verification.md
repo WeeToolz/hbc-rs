@@ -97,8 +97,10 @@ Each case sends a synthetic executable through the production parser, staging
 path, and handoff to a test child. These cases prove the selected load paths
 run in Dolphin; they do not prove full format parity or Broadway cache behavior.
 The production loader helper case now also rejects the exact DOL header values
-reported by the Wii. See [the loader acceptance record](review/evidence/reborn-loader-rust-dolphin-2026-11-23/README.md)
-and [the reported-header check](review/evidence/reborn-api-loader-helpers-rust-dolphin-2026-11-24-r6/README.md).
+reported by the Wii. A separate SD fixture loads valid and malformed DOLs
+through the production startup path. See [the loader acceptance record](review/evidence/reborn-loader-rust-dolphin-2026-11-23/README.md),
+[the reported-header check](review/evidence/reborn-api-loader-helpers-rust-dolphin-2026-11-24-r6/README.md),
+and [the FAT-backed loading check](review/evidence/reborn-api-wii-startup-dol-load-rust-dolphin-2026-11-24/README.md).
 
 The `scan_apps` and `visible_entries` APIs have a Dolphin acceptance case with a
 controlled storage fixture. It checks file priority, size limits, folder
