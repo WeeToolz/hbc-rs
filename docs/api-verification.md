@@ -18,6 +18,8 @@ python3 tools/api_inventory.py check
 Each API entry can link to an `HBC-API-*` row in
 [`config/parity-ledger.csv`](../config/parity-ledger.csv). Add a row only when a
 test or probe calls that exact production API and checks observable behavior.
+Use `path#Type::method` for a method name that appears more than once in the
+same source file; the unqualified `path#pub fn name` form is for unique names.
 `partial` means the named check passes but it does not cover the full API
 contract. `unverified` means no exact passing check is linked; broad host,
 target, or Dolphin tests may still exercise the API. `verified` requires all
@@ -98,6 +100,12 @@ The frame hit target API has a direct production case for overlapping target
 registration, topmost selection, bounds, and non-finite coordinates. See the
 [frame API record](review/evidence/reborn-api-render-rust-dolphin-2026-11-23/README.md).
 Rendered hit-map geometry and physical pointer behavior remain pending.
+
+The HOME overlay control APIs have a direct production case for one-shot
+requests, open and close state, pending actions, failure retention, and exit
+completion. See the [overlay control record](review/evidence/reborn-api-overlay-rust-dolphin-2026-11-23/README.md).
+This checks the Rust control state machine in Dolphin; real frame capture,
+controller input, and Wii system actions remain pending.
 
 The `ThemeFontFace` APIs have a direct Dolphin case for parsing the bundled
 Droid face, rasterizing a glyph, line metrics, kerning, text width, and measured

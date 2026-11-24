@@ -49,6 +49,21 @@ class ReferenceTests(unittest.TestCase):
                     with self.assertRaises(ValueError):
                         parity.validate_ref(reference, original, root / 'ledger', 1)
 
+    def test_reborn_sdk_references_use_sdk_root_and_cannot_escape_it(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            original = root / 'channelapp'
+            sdk = root / 'sdk'
+            original.mkdir()
+            sdk.mkdir()
+            (sdk / 'agent.c').write_text('hbc_agent_home_pending')
+            with patch.multiple(parity, C_SOURCE=original, C_REBORN_SDK_SOURCE=sdk):
+                parity.validate_ref('reborn-sdk:agent.c#hbc_agent_home_pending', original,
+                                    root / 'ledger', 1)
+                with self.assertRaises(ValueError):
+                    parity.validate_ref('reborn-sdk:../channelapp/agent.c#hbc_agent_home_pending',
+                                        original, root / 'ledger', 1)
+
 
 if __name__ == '__main__':
     unittest.main()

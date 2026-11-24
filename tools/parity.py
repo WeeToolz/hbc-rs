@@ -15,6 +15,7 @@ LEDGER = ROOT / "config" / "parity-ledger.csv"
 REPORT = ROOT / "docs" / "generated" / "parity-status.md"
 C_SOURCE = ROOT / ".." / ".." / "C-sources" / "hbc-reborn" / "channel" / "channelapp"
 C_REBORN_SOURCE = C_SOURCE
+C_REBORN_SDK_SOURCE = C_SOURCE.parents[1] / "sdk"
 C_LIBOGC_SOURCE = ROOT / ".." / ".." / "C-sources" / "libogc"
 SDK_SOURCE = ROOT / ".." / ".." / "Devtools" / "libogc-rs"
 FIELDS = (
@@ -92,6 +93,9 @@ def validate_ref(reference: str, base: Path, ledger: Path, line: int) -> None:
     if base == ROOT and reference.startswith("sdk:"):
         base = SDK_SOURCE
         reference = reference.removeprefix("sdk:")
+    if base == C_SOURCE and reference.startswith("reborn-sdk:"):
+        base = C_REBORN_SDK_SOURCE
+        reference = reference.removeprefix("reborn-sdk:")
     if base == C_SOURCE and reference.startswith("reborn:"):
         base = C_REBORN_SOURCE
         reference = reference.removeprefix("reborn:")
@@ -104,7 +108,14 @@ def validate_ref(reference: str, base: Path, ledger: Path, line: int) -> None:
         raise ValueError(f"{ledger}:{line}: invalid source reference {reference}")
     if not separator or not symbol.strip():
         raise ValueError(f"{ledger}:{line}: reference needs path#symbol: {reference}")
-    if symbol not in path.read_text(encoding="utf-8", errors="replace"):
+    source = path.read_text(encoding="utf-8", errors="replace")
+    qualified_method = symbol.split("::") if base == ROOT else []
+    qualified_found = (
+        len(qualified_method) == 2
+        and qualified_method[0] in source
+        and f"pub fn {qualified_method[1]}" in source
+    )
+    if symbol not in source and not qualified_found:
         raise ValueError(f"{ledger}:{line}: symbol {symbol!r} not found in {path}")
 
 
@@ -157,6 +168,7 @@ def render(rows: list[dict[str, str]]) -> str:
             "",
             "Unprefixed C references use `C-sources/hbc-reborn/channel/channelapp`. "
             "References prefixed with `reborn:` use `C-sources/hbc-reborn/channel/channelapp`; "
+            "`reborn-sdk:` references use `C-sources/hbc-reborn/sdk`; "
             "`libogc:` references use `C-sources/libogc`. "
             "Rust references prefixed with `sdk:` use `Devtools/libogc-rs`. "
             "Update the CSV ledger, then run `python3 tools/parity.py refresh` and "

@@ -103,14 +103,14 @@ hbc_rs::font::ThemeFontFace::layout_memo,src/font.rs,105,partial,HBC-API-FONT-LA
 hbc_rs::font::ThemeFontFace::measure_width,src/font.rs,87,partial,HBC-API-FONT-MEASURE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::font::ThemeFontFace::parse,src/font.rs,39,partial,HBC-API-FONT-PARSE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::font::ThemeFontFace::rasterize,src/font.rs,49,partial,HBC-API-FONT-RASTERIZE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
-hbc_rs::home_overlay::OpenSignal::new,src/home_overlay.rs,16,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::home_overlay::OpenSignal::request,src/home_overlay.rs,19,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::home_overlay::OpenSignal::take,src/home_overlay.rs,22,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::home_overlay::OverlayControl::close,src/home_overlay.rs,122,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::home_overlay::OverlayControl::complete,src/home_overlay.rs,95,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::home_overlay::OverlayControl::is_open,src/home_overlay.rs,67,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::home_overlay::OverlayControl::open,src/home_overlay.rs,71,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::home_overlay::OverlayControl::request,src/home_overlay.rs,80,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::home_overlay::OpenSignal::new,src/home_overlay.rs,16,partial,HBC-API-OVERLAY-SIGNAL-NEW-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::home_overlay::OpenSignal::request,src/home_overlay.rs,19,partial,HBC-API-OVERLAY-SIGNAL-REQUEST-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::home_overlay::OpenSignal::take,src/home_overlay.rs,22,partial,HBC-API-OVERLAY-SIGNAL-TAKE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::home_overlay::OverlayControl::close,src/home_overlay.rs,122,partial,HBC-API-OVERLAY-CLOSE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::home_overlay::OverlayControl::complete,src/home_overlay.rs,95,partial,HBC-API-OVERLAY-COMPLETE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::home_overlay::OverlayControl::is_open,src/home_overlay.rs,67,partial,HBC-API-OVERLAY-IS-OPEN-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::home_overlay::OverlayControl::open,src/home_overlay.rs,71,partial,HBC-API-OVERLAY-OPEN-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::home_overlay::OverlayControl::request,src/home_overlay.rs,80,partial,HBC-API-OVERLAY-REQUEST-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::home_overlay_app::AppHomeOverlay::capabilities,src/home_overlay_app.rs,137,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::home_overlay_app::AppHomeOverlay::complete,src/home_overlay_app.rs,343,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::home_overlay_app::AppHomeOverlay::count,src/home_overlay_app.rs,174,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.

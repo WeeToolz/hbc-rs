@@ -56,6 +56,23 @@ class InventoryTests(unittest.TestCase):
         self.ledger[0]['rust_ref'] = 'src/metadata.rs#pub const fn parse_app_xml'
         self.assertEqual(api_inventory.collect(self.document, self.ledger)[0]['status'], 'partial')
 
+    def test_qualified_method_reference_disambiguates_same_named_apis(self):
+        apis = [
+            {'api': 'hbc_rs::home_overlay::OpenSignal::request', 'source': 'src/home_overlay.rs',
+             'name': 'request'},
+            {'api': 'hbc_rs::home_overlay::OverlayControl::request', 'source': 'src/home_overlay.rs',
+             'name': 'request'},
+        ]
+        by_source_name = {('src/home_overlay.rs', 'request'): apis}
+        resolved = api_inventory.resolve_api_reference(
+            'src/home_overlay.rs#OpenSignal::request', by_source_name, 'HBC-API-REQUEST-01'
+        )
+        self.assertEqual(resolved['api'], 'hbc_rs::home_overlay::OpenSignal::request')
+        with self.assertRaises(ValueError):
+            api_inventory.resolve_api_reference(
+                'src/home_overlay.rs#pub fn request', by_source_name, 'HBC-API-REQUEST-02'
+            )
+
     def test_unknown_rustdoc_format_and_missing_api_are_rejected(self):
         self.document['format_version'] = 999
         with self.assertRaises(ValueError):

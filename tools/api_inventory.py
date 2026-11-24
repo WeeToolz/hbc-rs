@@ -88,7 +88,7 @@ def public_functions(document: dict) -> list[dict[str, str]]:
 
 def collect(document: dict, ledger: list[dict[str, str]]) -> list[dict[str, str]]:
     apis = public_functions(document)
-    by_ref: dict[tuple[str, str], list[dict[str, str]]] = {}
+    by_api: dict[str, list[dict[str, str]]] = {}
     api_by_source_name: dict[tuple[str, str], list[dict[str, str]]] = {}
     extension_by_api: dict[str, tuple[dict[str, str], str]] = {}
     for api in apis:
@@ -118,24 +118,12 @@ def collect(document: dict, ledger: list[dict[str, str]]) -> list[dict[str, str]
             continue
         if not row["id"].startswith("HBC-API-"):
             continue
-        source, separator, symbol = row["rust_ref"].partition("#")
-        anchor = (
-            symbol.removeprefix("pub ")
-            .removeprefix("unsafe ")
-            .removeprefix("pub ")
-            .removeprefix("const ")
-        )
-        if not separator or not anchor.startswith("fn "):
-            raise ValueError(f"{row['id']}: API reference must use path#pub fn name")
-        name = anchor[3:].split("(", 1)[0].strip()
-        matches = api_by_source_name.get((source, name), [])
-        if len(matches) != 1:
-            raise ValueError(f"{row['id']}: API reference {row['rust_ref']!r} matches {len(matches)} public APIs")
-        by_ref.setdefault((source, name), []).append(row)
+        api = resolve_api_reference(row["rust_ref"], api_by_source_name, row["id"])
+        by_api.setdefault(api["api"], []).append(row)
 
     result = []
     for api in apis:
-        evidence_rows = by_ref.get((api["source"], api["name"]), [])
+        evidence_rows = by_api.get(api["api"], [])
         proven = [row for row in evidence_rows if row["verification"] in PROVEN_VERIFICATION]
         extension = extension_by_api.get(api["api"])
         if proven and extension is not None:
@@ -160,6 +148,35 @@ def collect(document: dict, ledger: list[dict[str, str]]) -> list[dict[str, str]
                       {"status": status, "evidence": evidence, "verification": verification,
                        "limitations": limitations})
     return result
+
+
+def resolve_api_reference(
+    reference: str,
+    api_by_source_name: dict[tuple[str, str], list[dict[str, str]]],
+    row_id: str,
+) -> dict[str, str]:
+    source, separator, symbol = reference.partition("#")
+    if not separator:
+        raise ValueError(f"{row_id}: API reference must use path#function")
+    anchor = symbol.removeprefix("pub ").removeprefix("unsafe ").removeprefix("const ")
+    owner = None
+    if anchor.startswith("fn "):
+        name = anchor[3:].split("(", 1)[0].strip()
+    elif "::" in anchor:
+        owner, name = anchor.rsplit("::", 1)
+        owner = owner.removeprefix("pub ").strip()
+        name = name.removeprefix("fn ").strip()
+    else:
+        raise ValueError(f"{row_id}: API reference must use path#pub fn name or path#Type::name")
+    matches = api_by_source_name.get((source, name), [])
+    if owner is not None:
+        suffix = f"::{owner}::{name}"
+        matches = [api for api in matches if api["api"].endswith(suffix)]
+        if len(matches) != 1:
+            raise ValueError(f"{row_id}: API reference {reference!r} matches {len(matches)} public APIs")
+    elif len(matches) != 1:
+        raise ValueError(f"{row_id}: API reference {reference!r} matches {len(matches)} public APIs")
+    return matches[0]
 
 
 def render_csv(rows: list[dict[str, str]]) -> str:

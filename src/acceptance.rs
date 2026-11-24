@@ -76,6 +76,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"localization-api" {
         return localization_api();
     }
+    if case == b"overlay-control-api" {
+        return overlay_control_api();
+    }
     if case == b"loader-helpers" {
         return loader_helpers();
     }
@@ -1567,6 +1570,64 @@ fn localization_api() -> i32 {
     }
     ogc_system::report(format_args!(
         "PASS localization API selection, catalog and ZIP text\n"
+    ));
+    0
+}
+
+fn overlay_control_api() -> i32 {
+    use crate::home_overlay::{OpenSignal, OperationResult, OverlayControl, OverlayError, Request};
+
+    let signal = OpenSignal::new();
+    if signal.take() {
+        return -1;
+    }
+    signal.request();
+    signal.request();
+    if !signal.take() || signal.take() {
+        return -1;
+    }
+
+    let mut control = OverlayControl::default();
+    if control.is_open()
+        || control.request(Request::Save) != Err(OverlayError::NotOpen)
+        || control.close() != Err(OverlayError::NotOpen)
+        || control.open().is_err()
+        || !control.is_open()
+        || control.open() != Err(OverlayError::AlreadyOpen)
+        || control.request(Request::Save) != Ok(Request::Save)
+        || control.request(Request::Screenshot) != Err(OverlayError::Busy)
+        || control.close() != Err(OverlayError::Busy)
+        || control.complete(Request::PowerOff, OperationResult::Succeeded)
+            != Err(OverlayError::MismatchedOperation)
+        || control
+            .complete(Request::Save, OperationResult::Failed)
+            .is_err()
+        || !control.is_open()
+        || control.complete(Request::Save, OperationResult::Succeeded)
+            != Err(OverlayError::NoPendingOperation)
+        || control.request(Request::Close) != Ok(Request::Close)
+        || control.is_open()
+    {
+        ogc_system::report(format_args!("FAIL overlay control API pending lifecycle\n"));
+        return -1;
+    }
+    if control.open().is_err()
+        || control.request(Request::ReturnToSystemMenu) != Ok(Request::ReturnToSystemMenu)
+        || control
+            .complete(Request::ReturnToSystemMenu, OperationResult::Failed)
+            .is_err()
+        || !control.is_open()
+        || control.request(Request::PowerOff) != Ok(Request::PowerOff)
+        || control
+            .complete(Request::PowerOff, OperationResult::Succeeded)
+            .is_err()
+        || control.is_open()
+    {
+        ogc_system::report(format_args!("FAIL overlay control API exit lifecycle\n"));
+        return -1;
+    }
+    ogc_system::report(format_args!(
+        "PASS overlay control API signal, retry, close and exit\n"
     ));
     0
 }
