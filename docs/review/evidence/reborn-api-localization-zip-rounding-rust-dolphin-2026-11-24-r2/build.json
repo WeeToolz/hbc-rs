@@ -1,0 +1,18 @@
+{
+  "package": "hbc-rs",
+  "source_revision": "a2f0de751a69fea81d805fe19edc7bc5bd3cf0c0",
+  "sdk_revision": "b25827a6c49b8dbe2d6c2f901aadaaec670f86c3",
+  "target": "powerpc-nintendo-none",
+  "profile": "release",
+  "features": ["emulator-acceptance"],
+  "compiler": "rustc 1.101.0-nightly (ea137335b 2026-10-05)",
+  "dol_path": "/private/tmp/hbc-rs/localization-zip-rounding.dol",
+  "dol_bytes": 2795936,
+  "dol_sha256": "ed6a5698bfbdb55c4a7624295a21d708593690f9c7e8c19a64798e4d9c4ca267",
+  "elf_path": "/private/tmp/hbc-rs/wii-target/powerpc-nintendo-none/release/emulator-acceptance",
+  "elf_sha256": "ecda776a2e5c4f5ed270f61323ad85bbafb18e517f307318310d829e76fc066e",
+  "build_steps": [
+    "rustup run nightly cargo build -Z json-target-spec --target targets/powerpc-nintendo-none.json --target-dir /private/tmp/hbc-rs/wii-target --release -p hbc-rs --bin emulator-acceptance -Z build-std=core,alloc -Z build-std-features=compiler-builtins-mem --features emulator-acceptance",
+    "cargo xtask elf-to-dol /private/tmp/hbc-rs/wii-target/powerpc-nintendo-none/release/emulator-acceptance /private/tmp/hbc-rs/localization-zip-rounding.dol"
+  ]
+}

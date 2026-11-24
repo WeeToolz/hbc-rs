@@ -669,8 +669,7 @@ impl Language {
         overwrite: bool,
     ) -> String {
         let size = if required_bytes / 1024 > 999 {
-            let hundredths = required_bytes.saturating_mul(100) / (1024 * 1024);
-            format!("{}.{:02} MB", hundredths / 100, hundredths % 100)
+            format!("{:.2} MB", required_bytes as f32 / (1024.0 * 1024.0))
         } else {
             format!("{} KB", required_bytes / 1024)
         };
@@ -766,5 +765,17 @@ mod tests {
         assert!(overwrite.contains("1.00 MB"));
         assert!(overwrite.contains("'demo'"));
         assert!(overwrite.contains("überschrieben"));
+    }
+
+    #[test]
+    fn received_zip_confirmation_matches_reborn_size_rounding() {
+        let below_mb_threshold =
+            Language::English.received_zip_confirmation("demo", 1_023_999, false);
+        let at_mb_threshold = Language::English.received_zip_confirmation("demo", 1_024_000, false);
+        let rounded_mb = Language::English.received_zip_confirmation("demo", 1_100_000, false);
+
+        assert!(below_mb_threshold.contains("999 KB of free space"));
+        assert!(at_mb_threshold.contains("0.98 MB of free space"));
+        assert!(rounded_mb.contains("1.05 MB of free space"));
     }
 }

@@ -3664,11 +3664,17 @@ fn localization_api() -> i32 {
     }
     let plain = Language::English.received_zip_confirmation("demo", 2048, false);
     let overwrite = Language::German.received_zip_confirmation("demo", 1024 * 1024, true);
+    let below_mb_threshold = Language::English.received_zip_confirmation("demo", 1_023_999, false);
+    let at_mb_threshold = Language::English.received_zip_confirmation("demo", 1_024_000, false);
+    let rounded_mb = Language::English.received_zip_confirmation("demo", 1_100_000, false);
     if !plain.contains("2 KB of free space")
         || plain.contains("overwritten")
         || !overwrite.contains("1.00 MB")
         || !overwrite.contains("'demo'")
         || !overwrite.contains("überschrieben")
+        || !below_mb_threshold.contains("999 KB of free space")
+        || !at_mb_threshold.contains("0.98 MB of free space")
+        || !rounded_mb.contains("1.05 MB of free space")
     {
         ogc_system::report(format_args!("FAIL localization API ZIP confirmation\n"));
         return -1;
