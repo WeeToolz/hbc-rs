@@ -215,3 +215,8 @@ The catalog reconciliation API has a direct production Dolphin case for
 selection retention after insertion, page position, removal fallback, and an
 empty catalog. See the [catalog reconciliation evidence](review/evidence/reborn-api-catalog-reconcile-rust-dolphin-2026-11-23/README.md).
 Physical catalog refresh timing and rendered transitions remain separate.
+
+The storage-volume Dolphin case checks all five settings-index mappings, the
+matching mount names, and invalid-index handling through the `Volume` APIs.
+Physical device mounts and hot-plug behavior remain pending. See the [storage
+volume API record](review/evidence/reborn-storage-volume-rust-dolphin-2026-11-23/README.md).
