@@ -67,6 +67,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"background-animation-api" {
         return background_animation_api();
     }
+    if case == b"wiiload-state-api" {
+        return wiiload_state_api();
+    }
     if case == b"lifecycle-api" {
         return lifecycle_api();
     }
@@ -319,6 +322,32 @@ fn background_animation_api() -> i32 {
 
     ogc_system::report(format_args!(
         "PASS background animation API count, pop, fragments and timing\n"
+    ));
+    0
+}
+
+fn wiiload_state_api() -> i32 {
+    use crate::{
+        platform::wiiload,
+        wiiload::{IndicatorState, ReceiverStatus},
+    };
+
+    if wiiload::status() != ReceiverStatus::Stopped
+        || wiiload::indicator_state()
+            != (IndicatorState {
+                network_active: false,
+                gecko_active: false,
+            })
+        || wiiload::receive_progress() != (0, 0)
+        || wiiload::take_payload().is_some()
+        || wiiload::stop().is_err()
+    {
+        ogc_system::report(format_args!("FAIL stopped Wiiload API state\n"));
+        return -1;
+    }
+
+    ogc_system::report(format_args!(
+        "PASS stopped Wiiload status, indicators, progress and stop\n"
     ));
     0
 }

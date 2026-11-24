@@ -314,15 +314,15 @@ hbc_rs::platform::video::VideoSystem::show,src/platform/video.rs,129,unverified,
 hbc_rs::platform::video::VideoSystem::wait_vsync,src/platform/video.rs,136,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::video::initialize,src/platform/video.rs,388,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::video::shutdown,src/platform/video.rs,587,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::platform::wiiload::cleanup_error,src/platform/wiiload.rs,211,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::platform::wiiload::cleanup_error,src/platform/wiiload.rs,211,extension,HBC-API-EXT-WIILOAD-INFO-01,not_applicable,Rust receiver cleanup and local network address queries have no matching public Reborn C APIs
 hbc_rs::platform::wiiload::indicator_state,src/platform/wiiload.rs,198,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::platform::wiiload::local_ip,src/platform/wiiload.rs,217,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::platform::wiiload::merge_remote_input,src/platform/wiiload.rs,107,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::platform::wiiload::receive_progress,src/platform/wiiload.rs,204,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::platform::wiiload::local_ip,src/platform/wiiload.rs,217,extension,HBC-API-EXT-WIILOAD-INFO-01,not_applicable,Rust receiver cleanup and local network address queries have no matching public Reborn C APIs
+hbc_rs::platform::wiiload::merge_remote_input,src/platform/wiiload.rs,107,extension,HBC-REMOTE-INPUT-01,not_applicable,Rust development control extension
+hbc_rs::platform::wiiload::receive_progress,src/platform/wiiload.rs,204,partial,HBC-API-WIILOAD-RECEIVE-PROGRESS-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::platform::wiiload::start,src/platform/wiiload.rs,126,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::platform::wiiload::status,src/platform/wiiload.rs,182,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::platform::wiiload::stop,src/platform/wiiload.rs,251,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::platform::wiiload::take_payload,src/platform/wiiload.rs,237,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::platform::wiiload::status,src/platform/wiiload.rs,182,partial,HBC-API-WIILOAD-STATUS-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::platform::wiiload::stop,src/platform/wiiload.rs,251,partial,HBC-API-WIILOAD-STOP-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::platform::wiiload::take_payload,src/platform/wiiload.rs,237,partial,HBC-API-WIILOAD-TAKE-PAYLOAD-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::png::GxRgba8Texture::as_bytes,src/png.rs,198,partial,HBC-API-PNG-TEXTURE-BYTES-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::png::GxRgba8Texture::as_ptr,src/png.rs,208,partial,HBC-API-PNG-TEXTURE-PTR-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::png::GxRgba8Texture::from_image,src/png.rs,166,partial,HBC-API-PNG-TEXTURE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.

@@ -36,6 +36,10 @@ wireless scan extension scope includes the platform scan API, its error message,
 and controller state. Reborn has no network editor, virtual keyboard, or
 wireless scan API. Physical network profile storage and wireless scanning remain
 pending as recorded in HBC-EXT-01 and HBC-EXT-02.
+The Wiiload extension scope also includes receiver cleanup diagnostics and the
+local address query; Reborn exposes neither as a public API. Remote input merged
+into the Wii input frame remains part of the separate development control
+extension.
 
 API-specific runtime evidence includes 17 `parse_app_xml` date cases and 8
 `parse_update_xml` date cases compared with an independent C-runtime probe in
