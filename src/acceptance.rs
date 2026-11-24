@@ -3530,7 +3530,22 @@ fn font_api() -> i32 {
     let empty_width = face.measure_width("", 18);
     let narrow_width = face.measure_width("iii", 18);
     let wide_width = face.measure_width("WWW", 18);
-    if empty_width != 0.0 || wide_width <= narrow_width * 2.0 {
+    let reborn_widths = [
+        face.measure_width("A", 16),
+        face.measure_width("AV", 16),
+        face.measure_width("WWW", 16),
+        face.measure_width("iii", 16),
+        face.measure_width("Hello, world!", 16),
+        face.measure_width("gyp", 16),
+        face.measure_width("M W", 16),
+        face.measure_width("A\nV", 16),
+        face.measure_width("A\n", 16),
+        face.measure_width("A\rV", 16),
+    ];
+    if empty_width != 0.0
+        || wide_width <= narrow_width * 2.0
+        || reborn_widths != [10.0, 19.0, 42.0, 12.0, 89.0, 25.0, 32.0, 23.0, 10.0, 19.0]
+    {
         ogc_system::report(format_args!("FAIL font API measured widths\n"));
         return -1;
     }

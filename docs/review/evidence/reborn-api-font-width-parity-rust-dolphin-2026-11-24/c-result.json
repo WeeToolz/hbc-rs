@@ -1,0 +1,17 @@
+{
+  "success": true,
+  "forced_termination": true,
+  "command": [
+    "/usr/bin/arch",
+    "-x86_64",
+    "/Applications/Dolphin.app/Contents/MacOS/Dolphin",
+    "-b",
+    "-u",
+    "/private/tmp/hbc-rs/reborn-font-c2-rsori9zm",
+    "-e",
+    "/private/tmp/hbc-rs/reborn-font-width-probe.dol"
+  ],
+  "dol_sha256": "901c1267877dff647e6ba7278be1fc036f5fe41fbe454c2d71af1d8bd0963dfa",
+  "dolphin_arch": "x86_64",
+  "log": "/private/tmp/hbc-rs/reborn-font-width-c-dolphin-r2.log"
+}

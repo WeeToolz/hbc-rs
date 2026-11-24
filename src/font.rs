@@ -85,21 +85,32 @@ impl ThemeFontFace {
     }
 
     pub fn measure_width(&self, value: &str, pixel_size: u16) -> f32 {
-        let mut cursor = 0.0;
-        let mut right: f32 = 0.0;
+        let mut width = 0.0;
+        let mut pending_advance = 0.0;
         let mut previous = None;
-        for character in value.chars() {
+        let mut characters = value.chars().peekable();
+        while let Some(mut character) = characters.next() {
+            if character == '\n' {
+                if characters.peek().is_some() {
+                    character = ' ';
+                } else {
+                    continue;
+                }
+            }
+            if character == '\r' {
+                continue;
+            }
             if let Some(left) = previous {
-                cursor += self
+                pending_advance += self
                     .horizontal_kern(left, character, pixel_size)
                     .unwrap_or(0.0);
+                width += libm::floorf(pending_advance + 0.5);
             }
             let glyph = self.font.metrics(character, f32::from(pixel_size));
-            right = right.max(cursor + glyph.xmin as f32 + glyph.width as f32);
-            cursor += glyph.advance_width;
+            pending_advance = glyph.advance_width;
             previous = Some(character);
         }
-        right.max(cursor)
+        width + libm::floorf(pending_advance + 0.5)
     }
 
     pub fn layout_memo(
@@ -230,5 +241,24 @@ mod tests {
         let mut face = ThemeFontFace::parse("droid.ttf".into(), DROID_REGULAR.to_vec()).unwrap();
         assert_eq!(face.rasterize('A', 0).err(), Some(FontError::InvalidSize));
         assert_eq!(face.rasterize('A', 129).err(), Some(FontError::InvalidSize));
+    }
+
+    #[test]
+    fn text_width_matches_reborn_advances_kerning_and_line_breaks() {
+        let face = ThemeFontFace::parse("droid.ttf".into(), DROID_REGULAR.to_vec()).unwrap();
+        for (text, expected) in [
+            ("A", 10.0),
+            ("AV", 19.0),
+            ("WWW", 42.0),
+            ("iii", 12.0),
+            ("Hello, world!", 89.0),
+            ("gyp", 25.0),
+            ("M W", 32.0),
+            ("A\nV", 23.0),
+            ("A\n", 10.0),
+            ("A\rV", 19.0),
+        ] {
+            assert_eq!(face.measure_width(text, 16), expected, "{text:?}");
+        }
     }
 }

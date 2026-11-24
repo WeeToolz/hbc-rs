@@ -1,0 +1,22 @@
+{
+  "compiler": "/opt/devkitpro/devkitPPC/bin/powerpc-eabi-gcc (devkitPPC) 16.1.0",
+  "freetype": "2.14.1",
+  "source": "probes/reborn-font-width/main.c",
+  "source_sha256": "2b3a9920a7a8dbf2c45423d5cf5303d35a510357b198d31c8a1011c2c6bae585",
+  "font": "assets/droid.ttf",
+  "font_sha256": "f51b88945f4c1b236f44b8d55a2d304316869127e95248c435c23f1e4142a7db",
+  "dol": "/private/tmp/hbc-rs/reborn-font-width-probe.dol",
+  "dol_bytes": 1413728,
+  "dol_sha256": "901c1267877dff647e6ba7278be1fc036f5fe41fbe454c2d71af1d8bd0963dfa",
+  "compile_flags": [
+    "-DGEKKO", "-mrvl", "-mcpu=750", "-meabi", "-mhard-float", "-O2", "-Wall", "-Wextra",
+    "-I/opt/devkitpro/libogc/include", "-I/opt/devkitpro/portlibs/ppc/include",
+    "-I/opt/devkitpro/portlibs/ppc/include/freetype2",
+    "-specs=/opt/devkitpro/libogc/share/rvl.specs",
+    "-L/opt/devkitpro/libogc/lib/wii", "-L/opt/devkitpro/portlibs/ppc/lib"
+  ],
+  "libraries": ["freetype", "png", "z", "brotlidec", "brotlicommon", "bz2", "ogc", "m"],
+  "asset_object_command": "/opt/devkitpro/devkitPPC/bin/powerpc-eabi-objcopy -I binary -O elf32-powerpc -B powerpc --rename-section .data=.rodata,alloc,load,readonly,data,contents assets/droid.ttf /private/tmp/hbc-rs/droid-font.o",
+  "convert_command": "/opt/devkitpro/tools/bin/elf2dol /private/tmp/hbc-rs/reborn-font-width-probe.elf /private/tmp/hbc-rs/reborn-font-width-probe.dol",
+  "run_environment": "Dolphin 2609a x86_64 with a private profile; no physical Wii"
+}
