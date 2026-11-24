@@ -3669,6 +3669,46 @@ fn font_api() -> i32 {
         ogc_system::report(format_args!("FAIL font API line metrics values\n"));
         return -1;
     }
+    let kern_face = match ThemeFontFace::parse(
+        String::from("kern-test.ttf"),
+        include_bytes!("../tests/fixtures/droid-kern-test.ttf").to_vec(),
+    ) {
+        Ok(face) => face,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL custom font parse {error:?}\n"));
+            return -1;
+        }
+    };
+    let kern_cases = [
+        "A",
+        "AV",
+        "WWW",
+        "iii",
+        "Hello, world!",
+        "gyp",
+        "M W",
+        "A\nV",
+        "A\n",
+        "A\rV",
+    ];
+    let kern_widths = [
+        (8, [5, 9, 21, 6, 46, 13, 16, 12, 5, 9]),
+        (12, [7, 13, 33, 9, 67, 19, 24, 17, 7, 13]),
+        (16, [10, 17, 42, 12, 89, 25, 32, 23, 10, 17]),
+        (18, [11, 19, 48, 15, 104, 29, 37, 26, 11, 19]),
+        (24, [15, 27, 63, 18, 136, 38, 48, 35, 15, 27]),
+        (32, [19, 34, 84, 24, 180, 52, 64, 45, 19, 34]),
+    ];
+    for (size, expected) in kern_widths {
+        for (text, width) in kern_cases.iter().zip(expected) {
+            if kern_face.measure_width(text, size) != width as f32 {
+                ogc_system::report(format_args!(
+                    "FAIL custom font width size={size} text={text:?}\n"
+                ));
+                return -1;
+            }
+        }
+    }
     let empty_width = face.measure_width("", 18);
     let narrow_width = face.measure_width("iii", 18);
     let wide_width = face.measure_width("WWW", 18);

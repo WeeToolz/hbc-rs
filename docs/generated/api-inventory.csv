@@ -99,7 +99,7 @@ hbc_rs::catalog::visible_entries,src/catalog.rs,166,partial,HBC-API-CATALOG-VISI
 hbc_rs::font::ThemeFontFace::cached_glyph_count,src/font.rs,73,extension,HBC-API-EXT-FONT-01,not_applicable,Rust-only cache introspection
 hbc_rs::font::ThemeFontFace::horizontal_kern,src/font.rs,82,partial,HBC-API-FONT-KERN-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::font::ThemeFontFace::horizontal_line_metrics,src/font.rs,76,partial,HBC-API-FONT-LINE-METRICS-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
-hbc_rs::font::ThemeFontFace::layout_memo,src/font.rs,116,partial,HBC-API-FONT-LAYOUT-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::font::ThemeFontFace::layout_memo,src/font.rs,117,partial,HBC-API-FONT-LAYOUT-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::font::ThemeFontFace::measure_width,src/font.rs,87,partial,HBC-API-FONT-MEASURE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::font::ThemeFontFace::parse,src/font.rs,39,partial,HBC-API-FONT-PARSE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::font::ThemeFontFace::rasterize,src/font.rs,49,partial,HBC-API-FONT-RASTERIZE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.

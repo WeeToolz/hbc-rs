@@ -1,0 +1,15 @@
+{
+  "sha256": "c98b51dba9965e19c6d43016410962543fda2e80f69edb31d3c6c3d9d93eaaa0",
+  "dolphin_arch": "x86_64",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-s6mveu7k",
+  "sd_fixture": null,
+  "theme_fixture": null,
+  "cases": [
+    {
+      "case": "font-api",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}
