@@ -1,6 +1,6 @@
 # Rust release-date API comparison in Dolphin
 
-The production `hbc_rs::metadata::parse_app_xml` API passed its `metadata-date` acceptance case in Dolphin. The case checks all 17 inputs listed by the independent C probe against the same normalized date keys; a mismatch returns an error. `comparison.json` validates the complete C records against that table and records both DOL hashes.
+The production `hbc_rs::metadata::parse_app_xml` API passed its `metadata-date` acceptance case in Dolphin. The original run checked all 17 inputs listed by the independent C probe. The current comparison table also includes ten calendar and `time_t` boundary inputs. See the 2026-11-24 boundary evidence for the fresh 27-case C and Rust runs.
 
 The acceptance DOL SHA-256 is `e21902d7ef29c24537d31f61cfa160f48c2db5d915aa462d9c2ed014faa68ba6`. `build.manifest.json` records its target build. The Rust run used a small private profile under `/private/tmp/hbc-rs`; it did not copy or modify the user's Dolphin NAND.
 

@@ -1,0 +1,402 @@
+{
+  "image": "/Volumes/SSD/WiiDev/WeeToolz/hbc-rs/target/reborn-date-c/probe-boundaries.dol",
+  "sha256": "1b512d19ae8cbde201114f8bb6b9c6aad25b5ea4ed44d0a64d3ff70c39da998e",
+  "physical_wii_tested": false,
+  "expected_date_cases": 27,
+  "expected_update_cases": 8,
+  "success": true,
+  "command": [
+    "/usr/bin/arch",
+    "-x86_64",
+    "/Applications/Dolphin.app/Contents/MacOS/Dolphin",
+    "-b",
+    "-u",
+    "/private/tmp/hbc-rs/hbc-date-c-3gbzv1hv",
+    "-e",
+    "/Volumes/SSD/WiiDev/WeeToolz/hbc-rs/target/reborn-date-c/probe-boundaries.dol"
+  ],
+  "completion_marker": true,
+  "forced_termination": true,
+  "dolphin_exit_code": -9,
+  "records": [
+    {
+      "input": "20241332",
+      "scan_count": 3,
+      "epoch": 1741050000,
+      "normalized": [
+        2025,
+        3,
+        4,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "20250000",
+      "scan_count": 3,
+      "epoch": 1735606800,
+      "normalized": [
+        2024,
+        12,
+        31,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "20250101999999",
+      "scan_count": 6,
+      "epoch": 1738730439,
+      "normalized": [
+        2025,
+        2,
+        5,
+        4,
+        40,
+        39
+      ]
+    },
+    {
+      "input": "2025-01-02",
+      "scan_count": 3,
+      "epoch": 1735693200,
+      "normalized": [
+        2025,
+        1,
+        1,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "20250101-1-1-1",
+      "scan_count": 6,
+      "epoch": 1738364339,
+      "normalized": [
+        2025,
+        1,
+        31,
+        22,
+        58,
+        59
+      ]
+    },
+    {
+      "input": "19691201000000",
+      "scan_count": 6,
+      "epoch": 0,
+      "normalized": [
+        1970,
+        1,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "-0010101",
+      "scan_count": 3,
+      "epoch": -62196073200,
+      "normalized": [
+        -1,
+        2,
+        1,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "2025010112",
+      "scan_count": 3,
+      "epoch": 1738371600,
+      "normalized": [
+        2025,
+        2,
+        1,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "2025 1 1",
+      "scan_count": 3,
+      "epoch": 1738371600,
+      "normalized": [
+        2025,
+        2,
+        1,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "2025x0101",
+      "scan_count": 1,
+      "invalid": true
+    },
+    {
+      "input": "20250101123456tail",
+      "scan_count": 6,
+      "epoch": 1738413296,
+      "normalized": [
+        2025,
+        2,
+        1,
+        12,
+        34,
+        56
+      ]
+    },
+    {
+      "input": "202501011234",
+      "scan_count": 3,
+      "epoch": 1738371600,
+      "normalized": [
+        2025,
+        2,
+        1,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "20240131",
+      "scan_count": 3,
+      "epoch": 1709341200,
+      "normalized": [
+        2024,
+        3,
+        2,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "20250131",
+      "scan_count": 3,
+      "epoch": 1740963600,
+      "normalized": [
+        2025,
+        3,
+        3,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "20241231",
+      "scan_count": 3,
+      "epoch": 1738285200,
+      "normalized": [
+        2025,
+        1,
+        31,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "20250131235960",
+      "scan_count": 6,
+      "epoch": 1741046400,
+      "normalized": [
+        2025,
+        3,
+        4,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "20250102",
+      "scan_count": 3,
+      "epoch": 1738458000,
+      "normalized": [
+        2025,
+        2,
+        2,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "00000101",
+      "scan_count": 3,
+      "epoch": -62164537200,
+      "normalized": [
+        0,
+        2,
+        1,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "00010101",
+      "scan_count": 3,
+      "epoch": -62132914800,
+      "normalized": [
+        1,
+        2,
+        1,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "18991231",
+      "scan_count": 3,
+      "epoch": -2206393200,
+      "normalized": [
+        1900,
+        1,
+        31,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "19000101",
+      "scan_count": 3,
+      "epoch": -2206306800,
+      "normalized": [
+        1900,
+        2,
+        1,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "19690101",
+      "scan_count": 3,
+      "epoch": -28854000,
+      "normalized": [
+        1969,
+        2,
+        1,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "19691231",
+      "scan_count": 3,
+      "epoch": 2595600,
+      "normalized": [
+        1970,
+        1,
+        31,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "19700101",
+      "scan_count": 3,
+      "epoch": 2682000,
+      "normalized": [
+        1970,
+        2,
+        1,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "20380119",
+      "scan_count": 3,
+      "epoch": 2150154000,
+      "normalized": [
+        2038,
+        2,
+        19,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "20380120",
+      "scan_count": 3,
+      "epoch": 2150240400,
+      "normalized": [
+        2038,
+        2,
+        20,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "99991231",
+      "scan_count": 3,
+      "epoch": 253404896400,
+      "normalized": [
+        10000,
+        1,
+        31,
+        1,
+        0,
+        0
+      ]
+    }
+  ],
+  "update_records": [
+    {
+      "index": 0,
+      "value": 123
+    },
+    {
+      "index": 1,
+      "value": 456
+    },
+    {
+      "index": 2,
+      "value": 18446744073709551609
+    },
+    {
+      "index": 3,
+      "value": 0
+    },
+    {
+      "index": 4,
+      "value": 0
+    },
+    {
+      "index": 5,
+      "value": 0
+    },
+    {
+      "index": 6,
+      "value": 0
+    },
+    {
+      "index": 7,
+      "value": 0
+    }
+  ],
+  "record_count": 27,
+  "update_record_count": 8
+}

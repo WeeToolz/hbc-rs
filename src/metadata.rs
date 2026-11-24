@@ -902,6 +902,24 @@ mod tests {
     }
 
     #[test]
+    fn release_date_matches_reborn_wide_time_t_year_boundaries() {
+        for (input, expected) in [
+            ("00000101", 201010000),
+            ("00010101", 10201010000),
+            ("18991231", 19000131010000),
+            ("19000101", 19000201010000),
+            ("19690101", 19690201010000),
+            ("19691231", 19700131010000),
+            ("19700101", 19700201010000),
+            ("20380119", 20380219010000),
+            ("20380120", 20380220010000),
+            ("99991231", 100000131010000),
+        ] {
+            assert_eq!(parse_date(input), Some(expected), "{input}");
+        }
+    }
+
+    #[test]
     fn rejects_bad_xml_and_unscannable_dates() {
         assert!(parse_app_xml("<app><name>x</app>").is_err());
         assert_eq!(parse_date("not a date"), None);

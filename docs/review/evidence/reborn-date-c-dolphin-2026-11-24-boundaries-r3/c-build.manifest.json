@@ -1,0 +1,17 @@
+{
+  "compiler": "/opt/devkitpro/devkitPPC/bin/powerpc-eabi-gcc",
+  "linker": "/opt/devkitpro/tools/bin/elf2dol",
+  "source": "probes/reborn-date-c/main.c",
+  "source_sha256": "cad61bf33fae24cad38297af44a17f1815fff404f431b10dcd7c8f102cab90da",
+  "dol": "target/reborn-date-c/probe-boundaries.dol",
+  "dol_sha256": "1b512d19ae8cbde201114f8bb6b9c6aad25b5ea4ed44d0a64d3ff70c39da998e",
+  "compile_flags": [
+    "-DGEKKO", "-mrvl", "-mcpu=750", "-meabi", "-mhard-float", "-O2",
+    "-Wall", "-Wextra", "-I/opt/devkitpro/libogc/include",
+    "-I/opt/devkitpro/portlibs/ppc/include",
+    "-specs=/opt/devkitpro/libogc/share/rvl.specs",
+    "-L/opt/devkitpro/libogc/lib/wii", "-L/opt/devkitpro/portlibs/ppc/lib"
+  ],
+  "libraries": ["libogc", "libmxml", "libm"],
+  "run_environment": "Dolphin x86_64 with a private profile; no physical Wii"
+}

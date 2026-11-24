@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "apis": [
+    "hbc_rs::metadata::parse_app_xml",
+    "hbc_rs::metadata::parse_update_xml"
+  ],
+  "comparison": "27 release dates and 8 update dates match independent Reborn C runtime results",
+  "cases": 27,
+  "update_cases": 8,
+  "dolphin_c_sha256": "1b512d19ae8cbde201114f8bb6b9c6aad25b5ea4ed44d0a64d3ff70c39da998e",
+  "dolphin_rust_sha256": "b18cfe1d22d07184322b6487dd645889f6b1b0d8998b15e8e87098b7396fe920",
+  "physical_wii_tested": false
+}

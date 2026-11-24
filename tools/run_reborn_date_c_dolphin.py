@@ -52,6 +52,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--dol', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--dolphin-arch', choices=['arm64', 'x86_64'])
     parser.add_argument('--expected-date-cases', type=int, default=17)
     parser.add_argument('--expected-update-cases', type=int, default=8)
     parser.add_argument('--timeout', type=float, default=30)
@@ -89,6 +90,8 @@ def main() -> int:
             console_path = args.output / 'console.log'
             with console_path.open('w', encoding='utf-8') as console:
                 command = [str(DOLPHIN), '-b', '-u', str(profile), '-e', str(dol)]
+                if args.dolphin_arch:
+                    command = ['/usr/bin/arch', f'-{args.dolphin_arch}', *command]
                 result['command'] = command
                 process = subprocess.Popen(command, stdout=console, stderr=subprocess.STDOUT)
                 deadline = time.monotonic() + args.timeout
