@@ -1,0 +1,12 @@
+{
+  "sha256": "2ed0ddbf74b8f0d9e26f7858d02fdfa2e3cfb42134bdcf35b0dd83ba1590d90b",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-l0v2qnom",
+  "cases": [
+    {
+      "case": "runtime-pointer-api",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

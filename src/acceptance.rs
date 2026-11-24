@@ -52,6 +52,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"runtime-state-api" {
         return runtime_state_api();
     }
+    if case == b"runtime-pointer-api" {
+        return runtime_pointer_api();
+    }
     if case == b"metadata-theme" {
         return metadata_theme();
     }
@@ -1290,6 +1293,70 @@ fn runtime_state_api() -> i32 {
 
     ogc_system::report(format_args!(
         "PASS runtime catalog, display, theme, notice and settings APIs\n"
+    ));
+    0
+}
+
+fn runtime_pointer_api() -> i32 {
+    use crate::{
+        app::{Input, PointerTarget, Screen},
+        catalog::{AppEntry, AppKind},
+        platform::input::InputFrame,
+        runtime::AppRuntime,
+    };
+
+    let catalog = (0..10)
+        .map(|index| AppEntry {
+            directory: alloc::format!("pointer-{index}"),
+            kind: AppKind::Dol,
+            size: 1,
+            has_icon: false,
+            metadata: None,
+        })
+        .collect();
+    let mut runtime = AppRuntime::new(catalog);
+
+    if !runtime
+        .update_pointer(Some(PointerTarget::App(2)), false)
+        .is_empty()
+        || runtime.controller().selected_app.as_deref() != Some("pointer-2")
+        || runtime.controller().screen != Screen::Browser
+    {
+        ogc_system::report(format_args!("FAIL runtime pointer focus\n"));
+        return -1;
+    }
+
+    if !runtime
+        .update_pointer_frame(Some(PointerTarget::App(3)), Some(120), true, false)
+        .is_empty()
+        || runtime.controller().selected_app.as_deref() != Some("pointer-3")
+        || runtime.controller().screen != Screen::AppDetails
+    {
+        ogc_system::report(format_args!("FAIL runtime pointer frame activation\n"));
+        return -2;
+    }
+
+    runtime.update(&InputFrame {
+        pressed: alloc::vec![Input::Back],
+        ..Default::default()
+    });
+    let mut frame = InputFrame {
+        pressed: alloc::vec![Input::NextPage, Input::Confirm],
+        held: alloc::vec![Input::NextPage],
+        ..Default::default()
+    };
+    if !runtime
+        .update_frame_with_pointer(&mut frame, Some(PointerTarget::App(0)), None, true, false)
+        .is_empty()
+        || runtime.controller().selected_app.as_deref() != Some("pointer-0")
+        || runtime.controller().screen != Screen::AppDetails
+    {
+        ogc_system::report(format_args!("FAIL runtime combined pointer frame\n"));
+        return -3;
+    }
+
+    ogc_system::report(format_args!(
+        "PASS runtime pointer focus, activation and frame ordering\n"
     ));
     0
 }
