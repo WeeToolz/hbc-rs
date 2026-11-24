@@ -1,0 +1,12 @@
+{
+  "sha256": "76ad55437d694eb517739d02a7331bc708a801783b401e842f72f4a08cb67576",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-uwgec1yz",
+  "cases": [
+    {
+      "case": "runtime-measured-memo-api",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

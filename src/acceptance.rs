@@ -55,6 +55,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"runtime-pointer-api" {
         return runtime_pointer_api();
     }
+    if case == b"runtime-measured-memo-api" {
+        return runtime_measured_memo_api();
+    }
     if case == b"metadata-theme" {
         return metadata_theme();
     }
@@ -1357,6 +1360,52 @@ fn runtime_pointer_api() -> i32 {
 
     ogc_system::report(format_args!(
         "PASS runtime pointer focus, activation and frame ordering\n"
+    ));
+    0
+}
+
+fn runtime_measured_memo_api() -> i32 {
+    use crate::{app::Screen, platform::input::InputFrame, runtime::AppRuntime};
+
+    let mut runtime = AppRuntime::default();
+    runtime.show_notice("Measured memo");
+    runtime.set_measured_memo(2, 8);
+    if runtime.controller().notice_scroll_max() != 2 {
+        ogc_system::report(format_args!("FAIL runtime measured memo scroll bound\n"));
+        return -1;
+    }
+
+    runtime.update(&InputFrame {
+        stick_scroll_pixels: 7,
+        ..Default::default()
+    });
+    if runtime.controller().screen != Screen::Notice || runtime.controller().notice_scroll() != 0 {
+        ogc_system::report(format_args!("FAIL runtime measured memo partial line\n"));
+        return -2;
+    }
+    runtime.update(&InputFrame {
+        stick_scroll_pixels: 1,
+        ..Default::default()
+    });
+    if runtime.controller().notice_scroll() != 1 {
+        ogc_system::report(format_args!("FAIL runtime measured memo line height\n"));
+        return -3;
+    }
+    runtime.update(&InputFrame {
+        stick_scroll_pixels: 32,
+        ..Default::default()
+    });
+    runtime.update(&InputFrame {
+        stick_scroll_pixels: 8,
+        ..Default::default()
+    });
+    if runtime.controller().notice_scroll() != 2 {
+        ogc_system::report(format_args!("FAIL runtime measured memo clamp\n"));
+        return -4;
+    }
+
+    ogc_system::report(format_args!(
+        "PASS runtime measured memo line height and scroll bound\n"
     ));
     0
 }
