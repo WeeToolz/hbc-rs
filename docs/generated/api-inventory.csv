@@ -1,5 +1,5 @@
 api,source,line,status,evidence,verification,limitations
-hbc_rs::app::AppController::about_scroll,src/app.rs,505,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::app::AppController::about_scroll,src/app.rs,505,partial,HBC-API-ABOUT-SCROLL-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::bootmii_available,src/app.rs,676,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::app::AppController::browser_layout,src/app.rs,891,partial,HBC-API-APP-LAYOUT-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::clear_network_config,src/app.rs,838,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
@@ -51,7 +51,7 @@ hbc_rs::app::AppController::scanned_networks,src/app.rs,797,extension,HBC-API-EX
 hbc_rs::app::AppController::scroll_active_memo_by_stick,src/app.rs,469,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::app::AppController::scroll_detail_by_stick,src/app.rs,465,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::app::AppController::selected_index,src/app.rs,331,partial,HBC-API-APP-SELECTED-INDEX-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
-hbc_rs::app::AppController::set_about_theme_description,src/app.rs,509,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::app::AppController::set_about_theme_description,src/app.rs,509,partial,HBC-API-ABOUT-THEME-DESC-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::set_active_device,src/app.rs,858,partial,HBC-API-OPTIONS-ACTIVE-SET-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::set_bootmii_available,src/app.rs,670,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::app::AppController::set_browser_layout,src/app.rs,896,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
@@ -70,7 +70,7 @@ hbc_rs::app::AppController::show_notice,src/app.rs,649,partial,HBC-API-NOTICE-SH
 hbc_rs::app::AppController::show_notice_with_kind,src/app.rs,653,partial,HBC-API-NOTICE-SHOW-KIND-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::show_wiiload_installing,src/app.rs,403,partial,HBC-API-WIILOAD-INSTALL-START-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::show_wiiload_receiving,src/app.rs,408,partial,HBC-API-WIILOAD-RECEIVE-START-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
-hbc_rs::app::AppController::tick_about_scroll,src/app.rs,555,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::app::AppController::tick_about_scroll,src/app.rs,555,partial,HBC-API-ABOUT-TICK-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::tick_timed_notice,src/app.rs,567,partial,HBC-API-NOTICE-TICK-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::timed_notice_active,src/app.rs,614,partial,HBC-API-NOTICE-TIMED-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::visible_apps,src/app.rs,327,partial,HBC-API-APP-VISIBLE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.

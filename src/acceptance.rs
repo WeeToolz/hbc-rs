@@ -82,6 +82,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"app-notice-api" {
         return app_notice_api();
     }
+    if case == b"about-api" {
+        return about_api();
+    }
     if case == b"loader-helpers" {
         return loader_helpers();
     }
@@ -1697,6 +1700,50 @@ fn app_notice_api() -> i32 {
     }
     ogc_system::report(format_args!(
         "PASS app notice API kind, scroll, timeout and dismissal\n"
+    ));
+    0
+}
+
+fn about_api() -> i32 {
+    use crate::app::{AppController, Input, Screen};
+
+    let mut controller = AppController::new();
+    controller.screen = Screen::About;
+    controller.set_about_theme_description(true);
+    for _ in 0..120 {
+        controller.tick_about_scroll();
+    }
+    if controller.about_scroll() != 0 {
+        ogc_system::report(format_args!("FAIL about API delay\n"));
+        return -1;
+    }
+    for _ in 0..3 {
+        controller.tick_about_scroll();
+    }
+    if controller.about_scroll() != 1
+        || controller.handle(Input::Down, &[]) != crate::app::Action::None
+        || controller.about_scroll() != 2
+    {
+        ogc_system::report(format_args!("FAIL about API automatic and manual scroll\n"));
+        return -1;
+    }
+    for _ in 0..10_000 {
+        controller.tick_about_scroll();
+    }
+    let max_with_theme = controller.about_scroll();
+    controller.tick_about_scroll();
+    if max_with_theme == 0 || controller.about_scroll() != max_with_theme {
+        ogc_system::report(format_args!("FAIL about API scroll clamp\n"));
+        return -1;
+    }
+    controller.set_about_theme_description(false);
+    let max_without_theme = controller.about_scroll();
+    if max_without_theme + 1 != max_with_theme {
+        ogc_system::report(format_args!("FAIL about API theme description bound\n"));
+        return -1;
+    }
+    ogc_system::report(format_args!(
+        "PASS about API delay, manual scroll and theme bound\n"
     ));
     0
 }

@@ -112,6 +112,11 @@ long-text scrolling, timeout boundaries, and one-shot pointer-input handling.
 See the [notice API record](review/evidence/reborn-api-notice-rust-dolphin-2026-11-23-r2/README.md).
 C button countdown timing and rendered dialog behavior remain open.
 
+The About APIs have a direct production case for the 120-tick delay,
+three-tick scroll step, manual movement, end clamp, and theme-description
+bound. See the [About API record](review/evidence/reborn-api-about-rust-dolphin-2026-11-23/README.md).
+Rendered font metrics and physical Wii timing remain pending.
+
 The `ThemeFontFace` APIs have a direct Dolphin case for parsing the bundled
 Droid face, rasterizing a glyph, line metrics, kerning, text width, and measured
 memo layout. See the [font API record](review/evidence/reborn-api-font-rust-dolphin-2026-11-23/README.md).
