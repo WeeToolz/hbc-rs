@@ -11,6 +11,12 @@ header records the first text file offset as `0x100`. The Rust check in
 the complete bytes. Relaxing that parser check would hide an input corruption
 and could load bytes from the header as code.
 
+The host parser test and the production `loader-helpers` Dolphin case include
+the reported values (section offset 48, size 48) and confirm that `parse_dol`
+rejects them. This protects the safety check; it does not show where the Wii
+read path changed the header bytes. See the
+[Dolphin evidence](evidence/reborn-api-loader-helpers-rust-dolphin-2026-11-24-r6/README.md).
+
 C Reborn's `source/loader_reloc.c#reloc_dol` checks section file bounds before
 copying each section. Rust first reads the whole selected file, validates the
 complete plan, and only then stages memory writes. That ordering is a deliberate

@@ -96,7 +96,9 @@ The `parse_dol` and `parse_elf32_ppc` APIs also have named Dolphin launch cases.
 Each case sends a synthetic executable through the production parser, staging
 path, and handoff to a test child. These cases prove the selected load paths
 run in Dolphin; they do not prove full format parity or Broadway cache behavior.
-See [the loader acceptance record](review/evidence/reborn-loader-rust-dolphin-2026-11-23/README.md).
+The production loader helper case now also rejects the exact DOL header values
+reported by the Wii. See [the loader acceptance record](review/evidence/reborn-loader-rust-dolphin-2026-11-23/README.md)
+and [the reported-header check](review/evidence/reborn-api-loader-helpers-rust-dolphin-2026-11-24-r6/README.md).
 
 The `scan_apps` and `visible_entries` APIs have a Dolphin acceptance case with a
 controlled storage fixture. It checks file priority, size limits, folder
