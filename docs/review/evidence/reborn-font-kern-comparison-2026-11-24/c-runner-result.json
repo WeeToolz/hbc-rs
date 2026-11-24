@@ -1,0 +1,25 @@
+{
+  "image": "/private/tmp/hbc-rs/kern-fixture/kern-probe.dol",
+  "sha256": "7f012d0265a293d55020eea6c9e8a548206da648db3d3736f3a5c676f336c00a",
+  "physical_wii_tested": false,
+  "expected_date_cases": 17,
+  "expected_update_cases": 8,
+  "success": false,
+  "command": [
+    "/usr/bin/arch",
+    "-x86_64",
+    "/Applications/Dolphin.app/Contents/MacOS/Dolphin",
+    "-b",
+    "-u",
+    "/private/tmp/hbc-rs/hbc-date-c-8g3e3d1z",
+    "-e",
+    "/private/tmp/hbc-rs/kern-fixture/kern-probe.dol"
+  ],
+  "forced_termination": true,
+  "dolphin_exit_code": -9,
+  "records": [],
+  "update_records": [],
+  "record_count": 0,
+  "update_record_count": 0,
+  "error": "Dolphin did not emit the complete C probe result set"
+}
