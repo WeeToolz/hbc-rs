@@ -849,6 +849,9 @@ mod tests {
             ("junk", None),
             ("+", None),
             ("\u{a0}123", None),
+            ("18446744073709551615", Some(u64::MAX)),
+            ("18446744073709551616", None),
+            ("-18446744073709551615", Some(1)),
         ];
         for (input, expected) in cases {
             let xml = format!("<update><app><date>{input}</date></app></update>");
