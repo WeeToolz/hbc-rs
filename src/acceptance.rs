@@ -820,6 +820,33 @@ fn settings_state() -> i32 {
         ogc_system::report(format_args!("FAIL settings-state load\n"));
         return -1;
     }
+    let catalog = alloc::vec![crate::catalog::AppEntry {
+        directory: String::from("selected"),
+        kind: crate::catalog::AppKind::Dol,
+        size: 1,
+        has_icon: false,
+        metadata: Some(crate::metadata::AppMetadata::default()),
+    }];
+    let mut runtime = crate::runtime::AppRuntime::new(catalog);
+    runtime.load_settings(UserSettings {
+        device: 4,
+        sort_order: 1,
+        browse_mode: 1,
+        selected_app: Some(String::from("selected")),
+    });
+    if runtime.catalog().len() != 1
+        || runtime.controller().preferred_device() != 4
+        || runtime.controller().sort != crate::catalog::SortOrder::ReleaseDate
+        || runtime.controller().filter != crate::catalog::Filter::MetadataOnly
+        || runtime.controller().browser_layout().columns != 3
+        || runtime.controller().selected_app.as_deref() != Some("selected")
+        || runtime.settings().is_dirty()
+    {
+        ogc_system::report(format_args!(
+            "FAIL settings-state runtime load forwarding\n"
+        ));
+        return -2;
+    }
     ogc_system::report(format_args!("PASS settings-state dirty, save and load\n"));
     0
 }
