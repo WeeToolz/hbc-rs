@@ -2101,7 +2101,7 @@ fn app_controller() -> i32 {
         || controller.selected_index() != 0
     {
         ogc_system::report(format_args!("FAIL app controller page navigation\n"));
-        return -1;
+        return -11;
     }
     controller.handle(Input::ToggleBrowseMode, &catalog);
     controller.handle(Input::Down, &catalog);
@@ -2111,7 +2111,30 @@ fn app_controller() -> i32 {
         || controller.visible_page(&catalog).len() != 7
     {
         ogc_system::report(format_args!("FAIL app controller grid navigation\n"));
-        return -1;
+        return -12;
+    }
+    let selected_identity = controller.selected_app.clone();
+    controller.set_grid_columns(4, &catalog);
+    if controller.browser_layout().columns != 4 || controller.selected_app != selected_identity {
+        ogc_system::report(format_args!("FAIL app controller grid column setting\n"));
+        return -2;
+    }
+    controller.set_browser_layout(
+        crate::app::BrowserLayout {
+            columns: 0,
+            rows: 0,
+        },
+        &catalog,
+    );
+    if controller.browser_layout()
+        != (crate::app::BrowserLayout {
+            columns: 1,
+            rows: 1,
+        })
+        || controller.selected_app != selected_identity
+    {
+        ogc_system::report(format_args!("FAIL app controller layout bounds\n"));
+        return -3;
     }
     let mut pointer_controller = AppController::new();
     if pointer_controller.handle_pointer(Some(PointerTarget::App(3)), false, &catalog)
@@ -2126,7 +2149,7 @@ fn app_controller() -> i32 {
         || pointer_controller.selected_app.as_deref() != Some("app-5")
     {
         ogc_system::report(format_args!("FAIL app controller pointer actions\n"));
-        return -1;
+        return -13;
     }
     let mut detail_catalog = catalog.clone();
     detail_catalog[0].metadata = Some(crate::metadata::AppMetadata {
@@ -2142,8 +2165,21 @@ fn app_controller() -> i32 {
         ogc_system::report(format_args!(
             "FAIL app controller detail memo initial scroll\n"
         ));
-        return -1;
+        return -14;
     }
+    if detail_controller.scroll_active_memo_by_stick(1) != Some(Input::Up)
+        || detail_controller.scroll_active_memo_by_stick(-1) != Some(Input::Down)
+    {
+        ogc_system::report(format_args!("FAIL app controller memo stick routing\n"));
+        return -4;
+    }
+    let scroll_before_stick = detail_controller.detail_description_scroll();
+    detail_controller.scroll_detail_by_stick(-9);
+    if detail_controller.detail_description_scroll() <= scroll_before_stick {
+        ogc_system::report(format_args!("FAIL app controller detail stick scroll\n"));
+        return -5;
+    }
+    detail_controller.handle(Input::Up, &detail_catalog);
     detail_controller.handle_pointer_frame(
         Some(PointerTarget::DetailMemo),
         Some(200),
@@ -2154,17 +2190,17 @@ fn app_controller() -> i32 {
     detail_controller.handle_pointer_frame(None, Some(-88), false, true, &detail_catalog);
     if detail_controller.detail_description_scroll() != 1 {
         ogc_system::report(format_args!("FAIL app controller detail memo drag\n"));
-        return -1;
+        return -15;
     }
     detail_controller.handle_pointer_frame(None, None, false, false, &detail_catalog);
     if detail_controller.detail_description_scroll() != 1 {
         ogc_system::report(format_args!(
             "FAIL app controller detail memo drag release\n"
         ));
-        return -1;
+        return -16;
     }
     ogc_system::report(format_args!(
-        "PASS app controller page, grid, pointer navigation and detail memo drag\n"
+        "PASS app controller page, grid layout setters, stick scroll, pointer navigation and detail memo drag\n"
     ));
     0
 }
