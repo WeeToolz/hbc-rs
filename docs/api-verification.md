@@ -246,3 +246,5 @@ The platform Wiiload indicator query has an exact API inventory record. Its
 stopped-state result is checked through the production receiver in the
 [Wiiload state case](review/evidence/reborn-api-wiiload-state-rust-dolphin-2026-11-24/result.json).
 Live network and Gecko state still require device evidence.
+
+A fresh Dolphin 2609a run on 2026-11-24 passed the established 22-case production API acceptance sweep. The [sweep record](review/evidence/reborn-api-sweep-rust-dolphin-2026-11-24/README.md) lists the cases and DOL identity. It refreshes those named paths only; it does not resolve unrelated APIs or physical Wii checks.
