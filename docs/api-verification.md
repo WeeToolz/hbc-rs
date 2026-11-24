@@ -94,6 +94,11 @@ a direct production case with fixed pixel and tile results. See the
 [PNG API record](review/evidence/reborn-api-png-rust-dolphin-2026-11-23/README.md)
 for the tested contract and the remaining image and hardware checks.
 
+The frame hit target API has a direct production case for overlapping target
+registration, topmost selection, bounds, and non-finite coordinates. See the
+[frame API record](review/evidence/reborn-api-render-rust-dolphin-2026-11-23/README.md).
+Rendered hit-map geometry and physical pointer behavior remain pending.
+
 The `ThemeFontFace` APIs have a direct Dolphin case for parsing the bundled
 Droid face, rasterizing a glyph, line metrics, kerning, text width, and measured
 memo layout. See the [font API record](review/evidence/reborn-api-font-rust-dolphin-2026-11-23/README.md).
