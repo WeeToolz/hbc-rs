@@ -107,8 +107,9 @@ impl ThemeFontFace {
                 width += libm::floorf(pending_advance + 0.5);
             }
             let glyph = self.font.metrics(character, f32::from(pixel_size));
-            // FreeType's default glyph load uses pixel-aligned advances.
-            pending_advance = libm::floorf(glyph.advance_width + 0.5);
+            // FreeType scales advances to 26.6 units before pixel alignment.
+            let advance_26_6 = libm::floorf(glyph.advance_width * 64.0 + 0.5);
+            pending_advance = libm::floorf((advance_26_6 + 32.0) / 64.0);
             previous = Some(character);
         }
         width + libm::floorf(pending_advance + 0.5)
@@ -169,6 +170,20 @@ fn make_bitmap(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn freetype_fixed_point_rounding_matches_boundary_advances() {
+        let face = ThemeFontFace::parse("droid.ttf".into(), DROID_REGULAR.to_vec()).unwrap();
+        for (text, size, width) in [
+            ("a", 16, 9.0),
+            ("N", 24, 18.0),
+            ("v", 24, 12.0),
+            ("{", 24, 9.0),
+            ("}", 24, 9.0),
+        ] {
+            assert_eq!(face.measure_width(text, size), width, "{text} at {size}");
+        }
+    }
 
     #[test]
     fn custom_font_kerning_matches_reborn_width() {

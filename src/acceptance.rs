@@ -3709,6 +3709,20 @@ fn font_api() -> i32 {
             }
         }
     }
+    let ascii_widths = include_bytes!("../tests/fixtures/droid-ascii-widths.bin");
+    for (size_index, size) in [8, 12, 16, 18, 24, 32].into_iter().enumerate() {
+        for character in 32u8..=126 {
+            let mut encoded = [0u8; 4];
+            let text = char::from(character).encode_utf8(&mut encoded);
+            let expected = ascii_widths[size_index * 95 + usize::from(character - 32)];
+            if face.measure_width(text, size) != f32::from(expected) {
+                ogc_system::report(format_args!(
+                    "FAIL ASCII font width size={size} char={character}\n"
+                ));
+                return -1;
+            }
+        }
+    }
     let empty_width = face.measure_width("", 18);
     let narrow_width = face.measure_width("iii", 18);
     let wide_width = face.measure_width("WWW", 18);

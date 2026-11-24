@@ -29,3 +29,5 @@ FreeType's hinted glyph advances and fontdue's rounded advances differ for
 these characters. Further work must preserve real custom font support and
 compare more fonts and sizes. Do not treat the previous 120 matching samples
 as complete width parity.
+
+The [follow-up run](../reborn-font-ascii-fixed-rust-dolphin-2026-11-24/README.md) fixes these five cases and checks all 570 widths in Dolphin.
