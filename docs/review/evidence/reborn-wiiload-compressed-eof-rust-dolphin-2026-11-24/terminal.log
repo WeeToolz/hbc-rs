@@ -1,0 +1,13 @@
+Isolated profile: /private/tmp/hbc-rs/wiiload-compressed-eof-r2/profile
+PASS: Test NAND copied into Dolphin profile
+Interrupted Wiiload header closed; next client succeeded
+Interrupted Wiiload data closed; next client succeeded
+Interrupted Wiiload arguments closed; next client succeeded
+Interrupted Wiiload compressed data closed; next client succeeded
+Interrupted Wiiload compressed arguments closed; next client succeeded
+Interrupted HBCK body rejected without delaying the listener
+HBCK replies: empty, filtered, HOME, Back, full and oversized requests
+HOME: main-loop input completion received
+Invalid command rejected; release consumed
+Analog/pointer input consumed; receiver still works after hold expiry
+PASS: production socket and main-loop input path in Dolphin; real Wii verification remains required

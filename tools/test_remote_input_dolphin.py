@@ -10,6 +10,7 @@ import shutil
 import socket
 import subprocess
 import time
+import zlib
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("hbc_input", ROOT / "tools/hbc-input.py")
@@ -92,8 +93,13 @@ def main():
         else: raise RuntimeError("guest listener did not become ready")
         if args.wiiload_eof:
             header = b"HAXX\0\x05\0\x02\0\0\0\x04\0\0\0\0"
+            compressed = zlib.compress(b"A" * 4096)
+            compressed_header = (b"HAXX\0\x05\0\x02" + len(compressed).to_bytes(4, "big")
+                                 + (4096).to_bytes(4, "big"))
             for name, packet in (("header", header[:8]), ("data", header + b"ab"),
-                                 ("arguments", header + b"abcdx")):
+                                 ("arguments", header + b"abcdx"),
+                                 ("compressed data", compressed_header + compressed[:4]),
+                                 ("compressed arguments", compressed_header + compressed + b"x")):
                 with socket.create_connection((args.host, 4299), timeout=5) as connection:
                     connection.settimeout(3)
                     connection.sendall(packet)
