@@ -1,0 +1,12 @@
+{
+  "sha256": "1205aeb98254d4a674bb73271bab22242fedcec14c35a251a470a56c686c8489",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-dqv4tw8a",
+  "cases": [
+    {
+      "case": "theme-textures-api",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

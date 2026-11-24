@@ -1271,7 +1271,24 @@ fn theme_textures_api() -> i32 {
         ogc_system::report(format_args!("FAIL standard theme texture defaults\n"));
         return -1;
     }
+    let fallback_card = standard.list_card.as_ref().unwrap().as_bytes().to_vec();
     drop(standard);
+
+    let archive = include_bytes!("../tests/fixtures/theme-texture-override.zip");
+    let package = match crate::theme::ThemePackage::parse(archive) {
+        Ok(package) => package,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL theme texture package {error:?}\n"));
+            return -1;
+        }
+    };
+    let themed = crate::platform::theme::ThemeTextures::load(Some((&package, archive)));
+    if !matches!(themed.list_card.as_ref(), Some(texture) if texture.width == 432 && texture.height == 64 && texture.as_bytes() != fallback_card.as_slice())
+    {
+        ogc_system::report(format_args!("FAIL themed list card overrides fallback\n"));
+        return -1;
+    }
+    drop(themed);
 
     let widescreen = crate::platform::theme::ThemeTextures::load_for_viewport(None, true);
     if widescreen.background_width != 852
