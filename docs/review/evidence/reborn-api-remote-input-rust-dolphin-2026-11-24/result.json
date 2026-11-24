@@ -1,0 +1,12 @@
+{
+  "sha256": "1f9130ee16fc2bff9a463a4fbacf0908be7c89d0d58775e712c2e6210169affd",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-8aiqb7d1",
+  "cases": [
+    {
+      "case": "remote-input-api",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

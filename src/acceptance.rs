@@ -130,6 +130,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"input-platform-api" {
         return input_platform_api();
     }
+    if case == b"remote-input-api" {
+        return remote_input_api();
+    }
     if case == b"app-notice-api" {
         return app_notice_api();
     }
@@ -3157,6 +3160,54 @@ fn input_platform_api() -> i32 {
     }
     ogc_system::report(format_args!(
         "PASS input platform init and three production scans\n"
+    ));
+    0
+}
+
+fn remote_input_api() -> i32 {
+    use crate::{
+        app::Input,
+        platform::input::{PointerPosition, remote_frame},
+        remote_input::Command,
+    };
+
+    let mut wiimote = Command {
+        kind: 2,
+        buttons: 0x0008,
+        duration_ms: 120,
+        pointer: Some(PointerPosition { x: 321, y: 222 }),
+        scroll: 20,
+        sticks: [0, 16_384, 0, 0],
+        triggers: [0; 2],
+        screenshot: false,
+    };
+    let frame = remote_frame(&wiimote);
+    if frame.held != [Input::Confirm]
+        || frame.pointer != wiimote.pointer
+        || frame.stick_scroll_pixels != 26
+        || frame.screenshot_requested
+    {
+        ogc_system::report(format_args!("FAIL remote input Wii Remote frame mapping\n"));
+        return -1;
+    }
+
+    wiimote.buttons = 0;
+    wiimote.pointer = None;
+    wiimote.scroll = 0;
+    wiimote.sticks = [0, 16_384, 8193, 0];
+    wiimote.kind = 8;
+    let right_joycon = remote_frame(&wiimote);
+    if right_joycon.held != [Input::Right]
+        || right_joycon.stick_navigation != [Input::Right]
+        || right_joycon.stick_scroll_pixels != 0
+        || right_joycon.pointer.is_some()
+    {
+        ogc_system::report(format_args!("FAIL remote input Right Joy-Con mapping\n"));
+        return -2;
+    }
+
+    ogc_system::report(format_args!(
+        "PASS remote input Wii Remote pointer, scroll and Right Joy-Con navigation\n"
     ));
     0
 }

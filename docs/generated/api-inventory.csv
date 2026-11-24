@@ -212,7 +212,7 @@ hbc_rs::platform::input::initialize,src/platform/input.rs,583,partial,HBC-API-IN
 hbc_rs::platform::input::logical_pointer_position,src/platform/input.rs,81,partial,HBC-API-IR-POINT-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::platform::input::map_buttons,src/platform/input.rs,138,partial,HBC-API-INPUT-MAP-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::platform::input::map_extension_buttons,src/platform/input.rs,166,partial,HBC-API-INPUT-EXT-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
-hbc_rs::platform::input::remote_frame,src/platform/input.rs,1253,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::platform::input::remote_frame,src/platform/input.rs,1253,extension,HBC-REMOTE-INPUT-01,not_applicable,Rust development control extension
 hbc_rs::platform::input::scan,src/platform/input.rs,623,partial,HBC-API-INPUT-SCAN-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::platform::lifecycle::ExitSignal::new,src/platform/lifecycle.rs,18,partial,HBC-API-EXIT-SIGNAL-NEW-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::platform::lifecycle::ExitSignal::request_power_off,src/platform/lifecycle.rs,26,partial,HBC-API-EXIT-SIGNAL-POWER-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
