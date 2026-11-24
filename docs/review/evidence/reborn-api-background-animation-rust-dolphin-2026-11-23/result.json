@@ -1,0 +1,12 @@
+{
+  "sha256": "f8c14d2a90963174830e4ecdc15913a95cb19f5c3f611a3b50a75e9e04c67db8",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-wtplyiy3",
+  "cases": [
+    {
+      "case": "background-animation-api",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

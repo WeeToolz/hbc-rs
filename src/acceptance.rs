@@ -64,6 +64,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"render-frame-api" {
         return render_frame_api();
     }
+    if case == b"background-animation-api" {
+        return background_animation_api();
+    }
     if case == b"lifecycle-api" {
         return lifecycle_api();
     }
@@ -270,6 +273,52 @@ fn lifecycle_api() -> i32 {
 
     ogc_system::report(format_args!(
         "PASS lifecycle API requests, readiness and cleanup ordering\n"
+    ));
+    0
+}
+
+fn background_animation_api() -> i32 {
+    use crate::render::BackgroundAnimation;
+
+    let mut animation = BackgroundAnimation::new(640, 7, 720);
+    let bubbles = animation.tick(640, 720, None);
+    if bubbles.len() != 20
+        || bubbles
+            .iter()
+            .any(|bubble| bubble.texture > 2 || !bubble.bounds.is_valid())
+        || animation.take_pop_count() != 0
+    {
+        return -1;
+    }
+
+    let target = bubbles[0];
+    let pointer = (
+        target.bounds.x + target.bounds.width / 2.0,
+        target.bounds.y + target.bounds.height / 2.0,
+    );
+    let fragments = animation.tick(640, 720, Some(pointer));
+    if fragments.len() <= bubbles.len() || animation.take_pop_count() != 1 {
+        return -2;
+    }
+    if animation.take_pop_count() != 0 {
+        return -3;
+    }
+
+    animation.pop_all();
+    if animation.take_pop_count() != bubbles.len() - 1 || animation.take_pop_count() != 0 {
+        return -4;
+    }
+
+    let mut timed = BackgroundAnimation::new(640, 11, 0);
+    for _ in 0..600 {
+        timed.tick(640, 720, None);
+    }
+    if timed.tick(640, 720, None).len() != 5 {
+        return -5;
+    }
+
+    ogc_system::report(format_args!(
+        "PASS background animation API count, pop, fragments and timing\n"
     ));
     0
 }
@@ -1568,9 +1617,9 @@ fn render_frame_api() -> i32 {
         localization::Language,
         metadata::{Rgba, ThemeFont, ThemeMetadata},
         render::{
-            BackgroundBubble, Color, Frame, FrameCommand, Rect, StatusIndicator, ThemeArt,
-            TextRun, browser_frame_with_language, browser_frame_with_theme,
-            browser_frame_with_viewport, map_rect,
+            BackgroundBubble, Color, Frame, FrameCommand, Rect, StatusIndicator, TextRun, ThemeArt,
+            browser_frame_with_language, browser_frame_with_theme, browser_frame_with_viewport,
+            map_rect,
         },
     };
 
@@ -1654,13 +1703,21 @@ fn render_frame_api() -> i32 {
     }
     frame.status_indicators(true, false);
     if !frame.commands.iter().any(|command| {
-        matches!(command, FrameCommand::StatusIndicator {
-            indicator: StatusIndicator::Network { active: true }, ..
-        })
+        matches!(
+            command,
+            FrameCommand::StatusIndicator {
+                indicator: StatusIndicator::Network { active: true },
+                ..
+            }
+        )
     }) || !frame.commands.iter().any(|command| {
-        matches!(command, FrameCommand::StatusIndicator {
-            indicator: StatusIndicator::Gecko { active: false }, ..
-        })
+        matches!(
+            command,
+            FrameCommand::StatusIndicator {
+                indicator: StatusIndicator::Gecko { active: false },
+                ..
+            }
+        )
     }) {
         return -6;
     }
@@ -1668,14 +1725,25 @@ fn render_frame_api() -> i32 {
     frame.pointer_cursor(100.0, 120.0, true);
     frame.storage_loading();
     if !frame.commands.iter().any(|command| {
-        matches!(command, FrameCommand::ThemeArt {
-            art: ThemeArt::Cursor { dragging: true, shade: false }, ..
-        })
-    }) || !frame
-        .commands
-        .iter()
-        .any(|command| matches!(command, FrameCommand::ThemeArt { art: ThemeArt::Throbber, .. }))
-    {
+        matches!(
+            command,
+            FrameCommand::ThemeArt {
+                art: ThemeArt::Cursor {
+                    dragging: true,
+                    shade: false
+                },
+                ..
+            }
+        )
+    }) || !frame.commands.iter().any(|command| {
+        matches!(
+            command,
+            FrameCommand::ThemeArt {
+                art: ThemeArt::Throbber,
+                ..
+            }
+        )
+    }) {
         return -7;
     }
 
@@ -1690,7 +1758,10 @@ fn render_frame_api() -> i32 {
     };
     frame.set_background_bubbles(&[bubble]);
     if frame.bubbles != [bubble]
-        || !matches!(frame.commands.first(), Some(FrameCommand::Bubble { texture: 2, .. }))
+        || !matches!(
+            frame.commands.first(),
+            Some(FrameCommand::Bubble { texture: 2, .. })
+        )
     {
         return -8;
     }
@@ -1719,7 +1790,11 @@ fn render_frame_api() -> i32 {
         })
     });
     if resolved != Ok(Some((1, 10)))
-        || frame.text_runs.iter().map(|run| run.value.as_str()).collect::<Vec<_>>()
+        || frame
+            .text_runs
+            .iter()
+            .map(|run| run.value.as_str())
+            .collect::<Vec<_>>()
             != ["memo one", "memo two"]
         || frame.text_runs.iter().any(|run| run.memo.is_some())
     {

@@ -345,10 +345,10 @@ hbc_rs::remote_input::Mailbox::completion,src/remote_input.rs,124,extension,HBC-
 hbc_rs::remote_input::Mailbox::consume,src/remote_input.rs,127,extension,HBC-REMOTE-INPUT-01,not_applicable,Rust development control extension
 hbc_rs::remote_input::Mailbox::new,src/remote_input.rs,100,extension,HBC-REMOTE-INPUT-01,not_applicable,Rust development control extension
 hbc_rs::remote_input::Mailbox::submit,src/remote_input.rs,113,extension,HBC-REMOTE-INPUT-01,not_applicable,Rust development control extension
-hbc_rs::render::BackgroundAnimation::new,src/render.rs,182,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::render::BackgroundAnimation::pop_all,src/render.rs,305,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::render::BackgroundAnimation::take_pop_count,src/render.rs,314,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::render::BackgroundAnimation::tick,src/render.rs,229,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::render::BackgroundAnimation::new,src/render.rs,182,partial,HBC-API-BUBBLE-ANIMATION-NEW-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::render::BackgroundAnimation::pop_all,src/render.rs,305,partial,HBC-API-BUBBLE-ANIMATION-POP-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::render::BackgroundAnimation::take_pop_count,src/render.rs,314,partial,HBC-API-BUBBLE-ANIMATION-COUNT-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::render::BackgroundAnimation::tick,src/render.rs,229,partial,HBC-API-BUBBLE-ANIMATION-TICK-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::render::Color::rgb,src/render.rs,34,extension,HBC-API-EXT-RENDER-PRIMITIVES-01,not_applicable,Rust Rect geometry helpers and the opaque RGB constructor are Rust drawing primitives without matching public C HBC APIs
 hbc_rs::render::Frame::hit_target,src/render.rs,493,partial,HBC-API-RENDER-HIT-TARGET-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::render::Frame::hit_test,src/render.rs,480,partial,HBC-API-RENDER-HITTEST-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
