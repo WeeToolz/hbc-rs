@@ -91,6 +91,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"network-restart-api" {
         return network_restart_api();
     }
+    if case == b"input-platform-api" {
+        return input_platform_api();
+    }
     if case == b"app-notice-api" {
         return app_notice_api();
     }
@@ -2121,6 +2124,37 @@ fn network_restart_api() -> i32 {
     }
     ogc_system::report(format_args!(
         "PASS network restart connection, upload guard and work ordering\n"
+    ));
+    0
+}
+
+fn input_platform_api() -> i32 {
+    use crate::platform::input::{initialize, scan};
+
+    if let Err(error) = initialize(640, 480) {
+        ogc_system::report(format_args!("FAIL input platform initialization {error}\n"));
+        return -1;
+    }
+    for _ in 0..3 {
+        let frame = match scan() {
+            Ok(frame) => frame,
+            Err(error) => {
+                ogc_system::report(format_args!("FAIL input platform scan {error:?}\n"));
+                return -2;
+            }
+        };
+        if frame
+            .pressed
+            .iter()
+            .any(|input| !frame.held.contains(input))
+            || frame.pointer_pressed && frame.pointer.is_none()
+        {
+            ogc_system::report(format_args!("FAIL input platform frame state\n"));
+            return -3;
+        }
+    }
+    ogc_system::report(format_args!(
+        "PASS input platform init and three production scans\n"
     ));
     0
 }
