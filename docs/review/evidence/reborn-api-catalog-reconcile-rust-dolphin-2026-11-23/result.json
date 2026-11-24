@@ -1,0 +1,12 @@
+{
+  "sha256": "fba527f32452d01a26eb8582155ba0d0fe8b0488fc0f0938f554dbf4b998a3da",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-sgih37qs",
+  "cases": [
+    {
+      "case": "catalog-reconcile-api",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

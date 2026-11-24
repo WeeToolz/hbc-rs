@@ -189,3 +189,8 @@ action order, and focus boundaries. Source comparison found that Rust had
 focused Back by default and wrapped between actions; Reborn focuses Load and
 keeps focus within the first and last usable widgets. See the [detail focus
 evidence](review/evidence/reborn-api-detail-focus-rust-dolphin-2026-11-23/README.md).
+
+The catalog reconciliation API has a direct production Dolphin case for
+selection retention after insertion, page position, removal fallback, and an
+empty catalog. See the [catalog reconciliation evidence](review/evidence/reborn-api-catalog-reconcile-rust-dolphin-2026-11-23/README.md).
+Physical catalog refresh timing and rendered transitions remain separate.

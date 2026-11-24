@@ -100,6 +100,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"detail-focus-api" {
         return detail_focus_api();
     }
+    if case == b"catalog-reconcile-api" {
+        return catalog_reconcile_api();
+    }
     if case == b"storage-volumes" {
         return storage_volumes();
     }
@@ -2199,6 +2202,65 @@ fn detail_focus_api() -> i32 {
 
     ogc_system::report(format_args!(
         "PASS detail focus default, order and boundaries\n"
+    ));
+    0
+}
+
+fn catalog_reconcile_api() -> i32 {
+    use crate::{app::AppController, catalog::AppEntry};
+
+    let make_entry = |directory: String| AppEntry {
+        directory,
+        kind: crate::catalog::AppKind::Dol,
+        size: 1,
+        has_icon: false,
+        metadata: None,
+    };
+    let mut catalog: Vec<_> = (0..7)
+        .map(|index| make_entry(alloc::format!("app-{index}")))
+        .collect();
+    let mut controller = AppController::new();
+    controller.reconcile_catalog(&catalog);
+    controller.handle(crate::app::Input::NextPage, &catalog);
+    controller.handle(crate::app::Input::Down, &catalog);
+    if controller.selected_app.as_deref() != Some("app-6")
+        || controller.selected_index() != 6
+        || controller.page_start() != 5
+    {
+        ogc_system::report(format_args!("FAIL catalog reconcile initial selection\n"));
+        return -1;
+    }
+
+    catalog.insert(0, make_entry(String::from("000-new-app")));
+    controller.reconcile_catalog(&catalog);
+    if controller.selected_app.as_deref() != Some("app-6")
+        || controller.selected_index() != 7
+        || controller.page_start() != 5
+    {
+        ogc_system::report(format_args!("FAIL catalog reconcile retained selection\n"));
+        return -1;
+    }
+
+    catalog.retain(|entry| entry.directory != "app-6");
+    controller.reconcile_catalog(&catalog);
+    if controller.selected_app.as_deref() != Some("000-new-app")
+        || controller.selected_index() != 0
+        || controller.page_start() != 0
+    {
+        ogc_system::report(format_args!("FAIL catalog reconcile removed selection\n"));
+        return -1;
+    }
+
+    controller.reconcile_catalog(&[]);
+    if controller.selected_app.is_some()
+        || controller.selected_index() != 0
+        || controller.page_start() != 0
+    {
+        ogc_system::report(format_args!("FAIL catalog reconcile empty catalog\n"));
+        return -1;
+    }
+    ogc_system::report(format_args!(
+        "PASS catalog reconcile identity, page and removal behavior\n"
     ));
     0
 }

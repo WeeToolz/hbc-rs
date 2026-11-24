@@ -2130,6 +2130,38 @@ mod tests {
     }
 
     #[test]
+    fn catalog_reconciliation_keeps_identity_and_uses_first_item_after_removal() {
+        let catalog: Vec<_> = (0..7)
+            .map(|index| app(&format!("app-{index}"), "App", true))
+            .collect();
+        let mut controller = AppController::new();
+        controller.reconcile_catalog(&catalog);
+        controller.handle(Input::NextPage, &catalog);
+        controller.handle(Input::Down, &catalog);
+        assert_eq!(controller.selected_app.as_deref(), Some("app-6"));
+        assert_eq!(controller.selected_index(), 6);
+        assert_eq!(controller.page_start(), 5);
+
+        let mut refreshed = catalog.clone();
+        refreshed.insert(0, app("000-new-app", "AAA", true));
+        controller.reconcile_catalog(&refreshed);
+        assert_eq!(controller.selected_app.as_deref(), Some("app-6"));
+        assert_eq!(controller.selected_index(), 7);
+        assert_eq!(controller.page_start(), 5);
+
+        refreshed.retain(|entry| entry.directory != "app-6");
+        controller.reconcile_catalog(&refreshed);
+        assert_eq!(controller.selected_app.as_deref(), Some("000-new-app"));
+        assert_eq!(controller.selected_index(), 0);
+        assert_eq!(controller.page_start(), 0);
+
+        controller.reconcile_catalog(&[]);
+        assert_eq!(controller.selected_app, None);
+        assert_eq!(controller.selected_index(), 0);
+        assert_eq!(controller.page_start(), 0);
+    }
+
+    #[test]
     fn detail_up_and_down_scroll_the_description_without_moving_focus() {
         let mut controller = AppController::new();
         let mut entry = app("a", "A", false);

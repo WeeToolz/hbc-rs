@@ -45,7 +45,7 @@ hbc_rs::app::AppController::pending_device,src/app.rs,849,partial,HBC-API-OPTION
 hbc_rs::app::AppController::pending_sort,src/app.rs,853,partial,HBC-API-OPTIONS-SORT-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::pointer_target,src/app.rs,845,partial,HBC-API-APP-POINTER-TARGET-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::preferred_device,src/app.rs,683,partial,HBC-API-OPTIONS-PREFERRED-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
-hbc_rs::app::AppController::reconcile_catalog,src/app.rs,891,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::app::AppController::reconcile_catalog,src/app.rs,891,partial,HBC-API-APP-RECONCILE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::request_wiiload_zip_confirmation,src/app.rs,352,partial,HBC-API-WIILOAD-CONFIRM-REQUEST-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::AppController::scanned_networks,src/app.rs,800,extension,HBC-API-EXT-SCAN-01,not_applicable,Rust wireless scan controller APIs have no matching C HBC API
 hbc_rs::app::AppController::scroll_active_memo_by_stick,src/app.rs,469,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
