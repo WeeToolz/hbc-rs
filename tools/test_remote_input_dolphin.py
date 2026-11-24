@@ -42,6 +42,7 @@ def main():
     parser.add_argument("--dol",type=Path,default=ROOT/"target/hbc-rs.dol")
     parser.add_argument("--control", action="store_true", help="also test the direct terminal command service")
     parser.add_argument("--reborn-keys", action="store_true", help="check Reborn HBCK replies")
+    parser.add_argument("--reborn-key-transitions", action="store_true", help="check HBCK screen transitions in a diagnostic build")
     parser.add_argument("--nand", type=Path, required=True, help="Source NAND; only a private copy is used")
     parser.add_argument("--dolphin", type=Path, required=True, help="Dolphin executable")
     parser.add_argument("--output", type=Path, required=True, help="New result directory, including its private profile")
@@ -87,6 +88,37 @@ def main():
             if "panic" in text.lower(): raise RuntimeError("guest panic during startup")
             time.sleep(.25)
         else: raise RuntimeError("guest listener did not become ready")
+        if args.reborn_key_transitions:
+            def send_keys(payload):
+                packet = (b"HBCK" + len(payload).to_bytes(2, "big")).ljust(16, b"\0") + payload
+                if exchange(args.host, packet) != bytes(8):
+                    raise RuntimeError("HBCK key reply failed")
+
+            def await_transition(before, after):
+                marker = f"name=screen_change from={before} to={after}"
+                deadline = time.monotonic() + 10
+                while time.monotonic() < deadline:
+                    if marker in log.read_text(errors="replace"):
+                        return
+                    if process.poll() is not None:
+                        raise RuntimeError("Dolphin exited while waiting for HBCK transition")
+                    time.sleep(.1)
+                raise RuntimeError(f"missing HBCK transition {before} -> {after}")
+
+            send_keys(b"dh")
+            await_transition("Browser", "MainMenu")
+            send_keys(b"da")
+            await_transition("MainMenu", "About")
+            print("HBCK keys reached the application: Browser -> MainMenu -> About", flush=True)
+            # Return to the browser for the existing HBCI checks.
+            release = bytearray.fromhex("48424349 0100 0000 00000020 03e8 0000 0000 0000 0000 0000 0000 0000 0000 0000")
+            if exchange(args.host, release) != b"HBCI\x01\0\0\0":
+                raise RuntimeError("could not leave About")
+            await_transition("About", "MainMenu")
+            time.sleep(1.2)
+            if exchange(args.host, release) != b"HBCI\x01\0\0\0":
+                raise RuntimeError("could not leave MainMenu")
+            await_transition("MainMenu", "Browser")
         if args.reborn_keys:
             for payload in (b"", b"x", b"h", b"b", b"x" * 64):
                 packet = (b"HBCK" + len(payload).to_bytes(2, "big")).ljust(16, b"\0") + payload

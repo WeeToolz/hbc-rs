@@ -1,0 +1,8 @@
+{
+  "dol_sha256": "1911cd9a84552c977c34249e61cda10c83e230ee2804352134bd6c5bfb15f107",
+  "success": false,
+  "transport": "HBC TCP input protocol",
+  "control": false,
+  "reborn_keys": false,
+  "error": "guest listener did not become ready"
+}

@@ -616,6 +616,8 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             report_pointer_press(pointer, pointer_target);
         }
         let screenshot_requested = frame.screenshot_requested;
+        #[cfg(feature = "hbck-diagnostics")]
+        let screen_before_input = startup.runtime().controller().screen;
         let actions = startup.runtime_mut().update_frame_with_pointer(
             &mut frame,
             pointer_target,
@@ -623,6 +625,13 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             pointer_pressed,
             pointer_held,
         );
+        #[cfg(feature = "hbck-diagnostics")]
+        if screen_before_input != startup.runtime().controller().screen {
+            ogc_system::report(format_args!(
+                "HBC_UI_EVENT v=1 name=screen_change from={screen_before_input:?} to={:?}\n",
+                startup.runtime().controller().screen
+            ));
+        }
         #[cfg(feature = "startup-diagnostics")]
         for action in &actions {
             hbc_rs::platform::diagnostics::event(&format!("HBC input action: {action:?}"));

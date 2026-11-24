@@ -1,0 +1,7 @@
+Isolated profile: /Volumes/SSD/WiiDev/WeeToolz/hbc-rs/target/hbck-transition-run-r4/profile
+PASS: Test NAND copied into Dolphin profile
+HBCK keys reached the application: Browser -> MainMenu -> About
+HOME: main-loop input completion received
+Invalid command rejected; release consumed
+Analog/pointer input consumed; receiver still works after hold expiry
+PASS: production socket and main-loop input path in Dolphin; real Wii verification remains required

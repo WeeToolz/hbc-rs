@@ -13,6 +13,7 @@ required-features = ["emulator-acceptance"]
 [features]
 emulator-acceptance = []
 startup-diagnostics = []
+hbck-diagnostics = []
 recovery-validation = ["startup-diagnostics"]
 recovery-scan-validation = ["startup-diagnostics"]
 # Diagnostic A/B switch: preserve Reborn code while displaying the prior HOME menu.
