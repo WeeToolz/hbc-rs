@@ -2853,22 +2853,34 @@ struct MemoryCatalogStorage {
     folders: Vec<crate::catalog::DirectoryEntry>,
     next_folder: usize,
     files: BTreeMap<String, Vec<u8>>,
+    fail_next_entry_at: Option<usize>,
+    directory_closed: bool,
 }
 
 impl crate::catalog::CatalogStorage for MemoryCatalogStorage {
-    type Error = ();
+    type Error = &'static str;
 
     fn open_dir(&mut self, path: &str) -> Result<(), Self::Error> {
-        (path == "apps").then_some(()).ok_or(())
+        if path == "apps" {
+            self.directory_closed = false;
+            Ok(())
+        } else {
+            Err("invalid directory")
+        }
     }
 
     fn next_dir_entry(&mut self) -> Result<Option<crate::catalog::DirectoryEntry>, Self::Error> {
+        if self.fail_next_entry_at == Some(self.next_folder) {
+            return Err("directory read failure");
+        }
         let folder = self.folders.get(self.next_folder).cloned();
         self.next_folder += usize::from(folder.is_some());
         Ok(folder)
     }
 
-    fn close_dir(&mut self) {}
+    fn close_dir(&mut self) {
+        self.directory_closed = true;
+    }
 
     fn file_size(&mut self, path: &str) -> Result<Option<u64>, Self::Error> {
         Ok(self.files.get(path).map(|bytes| bytes.len() as u64))
@@ -2908,6 +2920,8 @@ fn catalog() -> i32 {
             .collect(),
         next_folder: 0,
         files: BTreeMap::new(),
+        fail_next_entry_at: None,
+        directory_closed: true,
     };
     for (path, bytes) in [
         ("apps/alpha/boot.elf", b"elf".as_slice()),
@@ -2959,6 +2973,26 @@ fn catalog() -> i32 {
     {
         ogc_system::report(format_args!("FAIL catalog entries {entries:?}\n"));
         return -1;
+    }
+    let mut interrupted_scan = MemoryCatalogStorage {
+        folders: vec![DirectoryEntry {
+            name: String::from("alpha"),
+            is_directory: true,
+        }],
+        next_folder: 0,
+        files: BTreeMap::from([(String::from("apps/alpha/boot.dol"), b"dol".to_vec())]),
+        fail_next_entry_at: Some(1),
+        directory_closed: true,
+    };
+    if !matches!(
+        scan_apps(&mut interrupted_scan, "apps", 5, 3),
+        Err(crate::catalog::ScanError::AppDirectory(
+            "directory read failure"
+        ))
+    ) || !interrupted_scan.directory_closed
+    {
+        ogc_system::report(format_args!("FAIL catalog interrupted scan cleanup\n"));
+        return -2;
     }
     let custom = visible_entries(&entries, Filter::MetadataOnly, SortOrder::Custom);
     let named_entry = |directory: &str, name: &str| AppEntry {

@@ -676,6 +676,27 @@ mod tests {
     }
 
     #[test]
+    fn scan_discards_partial_results_after_directory_iteration_error() {
+        let root = "sd:/apps";
+        let mut fs = MemoryStorage::default();
+        fs.directories.insert(
+            root.into(),
+            vec![DirectoryEntry {
+                name: "demo".into(),
+                is_directory: true,
+            }],
+        );
+        fs.sizes.insert(format!("{root}/demo/boot.dol"), 10);
+        fs.failures.insert("<next-dir-entry>".into(), "io failure");
+
+        assert_eq!(
+            scan_apps(&mut fs, root, 100, 50),
+            Err(ScanError::AppDirectory("io failure"))
+        );
+        assert!(fs.active_dir.is_none(), "scan closes the reader on errors");
+    }
+
+    #[test]
     fn scan_returns_optional_file_read_failures() {
         let root = "sd:/apps";
         for optional_file in ["meta.xml", "icon.png"] {
