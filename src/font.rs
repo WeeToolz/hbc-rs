@@ -246,19 +246,49 @@ mod tests {
     #[test]
     fn text_width_matches_reborn_advances_kerning_and_line_breaks() {
         let face = ThemeFontFace::parse("droid.ttf".into(), DROID_REGULAR.to_vec()).unwrap();
-        for (text, expected) in [
-            ("A", 10.0),
-            ("AV", 19.0),
-            ("WWW", 42.0),
-            ("iii", 12.0),
-            ("Hello, world!", 89.0),
-            ("gyp", 25.0),
-            ("M W", 32.0),
-            ("A\nV", 23.0),
-            ("A\n", 10.0),
-            ("A\rV", 19.0),
-        ] {
-            assert_eq!(face.measure_width(text, 16), expected, "{text:?}");
+        let samples = [
+            "A",
+            "AV",
+            "WWW",
+            "iii",
+            "Hello, world!",
+            "gyp",
+            "M W",
+            "A\nV",
+            "A\n",
+            "A\rV",
+        ];
+        let cases = [
+            (8, [5.0, 10.0, 21.0, 6.0, 46.0, 13.0, 16.0, 12.0, 5.0, 10.0]),
+            (
+                12,
+                [7.0, 14.0, 33.0, 9.0, 67.0, 19.0, 24.0, 17.0, 7.0, 14.0],
+            ),
+            (
+                16,
+                [10.0, 19.0, 42.0, 12.0, 89.0, 25.0, 32.0, 23.0, 10.0, 19.0],
+            ),
+            (
+                18,
+                [11.0, 21.0, 48.0, 15.0, 104.0, 29.0, 37.0, 26.0, 11.0, 21.0],
+            ),
+            (
+                24,
+                [15.0, 29.0, 63.0, 18.0, 136.0, 38.0, 48.0, 35.0, 15.0, 29.0],
+            ),
+            (
+                32,
+                [19.0, 37.0, 84.0, 24.0, 180.0, 52.0, 64.0, 45.0, 19.0, 37.0],
+            ),
+        ];
+        for (size, expected) in cases {
+            for (text, expected_width) in samples.iter().zip(expected) {
+                assert_eq!(
+                    face.measure_width(text, size),
+                    expected_width,
+                    "{text:?} at {size}px"
+                );
+            }
         }
     }
 }

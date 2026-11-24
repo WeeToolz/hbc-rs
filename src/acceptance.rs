@@ -3530,22 +3530,48 @@ fn font_api() -> i32 {
     let empty_width = face.measure_width("", 18);
     let narrow_width = face.measure_width("iii", 18);
     let wide_width = face.measure_width("WWW", 18);
-    let reborn_widths = [
-        face.measure_width("A", 16),
-        face.measure_width("AV", 16),
-        face.measure_width("WWW", 16),
-        face.measure_width("iii", 16),
-        face.measure_width("Hello, world!", 16),
-        face.measure_width("gyp", 16),
-        face.measure_width("M W", 16),
-        face.measure_width("A\nV", 16),
-        face.measure_width("A\n", 16),
-        face.measure_width("A\rV", 16),
+    let samples = [
+        "A",
+        "AV",
+        "WWW",
+        "iii",
+        "Hello, world!",
+        "gyp",
+        "M W",
+        "A\nV",
+        "A\n",
+        "A\rV",
     ];
-    if empty_width != 0.0
-        || wide_width <= narrow_width * 2.0
-        || reborn_widths != [10.0, 19.0, 42.0, 12.0, 89.0, 25.0, 32.0, 23.0, 10.0, 19.0]
-    {
+    let reborn_widths = [
+        (8, [5.0, 10.0, 21.0, 6.0, 46.0, 13.0, 16.0, 12.0, 5.0, 10.0]),
+        (
+            12,
+            [7.0, 14.0, 33.0, 9.0, 67.0, 19.0, 24.0, 17.0, 7.0, 14.0],
+        ),
+        (
+            16,
+            [10.0, 19.0, 42.0, 12.0, 89.0, 25.0, 32.0, 23.0, 10.0, 19.0],
+        ),
+        (
+            18,
+            [11.0, 21.0, 48.0, 15.0, 104.0, 29.0, 37.0, 26.0, 11.0, 21.0],
+        ),
+        (
+            24,
+            [15.0, 29.0, 63.0, 18.0, 136.0, 38.0, 48.0, 35.0, 15.0, 29.0],
+        ),
+        (
+            32,
+            [19.0, 37.0, 84.0, 24.0, 180.0, 52.0, 64.0, 45.0, 19.0, 37.0],
+        ),
+    ];
+    let mut widths_match_reborn = true;
+    for (size, expected) in reborn_widths {
+        for (sample, expected_width) in samples.iter().zip(expected) {
+            widths_match_reborn &= face.measure_width(sample, size) == expected_width;
+        }
+    }
+    if empty_width != 0.0 || wide_width <= narrow_width * 2.0 || !widths_match_reborn {
         ogc_system::report(format_args!("FAIL font API measured widths\n"));
         return -1;
     }

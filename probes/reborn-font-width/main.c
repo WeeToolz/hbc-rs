@@ -5,7 +5,7 @@
 extern const unsigned char _binary_assets_droid_ttf_start[];
 extern const unsigned char _binary_assets_droid_ttf_end[];
 
-static int hbc_width(FT_Face face, const char *text) {
+static int hbc_width(FT_Face face, const char *text, int has_kerning) {
     FT_Pos cdx = 0, cdy = 0;
     FT_UInt previous = 0;
     int cx = 0;
@@ -17,7 +17,7 @@ static int hbc_width(FT_Face face, const char *text) {
         }
         if (character == '\r') continue;
         FT_UInt glyph_index = FT_Get_Char_Index(face, character);
-        if (previous) {
+        if (previous && has_kerning) {
             FT_Vector delta;
             if (!FT_Get_Kerning(face, previous, glyph_index, FT_KERNING_UNFITTED, &delta)) {
                 cdx += delta.x;
@@ -42,14 +42,28 @@ int main(void) {
     FT_Face face;
     const FT_Long length = (FT_Long)(_binary_assets_droid_ttf_end - _binary_assets_droid_ttf_start);
     if (FT_Init_FreeType(&library) ||
-        FT_New_Memory_Face(library, _binary_assets_droid_ttf_start, length, 0, &face) ||
-        FT_Set_Pixel_Sizes(face, 16, 16)) {
+        FT_New_Memory_Face(library, _binary_assets_droid_ttf_start, length, 0, &face)) {
         SYS_Report("HBC_FONT failed to initialize FreeType\n");
         return 1;
     }
-    const char *samples[] = {"A", "AV", "WWW", "iii", "Hello, world!", "gyp", "M W", "A\nV", "A\n", "A\rV"};
-    for (unsigned i = 0; i < sizeof(samples) / sizeof(samples[0]); ++i)
-        SYS_Report("HBC_FONT index=%u width=%d\n", i, hbc_width(face, samples[i]));
-    SYS_Report("HBC_FONT done count=%u\n", (unsigned)(sizeof(samples) / sizeof(samples[0])));
+    const int has_kerning = FT_HAS_KERNING(face);
+    SYS_Report("HBC_FONT has_kerning=%u\n", (unsigned)has_kerning);
+    const unsigned sizes[] = {8, 12, 16, 18, 24, 32};
+    const char *samples[] = {
+        "A", "AV", "WWW", "iii", "Hello, world!", "gyp", "M W", "A\nV", "A\n", "A\rV"
+    };
+    unsigned count = 0;
+    for (unsigned size = 0; size < sizeof(sizes) / sizeof(sizes[0]); ++size) {
+        if (FT_Set_Pixel_Sizes(face, sizes[size], sizes[size])) {
+            SYS_Report("HBC_FONT failed to set size=%u\n", sizes[size]);
+            return 2;
+        }
+        for (unsigned i = 0; i < sizeof(samples) / sizeof(samples[0]); ++i) {
+            SYS_Report("HBC_FONT size=%u index=%u width=%d\n",
+                       sizes[size], i, hbc_width(face, samples[i], has_kerning));
+            ++count;
+        }
+    }
+    SYS_Report("HBC_FONT done count=%u\n", count);
     for (;;) __asm__ volatile("nop");
 }

@@ -1,0 +1,15 @@
+{
+  "package": "hbc-rs",
+  "source_revision": "8b2cee1d65c344bdad2a5479cf425a8d1e3d088a",
+  "sdk_revision": "b25827a6c49b8dbe2d6c2f901aadaaec670f86c3",
+  "target": "powerpc-nintendo-none",
+  "profile": "release",
+  "features": ["emulator-acceptance"],
+  "compiler": "rustc 1.101.0-nightly (ea137335b 2026-10-05)",
+  "dol_path": "/private/tmp/hbc-rs/font-width-parity-multi.dol",
+  "dol_bytes": 2798208,
+  "dol_sha256": "3ed77b140ce74bf530b01af143da45d13856bdbcf8aa971d58ac5f50cfd94005",
+  "elf_path": "/private/tmp/hbc-rs/wii-target/powerpc-nintendo-none/release/emulator-acceptance",
+  "elf_sha256": "48b23277ffa0d31576863b8d97ccfe6febba7cbadf14aa580f440d275d4b9874",
+  "dolphin": "2609a x86_64"
+}
