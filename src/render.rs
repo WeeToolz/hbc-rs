@@ -1185,22 +1185,17 @@ pub fn browser_frame_with_language(
             // ordinary HOME menu layout while preserving the newer overlay code.
             for (index, item) in controller.menu_items().enumerate() {
                 #[cfg(feature = "legacy-main-menu")]
-                let y = 80.0
-                    + index as f32
-                        * if controller.bootmii_available() {
-                            64.0
-                        } else {
-                            80.0
-                        };
+                let y = 80.0 + index as f32 * 64.0;
                 #[cfg(not(feature = "legacy-main-menu"))]
                 let y = 64.0 + index as f32 * 60.0;
+                let item_enabled = controller.menu_item_enabled(index);
                 let bounds = frame.button(
                     150.0,
                     y,
                     ButtonSize::Large,
-                    index == controller.menu_focus(),
+                    item_enabled && index == controller.menu_focus(),
                     tr(item.label()),
-                    text_color,
+                    if item_enabled { text_color } else { MUTED },
                 );
                 frame.hit_target(PointerTarget::Menu(index), bounds);
             }
@@ -2101,19 +2096,30 @@ mod tests {
         };
         for width in [LOGICAL_WIDTH, WIDE_LOGICAL_WIDTH] {
             for bootmii in [false, true] {
-                let mut expected = vec![
+                let expected = [
                     ("Back", Action::None, Screen::Browser),
                     ("About", Action::None, Screen::About),
-                ];
-                if bootmii {
-                    expected.push(("Launch BootMii", Action::LaunchBootMii, Screen::MainMenu));
-                }
-                expected.extend([
+                    (
+                        "Launch BootMii",
+                        if bootmii {
+                            Action::LaunchBootMii
+                        } else {
+                            Action::None
+                        },
+                        Screen::MainMenu,
+                    ),
                     ("Exit to System Menu", Action::Exit, Screen::MainMenu),
                     ("Shutdown", Action::Shutdown, Screen::MainMenu),
-                ]);
+                ];
                 #[cfg(not(feature = "legacy-main-menu"))]
-                expected.push(("Restart network", Action::RestartNetwork, Screen::MainMenu));
+                let expected = [
+                    expected[0],
+                    expected[1],
+                    expected[2],
+                    expected[3],
+                    expected[4],
+                    ("Restart network", Action::RestartNetwork, Screen::MainMenu),
+                ];
                 let mut controller = AppController::new();
                 controller.set_bootmii_available(bootmii);
                 controller.handle(Input::Home, &[]);

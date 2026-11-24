@@ -159,3 +159,16 @@ catalog production API checks. The archived logs and result record are in
 [`reborn-api-refresh-rust-dolphin-2026-11-23`](review/evidence/reborn-api-refresh-rust-dolphin-2026-11-23/README.md).
 These results refresh only APIs named by those cases; they do not reduce the
 remaining source-review, full-contract, or physical Wii requirements.
+
+The main menu API case checks conditional BootMii item state, launch selection,
+focus clamping, status labels, and the matching `AppRuntime` forwarding methods
+in Dolphin. See [`reborn-api-main-menu-rust-dolphin-2026-11-23`](review/evidence/reborn-api-main-menu-rust-dolphin-2026-11-23/README.md).
+The case supplies IOS254 availability as input. It does not prove BootMii title
+detection or launch on a physical Wii.
+
+The main menu API case also caught and fixed a parity gap: Rust removed the
+BootMii item when IOS254 was unavailable, while Reborn keeps it visible and
+disables activation. Rust now keeps the item in the list, prevents keyboard and
+pointer activation, and skips it during focus movement. Dolphin verifies the
+controller behavior. Actual IOS254 detection, rendered disabled styling, and
+BootMii launch on Wii hardware remain pending.

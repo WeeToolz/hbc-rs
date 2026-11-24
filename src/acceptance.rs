@@ -91,6 +91,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"app-controller" {
         return app_controller();
     }
+    if case == b"main-menu-api" {
+        return main_menu_api();
+    }
     if case == b"storage-volumes" {
         return storage_volumes();
     }
@@ -1944,6 +1947,84 @@ fn app_controller() -> i32 {
     }
     ogc_system::report(format_args!(
         "PASS app controller page, grid, pointer navigation and detail memo drag\n"
+    ));
+    0
+}
+
+fn main_menu_api() -> i32 {
+    use crate::{app::AppController, runtime::AppRuntime};
+
+    let mut controller = AppController::new();
+    let menu_count = if cfg!(feature = "legacy-main-menu") {
+        5
+    } else {
+        6
+    };
+    if controller.bootmii_available()
+        || controller.menu_item_count() != menu_count
+        || controller.menu_item_enabled(2)
+    {
+        ogc_system::report(format_args!("FAIL main menu initial BootMii state\n"));
+        return -1;
+    }
+
+    controller.handle(crate::app::Input::Home, &[]);
+    if controller.handle_pointer(Some(crate::app::PointerTarget::Menu(2)), true, &[])
+        != crate::app::Action::None
+        || controller.menu_focus() != 0
+    {
+        ogc_system::report(format_args!(
+            "FAIL main menu disabled BootMii pointer action\n"
+        ));
+        return -1;
+    }
+    controller.set_bootmii_available(true);
+    if !controller.bootmii_available()
+        || controller.menu_item_count() != menu_count
+        || !controller.menu_item_enabled(2)
+    {
+        ogc_system::report(format_args!("FAIL main menu BootMii item visibility\n"));
+        return -1;
+    }
+    controller.handle(crate::app::Input::Down, &[]);
+    controller.handle(crate::app::Input::Down, &[]);
+    if controller.handle(crate::app::Input::Confirm, &[]) != crate::app::Action::LaunchBootMii {
+        ogc_system::report(format_args!("FAIL main menu BootMii action\n"));
+        return -1;
+    }
+    controller.set_bootmii_available(false);
+    if controller.menu_focus() != 0 {
+        ogc_system::report(format_args!("FAIL main menu BootMii focus fallback\n"));
+        return -1;
+    }
+    controller.set_bootmii_available(true);
+    for _ in 0..menu_count {
+        controller.handle(crate::app::Input::Down, &[]);
+    }
+    if controller.menu_focus() != menu_count - 1 {
+        ogc_system::report(format_args!("FAIL main menu navigation boundary\n"));
+        return -1;
+    }
+
+    controller.set_main_menu_status(String::from("IOS 58 v6176"), String::from("No network"));
+    if controller.main_menu_status() != ("IOS 58 v6176", "No network") {
+        ogc_system::report(format_args!("FAIL main menu status labels\n"));
+        return -1;
+    }
+
+    let mut runtime = AppRuntime::default();
+    runtime.set_bootmii_available(true);
+    runtime.set_main_menu_status(String::from("IOS 58 v6176"), String::from("Connected"));
+    if !runtime.controller().bootmii_available()
+        || runtime.controller().menu_item_count() != menu_count
+        || runtime.controller().main_menu_status() != ("IOS 58 v6176", "Connected")
+    {
+        ogc_system::report(format_args!("FAIL main menu runtime forwarding\n"));
+        return -1;
+    }
+
+    ogc_system::report(format_args!(
+        "PASS main menu BootMii state, focus clamp and status labels\n"
     ));
     0
 }

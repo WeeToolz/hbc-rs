@@ -669,8 +669,11 @@ impl AppController {
 
     pub fn set_bootmii_available(&mut self, available: bool) {
         self.bootmii_available = available;
-        let last_focus = self.menu_item_count().saturating_sub(1);
-        self.menu_focus = self.menu_focus.min(last_focus);
+        if !self.menu_item_enabled(self.menu_focus) {
+            self.menu_focus = (0..self.menu_item_count())
+                .find(|&index| self.menu_item_enabled(index))
+                .unwrap_or(0);
+        }
     }
 
     pub fn bootmii_available(&self) -> bool {
@@ -871,11 +874,13 @@ impl AppController {
     }
 
     pub(crate) fn menu_items(&self) -> impl Iterator<Item = MainMenuItem> + use<> {
-        let bootmii_available = self.bootmii_available;
-        MAIN_MENU_ITEMS
-            .iter()
-            .copied()
-            .filter(move |item| *item != MainMenuItem::BootMii || bootmii_available)
+        MAIN_MENU_ITEMS.iter().copied()
+    }
+
+    pub(crate) fn menu_item_enabled(&self, index: usize) -> bool {
+        self.menu_items()
+            .nth(index)
+            .is_some_and(|item| item != MainMenuItem::BootMii || self.bootmii_available)
     }
 
     pub fn menu_item_count(&self) -> usize {
@@ -1186,7 +1191,9 @@ impl AppController {
                     Action::None
                 }
             }
-            (Screen::MainMenu, PointerTarget::Menu(index)) if index < self.menu_item_count() => {
+            (Screen::MainMenu, PointerTarget::Menu(index))
+                if index < self.menu_item_count() && self.menu_item_enabled(index) =>
+            {
                 self.menu_focus = index;
                 if pressed {
                     self.handle(Input::Confirm, catalog)
@@ -1411,7 +1418,8 @@ impl AppController {
                     self.screen = Screen::About;
                     Action::None
                 }
-                Some(MainMenuItem::BootMii) => Action::LaunchBootMii,
+                Some(MainMenuItem::BootMii) if self.bootmii_available => Action::LaunchBootMii,
+                Some(MainMenuItem::BootMii) => Action::None,
                 Some(MainMenuItem::Exit) => Action::Exit,
                 Some(MainMenuItem::Shutdown) => Action::Shutdown,
                 #[cfg(not(feature = "legacy-main-menu"))]
@@ -1753,11 +1761,17 @@ impl AppController {
     }
 
     fn move_menu_focus(&mut self, forward: bool) {
-        self.menu_focus = if forward {
-            (self.menu_focus + 1).min(self.menu_item_count() - 1)
+        let count = self.menu_item_count();
+        let next = if forward {
+            (self.menu_focus.saturating_add(1)..count).find(|&index| self.menu_item_enabled(index))
         } else {
-            self.menu_focus.saturating_sub(1)
+            (0..self.menu_focus)
+                .rev()
+                .find(|&index| self.menu_item_enabled(index))
         };
+        if let Some(index) = next {
+            self.menu_focus = index;
+        }
     }
 
     fn move_detail_focus(&mut self, forward: bool) {
@@ -2422,14 +2436,14 @@ mod tests {
         controller.handle(Input::Home, &[]);
 
         assert_eq!(
-            controller.handle_pointer(Some(PointerTarget::Menu(2)), true, &[]),
+            controller.handle_pointer(Some(PointerTarget::Menu(3)), true, &[]),
             Action::Exit
         );
 
         controller.handle(Input::Back, &[]);
         controller.handle(Input::Home, &[]);
         assert_eq!(
-            controller.handle_pointer(Some(PointerTarget::Menu(3)), true, &[]),
+            controller.handle_pointer(Some(PointerTarget::Menu(4)), true, &[]),
             Action::Shutdown
         );
     }
@@ -2741,19 +2755,30 @@ mod tests {
     #[test]
     fn menu_labels_and_actions_follow_the_same_sequence() {
         for bootmii in [false, true] {
-            let mut expected = vec![
+            let expected = [
                 ("Back", Action::None, Screen::Browser),
                 ("About", Action::None, Screen::About),
-            ];
-            if bootmii {
-                expected.push(("Launch BootMii", Action::LaunchBootMii, Screen::MainMenu));
-            }
-            expected.extend([
+                (
+                    "Launch BootMii",
+                    if bootmii {
+                        Action::LaunchBootMii
+                    } else {
+                        Action::None
+                    },
+                    Screen::MainMenu,
+                ),
                 ("Exit to System Menu", Action::Exit, Screen::MainMenu),
                 ("Shutdown", Action::Shutdown, Screen::MainMenu),
-            ]);
+            ];
             #[cfg(not(feature = "legacy-main-menu"))]
-            expected.push(("Restart network", Action::RestartNetwork, Screen::MainMenu));
+            let expected = [
+                expected[0],
+                expected[1],
+                expected[2],
+                expected[3],
+                expected[4],
+                ("Restart network", Action::RestartNetwork, Screen::MainMenu),
+            ];
             let mut controller = AppController::new();
             controller.set_bootmii_available(bootmii);
             assert_eq!(controller.menu_item_count(), expected.len());
@@ -2768,52 +2793,50 @@ mod tests {
     }
 
     #[test]
-    fn changing_bootmii_availability_clamps_focus_and_rejects_removed_pointer_rows() {
+    fn changing_bootmii_availability_disables_item_and_keeps_focus_valid() {
         let mut controller = AppController::new();
         controller.set_bootmii_available(true);
         controller.handle(Input::Home, &[]);
-        for _ in 0..10 {
-            controller.handle(Input::Down, &[]);
-        }
-        let (last_with_bootmii, last_without_bootmii, final_action) =
-            if cfg!(feature = "legacy-main-menu") {
-                (4, 3, Action::Shutdown)
-            } else {
-                (5, 4, Action::RestartNetwork)
-            };
-        assert_eq!(controller.menu_focus(), last_with_bootmii);
+        controller.menu_focus = 2;
         controller.set_bootmii_available(false);
-        assert_eq!(controller.menu_focus(), last_without_bootmii);
-        assert_eq!(controller.menu_item_count(), last_without_bootmii + 1);
+        assert_eq!(controller.menu_focus(), 0);
+        assert!(!controller.menu_item_enabled(2));
         assert_eq!(
-            controller.handle_pointer(Some(PointerTarget::Menu(last_with_bootmii)), true, &[]),
+            controller.menu_item_count(),
+            if cfg!(feature = "legacy-main-menu") {
+                5
+            } else {
+                6
+            }
+        );
+        assert_eq!(
+            controller.handle_pointer(Some(PointerTarget::Menu(2)), true, &[]),
             Action::None
         );
-        assert_eq!(controller.menu_focus(), last_without_bootmii);
+        assert_eq!(controller.menu_focus(), 0);
         assert_eq!(controller.screen, Screen::MainMenu);
         controller.handle(Input::Down, &[]);
-        assert_eq!(controller.handle(Input::Confirm, &[]), final_action);
-
-        controller.set_bootmii_available(true);
         controller.handle(Input::Down, &[]);
-        assert_eq!(controller.menu_focus(), last_with_bootmii);
-        assert_eq!(controller.handle(Input::Confirm, &[]), final_action);
+        assert_eq!(controller.menu_focus(), 3);
+        assert_eq!(controller.handle(Input::Confirm, &[]), Action::Exit);
     }
 
     #[test]
-    fn main_menu_hides_and_remaps_bootmii_when_ios_is_unavailable() {
+    fn main_menu_keeps_bootmii_visible_but_disabled_when_ios_is_unavailable() {
         let mut controller = AppController::new();
         controller.handle(Input::Home, &[]);
         assert_eq!(
             controller.menu_item_count(),
             if cfg!(feature = "legacy-main-menu") {
-                4
-            } else {
                 5
+            } else {
+                6
             }
         );
+        assert!(!controller.menu_item_enabled(2));
         controller.handle(Input::Down, &[]);
         controller.handle(Input::Down, &[]);
+        assert_eq!(controller.menu_focus(), 3);
         assert_eq!(controller.handle(Input::Confirm, &[]), Action::Exit);
         controller.handle(Input::Down, &[]);
         assert_eq!(controller.handle(Input::Confirm, &[]), Action::Shutdown);
@@ -2831,14 +2854,8 @@ mod tests {
         available.handle(Input::Home, &[]);
         available.handle(Input::Down, &[]);
         available.handle(Input::Down, &[]);
-        assert_eq!(
-            available.menu_item_count(),
-            if cfg!(feature = "legacy-main-menu") {
-                5
-            } else {
-                6
-            }
-        );
+        assert_eq!(available.menu_item_count(), controller.menu_item_count());
+        assert!(available.menu_item_enabled(2));
         assert_eq!(available.handle(Input::Confirm, &[]), Action::LaunchBootMii);
     }
 
