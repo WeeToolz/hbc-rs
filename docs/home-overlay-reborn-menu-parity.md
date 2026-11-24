@@ -37,17 +37,28 @@ slot *submenus*, pointer hit testing, and animated transitions have **not** been
 ported. Only the basic strip, submenus and request hooks above are present.
 Do not claim full UI parity or hardware validation.
 
-## Validation required
+## Validation record
 
-1. Build with Rust nightly and the `libogc-rs` sibling checkout.
-2. Run Rust unit tests for `home_overlay_app` and `home_overlay_host`.
-3. In Dolphin verify six main-menu buttons with/without BootMii, including a
-   network restart during active upload (should refuse).
-4. In an app that opts into the overlay, verify HOME opens/closes, Exit submenu,
-   Shot without SD (should fail safely), action confirmation, and no GX state
-   corruption after closing.
-5. Test on real Wii only after Dolphin validation; do not install as a system
-   channel without separate recovery and installation testing.
+On 2026-11-23, the production acceptance case
+`home-overlay-app-api` passed in Dolphin. It calls the Rust model APIs for
+state, custom slots, capabilities, input mapping, labels, rectangle output,
+RGBA drawing, action completion, and restart confirmation. The archived result
+is [here](review/evidence/reborn-api-home-overlay-app-rust-dolphin-2026-11-23/result.json).
+
+The host bridge, a real application's input/render loop, GX restoration, and
+physical Wii behavior remain untested. The full Reborn overlay includes
+additional pages and controls listed above. These limits do not prove full
+overlay parity.
+
+Remaining validation:
+
+1. Verify HBC's main HOME menu with and without BootMii in Dolphin, including
+   refusal to restart the network during an active upload.
+2. In an app that opts into the overlay, verify HOME open and close, the Exit
+   page, safe failure when Shot has no SD card, action confirmation, and GX
+   state after close.
+3. Test on real Wii only after Dolphin checks. Do not install as a system
+   channel without separate recovery and install testing.
 
 This environment does not have Rust/Cargo, so the Rust build/tests are not
 claimed to have passed.

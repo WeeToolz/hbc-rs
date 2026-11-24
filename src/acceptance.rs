@@ -85,6 +85,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"overlay-control-api" {
         return overlay_control_api();
     }
+    if case == b"home-overlay-app-api" {
+        return home_overlay_app_api();
+    }
     if case == b"app-notice-api" {
         return app_notice_api();
     }
@@ -1870,6 +1873,149 @@ fn overlay_control_api() -> i32 {
     }
     ogc_system::report(format_args!(
         "PASS overlay control API signal, retry, close and exit\n"
+    ));
+    0
+}
+
+fn home_overlay_app_api() -> i32 {
+    use crate::{
+        app::Input,
+        home_overlay::{OperationResult, OverlayError, Request},
+        home_overlay_app::{
+            AppHomeOverlay, Capabilities, FrameAction, Key, OverlayText, Page, Slot, key_from_input,
+        },
+        platform::input::InputFrame,
+    };
+
+    struct TextCapture(Vec<String>);
+    impl OverlayText for TextCapture {
+        fn draw_text(&mut self, label: &str, _x: usize, _y: usize, _selected: bool) {
+            self.0.push(String::from(label));
+        }
+    }
+
+    let mut overlay = AppHomeOverlay::default();
+    if overlay.is_open()
+        || overlay.page() != Page::Strip
+        || overlay.count() != 5
+        || overlay.selected() != 3
+        || overlay.pending_confirmation().is_some()
+        || overlay.capabilities() != Capabilities::default()
+        || overlay.item_label(3) != "Shot"
+        || !overlay.item_enabled(2)
+        || overlay.item_enabled(1)
+        || overlay.set_slot(2, None)
+        || key_from_input(Input::Home) != Some(Key::Home)
+        || key_from_input(Input::ToggleBrowseMode).is_some()
+    {
+        ogc_system::report(format_args!("FAIL app HOME overlay defaults and inputs\n"));
+        return -1;
+    }
+    if !overlay.set_slot(
+        0,
+        Some(Slot {
+            label: "Quick Save",
+            request: Request::Save,
+        }),
+    ) || !overlay.set_slot(
+        1,
+        Some(Slot {
+            label: "Shot",
+            request: Request::Screenshot,
+        }),
+    ) {
+        ogc_system::report(format_args!("FAIL app HOME overlay custom slots\n"));
+        return -2;
+    }
+    let capabilities = Capabilities {
+        can_restart_app: true,
+        can_save: true,
+        can_find_remotes: true,
+        can_disconnect_remotes: true,
+    };
+    overlay.set_capabilities(capabilities);
+    if overlay.capabilities() != capabilities
+        || overlay.open_programmatically().is_err()
+        || !overlay.is_open()
+        || overlay.open_programmatically() != Err(OverlayError::AlreadyOpen)
+        || overlay.selected() != 3
+        || overlay.item_label(1) != "Quick Save"
+        || !overlay.item_enabled(1)
+    {
+        ogc_system::report(format_args!("FAIL app HOME overlay setup\n"));
+        return -3;
+    }
+
+    let mut text = TextCapture(Vec::new());
+    overlay.draw_labels(320, 240, &mut text);
+    let mut rect_count = 0;
+    if overlay.visit_rects(320, 240, |_| rect_count += 1).is_err()
+        || rect_count < 6
+        || !text.0.iter().any(|label| label == "HOME")
+        || !text.0.iter().any(|label| label == "Quick Save")
+    {
+        ogc_system::report(format_args!("FAIL app HOME overlay labels and geometry\n"));
+        return -4;
+    }
+    let mut pixels = alloc::vec![0; 320 * 240 * 4];
+    if overlay.draw(&mut pixels, 320, 240, 320 * 4).is_err()
+        || pixels[(164 * 320 + 16) * 4..(164 * 320 + 16) * 4 + 4] != [16, 22, 35, 255]
+        || overlay.draw(&mut pixels[..4], 320, 240, 320 * 4).is_ok()
+    {
+        ogc_system::report(format_args!("FAIL app HOME overlay software drawing\n"));
+        return -5;
+    }
+
+    let action = overlay.tick_input_frame(&InputFrame {
+        pressed: alloc::vec![Input::Right],
+        ..InputFrame::default()
+    });
+    if action != Ok(FrameAction::None)
+        || overlay.selected() != 4
+        || overlay.tick(Some(Key::Confirm), false) != Ok(FrameAction::None)
+        || overlay.page() != Page::WiiMote
+        || overlay.item_label(0) != "Find remotes"
+        || !overlay.item_enabled(1)
+        || overlay.tick(Some(Key::Confirm), false) != Ok(FrameAction::Perform(Request::FindRemotes))
+        || overlay
+            .complete(Request::FindRemotes, OperationResult::Failed)
+            .is_err()
+        || !overlay.is_open()
+    {
+        ogc_system::report(format_args!("FAIL app HOME overlay remote action\n"));
+        return -6;
+    }
+    if overlay.tick(Some(Key::Back), false) != Ok(FrameAction::None)
+        || overlay.page() != Page::Strip
+        || overlay.tick(Some(Key::Confirm), false) != Ok(FrameAction::None)
+        || overlay.page() != Page::Exit
+        || overlay.count() != 4
+    {
+        ogc_system::report(format_args!("FAIL app HOME overlay exit page\n"));
+        return -7;
+    }
+    overlay.tick(Some(Key::Down), false).ok();
+    overlay.tick(Some(Key::Down), false).ok();
+    if overlay.tick(Some(Key::Confirm), false) != Ok(FrameAction::None)
+        || overlay.pending_confirmation() != Some(Request::RestartConsole)
+        || overlay.item_label(overlay.selected()) != "Confirm Restart Wii"
+        || overlay.tick(Some(Key::Confirm), false)
+            != Ok(FrameAction::Perform(Request::RestartConsole))
+        || overlay
+            .complete(Request::RestartConsole, OperationResult::Failed)
+            .is_err()
+        || !overlay.is_open()
+        || overlay.tick(Some(Key::Back), false) != Ok(FrameAction::None)
+        || overlay.tick(Some(Key::Back), false) != Ok(FrameAction::None)
+        || overlay.is_open()
+    {
+        ogc_system::report(format_args!(
+            "FAIL app HOME overlay safe confirmation and close\n"
+        ));
+        return -8;
+    }
+    ogc_system::report(format_args!(
+        "PASS app HOME overlay API defaults, slots, input, drawing, actions and confirmation\n"
     ));
     0
 }

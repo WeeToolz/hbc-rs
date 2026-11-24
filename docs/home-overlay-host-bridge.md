@@ -13,6 +13,9 @@
 
 ## Validation
 
-- `git diff --check` passed.
-- Rust compiler and Wii integration were not available in this environment; no successful build or Wii hardware test is claimed.
+- `cargo test -p hbc-rs` passed on 2026-11-23 (421 tests).
+- The `home-overlay-app-api` production acceptance case passed in Dolphin. It
+  checks the portable overlay model and software RGBA drawing; it does not run
+  an application's `OverlayHost` or `OverlayLoopHost` against Wii GX.
+- No physical Wii host integration or GX state restoration test is claimed.
 - The host adapter is a contract, **not** a finished Wii video/GX driver.

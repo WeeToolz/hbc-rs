@@ -1,0 +1,12 @@
+{
+  "sha256": "96e01f5221a412aea85b555077d83bb376f1cbdb66a74633ce4e794722787a01",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-oqp6h_u1",
+  "cases": [
+    {
+      "case": "home-overlay-app-api",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}
