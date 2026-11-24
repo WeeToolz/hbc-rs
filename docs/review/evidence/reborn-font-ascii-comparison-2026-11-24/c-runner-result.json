@@ -1,0 +1,25 @@
+{
+  "image": "/private/tmp/hbc-rs/ascii-probe.dol",
+  "sha256": "0fd5ffca73b835e2e72434d3e4b018c083d0c606470a10cfc7e04ba7bd5e058f",
+  "physical_wii_tested": false,
+  "expected_date_cases": 17,
+  "expected_update_cases": 8,
+  "success": false,
+  "command": [
+    "/usr/bin/arch",
+    "-x86_64",
+    "/Applications/Dolphin.app/Contents/MacOS/Dolphin",
+    "-b",
+    "-u",
+    "/private/tmp/hbc-rs/hbc-date-c-m0d4a2se",
+    "-e",
+    "/private/tmp/hbc-rs/ascii-probe.dol"
+  ],
+  "forced_termination": true,
+  "dolphin_exit_code": -9,
+  "records": [],
+  "update_records": [],
+  "record_count": 0,
+  "update_record_count": 0,
+  "error": "Dolphin did not emit the complete C probe result set"
+}

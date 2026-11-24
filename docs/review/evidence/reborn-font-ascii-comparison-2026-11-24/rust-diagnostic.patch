@@ -1,0 +1,25 @@
+diff --git a/src/acceptance.rs b/src/acceptance.rs
+index 8719a8b..f06614d 100644
+--- a/src/acceptance.rs
++++ b/src/acceptance.rs
+@@ -3709,6 +3709,20 @@ fn font_api() -> i32 {
+             }
+         }
+     }
++    for (text, size, width) in [
++        ("a", 16, 8.0),
++        ("N", 24, 17.0),
++        ("v", 24, 11.0),
++        ("{", 24, 8.0),
++        ("}", 24, 8.0),
++    ] {
++        if face.measure_width(text, size) != width {
++            ogc_system::report(format_args!(
++                "FAIL font width baseline size={size} text={text:?}\n"
++            ));
++            return -1;
++        }
++    }
+     let empty_width = face.measure_width("", 18);
+     let narrow_width = face.measure_width("iii", 18);
+     let wide_width = face.measure_width("WWW", 18);
