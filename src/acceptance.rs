@@ -3679,6 +3679,19 @@ fn font_api() -> i32 {
             return -1;
         }
     };
+    let kern_sweep = include_bytes!("../tests/fixtures/droid-kern-sweep-widths.bin");
+    for size in 7..=128u16 {
+        for (index, text) in ["AV", "AVA", "AVAV", "A\rV"].into_iter().enumerate() {
+            let offset = (usize::from(size - 7) * 4 + index) * 2;
+            let expected = u16::from_be_bytes([kern_sweep[offset], kern_sweep[offset + 1]]);
+            if kern_face.measure_width(text, size) != f32::from(expected) {
+                ogc_system::report(format_args!(
+                    "FAIL custom kern sweep size={size} index={index}\n"
+                ));
+                return -1;
+            }
+        }
+    }
     let kern_cases = [
         "A",
         "AV",
