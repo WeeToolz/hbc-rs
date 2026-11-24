@@ -70,6 +70,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"renderer-draw-frame-api" {
         return renderer_draw_frame_api();
     }
+    if case == b"wii-startup-state-api" {
+        return wii_startup_state_api();
+    }
     if case == b"background-animation-api" {
         return background_animation_api();
     }
@@ -2292,6 +2295,149 @@ fn renderer_draw_frame_api() -> i32 {
     video::shutdown();
     ogc_system::report(format_args!(
         "PASS production GX frame and known background EFB pixel\n"
+    ));
+    0
+}
+
+fn wii_startup_state_api() -> i32 {
+    use crate::platform::startup::{StartupError, WiiStartup};
+
+    let mut startup =
+        WiiStartup::initialize(crate::render::LOGICAL_WIDTH, crate::render::LOGICAL_HEIGHT);
+    if !startup.storage_scan_pending()
+        || startup.logical_width() != crate::render::LOGICAL_WIDTH
+        || startup.has_storage()
+        || startup.mounted_volume().is_some()
+        || startup.storage_prefix().is_some()
+        || !startup.icon_textures().is_empty()
+        || startup.theme_textures().background_width != 640
+    {
+        ogc_system::report(format_args!("FAIL Wii startup initial state\n"));
+        return -1;
+    }
+
+    startup.runtime_mut().set_main_menu_status(
+        alloc::string::String::from("IOS acceptance"),
+        alloc::string::String::from("Network acceptance"),
+    );
+    if startup.runtime().controller().main_menu_status() != ("IOS acceptance", "Network acceptance")
+    {
+        ogc_system::report(format_args!("FAIL Wii startup runtime accessors\n"));
+        return -2;
+    }
+    if startup.storage_scan_stage_label().is_empty()
+        || startup.received_zip_install_pending()
+        || startup.received_zip_install_progress().is_some()
+        || startup.poll_received_zip_install().is_some()
+        || startup.device_probe_pending()
+        || startup.poll_device_availability().unwrap_or(true)
+        || startup.executable_load_pending()
+        || !matches!(startup.advance_selected_executable_load(), Ok(None))
+        || startup.delete_selected_app() != Err(StartupError::NoSelection)
+        || startup.begin_selected_executable_load() != Err(StartupError::NoSelection)
+        || !matches!(
+            startup.prepare_selected_theme(),
+            Err(StartupError::NoSelection)
+        )
+        || startup.received_zip_destination_exists("Acceptance") != Err(StartupError::NoStorage)
+        || startup.save_screenshot_png(b"PNG") != Err(StartupError::NoStorage)
+    {
+        ogc_system::report(format_args!(
+            "FAIL Wii startup pending and empty-state APIs\n"
+        ));
+        return -3;
+    }
+
+    let mut storage_scan_finished = false;
+    for _ in 0..500 {
+        if startup.poll_storage_scan() {
+            storage_scan_finished = true;
+            break;
+        }
+        ogc_lwp::sys::sleep_ticks((ogc_lwp::sys::TICKS_PER_SECOND / 1_000).max(1));
+    }
+    if !storage_scan_finished
+        || startup.poll_storage_scan()
+        || startup.storage_scan_pending()
+        || startup.has_storage()
+        || startup.mounted_volume().is_some()
+        || startup.storage_prefix().is_some()
+    {
+        ogc_system::report(format_args!("FAIL Wii startup storage scan completion\n"));
+        return -4;
+    }
+    startup.refresh_visible_icons();
+    if !startup.icon_textures().is_empty() {
+        ogc_system::report(format_args!("FAIL Wii startup empty icon refresh\n"));
+        return -5;
+    }
+
+    let zip = include_bytes!("../tests/fixtures/wiiload-app.zip").to_vec();
+    if startup.start_received_zip(zip) != Err(StartupError::NoStorage) {
+        ogc_system::report(format_args!(
+            "FAIL Wii startup received ZIP no-storage result\n"
+        ));
+        return -6;
+    }
+
+    if startup.refresh_storage() != Ok(true) {
+        ogc_system::report(format_args!("FAIL Wii startup storage refresh request\n"));
+        return -7;
+    }
+    let mut refresh_finished = false;
+    for _ in 0..500 {
+        if startup.poll_storage_scan() {
+            refresh_finished = true;
+            break;
+        }
+        ogc_lwp::sys::sleep_ticks((ogc_lwp::sys::TICKS_PER_SECOND / 1_000).max(1));
+    }
+    if !refresh_finished || startup.storage_scan_pending() || startup.has_storage() {
+        ogc_system::report(format_args!(
+            "FAIL Wii startup storage refresh completion\n"
+        ));
+        return -8;
+    }
+
+    if startup.refresh_device_availability() != Ok(true) || !startup.device_probe_pending() {
+        ogc_system::report(format_args!("FAIL Wii startup device probe request\n"));
+        return -9;
+    }
+    let mut probe_finished = false;
+    for _ in 0..500 {
+        match startup.poll_device_availability() {
+            Ok(true) => {
+                probe_finished = true;
+                break;
+            }
+            Ok(false) => {
+                ogc_lwp::sys::sleep_ticks((ogc_lwp::sys::TICKS_PER_SECOND / 1_000).max(1));
+            }
+            Err(error) => {
+                ogc_system::report(format_args!("FAIL Wii startup device probe {error:?}\n"));
+                return -10;
+            }
+        }
+    }
+    if !probe_finished
+        || startup.device_probe_pending()
+        || (0..5).any(|index| startup.runtime().controller().device_available(index) != Some(false))
+    {
+        ogc_system::report(format_args!("FAIL Wii startup device probe result\n"));
+        return -10;
+    }
+
+    if startup.apply_options() != Ok(false)
+        || startup.has_storage()
+        || startup.mounted_volume().is_some()
+        || startup.unmount_storage().is_err()
+    {
+        ogc_system::report(format_args!("FAIL Wii startup options or unmount\n"));
+        return -11;
+    }
+
+    ogc_system::report(format_args!(
+        "PASS Wii startup, empty storage scan, device probe and no-media actions\n"
     ));
     0
 }

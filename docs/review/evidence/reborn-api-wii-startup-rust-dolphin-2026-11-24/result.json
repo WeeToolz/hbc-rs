@@ -1,0 +1,12 @@
+{
+  "sha256": "403e1fa1bf8d0a8e8a107d01746844add59159c54a6c4d48844c138c2ac35f26",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-c68poxqg",
+  "cases": [
+    {
+      "case": "wii-startup-state-api",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

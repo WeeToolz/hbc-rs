@@ -253,7 +253,7 @@ hbc_rs::platform::startup::WiiStartup::device_probe_pending,src/platform/startup
 hbc_rs::platform::startup::WiiStartup::executable_load_pending,src/platform/startup.rs,1338,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::startup::WiiStartup::has_storage,src/platform/startup.rs,870,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::startup::WiiStartup::icon_textures,src/platform/startup.rs,1099,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::platform::startup::WiiStartup::initialize,src/platform/startup.rs,706,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::platform::startup::WiiStartup::initialize,src/platform/startup.rs,706,partial,HBC-API-STARTUP-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::platform::startup::WiiStartup::logical_width,src/platform/startup.rs,862,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::startup::WiiStartup::mounted_volume,src/platform/startup.rs,844,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::startup::WiiStartup::poll_device_availability,src/platform/startup.rs,1076,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
