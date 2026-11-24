@@ -61,6 +61,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"theme-package" {
         return theme_package();
     }
+    if case == b"theme-textures-api" {
+        return theme_textures_api();
+    }
     if case == b"archive-api" {
         return archive_api();
     }
@@ -1254,6 +1257,34 @@ fn theme_package() -> i32 {
     }
     ogc_system::report(format_args!(
         "PASS theme package validation and extraction\n"
+    ));
+    0
+}
+
+fn theme_textures_api() -> i32 {
+    let standard = crate::platform::theme::ThemeTextures::load(None);
+    if standard.background_width != 640
+        || !matches!(standard.background.as_ref(), Some(texture) if texture.width == 640 && texture.height == 480)
+        || standard.logo.is_none()
+        || standard.list_card.is_none()
+    {
+        ogc_system::report(format_args!("FAIL standard theme texture defaults\n"));
+        return -1;
+    }
+    drop(standard);
+
+    let widescreen = crate::platform::theme::ThemeTextures::load_for_viewport(None, true);
+    if widescreen.background_width != 852
+        || !matches!(widescreen.background.as_ref(), Some(texture) if texture.width == 852 && texture.height == 480)
+        || widescreen.logo.is_none()
+        || widescreen.list_card.is_none()
+    {
+        ogc_system::report(format_args!("FAIL widescreen theme texture defaults\n"));
+        return -1;
+    }
+
+    ogc_system::report(format_args!(
+        "PASS theme texture defaults and widescreen background APIs\n"
     ));
     0
 }

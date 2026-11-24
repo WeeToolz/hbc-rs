@@ -90,6 +90,10 @@ The theme package APIs have one Dolphin case for validation, root XML selection,
 and file extraction. It checks two fixed archive fixtures. It does not compare
 every ZIP edge case with Reborn's minizip path or prove the full theme install
 flow. Rust's extra path and integrity checks are retained for safety.
+The standard and widescreen `ThemeTextures` fallback APIs also have a direct
+Dolphin case. It checks the bundled 640 by 480 and 852 by 480 backgrounds and
+required fallback textures. Installed theme images and physical GX output
+remain open; see the [theme texture API record](review/evidence/reborn-api-theme-textures-rust-dolphin-2026-11-23/README.md).
 The lower-level `ZipArchive` APIs now also have a direct production Dolphin
 case for parsing, entry listing and lookup, bounded extraction, entry limits,
 and path validation. The [archive API record](review/evidence/reborn-api-archive-rust-dolphin-2026-11-23/README.md)
