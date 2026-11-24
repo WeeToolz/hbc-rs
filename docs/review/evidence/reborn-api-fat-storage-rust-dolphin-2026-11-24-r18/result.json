@@ -1,0 +1,15 @@
+{
+  "sha256": "46a881e2f4c5c0474454ade545c7ce34c9ab00cc1963d4bdf679c41cb5cc8e9d",
+  "dolphin_arch": "x86_64",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-bh2339_b",
+  "sd_fixture": "/private/tmp/hbc-rs/hbc-production-acceptance-bh2339_b/Load/WiiSDSync/acceptance",
+  "theme_fixture": "/private/tmp/hbc-rs/hbc-production-acceptance-bh2339_b/Load/WiiSDSync/apps/ThemeProbe",
+  "cases": [
+    {
+      "case": "fat-storage-api",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

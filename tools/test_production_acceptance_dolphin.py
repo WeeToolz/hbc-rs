@@ -23,13 +23,16 @@ EXPECTED_XML = (b'<?xml version="1.0" encoding="UTF-8"?><hbc><device>1</device>'
                 b'<app_sel>sd:/apps/acceptance/boot.dol</app_sel></hbc>')
 
 
-def run_case(dol, names, profile, output, case, port):
+def run_case(dol, names, profile, output, case, port, dolphin_arch):
     result = {'case': case, 'success': False}
     connection = None
     process = None
     with (output / (case + '.log')).open('w') as log:
         try:
-            process = subprocess.Popen(['/Applications/Dolphin.app/Contents/MacOS/Dolphin', '-d', '-u', str(profile), '-e', str(dol), '-C', f'Dolphin.General.GDBPort={port}', '-C', 'Dolphin.Core.CPUThread=False', '-C', 'Dolphin.Core.PauseOnPanic=False'], stdout=log, stderr=log)
+            command = ['/Applications/Dolphin.app/Contents/MacOS/Dolphin']
+            if dolphin_arch:
+                command = ['/usr/bin/arch', f'-{dolphin_arch}', *command]
+            process = subprocess.Popen([*command, '-d', '-u', str(profile), '-e', str(dol), '-C', f'Dolphin.General.GDBPort={port}', '-C', 'Dolphin.Core.CPUThread=False', '-C', 'Dolphin.Core.PauseOnPanic=False'], stdout=log, stderr=log)
             deadline = time.monotonic() + 20
             while time.monotonic() < deadline:
                 try:
@@ -125,6 +128,8 @@ def main():
     parser.add_argument('--elf', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--debug-port', type=int, default=55287)
+    parser.add_argument('--dolphin-arch', choices=['arm64', 'x86_64'],
+                        help='Select a Dolphin architecture on macOS; x86_64 uses Rosetta.')
     parser.add_argument('--cases', nargs='+', choices=['launch-dol', 'launch-elf', 'settings', 'theme-storage-api', 'fat-storage-api', 'wii-startup-theme-api', 'playtime-reset-api', 'settings-state', 'wiiload-header', 'wiiload-policy', 'wiiload-zip', 'wiiload-controller', 'runtime-state-api', 'runtime-pointer-api', 'runtime-measured-memo-api', 'text-layout-api', 'render-frame-api', 'video-platform-api', 'renderer-draw-frame-api', 'wii-startup-state-api', 'background-animation-api', 'wiiload-state-api', 'wiiload-start-api', 'zip-install-error-api', 'renderer-layout-memos-api', 'lifecycle-api', 'metadata-date', 'metadata-update', 'metadata-settings', 'metadata-theme', 'metadata-app', 'catalog', 'theme-package', 'theme-textures-api', 'archive-api', 'png-api', 'management-api', 'font-api', 'localization-api', 'overlay-control-api', 'home-overlay-app-api', 'network-restart-api', 'network-restart-worker-api', 'input-platform-api', 'remote-input-api', 'app-notice-api', 'about-api', 'loader-helpers', 'app-controller', 'main-menu-api', 'executable-loading-api', 'detail-focus-api', 'catalog-reconcile-api', 'storage-volumes', 'device-availability-api', 'app-deletion', 'input-policy', 'input-mapping', 'render-hit-test', 'disc-stop'], default=['launch-dol', 'launch-elf', 'settings'])
     parser.add_argument('--sdk-root', type=Path, default=Path(__file__).resolve().parents[2] / 'libogc-rs')
     args = parser.parse_args()
@@ -172,7 +177,8 @@ def main():
             before = record.read_bytes()
             if len(before) < 4 or not any(before[:4]):
                 raise RuntimeError('Playtime fixture must have a nonzero four-byte prefix')
-            result = run_case(args.dol.resolve(), names, profile, args.output, case, args.debug_port)
+            result = run_case(args.dol.resolve(), names, profile, args.output, case, args.debug_port,
+                              args.dolphin_arch)
             if result['success']:
                 after = record.read_bytes()
                 if len(after) != len(before) or after[:4] != bytes(4) or after[4:] != before[4:]:
@@ -182,25 +188,30 @@ def main():
             results.append(result)
             continue
         if case != 'settings':
-            results.append(run_case(args.dol.resolve(), names, profile, args.output, case, args.debug_port))
+            results.append(run_case(args.dol.resolve(), names, profile, args.output, case, args.debug_port,
+                                    args.dolphin_arch))
             continue
         # Use a fresh direct-DOL data directory in the isolated copy only.
         data = profile / 'Wii/title/00010001/48424345/data'
         if data.exists():
             shutil.rmtree(data)
-        results.append(run_case(args.dol.resolve(), names, profile, args.output, 'settings-direct', args.debug_port))
-        results.append(run_case(args.dol.resolve(), names, profile, args.output, 'settings-save', args.debug_port))
+        results.append(run_case(args.dol.resolve(), names, profile, args.output, 'settings-direct', args.debug_port,
+                                args.dolphin_arch))
+        results.append(run_case(args.dol.resolve(), names, profile, args.output, 'settings-save', args.debug_port,
+                                args.dolphin_arch))
         if not results[-1]['success']:
             continue
         settings = data / 'settings.xml'
         if settings.read_bytes() != EXPECTED_XML:
             raise RuntimeError('Persisted XML does not match independent expected bytes')
-        results.append(run_case(args.dol.resolve(), names, profile, args.output, 'settings-load', args.debug_port))
+        results.append(run_case(args.dol.resolve(), names, profile, args.output, 'settings-load', args.debug_port,
+                                args.dolphin_arch))
         # Recreate an interrupted replacement from committed serialized bytes.
         backup = data / '_bak'
         backup.mkdir(exist_ok=True)
         settings.rename(backup / 'settings.xml')
-        results.append(run_case(args.dol.resolve(), names, profile, args.output, 'settings-load-recovery', args.debug_port))
+        results.append(run_case(args.dol.resolve(), names, profile, args.output, 'settings-load-recovery', args.debug_port,
+                                args.dolphin_arch))
         if not settings.exists() or settings.read_bytes() != EXPECTED_XML:
             raise RuntimeError('Restart did not recover the persisted backup')
         banner = data / 'banner.bin'
@@ -209,13 +220,16 @@ def main():
         # a permission failure at ISFS create_file, rather than relying on
         # host filesystem permissions that Dolphin may not enforce.
         before = settings.read_bytes()
-        results.append(run_case(args.dol.resolve(), names, profile, args.output, 'settings-banner-error', args.debug_port))
+        results.append(run_case(args.dol.resolve(), names, profile, args.output, 'settings-banner-error', args.debug_port,
+                                args.dolphin_arch))
         if settings.read_bytes() != before:
             raise RuntimeError('Failed banner save changed settings')
-        results.append(run_case(args.dol.resolve(), names, profile, args.output, 'settings-banner-retry', args.debug_port))
+        results.append(run_case(args.dol.resolve(), names, profile, args.output, 'settings-banner-retry', args.debug_port,
+                                args.dolphin_arch))
         if banner.read_bytes() != (ROOT / 'RustPorts/hbc-rs/assets/save_banner.bin').read_bytes():
             raise RuntimeError('Banner retry did not commit the required asset bytes')
-    report = {'sha256': digest, 'profile': str(profile), 'sd_fixture': str(sd_fixture) if sd_fixture else None,
+    report = {'sha256': digest, 'dolphin_arch': args.dolphin_arch or 'native',
+              'profile': str(profile), 'sd_fixture': str(sd_fixture) if sd_fixture else None,
               'theme_fixture': str(theme_fixture) if theme_fixture else None, 'cases': results,
               'success': all(r['success'] for r in results)}
     (args.output / 'result.json').write_text(json.dumps(report, indent=2) + '\n')
