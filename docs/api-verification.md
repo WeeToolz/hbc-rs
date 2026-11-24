@@ -107,6 +107,11 @@ completion. See the [overlay control record](review/evidence/reborn-api-overlay-
 This checks the Rust control state machine in Dolphin; real frame capture,
 controller input, and Wii system actions remain pending.
 
+The application notice APIs have a direct production case for message kind,
+long-text scrolling, timeout boundaries, and one-shot pointer-input handling.
+See the [notice API record](review/evidence/reborn-api-notice-rust-dolphin-2026-11-23-r2/README.md).
+C button countdown timing and rendered dialog behavior remain open.
+
 The `ThemeFontFace` APIs have a direct Dolphin case for parsing the bundled
 Droid face, rasterizing a glyph, line metrics, kerning, text width, and measured
 memo layout. See the [font API record](review/evidence/reborn-api-font-rust-dolphin-2026-11-23/README.md).

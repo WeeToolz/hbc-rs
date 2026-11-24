@@ -79,6 +79,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"overlay-control-api" {
         return overlay_control_api();
     }
+    if case == b"app-notice-api" {
+        return app_notice_api();
+    }
     if case == b"loader-helpers" {
         return loader_helpers();
     }
@@ -1628,6 +1631,72 @@ fn overlay_control_api() -> i32 {
     }
     ogc_system::report(format_args!(
         "PASS overlay control API signal, retry, close and exit\n"
+    ));
+    0
+}
+
+fn app_notice_api() -> i32 {
+    use crate::app::{AppController, Input, NoticeKind, PointerTarget};
+
+    let mut controller = AppController::new();
+    let long_message = String::from("Storage warning. ").repeat(180);
+    controller.show_notice(long_message.clone());
+    if controller.notice() != Some(long_message.as_str())
+        || controller.notice_kind() != NoticeKind::Generic
+        || controller.timed_notice_active()
+        || controller.notice_scroll() != 0
+        || controller.notice_scroll_max() == 0
+        || controller.handle(Input::Down, &[]) != crate::app::Action::None
+        || controller.notice_scroll() != 1
+    {
+        ogc_system::report(format_args!("FAIL app notice API state and scroll\n"));
+        return -1;
+    }
+    controller.show_notice_with_kind(long_message.clone(), NoticeKind::Warning);
+    if controller.notice_kind() != NoticeKind::Warning
+        || !controller.timed_notice_active()
+        || controller.notice_scroll() != 0
+        || controller.notice_scroll_max() == 0
+    {
+        ogc_system::report(format_args!("FAIL app notice API warning state\n"));
+        return -1;
+    }
+    for _ in 0..299 {
+        controller.tick_timed_notice();
+    }
+    if controller.notice().is_none() || !controller.timed_notice_active() {
+        ogc_system::report(format_args!("FAIL app notice API early timeout\n"));
+        return -1;
+    }
+    controller.tick_timed_notice();
+    if controller.notice().is_some() || controller.timed_notice_active() {
+        ogc_system::report(format_args!("FAIL app notice API timeout\n"));
+        return -1;
+    }
+    controller.handle_pointer(None, false, &[]);
+
+    controller.show_notice(String::from("Complete."));
+    if controller.notice_kind() != NoticeKind::Generic
+        || controller.timed_notice_active()
+        || controller.notice_scroll_max() != 0
+    {
+        ogc_system::report(format_args!("FAIL app notice API generic notice\n"));
+        return -1;
+    }
+    controller.show_notice_with_kind(String::from("Retry."), NoticeKind::Error);
+    controller.mark_timed_notice_input_consumed();
+    if controller.handle_pointer(Some(PointerTarget::NoticeConfirm), true, &[])
+        != crate::app::Action::None
+        || controller.notice() != Some("Retry.")
+        || controller.handle_pointer(Some(PointerTarget::NoticeConfirm), true, &[])
+            != crate::app::Action::None
+        || controller.notice().is_some()
+    {
+        ogc_system::report(format_args!("FAIL app notice API consumed input\n"));
+        return -1;
+    }
+    ogc_system::report(format_args!(
+        "PASS app notice API kind, scroll, timeout and dismissal\n"
     ));
     0
 }
