@@ -27,7 +27,7 @@ production `font-api` acceptance case checks the same 60 expected values and
 passed in a separate Dolphin run. Each run used a private profile. HBC was not
 the program under test, so no C HBC control was needed.
 
-The current C probe follows Reborn’s `FT_HAS_KERNING` guard. The captured C run used the earlier probe, and the corrected rerun did not complete. The captured matrix supports width agreement for these values, but it does not establish exact kerning parity or whether the bundled Droid face reports kerning. Keep kerning parity open.
+The captured C run used an earlier probe. A [later corrected probe](../reborn-font-width-corrected-c-dolphin-2026-11-24/README.md) reports no kerning for the bundled font and matches all 60 widths. Kerning for custom fonts remains open.
 
 This evidence covers the bundled Droid font at these six sizes and these ten
 strings in the captured C and Rust runs. Other theme fonts, sizes, full UTF-8

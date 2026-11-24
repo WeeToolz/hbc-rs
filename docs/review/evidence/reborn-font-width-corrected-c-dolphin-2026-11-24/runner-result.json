@@ -1,0 +1,25 @@
+{
+  "image": "/private/tmp/hbc-rs/reborn-font-width-corrected.dol",
+  "sha256": "9810f3f6b966e823a5a4576845eec8fd77dc2a75be78befda78b7c84f1267b90",
+  "physical_wii_tested": false,
+  "expected_date_cases": 17,
+  "expected_update_cases": 8,
+  "success": false,
+  "command": [
+    "/usr/bin/arch",
+    "-x86_64",
+    "/Applications/Dolphin.app/Contents/MacOS/Dolphin",
+    "-b",
+    "-u",
+    "/private/tmp/hbc-rs/hbc-date-c-fv1v9e6s",
+    "-e",
+    "/private/tmp/hbc-rs/reborn-font-width-corrected.dol"
+  ],
+  "forced_termination": true,
+  "dolphin_exit_code": -9,
+  "records": [],
+  "update_records": [],
+  "record_count": 0,
+  "update_record_count": 0,
+  "error": "Dolphin did not emit the complete C probe result set"
+}

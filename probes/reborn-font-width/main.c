@@ -23,8 +23,8 @@ static int hbc_width(FT_Face face, const char *text, int has_kerning) {
                 cdx += delta.x;
                 cdy += delta.y;
             }
-            cx += (cdx + 32) >> 6;
         }
+        cx += (cdx + 32) >> 6;
         if (FT_Load_Glyph(face, glyph_index, FT_LOAD_DEFAULT) ||
             FT_Render_Glyph(face->glyph, FT_RENDER_MODE_NORMAL))
             return -1;
