@@ -2886,23 +2886,20 @@ fn catalog() -> i32 {
         return -1;
     }
     let custom = visible_entries(&entries, Filter::MetadataOnly, SortOrder::Custom);
-    let unicode_names = [
-        AppEntry {
-            directory: String::from("zzz"),
-            kind: AppKind::Elf,
-            size: 1,
-            has_icon: false,
-            metadata: Some(crate::metadata::parse_app_xml("<app><name>Ä</name></app>").unwrap()),
-        },
-        AppEntry {
-            directory: String::from("aaa"),
-            kind: AppKind::Elf,
-            size: 1,
-            has_icon: false,
-            metadata: Some(crate::metadata::parse_app_xml("<app><name>ä</name></app>").unwrap()),
-        },
-    ];
-    let unicode_order = visible_entries(&unicode_names, Filter::All, SortOrder::Name);
+    let named_entry = |directory: &str, name: &str| AppEntry {
+        directory: String::from(directory),
+        kind: AppKind::Elf,
+        size: 1,
+        has_icon: false,
+        metadata: Some(
+            crate::metadata::parse_app_xml(&alloc::format!("<app><name>{name}</name></app>"))
+                .unwrap(),
+        ),
+    };
+    let utf8_names = [named_entry("zzz", "Ā"), named_entry("aaa", "ࠀ")];
+    let ascii_names = [named_entry("zzz", "Alpha"), named_entry("aaa", "alpha")];
+    let utf8_order = visible_entries(&utf8_names, Filter::All, SortOrder::Name);
+    let ascii_order = visible_entries(&ascii_names, Filter::All, SortOrder::Name);
     if custom
         .iter()
         .map(|entry| entry.directory.as_str())
@@ -2913,11 +2910,16 @@ fn catalog() -> i32 {
             .map(|entry| entry.directory.as_str())
             .collect::<Vec<_>>()
             != ["alpha"]
-        || unicode_order
+        || utf8_order
             .iter()
             .map(|entry| entry.directory.as_str())
             .collect::<Vec<_>>()
             != ["zzz", "aaa"]
+        || ascii_order
+            .iter()
+            .map(|entry| entry.directory.as_str())
+            .collect::<Vec<_>>()
+            != ["aaa", "zzz"]
         || crate::png::decode_hbc_app_icon(include_bytes!("../tests/fixtures/hbc-app-icon.png"))
             .is_err()
         || crate::png::decode_hbc_app_icon(include_bytes!(

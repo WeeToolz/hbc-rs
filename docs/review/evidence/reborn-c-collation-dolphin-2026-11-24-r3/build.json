@@ -1,0 +1,7 @@
+{
+  "compiler": "devkitPPC GCC 16.1.0",
+  "source": "probes/reborn-c-collation/main.c",
+  "source_sha256": "fdfcc77a60e587552dea46dfcb1e17497f5db70d3683c15bc862174e0e6ca030",
+  "dolphin_sha256": "6b2a9e0b81106f00fb7673574a68ea0559faae5c6795fe608ada5b9fdb2c998c",
+  "build_command": "powerpc-eabi-gcc -DGEKKO -mrvl -mcpu=750 -meabi -mhard-float -O2 -Wall -Wextra -I/opt/devkitpro/libogc/include -specs=/opt/devkitpro/libogc/share/rvl.specs -L/opt/devkitpro/libogc/lib/wii probes/reborn-c-collation/main.c -logc -o target/reborn-c-collation.elf; elf2dol target/reborn-c-collation.elf target/reborn-c-collation.dol"
+}

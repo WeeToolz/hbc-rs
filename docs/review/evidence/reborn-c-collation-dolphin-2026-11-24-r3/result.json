@@ -1,0 +1,18 @@
+{
+  "sha256": "6b2a9e0b81106f00fb7673574a68ea0559faae5c6795fe608ada5b9fdb2c998c",
+  "dolphin_arch": "x86_64",
+  "success": true,
+  "command": [
+    "/usr/bin/arch",
+    "-x86_64",
+    "/Applications/Dolphin.app/Contents/MacOS/Dolphin",
+    "-b",
+    "-u",
+    "/private/tmp/hbc-rs/hbc-collation-c-kag00nqc",
+    "-e",
+    "/Volumes/SSD/WiiDev/WeeToolz/hbc-rs/target/reborn-c-collation.dol"
+  ],
+  "profile": "/private/tmp/hbc-rs/hbc-collation-c-kag00nqc",
+  "completion_marker": true,
+  "forced_termination_after_marker": true
+}

@@ -219,13 +219,13 @@ fn cmp_optional_text(a: Option<&str>, b: Option<&str>) -> Ordering {
 
 fn cmp_text(a: &str, b: &str) -> Ordering {
     a.bytes()
-        .map(c_iso_8859_1_lower)
-        .cmp(b.bytes().map(c_iso_8859_1_lower))
+        .map(reborn_strcasecmp_byte)
+        .cmp(b.bytes().map(reborn_strcasecmp_byte))
 }
 
-fn c_iso_8859_1_lower(byte: u8) -> u8 {
+fn reborn_strcasecmp_byte(byte: u8) -> u8 {
     match byte {
-        b'A'..=b'Z' | 0xc0..=0xd6 | 0xd8..=0xde => byte + 0x20,
+        b'A'..=b'Z' => byte + 0x20,
         _ => byte,
     }
 }
@@ -504,16 +504,17 @@ mod tests {
     }
 
     #[test]
-    fn name_sort_matches_hbc_latin1_ctype_for_utf8_bytes() {
+    fn name_sort_matches_reborn_strcasecmp_for_utf8_bytes() {
         let entries = [
-            app("zzz", Some("Ä"), None, false),
-            app("aaa", Some("ä"), None, false),
+            app("zzz", Some("Ā"), None, false),
+            app("aaa", Some("ࠀ"), None, false),
         ];
         let names: Vec<_> = visible_entries(&entries, Filter::All, SortOrder::Name)
             .iter()
             .map(|entry| entry.directory.as_str())
             .collect();
         assert_eq!(names, ["zzz", "aaa"]);
+        assert_eq!(cmp_text("Alpha", "alpha"), Ordering::Equal);
     }
 
     #[test]
