@@ -218,7 +218,16 @@ fn cmp_optional_text(a: Option<&str>, b: Option<&str>) -> Ordering {
 }
 
 fn cmp_text(a: &str, b: &str) -> Ordering {
-    a.to_lowercase().cmp(&b.to_lowercase())
+    a.bytes()
+        .map(c_iso_8859_1_lower)
+        .cmp(b.bytes().map(c_iso_8859_1_lower))
+}
+
+fn c_iso_8859_1_lower(byte: u8) -> u8 {
+    match byte {
+        b'A'..=b'Z' | 0xc0..=0xd6 | 0xd8..=0xde => byte + 0x20,
+        _ => byte,
+    }
 }
 
 #[cfg(test)]
@@ -492,6 +501,19 @@ mod tests {
                 .collect::<Vec<_>>(),
             ["Alpha", "Zulu"]
         );
+    }
+
+    #[test]
+    fn name_sort_matches_hbc_latin1_ctype_for_utf8_bytes() {
+        let entries = [
+            app("zzz", Some("Ä"), None, false),
+            app("aaa", Some("ä"), None, false),
+        ];
+        let names: Vec<_> = visible_entries(&entries, Filter::All, SortOrder::Name)
+            .iter()
+            .map(|entry| entry.directory.as_str())
+            .collect();
+        assert_eq!(names, ["zzz", "aaa"]);
     }
 
     #[test]
