@@ -164,7 +164,7 @@ hbc_rs::management::plan_extraction,src/management.rs,205,partial,HBC-API-EXTRAC
 hbc_rs::management::rollback_staged_directory,src/management.rs,147,partial,HBC-API-INSTALL-ROLLBACK-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::metadata::parse_app_xml,src/metadata.rs,78,partial,HBC-API-DATE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::metadata::parse_settings_xml,src/metadata.rs,175,partial,HBC-API-SETTINGS-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
-hbc_rs::metadata::parse_theme_xml,src/metadata.rs,194,partial,HBC-API-THEME-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::metadata::parse_theme_xml,src/metadata.rs,196,partial,HBC-API-THEME-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::metadata::parse_update_xml,src/metadata.rs,125,partial,HBC-API-UPDATE-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::network_config::NetworkConfig::active_profile,src/network_config.rs,383,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
 hbc_rs::network_config::NetworkConfig::active_wifi_profile,src/network_config.rs,372,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API

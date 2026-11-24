@@ -126,14 +126,14 @@ pub fn parse_update_xml(xml: &str) -> Result<UpdateMetadata, String> {
     let root = parse_xml(xml)?;
     let app = root.find("app").ok_or("missing app element")?;
     Ok(UpdateMetadata {
-        version: app.text("version"),
+        version: app.raw_text("version"),
         date: app
             .find("date")
             .and_then(XmlNode::raw_value)
             .and_then(|value| scan_unsigned_decimal(&value)),
-        notes: app.text("notes"),
-        uri: app.text("uri"),
-        hash: app.text("hash"),
+        notes: app.raw_text("notes"),
+        uri: app.raw_text("uri"),
+        hash: app.raw_text("hash"),
     })
 }
 
@@ -179,7 +179,9 @@ pub fn parse_settings_xml(xml: &str) -> Result<UserSettings, String> {
         device: number(node, "device", -1),
         sort_order: number(node, "sort_order", 0),
         browse_mode: number(node, "browse_mode", 0),
-        selected_app: node.text("app_sel").map(|s| truncate_utf8_bytes(&s, 63)),
+        selected_app: node
+            .raw_text("app_sel")
+            .map(|s| truncate_utf8_bytes(&s, 63)),
     })
 }
 
@@ -205,7 +207,7 @@ pub fn parse_theme_xml(xml: &str) -> Result<ThemeMetadata, String> {
         theme.languages.dedup();
     }
     theme.description = node
-        .text("description")
+        .raw_text("description")
         .map(|s| truncate_utf8_bytes(&s, 64));
     theme.default_font.color = node.find("font_color").and_then(parse_color);
     theme.progress_gradient = node.find("progress_gradient").and_then(|g| {
@@ -234,7 +236,7 @@ pub fn parse_theme_xml(xml: &str) -> Result<ThemeMetadata, String> {
             .filter(|value| *value > 0)
             .map(|value| value as u32);
         let parsed_font = ThemeFont {
-            file: font.text("file"),
+            file: font.raw_text("file"),
             size,
             color,
         };
@@ -474,15 +476,8 @@ impl XmlNode {
     fn children_named<'a>(&'a self, name: &'a str) -> impl Iterator<Item = &'a XmlNode> + 'a {
         self.children.iter().filter(move |n| n.name == name)
     }
-    fn text(&self, name: &str) -> Option<String> {
-        self.find(name).and_then(XmlNode::value)
-    }
     fn raw_text(&self, name: &str) -> Option<String> {
         self.find(name).and_then(XmlNode::raw_value)
-    }
-    fn value(&self) -> Option<String> {
-        let s = self.text.trim();
-        (!s.is_empty()).then(|| s.to_owned())
     }
     fn raw_value(&self) -> Option<String> {
         (!self.text.is_empty()).then(|| self.text.clone())
@@ -748,6 +743,33 @@ mod tests {
         ))
         .unwrap();
         assert_eq!(theme.description.as_ref().unwrap().len(), 64);
+    }
+
+    #[test]
+    fn update_settings_and_theme_strings_keep_first_direct_text_like_reborn() {
+        let update = parse_update_xml(
+            "<update><app><version> v1 </version><date> 123tail</date><notes> first <b>nested</b>last</notes><uri><![CDATA[ignored]]> uri </uri><hash><!--skip--> hash </hash></app></update>",
+        )
+        .unwrap();
+        assert_eq!(update.version.as_deref(), Some(" v1 "));
+        assert_eq!(update.date, Some(123));
+        assert_eq!(update.notes.as_deref(), Some(" first "));
+        assert_eq!(update.uri.as_deref(), Some(" uri "));
+        assert_eq!(update.hash.as_deref(), Some(" hash "));
+
+        let settings =
+            parse_settings_xml("<hbc><app_sel> sd:/apps/demo/boot.dol </app_sel></hbc>").unwrap();
+        assert_eq!(
+            settings.selected_app.as_deref(),
+            Some(" sd:/apps/demo/boot.dol ")
+        );
+
+        let theme = parse_theme_xml(
+            "<theme><description> first <b>nested</b>last</description><font><file> font.ttf </file></font></theme>",
+        )
+        .unwrap();
+        assert_eq!(theme.description.as_deref(), Some(" first "));
+        assert_eq!(theme.default_font.file.as_deref(), Some(" font.ttf "));
     }
 
     #[test]

@@ -1080,6 +1080,16 @@ fn metadata_date() -> i32 {
 }
 
 fn metadata_update() -> i32 {
+    let strings = crate::metadata::parse_update_xml(
+        "<update><app><version> v1 </version><notes> first <b>nested</b>last</notes><uri><![CDATA[ignored]]> uri </uri><hash><!--skip--> hash </hash></app></update>",
+    );
+    if !matches!(strings, Ok(ref value) if value.version.as_deref() == Some(" v1 ") && value.notes.as_deref() == Some(" first ") && value.uri.as_deref() == Some(" uri ") && value.hash.as_deref() == Some(" hash "))
+    {
+        ogc_system::report(format_args!(
+            "FAIL metadata-update raw strings: {strings:?}\n"
+        ));
+        return -1;
+    }
     let cases = [
         (Some("123tail"), Some(123)),
         (Some("  +456rest"), Some(456)),
@@ -1123,6 +1133,16 @@ fn metadata_settings() -> i32 {
             return -1;
         }
         ogc_system::report(format_args!("PASS metadata-settings {index}\n"));
+    }
+    let selected = crate::metadata::parse_settings_xml(
+        "<hbc><app_sel> sd:/apps/demo/boot.dol </app_sel></hbc>",
+    );
+    if !matches!(selected, Ok(ref settings) if settings.selected_app.as_deref() == Some(" sd:/apps/demo/boot.dol "))
+    {
+        ogc_system::report(format_args!(
+            "FAIL metadata-settings raw selection: {selected:?}\n"
+        ));
+        return -1;
     }
     0
 }
@@ -2736,11 +2756,13 @@ fn wii_startup_theme_api() -> i32 {
 }
 
 fn metadata_theme() -> i32 {
-    let xml = "<theme><font_color><red>  +4tail</red><green>5</green><blue>6</blue><alpha>255</alpha></font_color><font target='appname'><size>12px</size></font><font target='appname'><color><red>255tail</red><green>0</green><blue>7x</blue><alpha>255</alpha></color></font><font target='APPNAME'><size>20</size></font></theme>";
+    let xml = "<theme><description> first <b>nested</b>last</description><font_color><red>  +4tail</red><green>5</green><blue>6</blue><alpha>255</alpha></font_color><font><file> font.ttf </file></font><font target='appname'><size>12px</size></font><font target='appname'><color><red>255tail</red><green>0</green><blue>7x</blue><alpha>255</alpha></color></font><font target='APPNAME'><size>20</size></font></theme>";
     let Ok(theme) = crate::metadata::parse_theme_xml(xml) else {
         return -1;
     };
     if theme.default_font.color != Some(crate::metadata::Rgba(4, 5, 6, 255))
+        || theme.description.as_deref() != Some(" first ")
+        || theme.default_font.file.as_deref() != Some(" font.ttf ")
         || theme.fonts.len() != 1
         || theme.fonts[0].0 != ["appname"]
         || theme.fonts[0].1.size != Some(12)

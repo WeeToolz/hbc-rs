@@ -1,0 +1,25 @@
+{
+  "sha256": "e3f48b21b13bf96a0cf2e04422a3563343ca083c760fc420a9efa3c575912dff",
+  "dolphin_arch": "x86_64",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-iwgcmn1o",
+  "sd_fixture": null,
+  "theme_fixture": null,
+  "cases": [
+    {
+      "case": "metadata-update",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "metadata-settings",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "metadata-theme",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}
