@@ -275,8 +275,8 @@ hbc_rs::platform::startup::WiiStartup::storage_scan_pending,src/platform/startup
 hbc_rs::platform::startup::WiiStartup::storage_scan_stage_label,src/platform/startup.rs,888,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::startup::WiiStartup::theme_textures,src/platform/startup.rs,1103,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::startup::WiiStartup::unmount_storage,src/platform/startup.rs,1449,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::platform::startup::ZipInstallError::notice,src/platform/startup.rs,142,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
-hbc_rs::platform::startup::ZipInstallJoinError::notice,src/platform/startup.rs,179,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::platform::startup::ZipInstallError::notice,src/platform/startup.rs,142,partial,HBC-API-ZIP-INSTALL-ERROR-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
+hbc_rs::platform::startup::ZipInstallJoinError::notice,src/platform/startup.rs,179,extension,HBC-API-EXT-ZIP-INSTALL-JOIN-01,not_applicable,Rust asynchronous ZIP install worker join failures have no matching Reborn C API
 hbc_rs::platform::storage::FatStorage::ensure_directory,src/platform/storage.rs,514,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::storage::FatStorage::extract_archive,src/platform/storage.rs,547,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::storage::FatStorage::extract_archive_with_progress,src/platform/storage.rs,558,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.

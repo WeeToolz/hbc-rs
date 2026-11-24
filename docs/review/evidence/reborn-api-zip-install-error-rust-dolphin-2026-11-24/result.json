@@ -1,0 +1,12 @@
+{
+  "sha256": "aa0ab92038707dd0562f9198c928157a015d9ac9328c9fc5cb22f57702c70969",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-l0v9gy3d",
+  "cases": [
+    {
+      "case": "zip-install-error-api",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

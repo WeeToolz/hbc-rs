@@ -70,6 +70,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"wiiload-state-api" {
         return wiiload_state_api();
     }
+    if case == b"zip-install-error-api" {
+        return zip_install_error_api();
+    }
     if case == b"lifecycle-api" {
         return lifecycle_api();
     }
@@ -348,6 +351,72 @@ fn wiiload_state_api() -> i32 {
 
     ogc_system::report(format_args!(
         "PASS stopped Wiiload status, indicators, progress and stop\n"
+    ));
+    0
+}
+
+fn zip_install_error_api() -> i32 {
+    use crate::{
+        archive::ZipError,
+        catalog::ScanError,
+        platform::startup::{ZipInstallError, ZipInstallJoinError},
+        platform::storage::StorageError,
+    };
+
+    let errors = [
+        (
+            ZipInstallError::Archive(ZipError::TooShort),
+            "The received ZIP archive failed validation: TooShort.",
+        ),
+        (
+            ZipInstallError::Storage(StorageError::InvalidPath),
+            "Could not write the received app files: InvalidPath.",
+        ),
+        (
+            ZipInstallError::StorageCleanup {
+                operation: StorageError::InvalidPath,
+                cleanup: StorageError::Allocation,
+            },
+            "Could not write the received app files (InvalidPath); cleanup also failed (Allocation).",
+        ),
+        (
+            ZipInstallError::StorageRollback {
+                operation: StorageError::InvalidPath,
+                rollback: StorageError::Allocation,
+            },
+            "Could not install the app (InvalidPath) or restore its previous files (Allocation).",
+        ),
+        (
+            ZipInstallError::CatalogRefresh(ScanError::AppDirectory(StorageError::InvalidPath)),
+            "The app files were written, but HBC could not refresh its app list: AppDirectory(InvalidPath).",
+        ),
+        (
+            ZipInstallError::CatalogRollback {
+                operation: ScanError::Storage {
+                    path: String::from("apps"),
+                    source: StorageError::InvalidPath,
+                },
+                rollback: StorageError::Allocation,
+            },
+            "Could not refresh HBC's app list (Storage { path: \"apps\", source: InvalidPath }) or restore the previous app (Allocation).",
+        ),
+    ];
+    if errors
+        .iter()
+        .any(|(error, expected)| error.notice() != *expected)
+    {
+        return -1;
+    }
+    if ZipInstallJoinError::MissingWorker.notice()
+        != "The ZIP install worker handle is missing."
+        || ZipInstallJoinError::Failed(-5).notice()
+            != "Could not join the ZIP install worker (-5)."
+    {
+        return -2;
+    }
+
+    ogc_system::report(format_args!(
+        "PASS ZIP install operation and worker error messages\n"
     ));
     0
 }
