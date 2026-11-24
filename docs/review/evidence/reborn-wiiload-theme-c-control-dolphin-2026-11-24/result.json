@@ -1,0 +1,14 @@
+{
+  "dol_sha256": "a32c35c20e2a18ba3004aefbcea9ac10af555f0d068241e9332d6840b28fe5f6",
+  "success": true,
+  "transport": "HBC TCP input protocol",
+  "control": false,
+  "reborn_keys": false,
+  "reborn_upload": {
+    "seq": 1,
+    "result": "theme",
+    "error": null,
+    "text": "",
+    "ago_ms": 17
+  }
+}

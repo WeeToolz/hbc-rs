@@ -1,0 +1,3 @@
+Isolated profile: /Volumes/SSD/WiiDev/WeeToolz/hbc-rs/target/reborn-theme-control-r4/profile
+PASS: Test NAND copied into Dolphin profile
+Reborn reported theme upload: {'seq': 1, 'result': 'theme', 'error': None, 'text': '', 'ago_ms': 17}

@@ -1,0 +1,17 @@
+Isolated profile: /private/tmp/hbc-rs/reborn-theme-control-r2/profile
+PASS: Test NAND copied into Dolphin profile
+Reborn reported theme upload: {'seq': 1, 'result': 'theme', 'error': None, 'text': '', 'ago_ms': 17}
+Traceback (most recent call last):
+  File "/Volumes/SSD/WiiDev/WeeToolz/hbc-rs/tools/test_remote_input_dolphin.py", line 316, in <module>
+    if __name__ == "__main__": raise SystemExit(main())
+                                                ~~~~^^
+  File "/Volumes/SSD/WiiDev/WeeToolz/hbc-rs/tools/test_remote_input_dolphin.py", line 313, in main
+    (args.output / "result.json").write_text(json.dumps(result, indent=2) + "\n")
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.15/3.15.2/Frameworks/Python.framework/Versions/3.15/lib/python3.15/pathlib/__init__.py", line 1008, in write_text
+    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.15/3.15.2/Frameworks/Python.framework/Versions/3.15/lib/python3.15/pathlib/__init__.py", line 970, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: [Errno 28] No space left on device: '/private/tmp/hbc-rs/reborn-theme-control-r2/result.json'

@@ -18,6 +18,10 @@ client = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(client)
 
 
+class ReferenceComplete(Exception):
+    """The reference-only checks completed; continue through common cleanup."""
+
+
 def exchange(host, packet):
     with socket.create_connection((host,4299),timeout=5) as connection:
         connection.settimeout(5)
@@ -47,6 +51,7 @@ def main():
     parser.add_argument("--reborn-key-eof", action="store_true", help="check an interrupted HBCK body")
     parser.add_argument("--wiiload-eof", action="store_true", help="check interrupted Wiiload reads")
     parser.add_argument("--wiiload-theme", action="store_true", help="check received theme application")
+    parser.add_argument("--reborn-theme-control", action="store_true", help="check Reborn C theme upload status")
     parser.add_argument("--nand", type=Path, required=True, help="Source NAND; only a private copy is used")
     parser.add_argument("--sd-image", type=Path, help="Clone an existing private SD image into the test profile")
     parser.add_argument("--dolphin", type=Path, required=True, help="Dolphin executable")
@@ -76,7 +81,7 @@ def main():
         (profile / "Load").mkdir()
         subprocess.run(["/bin/cp", "-c", str(args.sd_image.resolve(strict=True)),
                         str(profile / "Load/WiiSD.raw")], check=True)
-    if args.wiiload_theme:
+    if args.wiiload_theme or args.reborn_theme_control:
         (profile / "Wii/title/00010001/48424345/data").mkdir(parents=True, exist_ok=True)
     print(f"Isolated profile: {profile}", flush=True)
     print("PASS: Test NAND copied into Dolphin profile", flush=True)
@@ -94,11 +99,64 @@ def main():
         while time.monotonic()<deadline:
             if process.poll() is not None:
                 raise RuntimeError("Dolphin exited before the HBC listener became ready")
+            if args.reborn_theme_control:
+                try:
+                    with socket.create_connection((args.host, 4299), timeout=.5) as probe:
+                        probe.sendall(b"HBCS".ljust(16, b"\0"))
+                        probe.settimeout(.5)
+                        if probe.recv(8) == b"":
+                            time.sleep(.25)
+                            continue
+                    break
+                except OSError:
+                    time.sleep(.25)
+                    continue
             text = log.read_text(errors="replace") if log.exists() else ""
             if "Wiiload receiver state changed to Listening" in text: break
             if "panic" in text.lower(): raise RuntimeError("guest panic during startup")
             time.sleep(.25)
         else: raise RuntimeError("guest listener did not become ready")
+        if args.reborn_theme_control:
+            def reborn_status():
+                with socket.create_connection((args.host, 4299), timeout=5) as connection:
+                    connection.settimeout(5)
+                    connection.sendall(b"HBCS".ljust(16, b"\0"))
+                    def read_exact(length):
+                        data = bytearray()
+                        while len(data) < length:
+                            chunk = connection.recv(length - len(data))
+                            if not chunk:
+                                raise RuntimeError("truncated Reborn status reply")
+                            data.extend(chunk)
+                        return bytes(data)
+                    reply = read_exact(8)
+                    status = int.from_bytes(reply[:4], "big", signed=True)
+                    length = int.from_bytes(reply[4:], "big")
+                    if status != 0 or length > 8192:
+                        raise RuntimeError(f"invalid Reborn status: {status}, {length}")
+                    return json.loads(read_exact(length))
+
+            initial = reborn_status()
+            initial_seq = (initial.get("upload") or {}).get("seq", 0)
+            theme = (ROOT / "tests/fixtures/theme-valid.zip").read_bytes()
+            header = b"HAXX\0\x05\0\0" + len(theme).to_bytes(4, "big") + bytes(4)
+            with socket.create_connection((args.host, 4299), timeout=5) as connection:
+                connection.sendall(header + theme)
+            deadline = time.monotonic() + 30
+            while time.monotonic() < deadline:
+                current = reborn_status()
+                upload = current.get("upload") or {}
+                if upload.get("seq", 0) > initial_seq:
+                    if upload.get("result") != "theme":
+                        raise RuntimeError(f"Reborn theme upload failed: {upload}")
+                    result["reborn_upload"] = upload
+                    result["success"] = True
+                    print(f"Reborn reported theme upload: {upload}", flush=True)
+                    raise ReferenceComplete
+                if process.poll() is not None:
+                    raise RuntimeError("Reborn exited while applying theme")
+                time.sleep(.2)
+            raise RuntimeError("Reborn did not report theme upload completion")
         if args.wiiload_theme:
             theme = (ROOT / "tests/fixtures/theme-valid.zip").read_bytes()
             header = b"HAXX\0\x05\0\0" + len(theme).to_bytes(4, "big") + bytes(4)
@@ -243,6 +301,8 @@ def main():
             raise RuntimeError("guest fault recorded; inspect log")
         result["success"] = True
         print("PASS: production socket and main-loop input path in Dolphin; real Wii verification remains required",flush=True)
+    except ReferenceComplete:
+        pass
     except Exception as error:
         result["error"] = str(error)
         raise

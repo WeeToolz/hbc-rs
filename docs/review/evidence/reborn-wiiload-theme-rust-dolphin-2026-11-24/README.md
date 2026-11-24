@@ -19,7 +19,7 @@ its result and raw log are included. Another attempt ran out of disk space
 before network startup; its terminal log is included. The final run passed
 after both theme paths used the existing release-before-replacement order.
 
-The Reborn behavior was reviewed in source. A matching C HBC control run was
-not performed, so this is not a complete C-versus-Rust runtime comparison.
+The Reborn behavior was reviewed in source. A later [C HBC control](../reborn-wiiload-theme-c-control-dolphin-2026-11-24/README.md)
+reported the same received archive as a theme without controller input.
 Physical Wii NAND behavior, memory headroom, and rendered theme parity remain
 open. All writes in this test used private Dolphin data.
