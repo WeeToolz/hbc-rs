@@ -41,6 +41,7 @@ def main():
     parser.add_argument("--host",required=True,help="Mac LAN address used by Dolphin's emulated Wii sockets")
     parser.add_argument("--dol",type=Path,default=ROOT/"target/hbc-rs.dol")
     parser.add_argument("--control", action="store_true", help="also test the direct terminal command service")
+    parser.add_argument("--reborn-keys", action="store_true", help="check Reborn HBCK replies")
     parser.add_argument("--nand", type=Path, required=True, help="Source NAND; only a private copy is used")
     parser.add_argument("--dolphin", type=Path, required=True, help="Dolphin executable")
     parser.add_argument("--output", type=Path, required=True, help="New result directory, including its private profile")
@@ -54,7 +55,8 @@ def main():
     profile = args.output / "profile"
     profile.mkdir()
     result = {"dol_sha256": hashlib.sha256(args.dol.read_bytes()).hexdigest(),
-              "success": False, "transport": "HBC TCP input protocol", "control": args.control}
+              "success": False, "transport": "HBC TCP input protocol", "control": args.control,
+              "reborn_keys": args.reborn_keys}
     log = profile/"Logs/dolphin.log"
 
     nand = args.nand.resolve(strict=True)
@@ -85,6 +87,15 @@ def main():
             if "panic" in text.lower(): raise RuntimeError("guest panic during startup")
             time.sleep(.25)
         else: raise RuntimeError("guest listener did not become ready")
+        if args.reborn_keys:
+            for payload in (b"", b"x", b"h", b"b", b"x" * 64):
+                packet = (b"HBCK" + len(payload).to_bytes(2, "big")).ljust(16, b"\0") + payload
+                if exchange(args.host, packet) != bytes(8):
+                    raise RuntimeError(f"HBCK reply failed for {len(payload)} bytes")
+            packet = (b"HBCK" + (65).to_bytes(2, "big")).ljust(16, b"\0")
+            if exchange(args.host, packet) != (-22).to_bytes(4, "big", signed=True) + bytes(4):
+                raise RuntimeError("oversized HBCK request was not rejected")
+            print("HBCK replies: empty, filtered, HOME, Back, full and oversized requests", flush=True)
         packet = bytearray.fromhex("48424349 0102 0000 00000080 03e8 0000 0000 0000 0000 0000 0000 0000 0000 0000")
         applied = b"HBCI\x01\0\0\0"
         if exchange(args.host,packet)!=applied: raise RuntimeError("HOME was not consumed by the real guest main loop")

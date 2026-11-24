@@ -23,6 +23,7 @@ pub mod network_config;
 mod network_scan;
 mod playtime;
 pub mod png;
+pub mod reborn_keys;
 pub mod remote_control;
 pub mod remote_input;
 pub mod render;

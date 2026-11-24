@@ -101,6 +101,42 @@ static CONTROL_SESSION: AtomicU32 = AtomicU32::new(0);
 
 static REMOTE_INPUT: crate::remote_input::Mailbox = crate::remote_input::Mailbox::new();
 
+struct RebornKeys {
+    lock: AtomicBool,
+    queue: UnsafeCell<crate::reborn_keys::KeyQueue>,
+}
+
+// Access to queue is serialized by lock.
+unsafe impl Sync for RebornKeys {}
+
+static REBORN_KEYS: RebornKeys = RebornKeys {
+    lock: AtomicBool::new(false),
+    queue: UnsafeCell::new(crate::reborn_keys::KeyQueue::new()),
+};
+
+fn with_reborn_keys<R>(f: impl FnOnce(&mut crate::reborn_keys::KeyQueue) -> R) -> Option<R> {
+    crate::wiiload::try_with_payload(&REBORN_KEYS.lock, || {
+        // SAFETY: the lock provides exclusive access to the queue.
+        f(unsafe { &mut *REBORN_KEYS.queue.get() })
+    })
+}
+
+pub fn merge_reborn_keys(
+    pacer: &mut crate::reborn_keys::KeyPacer,
+    overlay_open: bool,
+    frame: &mut crate::platform::input::InputFrame,
+) {
+    let Some(Some(key)) = with_reborn_keys(|queue| pacer.next(queue, overlay_open)) else {
+        return;
+    };
+    let Some(input) = crate::reborn_keys::input_for_key(key) else {
+        return;
+    };
+    if !frame.pressed.contains(&input) {
+        frame.pressed.push(input);
+    }
+}
+
 #[cfg(feature = "debugger-network")]
 pub static COOPERATIVE_CONTROL: CooperativeControl = CooperativeControl::new();
 
@@ -800,6 +836,26 @@ fn receive_client(
     let started_at = ogc_core::powerpc::read_timebase();
     let mut header_bytes = [0; WIILOAD_HEADER_LEN];
     read_exact(shared, client, &mut header_bytes, false, started_at)?;
+    if &header_bytes[..4] == b"HBCK" {
+        let Some(len) = crate::reborn_keys::body_length(&header_bytes) else {
+            let mut reply = [0u8; 8];
+            reply[..4].copy_from_slice(&(-22i32).to_be_bytes());
+            return write_response(shared, client, &reply, started_at).map(|()| None);
+        };
+        let mut keys = [0u8; crate::reborn_keys::CAPACITY];
+        if len != 0 && read_exact(shared, client, &mut keys[..len], false, started_at).is_err() {
+            let mut reply = [0u8; 8];
+            reply[..4].copy_from_slice(&(-22i32).to_be_bytes());
+            return write_response(shared, client, &reply, started_at).map(|()| None);
+        }
+        while with_reborn_keys(|queue| queue.push(&keys[..len])).is_none() {
+            if shared.is_stopped() {
+                return Err(ReceiveError::Stopped);
+            }
+            sleep_poll();
+        }
+        return write_response(shared, client, &[0; 8], started_at).map(|()| None);
+    }
     #[cfg(feature = "debugger-network")]
     if &header_bytes[..4] == b"HBCD" {
         let reply = debugger_diagnostics.reply(&header_bytes);

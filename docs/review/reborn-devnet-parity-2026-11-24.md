@@ -3,12 +3,12 @@
 Reborn's `devnet_handle` is called from its loader thread. It first forwards
 requests to `hbc_agent_handle`, then handles developer commands on the same
 listener as Wiiload. Rust's `receive_client` reads a 16-byte header, dispatches
-its HBCD, HBCC/HBCQ, and HBCI extensions, then attempts to decode other
-headers as Wiiload. The following Reborn commands are not dispatched there:
+its HBCD, HBCC/HBCQ, and HBCI extensions, handles HBCK, then attempts to decode other headers as Wiiload. The
+following Reborn commands need further work:
 
 | Reborn command | Reborn behavior | Remaining Rust work |
 | --- | --- | --- |
-| HBCK | Queue bounded remote HOME overlay keys and reply | Implement the bounded protocol, queue, and main-thread overlay input. |
+| HBCK | Queue bounded remote HOME overlay keys and reply | The bounded queue and shared HOME menu controls are implemented. Verify visual delivery; Reborn-only overlay actions remain open. |
 | HBCP | Reply with dimensions and the displayed YUYV framebuffer | Implement a safe framebuffer snapshot and reply, including cache handling. |
 | HBCH | Return hardware and settings information as JSON | Implement the defined information response and its supported fields. |
 | HBCS | Return HBC status as JSON | Implement the status response using production state. |

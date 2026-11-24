@@ -199,6 +199,7 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     let mut network_indicator_frame = 0u16;
     let mut reported_receiver_status = None;
     let mut remote_input = hbc_rs::remote_input::RemoteState::default();
+    let mut reborn_keys = hbc_rs::reborn_keys::KeyPacer::default();
     let mut remote_operation: Option<(u32, u64, hbc_rs::platform::control::Operation)> = None;
     let mut remote_result: Option<(u32, Result<String, String>)> = None;
     ogc_system::report(format_args!(
@@ -569,6 +570,11 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             ogc_system::report(format_args!("HBC: first controller scan complete\n"));
         }
         hbc_rs::platform::wiiload::merge_remote_input(&mut remote_input, &mut frame);
+        hbc_rs::platform::wiiload::merge_reborn_keys(
+            &mut reborn_keys,
+            startup.runtime().controller().screen == hbc_rs::app::Screen::MainMenu,
+            &mut frame,
+        );
         let storage_scan_pending = startup.storage_scan_pending();
         // Device probes own storage in their worker. Menu input stays active;
         // operations that need storage validate worker ownership at the backend.
