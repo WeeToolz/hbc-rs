@@ -40,6 +40,10 @@ The Wiiload extension scope also includes receiver cleanup diagnostics and the
 local address query; Reborn exposes neither as a public API. Remote input merged
 into the Wii input frame remains part of the separate development control
 extension.
+Rust's bounded MEM2 heap initializer is also an implementation safety boundary;
+Reborn relies on the SDK heap and has no matching public initializer. Dolphin
+acceptance calls the Rust initializer before each API case, but real Wii arena
+bounds remain pending.
 
 API-specific runtime evidence includes 17 `parse_app_xml` date cases and 8
 `parse_update_xml` date cases compared with an independent C-runtime probe in

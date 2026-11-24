@@ -200,7 +200,7 @@ hbc_rs::network_config::WifiConfigMut::set_encryption,src/network_config.rs,1198
 hbc_rs::network_config::WifiConfigMut::set_key,src/network_config.rs,1207,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
 hbc_rs::network_config::WifiConfigMut::set_ssid,src/network_config.rs,1188,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
 hbc_rs::network_config::validate_wifi,src/network_config.rs,567,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API
-hbc_rs::platform::allocator::initialize_wii,src/platform/allocator.rs,16,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::platform::allocator::initialize_wii,src/platform/allocator.rs,16,extension,HBC-API-EXT-ALLOC-01,not_applicable,Reborn relies on the SDK heap and has no public API for heap setup
 hbc_rs::platform::control::Operation::begin,src/platform/control.rs,38,extension,HBC-API-EXT-REMOTE-CONTROL-01,not_applicable,"Version 1 HBCC/HBCQ request IDs, mailbox lifecycle, replies, observations, and command dispatch have no matching Reborn C API"
 hbc_rs::platform::control::Operation::poll,src/platform/control.rs,87,extension,HBC-API-EXT-REMOTE-CONTROL-01,not_applicable,"Version 1 HBCC/HBCQ request IDs, mailbox lifecycle, replies, observations, and command dispatch have no matching Reborn C API"
 hbc_rs::platform::disc::wii::shutdown,src/platform/disc.rs,215,partial,HBC-API-DISC-02,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
