@@ -152,6 +152,15 @@ All multibyte values are big endian. States are queued 0, running 1, completed 2
 failed 3, busy 4, invalid 5, and unknown 6. Neither queued nor running is an
 operation-completion claim.
 
+## Reborn parity scope
+
+The version 1 `HBCC`/`HBCQ` command mailbox is a Rust extension. Reborn also
+uses `HBCC`, but its request has a different format and clears the saved crash
+report. Reborn does not provide this command mailbox or its request-ID and
+result-query APIs. The protocol and mailbox helpers are listed as extensions
+in the API inventory. The system operations that commands request remain
+subject to their own HBC Reborn parity checks.
+
 ## Current verification
 
 See `review/terminal-control-2026-10-18.md` for exact build identities, tests,
