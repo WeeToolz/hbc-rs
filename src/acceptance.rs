@@ -112,6 +112,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"storage-volumes" {
         return storage_volumes();
     }
+    if case == b"device-availability-api" {
+        return device_availability_api();
+    }
     if case == b"app-deletion" {
         return app_deletion();
     }
@@ -201,6 +204,42 @@ fn storage_volumes() -> i32 {
     }
     ogc_system::report(format_args!(
         "PASS storage-volumes indices, names and scan order\n"
+    ));
+    0
+}
+
+fn device_availability_api() -> i32 {
+    use crate::{app::device_availability_snapshot, runtime::AppRuntime};
+
+    let cases = [
+        [false; crate::platform::storage::DEVICE_COUNT],
+        [true, false, true, false, true],
+        [true; crate::platform::storage::DEVICE_COUNT],
+    ];
+    for (case_index, detected) in cases.into_iter().enumerate() {
+        let snapshot = device_availability_snapshot(detected);
+        if snapshot != detected {
+            ogc_system::report(format_args!(
+                "FAIL device availability snapshot {case_index}\n"
+            ));
+            return -1;
+        }
+
+        let mut runtime = AppRuntime::default();
+        runtime.set_device_availability(snapshot);
+        for (device, available) in detected.into_iter().enumerate() {
+            if runtime.controller().device_available(device) != Some(available)
+                || runtime.controller().option_enabled(device) != available
+            {
+                ogc_system::report(format_args!(
+                    "FAIL device availability forwarding {case_index}:{device}\n"
+                ));
+                return -1;
+            }
+        }
+    }
+    ogc_system::report(format_args!(
+        "PASS device availability snapshot, runtime forwarding and Options state\n"
     ));
     0
 }

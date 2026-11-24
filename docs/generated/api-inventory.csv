@@ -82,7 +82,7 @@ hbc_rs::app::AppController::wiiload_confirmation_yes,src/app.rs,399,partial,HBC-
 hbc_rs::app::AppController::wiiload_install_progress,src/app.rs,437,partial,HBC-API-WIILOAD-INSTALL-PROGRESS-GET-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::PageNavigation::has_next,src/app.rs,246,partial,HBC-API-APP-PAGE-HAS-NEXT-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::app::PageNavigation::has_previous,src/app.rs,242,partial,HBC-API-APP-PAGE-HAS-PREVIOUS-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
-hbc_rs::app::device_availability_snapshot,src/app.rs,253,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::app::device_availability_snapshot,src/app.rs,253,partial,HBC-API-DEVICE-AVAILABILITY-SNAPSHOT-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::archive::ZipArchive::entries,src/archive.rs,192,partial,HBC-API-ARCHIVE-ENTRIES-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::archive::ZipArchive::entry,src/archive.rs,197,partial,HBC-API-ARCHIVE-ENTRY-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::archive::ZipArchive::extract,src/archive.rs,205,partial,HBC-API-ARCHIVE-EXTRACT-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
@@ -385,7 +385,7 @@ hbc_rs::runtime::AppRuntime::request_wiiload_zip_confirmation,src/runtime.rs,67,
 hbc_rs::runtime::AppRuntime::save_settings_if_dirty,src/runtime.rs,192,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::set_active_device,src/runtime.rs,171,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::set_bootmii_available,src/runtime.rs,167,partial,HBC-API-RUNTIME-BOOTMII-SET-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
-hbc_rs::runtime::AppRuntime::set_device_availability,src/runtime.rs,175,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::runtime::AppRuntime::set_device_availability,src/runtime.rs,175,partial,HBC-API-RUNTIME-DEVICE-AVAILABILITY-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::runtime::AppRuntime::set_main_menu_status,src/runtime.rs,115,partial,HBC-API-RUNTIME-MAIN-STATUS-SET-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::runtime::AppRuntime::set_measured_memo,src/runtime.rs,63,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::runtime::AppRuntime::set_network_config,src/runtime.rs,111,extension,HBC-API-EXT-NET-01,not_applicable,Rust network profile APIs have no matching C HBC API

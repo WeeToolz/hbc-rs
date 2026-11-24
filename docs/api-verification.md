@@ -220,3 +220,8 @@ The storage-volume Dolphin case checks all five settings-index mappings, the
 matching mount names, and invalid-index handling through the `Volume` APIs.
 Physical device mounts and hot-plug behavior remain pending. See the [storage
 volume API record](review/evidence/reborn-storage-volume-rust-dolphin-2026-11-23/README.md).
+
+The device availability API case checks all-absent, mixed, and all-present
+probe results. It verifies runtime forwarding and Options eligibility in
+Dolphin. Live Wii media probes and hot-plug behavior remain pending; see the
+[device availability record](review/evidence/reborn-api-device-availability-rust-dolphin-2026-11-23/README.md).
