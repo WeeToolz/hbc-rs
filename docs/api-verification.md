@@ -255,9 +255,12 @@ probe results. It verifies runtime forwarding and Options eligibility in
 Dolphin. Live Wii media probes and hot-plug behavior remain pending; see the
 [device availability record](review/evidence/reborn-api-device-availability-rust-dolphin-2026-11-23/README.md).
 
-The playtime reset API now has a Dolphin check against a private copy of the
-existing NAND. It clears the nonzero four-byte prefix and preserves the rest
-of the record. The original NAND remains unchanged; physical Wii ISFS behavior
+The standalone playtime reset API has a Dolphin check against a private copy
+of the existing NAND. It clears the nonzero four-byte prefix and preserves the
+rest of the record. Production startup does not call this helper: Reborn also
+logs HBC and app sessions to `cdb.vff`, but its writer patches an IOS NAND
+permission check. Rust preserves `play_rec.dat` until a safe replacement
+logger exists. The original NAND remains unchanged; physical Wii ISFS behavior
 is pending. See the [playtime reset record](review/evidence/reborn-api-playtime-reset-rust-dolphin-2026-11-23/README.md).
 
 The platform Wiiload indicator query has an exact API inventory record. Its

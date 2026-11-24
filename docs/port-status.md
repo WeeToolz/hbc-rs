@@ -77,10 +77,7 @@ separate targets.
 
 ## Remaining runtime work
 
-- HBC resets the first four bytes of the System Menu `play_rec.dat` file
-  before settings load. Rust now checks the file length, writes through an aligned ISFS buffer,
-  closes the handle, and reads the value back. A reset failure appears as a
-  warning. A file shorter than four bytes stops the write.
+- Production startup preserves the System Menu `play_rec.dat` file. The standalone reset helper matches Reborn and checks file length, aligned ISFS writes, close results, and read-back. Rust does not call it because Reborn also logs HBC/app sessions to the Message Board, and its logger patches an IOS NAND permission check. The parity ledger records this safety difference.
 - The display scene uses HBC’s full-screen background without Rust-only
   header/footer bands. HBC’s Droid TrueType faces
   render labels, descriptions, menus, About content, and confirmation dialogs.

@@ -81,3 +81,22 @@ C `theme_init(NULL, 0)` attempts to read `theme.zip` from the channel data direc
 C also continues with default settings when its settings load fails. Rust keeps settings persistence disabled after a failed read, so it cannot overwrite settings that it did not read successfully; this is a deliberate safety difference. Rust still shows the settings failure as a five-second warning.
 
 The theme fallback is no longer a runtime warning, while real settings read failures remain visible for five seconds. Source comparison is complete; verify the updated default-theme startup screen and settings persistence on Wii hardware.
+
+
+## 2026-11-24 Message Board playtime safety follow-up
+
+A fresh comparison with Reborn `source/playtime.c` found that its startup reset
+is only one part of the behavior. Reborn also clears the menu play record,
+recognizes whether the menu started HBC, reconciles a pending app session, and
+writes HBC/app sessions to `cdb.vff`. The C writer temporarily changes an IOS
+NAND permission check under AHBPROT before it writes the Wii Menu-owned file.
+
+Rust had called the checked `play_rec.dat` reset helper during production
+startup, but had no replacement `cdb.vff` logger. That could clear the Menu
+record without recording HBC or app time. Production startup now leaves the
+record unchanged. The standalone reset helper remains available and tested
+against a private Dolphin NAND copy. This is a documented safety difference: do
+not reproduce the IOS code patch. The user-visible effect is that Message Board
+playtime does not include HBC or app sessions until a supported write path is
+defined. No live NAND was changed. See HBC-DATA-02 and HBC-DATA-03 in the parity
+ledger.

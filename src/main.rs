@@ -166,12 +166,8 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     }
 
     ogc_system::report(format_args!("HBC: loading settings and theme\n"));
-    let playtime_reset_error = hbc_rs::platform::settings::reset_playtime_record().err();
     let mut startup = hbc_rs::platform::startup::WiiStartup::initialize(view_width, 480);
     ogc_system::report(format_args!("HBC: settings and theme loaded\n"));
-    if let Some(error) = playtime_reset_error {
-        ogc_system::report(format_args!("HBC: playtime reset failed: {error:?}\n"));
-    }
     let now = ogc_system::time();
     let now_minutes = now / 60;
     let minute_cycle = ((now_minutes % 1440 + 1200) % 1440) as u16;
