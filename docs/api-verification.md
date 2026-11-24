@@ -250,3 +250,5 @@ Live network and Gecko state still require device evidence.
 A fresh Dolphin 2609a run on 2026-11-24 passed the established 22-case production API acceptance sweep. The [sweep record](review/evidence/reborn-api-sweep-rust-dolphin-2026-11-24/README.md) lists the cases and DOL identity. It refreshes those named paths only; it does not resolve unrelated APIs or physical Wii checks.
 
 The network restart millisecond clock now has a production Dolphin check. It advances after a 10 ms LWP sleep; this is partial timer evidence and does not verify live IOS networking or exact Wii timing. See the [network clock evidence](review/evidence/reborn-api-network-clock-rust-dolphin-2026-11-24/README.md).
+
+The public Wiiload `start` API now has a Dolphin worker lifecycle case. It starts the production worker, observes a terminal startup result, stops and joins it, and verifies cleared indicators. Live IOS network startup and upload behavior remain pending. See the [Wiiload start evidence](review/evidence/reborn-api-wiiload-start-rust-dolphin-2026-11-24/README.md).

@@ -319,7 +319,7 @@ hbc_rs::platform::wiiload::indicator_state,src/platform/wiiload.rs,198,partial,H
 hbc_rs::platform::wiiload::local_ip,src/platform/wiiload.rs,217,extension,HBC-API-EXT-WIILOAD-INFO-01,not_applicable,Rust receiver cleanup and local network address queries have no matching public Reborn C APIs
 hbc_rs::platform::wiiload::merge_remote_input,src/platform/wiiload.rs,107,extension,HBC-REMOTE-INPUT-01,not_applicable,Rust development control extension
 hbc_rs::platform::wiiload::receive_progress,src/platform/wiiload.rs,204,partial,HBC-API-WIILOAD-RECEIVE-PROGRESS-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
-hbc_rs::platform::wiiload::start,src/platform/wiiload.rs,126,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::platform::wiiload::start,src/platform/wiiload.rs,126,partial,HBC-API-WIILOAD-START-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::platform::wiiload::status,src/platform/wiiload.rs,182,partial,HBC-API-WIILOAD-STATUS-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::platform::wiiload::stop,src/platform/wiiload.rs,251,partial,HBC-API-WIILOAD-STOP-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::platform::wiiload::take_payload,src/platform/wiiload.rs,237,partial,HBC-API-WIILOAD-TAKE-PAYLOAD-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.

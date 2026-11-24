@@ -70,6 +70,9 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"wiiload-state-api" {
         return wiiload_state_api();
     }
+    if case == b"wiiload-start-api" {
+        return wiiload_start_api();
+    }
     if case == b"zip-install-error-api" {
         return zip_install_error_api();
     }
@@ -354,6 +357,57 @@ fn wiiload_state_api() -> i32 {
 
     ogc_system::report(format_args!(
         "PASS stopped Wiiload status, indicators, progress and stop\n"
+    ));
+    0
+}
+
+fn wiiload_start_api() -> i32 {
+    use crate::{
+        platform::wiiload::{self, ReceiverError},
+        wiiload::{IndicatorState, ReceiverStatus},
+    };
+
+    if wiiload::start().is_err() {
+        ogc_system::report(format_args!("FAIL Wiiload worker start\n"));
+        return -1;
+    }
+
+    let mut worker_status = ReceiverStatus::Starting;
+    for _ in 0..1500 {
+        worker_status = wiiload::status();
+        if worker_status != ReceiverStatus::Starting {
+            break;
+        }
+        ogc_lwp::sys::sleep_ticks((ogc_lwp::sys::TICKS_PER_SECOND / 100).max(1));
+    }
+    if worker_status == ReceiverStatus::Starting {
+        let _ = wiiload::stop();
+        ogc_system::report(format_args!("FAIL Wiiload worker startup deadline\n"));
+        return -2;
+    }
+
+    let stop = wiiload::stop();
+    let final_status = wiiload::status();
+    let indicator = wiiload::indicator_state();
+    let stopped_cleanly = stop.is_ok() && final_status == ReceiverStatus::Stopped;
+    let stopped_with_cleanup_error = matches!(stop, Err(ReceiverError::Cleanup(code))
+        if wiiload::cleanup_error() == Some(code)
+            && final_status == ReceiverStatus::CleanupError);
+    if (!stopped_cleanly && !stopped_with_cleanup_error)
+        || indicator
+            != (IndicatorState {
+                network_active: false,
+                gecko_active: false,
+            })
+    {
+        ogc_system::report(format_args!(
+            "FAIL Wiiload worker stop {worker_status:?} {stop:?} {final_status:?}\n"
+        ));
+        return -3;
+    }
+
+    ogc_system::report(format_args!(
+        "PASS Wiiload worker started as {worker_status:?}, stopped, and cleared indicators\n"
     ));
     0
 }
