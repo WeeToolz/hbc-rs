@@ -1,0 +1,12 @@
+{
+  "sha256": "9b65240e93368e54f6324b6319359cab32d25828c415dd2aa4bbc40470e53549",
+  "profile": "/private/tmp/hbc-rs/hbc-production-acceptance-_b8h_ff0",
+  "cases": [
+    {
+      "case": "wiiload-state-api",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

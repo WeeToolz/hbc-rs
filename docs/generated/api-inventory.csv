@@ -315,7 +315,7 @@ hbc_rs::platform::video::VideoSystem::wait_vsync,src/platform/video.rs,136,unver
 hbc_rs::platform::video::initialize,src/platform/video.rs,388,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::video::shutdown,src/platform/video.rs,587,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
 hbc_rs::platform::wiiload::cleanup_error,src/platform/wiiload.rs,211,extension,HBC-API-EXT-WIILOAD-INFO-01,not_applicable,Rust receiver cleanup and local network address queries have no matching public Reborn C APIs
-hbc_rs::platform::wiiload::indicator_state,src/platform/wiiload.rs,198,unverified,,not_run,No exact API-specific passing evidence is linked; broad area evidence may exist.
+hbc_rs::platform::wiiload::indicator_state,src/platform/wiiload.rs,198,partial,HBC-API-WIILOAD-PLATFORM-INDICATOR-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.
 hbc_rs::platform::wiiload::local_ip,src/platform/wiiload.rs,217,extension,HBC-API-EXT-WIILOAD-INFO-01,not_applicable,Rust receiver cleanup and local network address queries have no matching public Reborn C APIs
 hbc_rs::platform::wiiload::merge_remote_input,src/platform/wiiload.rs,107,extension,HBC-REMOTE-INPUT-01,not_applicable,Rust development control extension
 hbc_rs::platform::wiiload::receive_progress,src/platform/wiiload.rs,204,partial,HBC-API-WIILOAD-RECEIVE-PROGRESS-01,dolphin_tested,Evidence covers the named ledger cases only; full API contract and physical Wii behavior are not established.

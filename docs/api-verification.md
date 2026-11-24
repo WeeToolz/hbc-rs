@@ -241,3 +241,8 @@ The playtime reset API now has a Dolphin check against a private copy of the
 existing NAND. It clears the nonzero four-byte prefix and preserves the rest
 of the record. The original NAND remains unchanged; physical Wii ISFS behavior
 is pending. See the [playtime reset record](review/evidence/reborn-api-playtime-reset-rust-dolphin-2026-11-23/README.md).
+
+The platform Wiiload indicator query has an exact API inventory record. Its
+stopped-state result is checked through the production receiver in the
+[Wiiload state case](review/evidence/reborn-api-wiiload-state-rust-dolphin-2026-11-24/result.json).
+Live network and Gecko state still require device evidence.

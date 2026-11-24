@@ -410,10 +410,8 @@ fn zip_install_error_api() -> i32 {
     {
         return -1;
     }
-    if ZipInstallJoinError::MissingWorker.notice()
-        != "The ZIP install worker handle is missing."
-        || ZipInstallJoinError::Failed(-5).notice()
-            != "Could not join the ZIP install worker (-5)."
+    if ZipInstallJoinError::MissingWorker.notice() != "The ZIP install worker handle is missing."
+        || ZipInstallJoinError::Failed(-5).notice() != "Could not join the ZIP install worker (-5)."
     {
         return -2;
     }
@@ -479,7 +477,9 @@ fn renderer_layout_memos_api() -> i32 {
     if renderer::layout_memos(&mut invalid, &theme) != Err(VideoError::Font(FontError::InvalidSize))
         || invalid.text_runs[0].memo.is_none()
     {
-        ogc_system::report(format_args!("FAIL renderer memo layout error preservation\n"));
+        ogc_system::report(format_args!(
+            "FAIL renderer memo layout error preservation\n"
+        ));
         return -2;
     }
 
