@@ -101,6 +101,7 @@ static MENU_DEVICE: AtomicU8 = AtomicU8::new(u8::MAX);
 static MENU_INSERTED: AtomicU8 = AtomicU8::new(0);
 static MENU_INIT_MS: AtomicU32 = AtomicU32::new(0);
 static MENU_SCAN_MS: AtomicU32 = AtomicU32::new(0);
+static NETWORK_STARTS: AtomicU32 = AtomicU32::new(0);
 pub static REMOTE_CONTROL: crate::remote_control::Mailbox = crate::remote_control::Mailbox::new();
 static CONTROL_SESSION: AtomicU32 = AtomicU32::new(0);
 
@@ -125,6 +126,10 @@ pub fn publish_menu_status(
     );
     MENU_INIT_MS.store(init_ms, Ordering::Release);
     MENU_SCAN_MS.store(scan_ms, Ordering::Release);
+}
+
+pub fn successful_network_starts() -> u32 {
+    NETWORK_STARTS.load(Ordering::Acquire)
 }
 
 struct RebornKeys {
@@ -664,7 +669,11 @@ fn initialize_network(shared: &Shared) -> bool {
             ogc_system::report(format_args!(
                 "HBC: Wiiload network startup took {elapsed_ms} ms\n"
             ));
-            return sockets >= 0;
+            if sockets < 0 || shared.is_stopped() {
+                return false;
+            }
+            NETWORK_STARTS.fetch_add(1, Ordering::AcqRel);
+            return true;
         }
         sleep_poll();
     }
@@ -1012,6 +1021,9 @@ fn status_json(shared: &Shared) -> alloc::string::String {
         inserted_mask: MENU_INSERTED.load(Ordering::Acquire),
         init_ms: MENU_INIT_MS.load(Ordering::Acquire),
         scan_ms: MENU_SCAN_MS.load(Ordering::Acquire),
+        tcp_stack_size: THREAD_STACK_SIZE.min(u32::MAX as usize) as u32,
+        net_starts: successful_network_starts(),
+        time: ogc_system::time(),
         ip,
         completed,
         total,
