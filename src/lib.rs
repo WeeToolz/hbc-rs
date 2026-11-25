@@ -10,6 +10,7 @@ extern crate alloc;
 pub mod app;
 pub mod archive;
 pub mod catalog;
+pub mod crash_report;
 pub mod devfile;
 pub mod font;
 pub mod home_overlay;

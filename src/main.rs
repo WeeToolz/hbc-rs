@@ -38,6 +38,7 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     // reserving the Rust heap from MEM2 or registering hardware callbacks.
     ogc_system::init();
     hbc_rs::platform::wiiload::initialize_log_target();
+    hbc_rs::crash_report::initialize();
     hbc_rs::lastlog::initialize();
     #[cfg(feature = "debugger-usb-gecko")]
     hbc_rs::platform::lifecycle::initialize_debugger();

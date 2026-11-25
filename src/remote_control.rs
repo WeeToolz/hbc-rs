@@ -69,6 +69,11 @@ pub enum DecodeError {
     MissingRequestId,
 }
 
+/// Match Reborn's legacy `HBCC` crash-clear request, which has no body fields.
+pub fn is_reborn_crash_clear(bytes: &[u8; HEADER_LEN]) -> bool {
+    &bytes[..4] == b"HBCC" && bytes[4..].iter().all(|byte| *byte == 0)
+}
+
 impl Request {
     pub fn decode(bytes: &[u8]) -> Result<Self, DecodeError> {
         if bytes.len() != HEADER_LEN
@@ -364,6 +369,14 @@ mod tests {
                 command: None
             }),
         );
+    }
+
+    #[test]
+    fn legacy_crash_clear_is_separate_from_the_remote_command_extension() {
+        let clear = *b"HBCC\0\0\0\0\0\0\0\0\0\0\0\0";
+        assert!(is_reborn_crash_clear(&clear));
+        assert!(!is_reborn_crash_clear(&RESTART));
+        assert!(!is_reborn_crash_clear(&QUERY));
     }
 
     #[test]

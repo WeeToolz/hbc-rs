@@ -106,6 +106,18 @@ def reborn_lastlog_empty(host):
     return {"error": "ENOENT", "length": 0}
 
 
+def reborn_crash_empty(host):
+    before = reborn_status(host).get("crash")
+    if before is not None:
+        raise RuntimeError(f"HBCS reported a stale crash record: {before!r}")
+    if exchange(host, b"HBCC".ljust(16, b"\0")) != bytes(8):
+        raise RuntimeError("HBCC crash clear did not return an empty success reply")
+    after = reborn_status(host).get("crash")
+    if after is not None:
+        raise RuntimeError(f"HBCS still reported a crash after HBCC clear: {after!r}")
+    return {"before": None, "cleared": True, "after": None}
+
+
 def reborn_netlog_app(host, dol, log, process):
     port = 4407
     with socket.socket() as listener:
@@ -347,6 +359,7 @@ def main():
     parser.add_argument("--reborn-screen", action="store_true", help="check HBCP dimensions and live YUYV framebuffer reply")
     parser.add_argument("--reborn-netlog", action="store_true", help="check HBCN target set, HBCS state, and clear")
     parser.add_argument("--reborn-lastlog-empty", action="store_true", help="check HBCS and HBCL when no retained log exists")
+    parser.add_argument("--reborn-crash-empty", action="store_true", help="check HBCS and HBCC clear when no crash exists")
     parser.add_argument("--reborn-netlog-app", action="store_true", help="check HBCN memory handoff to a log probe app and back")
     parser.add_argument("--app-dol", type=Path, help="small probe DOL used by --reborn-netlog-app")
     parser.add_argument("--reborn-file", action="store_true", help="check HBCF operations against an isolated SD image")
@@ -375,6 +388,7 @@ def main():
               "reborn_screen": args.reborn_screen,
               "reborn_netlog": args.reborn_netlog,
               "reborn_lastlog_empty": args.reborn_lastlog_empty,
+              "reborn_crash_empty": args.reborn_crash_empty,
               "reborn_netlog_app": args.reborn_netlog_app,
               "reborn_file": args.reborn_file}
     log = profile/"Logs/dolphin.log"
@@ -409,7 +423,7 @@ def main():
         while time.monotonic()<deadline:
             if process.poll() is not None:
                 raise RuntimeError("Dolphin exited before the HBC listener became ready")
-            if args.reborn_theme_control or args.reborn_transfer_style or args.reborn_file or args.reborn_screen or args.reborn_netlog or args.reborn_lastlog_empty or args.reborn_netlog_app:
+            if args.reborn_theme_control or args.reborn_transfer_style or args.reborn_file or args.reborn_screen or args.reborn_netlog or args.reborn_lastlog_empty or args.reborn_crash_empty or args.reborn_netlog_app:
                 try:
                     with socket.create_connection((args.host, 4299), timeout=.5) as probe:
                         probe.sendall(b"HBCS".ljust(16, b"\0"))
@@ -494,6 +508,14 @@ def main():
             )
             result["success"] = True
             print("HBCS null lastlog and HBCL ENOENT passed", flush=True)
+            raise ReferenceComplete
+        if args.reborn_crash_empty:
+            result["reborn_crash_empty_result"] = reborn_crash_empty(args.host)
+            result.setdefault("cases", []).append(
+                {"case": "reborn-crash-empty", "success": True, "result": 0}
+            )
+            result["success"] = True
+            print("HBCS null crash and HBCC clear passed", flush=True)
             raise ReferenceComplete
         if args.reborn_netlog_app:
             result["reborn_netlog_app_result"] = reborn_netlog_app(

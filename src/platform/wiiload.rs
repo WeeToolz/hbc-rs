@@ -1107,6 +1107,10 @@ fn receive_client(
         };
         return write_devfile_reply(shared, client, status, &body, started_at).map(|()| None);
     }
+    if crate::remote_control::is_reborn_crash_clear(&header_bytes) {
+        crate::crash_report::clear();
+        return write_response(shared, client, &[0; 8], started_at).map(|()| None);
+    }
     #[cfg(feature = "debugger-network")]
     if &header_bytes[..4] == b"HBCD" {
         let reply = debugger_diagnostics.reply(&header_bytes);
@@ -1927,6 +1931,7 @@ fn status_json(shared: &Shared) -> alloc::string::String {
         transfer_style: transfer_style().as_str(),
         log: log_target(),
         lastlog: crate::lastlog::status(),
+        crash: crate::crash_report::json(),
     })
 }
 
