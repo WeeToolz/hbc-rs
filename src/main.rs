@@ -307,10 +307,18 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             ogc_system::report(format_args!(
                 "HBC: storage availability probe failed: {error:?}\n"
             ));
-            startup.runtime_mut().show_notice_with_kind(
-                "Could not refresh storage devices.",
-                hbc_rs::app::NoticeKind::Error,
-            );
+            let notice = match error {
+                hbc_rs::platform::startup::StartupError::Storage(
+                    hbc_rs::platform::storage::StorageError::UsbMount { probe, .. },
+                ) => format!(
+                    "USB storage check failed at {:?}. Error: {}. Devices found: {}.",
+                    probe.stage, probe.result, probe.candidates
+                ),
+                _ => String::from("Could not refresh storage devices."),
+            };
+            startup
+                .runtime_mut()
+                .show_notice_with_kind(&notice, hbc_rs::app::NoticeKind::Error);
         }
         #[cfg(feature = "startup-diagnostics")]
         hbc_rs::platform::diagnostics::runtime_stage(4, "DEVICE AVAILABILITY POLL DONE");

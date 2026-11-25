@@ -6,6 +6,16 @@ known. HBC's USB 1 and USB 2 choices are discovery-order volumes, not fixed
 physical ports. The physical report remains open. A Dolphin SD fixture does
 not establish physical USB enumeration or FAT mounting.
 
+The Options availability probe previously reduced a false USB presence result
+to an unavailable device, even if the USB backend had recorded a negative
+error. HBC now preserves that recorded error and displays its stage, result,
+and candidate count. A successful empty enumeration remains unavailable rather
+than an error. This change adds diagnostic visibility; it does not establish
+why the user's drive was not detected. The
+[Dolphin UI run](evidence/usb-presence-diagnostic-dolphin-2026-11-24/result.json)
+passed with no emulated USB storage. It does not test the physical failure or
+prove the new error message with a real device.
+
 The 2026-11-24 Dolphin network scan reached the wireless driver and returned
 one record. HBC rejected it: its declared length was 60 bytes, while the local
 libogc `BSSDescriptor` includes 62 bytes of fixed fields. The diagnostic

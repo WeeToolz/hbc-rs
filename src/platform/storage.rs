@@ -33,6 +33,11 @@ fn usb_mount_is_absent<E: PartialEq>(
     error == unavailable && enumeration_succeeded && candidates == 0
 }
 
+#[cfg(any(test, target_arch = "powerpc"))]
+pub(crate) fn usb_presence_has_failure(present: bool, result: i32) -> bool {
+    !present && result < 0
+}
+
 /// Keep retries active, but show the same failure only once until recovery.
 #[cfg(any(test, target_arch = "powerpc"))]
 pub(crate) struct StorageFailureNotice<E> {
@@ -177,6 +182,13 @@ mod device_selection_tests {
         OptionsStoragePlan, StorageFailureNotice, StoragePresence, VOLUMES, Volume,
         classify_device_presence, device_scan_order, plan_options_storage, unmount_name,
     };
+
+    #[test]
+    fn usb_presence_preserves_negative_probe_errors() {
+        assert!(super::usb_presence_has_failure(false, -5));
+        assert!(!super::usb_presence_has_failure(false, 0));
+        assert!(!super::usb_presence_has_failure(true, -5));
+    }
 
     #[test]
     fn sort_only_options_keep_the_mounted_volume_during_a_device_probe() {

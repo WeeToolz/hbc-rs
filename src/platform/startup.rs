@@ -80,7 +80,7 @@ struct MountScanResult {
 #[derive(Clone, Copy)]
 struct DeviceProbeResult {
     availability: [bool; super::storage::DEVICE_COUNT],
-    error: Option<ogc_fat::FatError>,
+    error: Option<StorageError>,
 }
 
 fn load_default_theme_textures(widescreen: bool) -> super::theme::ThemeTextures {
@@ -471,7 +471,7 @@ unsafe extern "C" fn zip_install_entry(_argument: *mut c_void) -> *mut c_void {
     null_mut()
 }
 
-fn probe_one_device(volume: Volume) -> Result<bool, ogc_fat::FatError> {
+fn probe_one_device(volume: Volume) -> Result<bool, StorageError> {
     let source = match volume {
         Volume::Sd => ogc_fat::MountSource::Sd,
         Volume::Usb => ogc_fat::MountSource::Usb,
@@ -479,11 +479,22 @@ fn probe_one_device(volume: Volume) -> Result<bool, ogc_fat::FatError> {
         Volume::CardA => ogc_fat::MountSource::CardA,
         Volume::CardB => ogc_fat::MountSource::CardB,
     };
-    classify_device_presence(
+    let present = classify_device_presence(
         ogc_fat::device_is_inserted(source),
         ogc_fat::FatError::DeviceUnavailable,
         ogc_fat::FatError::MediaRemoved,
     )
+    .map_err(StorageError::Fat)?;
+    if matches!(volume, Volume::Usb | Volume::Usb2) && !present {
+        let probe = ogc_usbstorage_sys::probe_status();
+        if super::storage::usb_presence_has_failure(present, probe.result) {
+            return Err(StorageError::UsbMount {
+                error: ogc_fat::FatError::DeviceUnavailable,
+                probe,
+            });
+        }
+    }
+    Ok(present)
 }
 
 unsafe extern "C" fn device_probe_entry(_argument: *mut c_void) -> *mut c_void {
@@ -1080,7 +1091,7 @@ impl WiiStartup {
         DEVICE_PROBE_STATE.store(DEVICE_PROBE_IDLE, Ordering::Release);
         join_result.map_err(StartupError::ScanWorker)?;
         if let Some(error) = result.error {
-            return Err(StartupError::Storage(StorageError::Fat(error)));
+            return Err(StartupError::Storage(error));
         }
         Ok(true)
     }
