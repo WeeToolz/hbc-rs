@@ -48,6 +48,16 @@ it reads `PAD_ButtonsDown(0)`, `PAD_ButtonsHeld(0)`, and `PAD_ButtonsUp(0)`.
 `controls_sticky` also reads `PAD_StickY(0)`. Rust's port-zero mapping matches
 this source, so no four-port mapping change was made.
 
+The same C source review confirms that a valid pointer owner supplies all
+three button transition masks. If no Remote owns the pointer, C combines masks
+from all probed Remotes. Rust previously filtered non-owner down and held
+masks, but still exposed non-owner releases. The production mapper now applies
+the owner rule to releases as well. Its host regression checks both owner and
+no-owner cases. The HBC runtime has no local button latch that needs a
+non-owner release for cleanup; Rust's separately queued remote-input path
+keeps its own release handling. Wii Remote ownership handoff remains unverified
+on hardware.
+
 Rust returned an empty input frame when the controller manager reported a Wii
 Remote poll error. C HBC continues its input scan, and the manager already
 records the source error. Rust now keeps valid PAD and USB input for that frame
@@ -55,10 +65,10 @@ and retains the recorded error. Host tests and a Wii PowerPC build pass. These
 checks do not establish physical Remote connection or button behavior.
 
 The rebuilt debug-network DOL is
-`target/hbc-rs.dol` (2,490,272 bytes; SHA-256
-`94465dbb6faa6ddb412e7d1fbddf92074c2344e37a8db2be4cd4c51638985fc5`). It was
-built from HBC revision `05d32a2d1990ba43479edbb59ef8e2773a41cbc3` with the
-input changes above and libogc-rs `e28e6af5fd9992ce822c200fab8ae4c26b71a5eb`,
+`target/hbc-rs.dol` (2,490,368 bytes; SHA-256
+`0f996fbfeb459a91968170773331a67e639d330bc348b21f6bb2e88eff5da0a8`). It was
+built from HBC revision `c504fb3` with the WPAD poll and pointer-owner fixes
+in this report, and libogc-rs `e28e6af5fd9992ce822c200fab8ae4c26b71a5eb`,
 using `debugger-network`. It has not passed the required automatic recovery
 qualification in Dolphin, so it is not cleared for Wii upload. The physical
 Wii Remote and network reports remain unresolved. The current DOL also did not

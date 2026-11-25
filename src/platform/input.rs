@@ -294,12 +294,10 @@ fn map_input_masks(
     }
     map_pad(pad_up, &mut mapped.up);
     for (channel, transitions) in wpad.into_iter().enumerate() {
-        // Releases from disconnected controllers must reach the input frame,
-        // even when there is no current raw WPAD sample or pointer owner.
-        map_wpad_buttons(transitions.extension, transitions.up, &mut mapped.up);
         if pointer_owner.is_some_and(|owner| owner != channel) {
             continue;
         }
+        map_wpad_buttons(transitions.extension, transitions.up, &mut mapped.up);
         map_wpad_buttons(transitions.extension, transitions.down, &mut mapped.down);
         map_wpad_buttons(transitions.extension, transitions.held, &mut mapped.held);
     }
@@ -1161,9 +1159,10 @@ mod tests {
     }
 
     #[test]
-    fn production_mapper_combines_wpad_channels_and_keeps_releases_on_disconnect() {
+    fn production_mapper_limits_wpad_transitions_to_pointer_owner() {
         let mut wpad = [RawWpadTransitions::default(); 4];
         wpad[0].down = 0x0008;
+        wpad[0].up = 0x0008;
         wpad[1].down = 0x0004;
         wpad[1].up = 0x0001;
         let mapped = map_input_masks(0, 0, 0, wpad, None, true);
@@ -1174,7 +1173,8 @@ mod tests {
         let owner = map_input_masks(0, 0, 0, wpad, Some(0), true);
         assert!(owner.down.0 & Buttons::CONFIRM != 0);
         assert_eq!(owner.down.0 & Buttons::BACK, 0);
-        assert!(owner.up.0 & Buttons::BROWSE_MODE != 0);
+        assert!(owner.up.0 & Buttons::CONFIRM != 0);
+        assert_eq!(owner.up.0 & Buttons::BROWSE_MODE, 0);
     }
 
     #[test]
