@@ -561,20 +561,45 @@ fn map_screenshot_extension_buttons(mask: u32, extension: Extension, out: &mut B
     }
 }
 
+#[cfg(any(target_arch = "powerpc", test))]
+fn configure_wpad_channels(
+    mut set_format: impl FnMut(i32) -> i32,
+    mut set_resolution: impl FnMut(i32) -> i32,
+    mut set_timeout: impl FnMut(),
+    mut report_error: impl FnMut(i32, &'static str, i32),
+) -> Result<(), i32> {
+    let mut first_error = None;
+    for channel in 0..4 {
+        for (operation, result) in [
+            ("format", set_format(channel)),
+            ("resolution", set_resolution(channel)),
+        ] {
+            if result < 0 {
+                report_error(channel, operation, result);
+                first_error.get_or_insert(result);
+            }
+        }
+    }
+    set_timeout();
+    first_error.map_or(Ok(()), Err)
+}
+
 #[cfg(target_arch = "powerpc")]
 fn configure_wpad(view_width: u32, view_height: u32) -> Result<(), i32> {
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("WPAD SETTINGS");
-    wpad_sys::set_idle_timeout(WPAD_IDLE_TIMEOUT_SECONDS);
     let ir_width = view_width.saturating_add(128);
     let ir_height = view_height.saturating_add(128);
-    for channel in 0..4 {
-        let rc = wpad_sys::set_data_format(channel, wpad_sys::WPAD_FMT_BTNS_ACC_IR);
-        if rc < wpad_sys::WPAD_ERR_NONE as i32 {
-            return Err(rc);
-        }
-        wpad_sys::set_v_res(channel, ir_width, ir_height);
-    }
+    configure_wpad_channels(
+        |channel| wpad_sys::set_data_format(channel, wpad_sys::WPAD_FMT_BTNS_ACC_IR),
+        |channel| wpad_sys::set_v_res(channel, ir_width, ir_height),
+        || wpad_sys::set_idle_timeout(WPAD_IDLE_TIMEOUT_SECONDS),
+        |channel, operation, error| {
+            ogc_system::report(format_args!(
+                "HBC: WPAD channel {channel} {operation} failed: {error}\n"
+            ));
+        },
+    )?;
     WPAD_STARTED.store(true, Ordering::Release);
     Ok(())
 }
@@ -820,6 +845,44 @@ fn extension_from_raw_type(expansion: i32) -> Option<Extension> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn wpad_configuration_attempts_every_channel_before_timeout() {
+        use core::cell::RefCell;
+        let calls = RefCell::new(Vec::new());
+        let errors = RefCell::new(Vec::new());
+        let result = configure_wpad_channels(
+            |channel| {
+                calls.borrow_mut().push(("format", channel));
+                if channel == 1 { -7 } else { 0 }
+            },
+            |channel| {
+                calls.borrow_mut().push(("resolution", channel));
+                if channel == 2 { -8 } else { 0 }
+            },
+            || calls.borrow_mut().push(("timeout", -1)),
+            |channel, operation, error| errors.borrow_mut().push((channel, operation, error)),
+        );
+        assert_eq!(result, Err(-7));
+        assert_eq!(
+            calls.into_inner(),
+            [
+                ("format", 0),
+                ("resolution", 0),
+                ("format", 1),
+                ("resolution", 1),
+                ("format", 2),
+                ("resolution", 2),
+                ("format", 3),
+                ("resolution", 3),
+                ("timeout", -1),
+            ]
+        );
+        assert_eq!(
+            errors.into_inner(),
+            [(1, "format", -7), (2, "resolution", -8)]
+        );
+    }
 
     #[test]
     fn wpad_idle_timeout_matches_reborn_five_minute_setting() {
