@@ -334,6 +334,24 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 .runtime_mut()
                 .show_notice_with_kind(&notice, hbc_rs::app::NoticeKind::Error);
         }
+        let active_device = startup.mounted_volume();
+        let inserted_mask = hbc_rs::platform::storage::VOLUMES.iter().enumerate().fold(
+            0u8,
+            |mask, (index, volume)| {
+                if Some(*volume) == active_device
+                    || startup.runtime().controller().device_available(index) == Some(true)
+                {
+                    mask | (1 << index)
+                } else {
+                    mask
+                }
+            },
+        );
+        hbc_rs::platform::wiiload::publish_menu_status(
+            startup.runtime().catalog().len(),
+            active_device,
+            inserted_mask,
+        );
         #[cfg(feature = "startup-diagnostics")]
         hbc_rs::platform::diagnostics::runtime_stage(4, "DEVICE AVAILABILITY POLL DONE");
         if first_frame {

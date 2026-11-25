@@ -96,10 +96,30 @@ impl Drop for PayloadGuard<'_> {
 }
 
 static SHARED: Shared = Shared::new();
+static MENU_APP_COUNT: AtomicU32 = AtomicU32::new(0);
+static MENU_DEVICE: AtomicU8 = AtomicU8::new(u8::MAX);
+static MENU_INSERTED: AtomicU8 = AtomicU8::new(0);
 pub static REMOTE_CONTROL: crate::remote_control::Mailbox = crate::remote_control::Mailbox::new();
 static CONTROL_SESSION: AtomicU32 = AtomicU32::new(0);
 
 static REMOTE_INPUT: crate::remote_input::Mailbox = crate::remote_input::Mailbox::new();
+
+/// Publish the current app and storage view for nonblocking HBCS requests.
+pub fn publish_menu_status(
+    app_count: usize,
+    active_device: Option<crate::platform::storage::Volume>,
+    inserted_mask: u8,
+) {
+    MENU_APP_COUNT.store(app_count.min(u32::MAX as usize) as u32, Ordering::Release);
+    MENU_DEVICE.store(
+        active_device.map_or(u8::MAX, |volume| volume.settings_index() as u8),
+        Ordering::Release,
+    );
+    MENU_INSERTED.store(
+        inserted_mask & ((1 << crate::platform::storage::DEVICE_COUNT) - 1),
+        Ordering::Release,
+    );
+}
 
 struct RebornKeys {
     lock: AtomicBool,
@@ -968,6 +988,9 @@ fn status_json(shared: &Shared) -> alloc::string::String {
             network::ip4_addr4(address) as u8,
         ]
     });
+    let device = crate::platform::storage::Volume::from_settings_index(
+        MENU_DEVICE.load(Ordering::Acquire) as i32,
+    );
     crate::wiiload::reborn_status_json(crate::wiiload::RebornStatusSnapshot {
         version: env!("CARGO_PKG_VERSION"),
         network: status,
@@ -978,6 +1001,9 @@ fn status_json(shared: &Shared) -> alloc::string::String {
         heap_free: crate::platform::allocator::WII_ALLOCATOR
             .free_bytes()
             .min(u32::MAX as usize) as u32,
+        apps: MENU_APP_COUNT.load(Ordering::Acquire),
+        device,
+        inserted_mask: MENU_INSERTED.load(Ordering::Acquire),
         ip,
         completed,
         total,
