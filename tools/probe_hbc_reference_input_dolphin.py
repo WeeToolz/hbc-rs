@@ -42,7 +42,7 @@ def main():
     parser.add_argument('--app-dir', type=Path,
                         help='Load this real app directory from emulated SD instead of the three-app input fixture')
     parser.add_argument('--sd-image', type=Path,
-                        help='Read-only SD image for --app-dir; defaults to Dolphin’s configured image')
+                        help='Use this read-only SD image with --app-dir; by default Dolphin uses the private folder-sync card')
     parser.add_argument('--post-launch-seconds', type=int, default=30,
                         help='Seconds to allow the selected app to draw its first frame (5..180)')
     parser.add_argument('--load-focus-left', action='store_true',
@@ -62,8 +62,6 @@ def main():
     temp_root.mkdir(parents=True, exist_ok=True)
     app_dir = args.app_dir.resolve(strict=True) if args.app_dir else None
     sd_image = args.sd_image
-    if app_dir is not None and sd_image is None:
-        sd_image = Path.home() / 'Library/Application Support/Dolphin/Load/WiiSD.raw'
     if sd_image is not None:
         sd_image = sd_image.resolve(strict=True)
     if args.verify_app_entry and app_dir is None:
@@ -116,12 +114,19 @@ def main():
                 copy_private_tree(app_dir, profile / 'Load/WiiSDSync/apps' / app_dir.name)
                 configure_capture_profile(profile)
                 result['fixture'] = {'application': app_identity}
-                result['sd_image'] = {
-                    'path': str(sd_image),
-                    'bytes': sd_image.stat().st_size,
-                    'sha256': sha256_file(sd_image),
-                    'writes_enabled': False,
-                }
+                if sd_image is None:
+                    result['sd_card'] = {
+                        'mode': 'private-folder-sync',
+                        'sync_folder': str(profile / 'Load/WiiSDSync'),
+                        'writes_enabled': True,
+                    }
+                else:
+                    result['sd_image'] = {
+                        'path': str(sd_image),
+                        'bytes': sd_image.stat().st_size,
+                        'sha256': sha256_file(sd_image),
+                        'writes_enabled': False,
+                    }
                 result['expected_visible_result'] = 'The selected application starts and draws its screen'
             set_initial_sort(profile)
             remote_fd = configure_profile(

@@ -318,6 +318,7 @@ class DolphinProfileTests(unittest.TestCase):
 
             self.assertEqual(core['WiiSDCardSyncFolder'], str(profile / 'Load/WiiSDSync'))
             self.assertEqual(core['WiiSDCardAllowWrites'], 'True')
+            self.assertNotIn('WiiSDCardPath', core)
 
     def test_reference_sd_image_is_read_only(self):
         with tempfile.TemporaryDirectory() as temporary:
