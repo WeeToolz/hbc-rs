@@ -1,0 +1,76 @@
+{
+  "image": "/Volumes/SSD/WiiDev/WeeToolz/hbc-rs/target/hbc-rs.dol",
+  "sha256": "6d67360c4b579e787256d7c80a8f915a421fe4dcbce585f7570adea0f17ba8d9",
+  "temp_root": "/private/tmp",
+  "dolphin_arch": "x86_64",
+  "physical_wii_tested": false,
+  "capture_complete": true,
+  "input_verification": "requires screenshot review",
+  "stages": [
+    {
+      "name": "pointer-center",
+      "screenshot": "/private/tmp/hbc-rs-input-r4/dolphin-20261125-140830-156610709108291.png"
+    },
+    {
+      "name": "pointer-upper-left",
+      "screenshot": "/private/tmp/hbc-rs-input-r4/dolphin-20261125-140832-156612690352916.png"
+    },
+    {
+      "name": "pointer-lower-right",
+      "screenshot": "/private/tmp/hbc-rs-input-r4/dolphin-20261125-140834-156614672095625.png"
+    },
+    {
+      "name": "button-1",
+      "screenshot": "/private/tmp/hbc-rs-input-r4/dolphin-20261125-140836-156617064975541.png"
+    },
+    {
+      "name": "pointer-click-app-details",
+      "screenshot": "/private/tmp/hbc-rs-input-r4/dolphin-20261125-140840-156620878463750.png"
+    },
+    {
+      "name": "button-2",
+      "screenshot": "/private/tmp/hbc-rs-input-r4/dolphin-20261125-140844-156624491597875.png"
+    }
+  ],
+  "fixture": {
+    "name_order": [
+      "Amber",
+      "Birch",
+      "Cedar"
+    ],
+    "date_order": [
+      "Cedar",
+      "Birch",
+      "Amber"
+    ],
+    "apps": [
+      {
+        "directory": "cedar",
+        "title": "Cedar",
+        "release_date": "20250304120000"
+      },
+      {
+        "directory": "amber",
+        "title": "Amber",
+        "release_date": "20240102120000"
+      },
+      {
+        "directory": "birch",
+        "title": "Birch",
+        "release_date": "20241203120000"
+      }
+    ]
+  },
+  "command": [
+    "/usr/bin/arch",
+    "-x86_64",
+    "/Applications/Dolphin.app/Contents/MacOS/Dolphin",
+    "-b",
+    "-u",
+    "/private/tmp/hbc-c-input-9ase8ffw",
+    "-e",
+    "/Volumes/SSD/WiiDev/WeeToolz/hbc-rs/target/hbc-rs.dol"
+  ],
+  "load_focus_left": false,
+  "dolphin_exit_code": 0
+}

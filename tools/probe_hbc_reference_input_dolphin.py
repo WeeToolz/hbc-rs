@@ -22,6 +22,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--image', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--temp-root', type=Path,
+                        default=Path('/Volumes/SSD/WiiDev/tmp'),
+                        help='Directory for the private Dolphin profile')
+    parser.add_argument('--dolphin-arch', choices=('arm64', 'x86_64'),
+                        help='Architecture for the Dolphin executable')
     parser.add_argument('--app-dir', type=Path,
                         help='Load this real app directory from emulated SD instead of the three-app input fixture')
     parser.add_argument('--post-launch-seconds', type=int, default=30,
@@ -39,6 +44,8 @@ def main():
     if not 5 <= args.post_launch_seconds <= 180:
         parser.error('--post-launch-seconds must be from 5 to 180')
     image = args.image.resolve(strict=True)
+    temp_root = args.temp_root.resolve()
+    temp_root.mkdir(parents=True, exist_ok=True)
     app_dir = args.app_dir.resolve(strict=True) if args.app_dir else None
     if args.verify_app_entry and app_dir is None:
         parser.error('--verify-app-entry requires --app-dir')
@@ -66,13 +73,15 @@ def main():
     args.output.mkdir(parents=True, exist_ok=False)
     result = {
         'image': str(image), 'sha256': hashlib.sha256(image.read_bytes()).hexdigest(),
+        'temp_root': str(temp_root),
+        'dolphin_arch': args.dolphin_arch or 'default',
         'physical_wii_tested': False, 'capture_complete': False,
         'input_verification': 'requires screenshot review', 'stages': [],
     }
     process = None
     connection = None
     remote_fd = hotkey_fd = None
-    with tempfile.TemporaryDirectory(prefix='hbc-c-input-', dir='/Volumes/SSD/WiiDev/tmp') as temporary:
+    with tempfile.TemporaryDirectory(prefix='hbc-c-input-', dir=temp_root) as temporary:
         profile = Path(temporary)
         try:
             shutil.copytree(Path.home() / 'Library/Application Support/Dolphin/Wii', profile / 'Wii')
@@ -110,6 +119,8 @@ def main():
                 command = [
                     '/Applications/Dolphin.app/Contents/MacOS/Dolphin', '-b',
                     '-u', str(profile), '-e', str(image)]
+                if args.dolphin_arch:
+                    command[:0] = ['/usr/bin/arch', f'-{args.dolphin_arch}']
                 if args.verify_app_entry:
                     command += ['-d', '-C', f'Dolphin.General.GDBPort={args.debug_port}',
                                 '-C', 'Dolphin.Core.CPUThread=False']

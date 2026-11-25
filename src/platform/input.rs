@@ -13,8 +13,8 @@ const RIGHT_STICK_THRESHOLD: i16 = 8192;
 pub(crate) const WPAD_IDLE_TIMEOUT_SECONDS: u32 = 300;
 #[cfg(any(target_arch = "powerpc", test))]
 use ogc_controller::{
-    ControllerSnapshot, ControllerSource, DigitalStickMapper, MAX_CONTROLLERS, StickDirectionError,
-    StickDirectionFrame, StickDirectionSample,
+    ControllerSnapshot, ControllerSource, DigitalStickMapper, MAX_CONTROLLERS,
+    MAX_GAMECUBE_CONTROLLERS, StickDirectionError, StickDirectionFrame, StickDirectionSample,
 };
 
 use crate::app::Input;
@@ -694,11 +694,16 @@ pub fn scan() -> Result<InputFrame, InputScanError> {
 
     let mut pointer = None;
     let mut pointer_pressed = false;
-    let mut stick_scroll = if raw.pad_status[0].err == ogc_input::PAD_ERR_NONE as i8 {
-        deadzone(i32::from(raw.pad_status[0].stick_y))
-    } else {
-        0
-    };
+    let pad_sample_valid = raw
+        .pad_status
+        .iter()
+        .any(|status| status.err == ogc_input::PAD_ERR_NONE as i8);
+    let mut stick_scroll = gamecube_stick_scroll(
+        core::array::from_fn(|channel| raw.pad_status[channel].stick_y),
+        core::array::from_fn(|channel| {
+            raw.pad_status[channel].err == ogc_input::PAD_ERR_NONE as i8
+        }),
+    );
     if let Some(owner) = owner {
         if let Some(state) = raw.wpad_data[owner].as_ref() {
             stick_scroll += extension_stick_y(state);
@@ -716,12 +721,12 @@ pub fn scan() -> Result<InputFrame, InputScanError> {
         transitions.up = raw.wpad_buttons_up[channel];
     }
     let mut mapped = map_input_masks(
-        raw.pad_buttons_down[0],
-        raw.pad_buttons_held[0],
-        raw.pad_buttons_up[0],
+        combine_pad_masks(raw.pad_buttons_down),
+        combine_pad_masks(raw.pad_buttons_held),
+        combine_pad_masks(raw.pad_buttons_up),
         wpad_transitions,
         owner,
-        raw.pad_status[0].err == ogc_input::PAD_ERR_NONE as i8,
+        pad_sample_valid,
     );
     // SAFETY: HBC scans on one main thread and owns this mapper for its life.
     let (additional_scroll, stick_navigation) =
@@ -776,6 +781,24 @@ fn deadzone(value: i32) -> i32 {
     } else {
         0
     }
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+fn combine_pad_masks(masks: [u16; MAX_GAMECUBE_CONTROLLERS]) -> u16 {
+    masks.into_iter().fold(0, |combined, mask| combined | mask)
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+fn gamecube_stick_scroll(
+    stick_y: [i8; MAX_GAMECUBE_CONTROLLERS],
+    valid: [bool; MAX_GAMECUBE_CONTROLLERS],
+) -> i32 {
+    stick_y
+        .into_iter()
+        .zip(valid)
+        .filter(|(_, valid)| *valid)
+        .map(|(value, _)| deadzone(i32::from(value)))
+        .sum()
 }
 
 #[cfg(target_arch = "powerpc")]
@@ -1135,6 +1158,38 @@ mod tests {
         let mapped = map_input_masks(0x0100, 0, 0, [RawWpadTransitions::default(); 4], None, true);
         assert!(mapped.down.0 & Buttons::CONFIRM != 0);
         assert_eq!(mapped.held, Buttons::default());
+    }
+
+    #[test]
+    fn gamecube_button_masks_combine_edges_from_all_four_ports() {
+        let down = [0x0100, 0x0200, 0x0800, 0x0001];
+        let held = [0x0100, 0x0200, 0x0800, 0x0001];
+        let up = [0x0100, 0x0200, 0x0800, 0x0001];
+        let mapped = map_input_masks(
+            combine_pad_masks(down),
+            combine_pad_masks(held),
+            combine_pad_masks(up),
+            [RawWpadTransitions::default(); 4],
+            None,
+            true,
+        );
+
+        assert_eq!(
+            mapped.down.0,
+            Buttons::CONFIRM | Buttons::BACK | Buttons::BROWSE_MODE | Buttons::LEFT
+        );
+        assert_eq!(mapped.held, mapped.down);
+        assert_eq!(mapped.up, mapped.down);
+    }
+
+    #[test]
+    fn gamecube_stick_scroll_sums_deadzone_adjusted_values_per_valid_port() {
+        assert_eq!(gamecube_stick_scroll([20, -20, 10, 11], [true; 4]), 1);
+        assert_eq!(gamecube_stick_scroll([20, -20, 40, -40], [true; 4]), 0);
+        assert_eq!(
+            gamecube_stick_scroll([20, 80, -20, 40], [true, false, true, true]),
+            30
+        );
     }
 
     #[test]
