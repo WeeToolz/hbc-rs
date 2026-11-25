@@ -11,7 +11,7 @@ following Reborn commands need further work:
 | HBCK | Queue bounded remote HOME overlay keys and reply | The bounded queue and shared HOME menu controls are implemented. Verify visual delivery; Reborn-only overlay actions remain open. |
 | HBCP | Reply with dimensions and the displayed YUYV framebuffer | Implement a safe framebuffer snapshot and reply, including cache handling. |
 | HBCH | Return hardware and settings information as JSON | Implement the defined information response and its supported fields. |
-| HBCS | Return HBC status as JSON | Implement the status response using production state. |
+| HBCS | Return HBC status as JSON | Rust now returns version, protocol, live receiver state, local IP, and receive progress. The response remains partial until IOS, memory, storage, startup, transfer, crash, upload, and retained-log state are available and checked against the client. |
 | HBCT | Select a transfer display style | Implement the supported style names and view update. |
 | HBCF | Serve developer file operations | Implement the request protocol and bounded storage operations. |
 | HBCA | Record the next upload name and flags | Implement the one-shot name, flags, expiry, and install policy. |

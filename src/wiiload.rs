@@ -177,6 +177,26 @@ pub enum ReceiverStatus {
     CleanupError = 9,
 }
 
+/// Build the Reborn HBCS JSON fields that the Rust receiver can report live.
+/// System, storage, startup, and retained-log fields need separate production
+/// state before this response can be complete.
+#[cfg_attr(not(target_arch = "powerpc"), allow(dead_code))]
+pub(crate) fn reborn_status_json(
+    version: &str,
+    network: &str,
+    ip: Option<[u8; 4]>,
+    completed: u32,
+    total: u32,
+) -> alloc::string::String {
+    let ip = ip.map_or_else(
+        || alloc::string::String::from("null"),
+        |[a, b, c, d]| alloc::format!("\"{a}.{b}.{c}.{d}\""),
+    );
+    alloc::format!(
+        "{{\"version\":\"{version}\",\"proto\":6,\"ip\":{ip},\"network\":\"{network}\",\"receive\":{{\"completed\":{completed},\"total\":{total}}}}}"
+    )
+}
+
 /// Clear worker ownership only after the join confirms thread completion.
 #[cfg_attr(not(any(target_arch = "powerpc", test)), allow(dead_code))]
 pub(crate) fn complete_worker_join(
@@ -371,6 +391,18 @@ pub struct WiiloadPayload {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reborn_status_json_reports_live_receiver_fields_and_null_ip() {
+        assert_eq!(
+            reborn_status_json("1.2.3", "receiving", Some([192, 168, 1, 20]), 31, 64),
+            r#"{"version":"1.2.3","proto":6,"ip":"192.168.1.20","network":"receiving","receive":{"completed":31,"total":64}}"#
+        );
+        assert_eq!(
+            reborn_status_json("1.2.3", "network_unavailable", None, 0, 0),
+            r#"{"version":"1.2.3","proto":6,"ip":null,"network":"network_unavailable","receive":{"completed":0,"total":0}}"#
+        );
+    }
 
     #[test]
     fn zlib_stream_decoder_reads_bounded_chunks_without_buffering_the_wire_body() {

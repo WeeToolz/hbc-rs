@@ -881,6 +881,15 @@ fn receive_client(
         receive_remote_input(shared, client, &packet, started_at)?;
         return Ok(None);
     }
+    if &header_bytes[..4] == b"HBCS" {
+        let body = status_json(shared);
+        let mut response = Vec::with_capacity(8 + body.len());
+        response.extend_from_slice(&0i32.to_be_bytes());
+        response.extend_from_slice(&(body.len() as u32).to_be_bytes());
+        response.extend_from_slice(body.as_bytes());
+        write_response(shared, client, &response, started_at)?;
+        return Ok(None);
+    }
     let header = WiiloadHeader::decode(&header_bytes).map_err(|_| ReceiveError::Invalid)?;
     shared.set_status(ReceiverStatus::Receiving);
     let body_len = header.body_len().map_err(|_| ReceiveError::Invalid)?;
@@ -931,6 +940,35 @@ fn receive_client(
         args.len()
     ));
     Ok(Some(WiiloadPayload { data, args }))
+}
+
+fn status_json(shared: &Shared) -> alloc::string::String {
+    let status = match shared.status.load(Ordering::Acquire) {
+        1 => "starting",
+        2 => "network_unavailable",
+        3 => "listening",
+        4 => "receiving",
+        5 => "payload_ready",
+        6 => "invalid_upload",
+        7 => "listener_error",
+        8 => "memory_error",
+        9 => "cleanup_error",
+        _ => "stopped",
+    };
+    let (completed, total) = (
+        shared.receive_completed.load(Ordering::Acquire),
+        shared.receive_total.load(Ordering::Acquire),
+    );
+    let address = network::get_host_ip();
+    let ip = (address != 0).then(|| {
+        [
+            network::ip4_addr1(address) as u8,
+            network::ip4_addr2(address) as u8,
+            network::ip4_addr3(address) as u8,
+            network::ip4_addr4(address) as u8,
+        ]
+    });
+    crate::wiiload::reborn_status_json(env!("CARGO_PKG_VERSION"), status, ip, completed, total)
 }
 
 fn read_exact(
