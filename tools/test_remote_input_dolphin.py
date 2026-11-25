@@ -58,6 +58,28 @@ def reborn_status(host):
         return json.loads(read_exact(length))
 
 
+def reborn_screen(host):
+    with socket.create_connection((host, 4299), timeout=30) as connection:
+        connection.settimeout(30)
+        connection.sendall(b"HBCP".ljust(16, b"\0"))
+        header = read_exact(connection, 8)
+        status = int.from_bytes(header[:4], "big", signed=True)
+        length = int.from_bytes(header[4:], "big")
+        if status != 0 or not 8 <= length <= 4 * 1024 * 1024:
+            raise RuntimeError(f"invalid Reborn screenshot reply: {status}, {length}")
+        payload = read_exact(connection, length)
+    width = int.from_bytes(payload[:4], "big")
+    height = int.from_bytes(payload[4:8], "big")
+    expected = width * height * 2
+    if not width or not height or expected != len(payload) - 8:
+        raise RuntimeError(
+            f"invalid Reborn screenshot dimensions or payload: {width}x{height}, {len(payload)-8} bytes"
+        )
+    if not any(payload[8:]):
+        raise RuntimeError("Reborn screenshot framebuffer is all zero")
+    return {"width": width, "height": height, "framebuffer_bytes": expected}
+
+
 def read_exact(connection, length):
     data = bytearray()
     while len(data) < length:
@@ -236,6 +258,7 @@ def main():
     parser.add_argument("--wiiload-theme", action="store_true", help="check received theme application")
     parser.add_argument("--reborn-theme-control", action="store_true", help="check Reborn C theme upload status")
     parser.add_argument("--reborn-transfer-style", action="store_true", help="check HBCT style replies and HBCS state")
+    parser.add_argument("--reborn-screen", action="store_true", help="check HBCP dimensions and live YUYV framebuffer reply")
     parser.add_argument("--reborn-file", action="store_true", help="check HBCF operations against an isolated SD image")
     parser.add_argument("--nand", type=Path, required=True, help="Source NAND; only a private copy is used")
     parser.add_argument("--sd-image", type=Path, help="Clone an existing private SD image into the test profile")
@@ -257,6 +280,7 @@ def main():
               "success": False, "transport": "HBC TCP input protocol", "control": args.control,
               "reborn_keys": args.reborn_keys,
               "reborn_transfer_style": args.reborn_transfer_style,
+              "reborn_screen": args.reborn_screen,
               "reborn_file": args.reborn_file}
     log = profile/"Logs/dolphin.log"
 
@@ -290,7 +314,7 @@ def main():
         while time.monotonic()<deadline:
             if process.poll() is not None:
                 raise RuntimeError("Dolphin exited before the HBC listener became ready")
-            if args.reborn_theme_control or args.reborn_transfer_style or args.reborn_file:
+            if args.reborn_theme_control or args.reborn_transfer_style or args.reborn_file or args.reborn_screen:
                 try:
                     with socket.create_connection((args.host, 4299), timeout=.5) as probe:
                         probe.sendall(b"HBCS".ljust(16, b"\0"))
@@ -352,6 +376,14 @@ def main():
             print(f"HBCT accepted {', '.join(selected)} and rejected an invalid style", flush=True)
             if not args.reborn_file:
                 raise ReferenceComplete
+        if args.reborn_screen:
+            result["reborn_screen_result"] = reborn_screen(args.host)
+            result.setdefault("cases", []).append(
+                {"case": "reborn-screen", "success": True, "result": 0}
+            )
+            result["success"] = True
+            print(f"HBCP framebuffer passed: {result['reborn_screen_result']}", flush=True)
+            raise ReferenceComplete
         if args.reborn_file:
             result["reborn_file_result"] = test_reborn_devfile(args.host)
             result.setdefault("cases", []).append(

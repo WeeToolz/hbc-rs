@@ -6,7 +6,9 @@
 use alloc::vec::Vec;
 use core::cell::UnsafeCell;
 use core::ffi::c_void;
-use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU8, AtomicU32, Ordering};
+use core::sync::atomic::{
+    AtomicBool, AtomicI32, AtomicU8, AtomicU16, AtomicU32, AtomicUsize, Ordering,
+};
 
 pub use crate::wiiload::ReceiverStatus;
 use crate::wiiload::{
@@ -153,8 +155,20 @@ static MENU_SCAN_MS: AtomicU32 = AtomicU32::new(0);
 static NETWORK_STARTS: AtomicU32 = AtomicU32::new(0);
 pub static REMOTE_CONTROL: crate::remote_control::Mailbox = crate::remote_control::Mailbox::new();
 static CONTROL_SESSION: AtomicU32 = AtomicU32::new(0);
+static SCREEN_FRAMEBUFFER: AtomicUsize = AtomicUsize::new(0);
+static SCREEN_WIDTH: AtomicU16 = AtomicU16::new(0);
+static SCREEN_HEIGHT: AtomicU16 = AtomicU16::new(0);
+static SCREEN_BYTE_LEN: AtomicU32 = AtomicU32::new(0);
 
 static REMOTE_INPUT: crate::remote_input::Mailbox = crate::remote_input::Mailbox::new();
+
+/// Publish the live scanout buffer for HBCP requests.
+pub fn publish_screenshot_framebuffer(pointer: usize, width: u16, height: u16, byte_len: u32) {
+    SCREEN_FRAMEBUFFER.store(pointer, Ordering::Relaxed);
+    SCREEN_WIDTH.store(width, Ordering::Relaxed);
+    SCREEN_HEIGHT.store(height, Ordering::Relaxed);
+    SCREEN_BYTE_LEN.store(byte_len, Ordering::Release);
+}
 
 /// Publish the current app and storage view for nonblocking HBCS requests.
 pub fn publish_menu_status(
@@ -1012,6 +1026,9 @@ fn receive_client(
         }
         return write_response(shared, client, &[0; 8], started_at).map(|()| None);
     }
+    if &header_bytes[..4] == b"HBCP" {
+        return send_screenshot(shared, client, started_at).map(|()| None);
+    }
     #[cfg(feature = "debugger-network")]
     if &header_bytes[..4] == b"HBCD" {
         let reply = debugger_diagnostics.reply(&header_bytes);
@@ -1174,6 +1191,44 @@ fn receive_client(
         args.len()
     ));
     Ok(Some(WiiloadPayload { data, args }))
+}
+
+fn send_screenshot(shared: &Shared, client: i32, started_at: u64) -> Result<(), ReceiveError> {
+    let byte_len = SCREEN_BYTE_LEN.load(Ordering::Acquire) as usize;
+    let pointer = SCREEN_FRAMEBUFFER.load(Ordering::Relaxed);
+    let width = SCREEN_WIDTH.load(Ordering::Relaxed);
+    let height = SCREEN_HEIGHT.load(Ordering::Relaxed);
+    let pixels_len = usize::from(width)
+        .checked_mul(usize::from(height))
+        .and_then(|pixels| pixels.checked_mul(2));
+    let Some(pixels_len) = pixels_len
+        .filter(|length| pointer != 0 && width != 0 && height != 0 && *length <= byte_len)
+    else {
+        return write_response(shared, client, &devnet_status_reply(-19), started_at);
+    };
+    let Some(payload_len) = pixels_len
+        .checked_add(8)
+        .filter(|length| *length <= u32::MAX as usize)
+    else {
+        return write_response(shared, client, &devnet_status_reply(-22), started_at);
+    };
+
+    // Reborn flushes the scanout range before its network worker reads it.
+    // VideoSystem owns this framebuffer for the full process lifetime.
+    unsafe { ogc_cache::dc_flush_range(pointer as *const c_void, pixels_len as u32) };
+    let mut header = [0; 8];
+    header[4..].copy_from_slice(&(payload_len as u32).to_be_bytes());
+    write_response(shared, client, &header, started_at)?;
+    let mut dimensions = [0; 8];
+    dimensions[..4].copy_from_slice(&u32::from(width).to_be_bytes());
+    dimensions[4..].copy_from_slice(&u32::from(height).to_be_bytes());
+    write_response(shared, client, &dimensions, started_at)?;
+
+    // SAFETY: VideoSystem owns this buffer until process exit. Its reported
+    // length covers the YUYV frame. Reborn sends the live scanout in the same
+    // way, so GX may update it while this network response is in progress.
+    let pixels = unsafe { core::slice::from_raw_parts(pointer as *const u8, pixels_len) };
+    write_response(shared, client, pixels, started_at)
 }
 
 fn write_devfile_reply(

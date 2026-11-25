@@ -31,6 +31,16 @@ impl VideoSystem {
         self.info
     }
 
+    /// Publish the framebuffer used by the Reborn screenshot request.
+    pub fn publish_for_network_screenshot(&self) {
+        super::wiiload::publish_screenshot_framebuffer(
+            self.framebuffer as usize,
+            self.info.width,
+            self.info.height,
+            self.info.byte_len,
+        );
+    }
+
     /// Read the completed EFB into a top-to-bottom RGBA8 image.
     pub fn capture_efb_rgba(&self) -> Result<crate::png::RgbaImage, VideoError> {
         let width = self.info.width;

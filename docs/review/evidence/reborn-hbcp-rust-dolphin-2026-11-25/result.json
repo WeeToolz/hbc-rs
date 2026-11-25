@@ -1,0 +1,22 @@
+{
+  "dol_sha256": "8d14e16ce3d563ca4301a9b66c871e068623c6279ccf95e73551689ccdace66a",
+  "success": true,
+  "transport": "HBC TCP input protocol",
+  "control": false,
+  "reborn_keys": false,
+  "reborn_transfer_style": false,
+  "reborn_screen": true,
+  "reborn_file": false,
+  "reborn_screen_result": {
+    "width": 640,
+    "height": 480,
+    "framebuffer_bytes": 614400
+  },
+  "cases": [
+    {
+      "case": "reborn-screen",
+      "success": true,
+      "result": 0
+    }
+  ]
+}
