@@ -88,6 +88,7 @@ dependencies = [
  "ogc-alloc",
  "ogc-bt-sync",
  "ogc-cache",
+ "ogc-card-sys",
  "ogc-conf",
  "ogc-controller",
  "ogc-core",
@@ -180,6 +181,26 @@ name = "ogc-cache"
 version = "0.1.0"
 dependencies = [
  "ogc-sys",
+]
+
+[[package]]
+name = "ogc-card-metadata"
+version = "0.1.0"
+dependencies = [
+ "ogc-sys",
+]
+
+[[package]]
+name = "ogc-card-sys"
+version = "0.1.0"
+dependencies = [
+ "ogc-cache",
+ "ogc-card-metadata",
+ "ogc-core",
+ "ogc-exi",
+ "ogc-lwp-sys",
+ "ogc-sys",
+ "ogc-system-sys",
 ]
 
 [[package]]

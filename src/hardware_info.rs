@@ -376,22 +376,26 @@ fn video_page(page: &mut JsonObject<'_>) {
 
 #[cfg(target_arch = "powerpc")]
 fn storage_page(page: &mut JsonObject<'_>) {
-    for (label, mount) in [
-        ("SD card", c"sd:"),
-        ("USB drive", c"usb:"),
-        ("USB drive 2", c"usb2:"),
+    for (label, mount, path, is_sd) in [
+        ("SD card", c"sd:", c"sd:/", true),
+        ("USB drive", c"usb:", c"usb:/", false),
+        ("USB drive 2", c"usb2:", c"usb2:/", false),
     ] {
-        if mount == c"usb2:" && !ogc_fat::is_mounted(mount) {
+        let mounted = ogc_fat::is_mounted(mount);
+        if mount == c"usb2:" && !mounted {
             continue;
         }
-        page.string(
-            label,
-            if ogc_fat::is_mounted(mount) {
-                "Mounted by the app; size unavailable"
-            } else {
-                "Not mounted by the app"
-            },
-        );
+        if !mounted {
+            page.string(label, "Not mounted by the app");
+            continue;
+        }
+        match ogc_fat::volume_statistics(path) {
+            Ok(Some(stats)) => page.string(
+                label,
+                &volume_description(stats.total_bytes, stats.available_bytes, is_sd),
+            ),
+            Ok(None) | Err(_) => page.string(label, "Mounted, size unknown"),
+        }
     }
     let mut stats = ogc_filesystem::IsfsStats::default();
     if ogc_filesystem::initialize() >= 0 && ogc_filesystem::get_stats(&mut stats) >= 0 {
@@ -418,6 +422,51 @@ fn storage_page(page: &mut JsonObject<'_>) {
             format_args!("{} free of {}", stats.f, stats.f + stats.g),
         );
     }
+    for (slot, label) in [
+        (ogc_card_sys::CARD_SLOTA, "Memory card A"),
+        (ogc_card_sys::CARD_SLOTB, "Memory card B"),
+    ] {
+        let mut size_bytes = 0;
+        let mut _sector_size = 0;
+        // SAFETY: CARD_ProbeEx writes one i32 to each valid output pointer.
+        let result = unsafe { ogc_card_sys::probe_ex(slot, &mut size_bytes, &mut _sector_size) };
+        let megabits = if size_bytes > 0 {
+            size_bytes / 131_072
+        } else {
+            0
+        };
+        page.string(label, &memory_card_description(result, megabits));
+    }
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+fn volume_description(total_bytes: u64, available_bytes: u64, is_sd: bool) -> String {
+    let total_gb = total_bytes as f64 / 1_000_000_000.0;
+    let available_gb = available_bytes as f64 / 1_000_000_000.0;
+    let prefix = if is_sd {
+        if total_gb <= 2.2 {
+            "SD, "
+        } else if total_gb <= 34.0 {
+            "SDHC, "
+        } else {
+            "SDXC, "
+        }
+    } else {
+        ""
+    };
+    alloc::format!("{prefix}{total_gb:.1} GB, {available_gb:.1} GB free")
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+fn memory_card_description(result: i32, megabits: i32) -> String {
+    if result < 0 || megabits <= 0 {
+        return String::from("None");
+    }
+    alloc::format!(
+        "{} blocks ({} Mbit)",
+        megabits.saturating_mul(16).saturating_sub(5),
+        megabits
+    )
 }
 
 #[cfg(target_arch = "powerpc")]
@@ -850,6 +899,35 @@ mod tests {
         assert_eq!(info.ssid, "WIFI!");
         assert_eq!(info.security, "WPA2 AES");
         assert_eq!(info.settings, "IP by hand, DNS by DHCP, proxy");
+    }
+
+    #[test]
+    fn storage_volume_description_matches_reborn_decimal_units_and_sd_classes() {
+        assert_eq!(
+            super::volume_description(1_500_000_000, 500_000_000, true),
+            "SD, 1.5 GB, 0.5 GB free"
+        );
+        assert_eq!(
+            super::volume_description(8_000_000_000, 2_500_000_000, true),
+            "SDHC, 8.0 GB, 2.5 GB free"
+        );
+        assert_eq!(
+            super::volume_description(40_000_000_000, 10_000_000_000, true),
+            "SDXC, 40.0 GB, 10.0 GB free"
+        );
+        assert_eq!(
+            super::volume_description(8_000_000_000, 2_500_000_000, false),
+            "8.0 GB, 2.5 GB free"
+        );
+    }
+
+    #[test]
+    fn memory_card_description_matches_reborn_probe_result() {
+        assert_eq!(
+            super::memory_card_description(0, 64),
+            "1019 blocks (64 Mbit)"
+        );
+        assert_eq!(super::memory_card_description(-3, 0), "None");
     }
 
     #[test]
