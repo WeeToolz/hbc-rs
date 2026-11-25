@@ -1,4 +1,5 @@
 """Check explicit reference roots in the existing parity ledger validator."""
+import io
 from pathlib import Path
 import tempfile
 import json
@@ -76,6 +77,26 @@ class ReferenceTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     parity.validate_ref('src/platform/theme.rs#other::theme::load',
                                         root, root / 'ledger', 1)
+
+
+class LedgerReaderTests(unittest.TestCase):
+    def test_rejects_unquoted_commas_in_last_field(self):
+        source = io.StringIO(
+            "id,area,c_ref,rust_ref,coverage,review,verification,evidence,next_step\n"
+            "X,area,scope:c,src/lib.rs#item,partial,source_reviewed,not_run,,one, two\n"
+        )
+
+        with self.assertRaisesRegex(ValueError, "extra columns"):
+            parity.read_rows(source)
+
+    def test_preserves_commas_in_quoted_last_field(self):
+        source = io.StringIO(
+            "id,area,c_ref,rust_ref,coverage,review,verification,evidence,next_step\n"
+            'X,area,scope:c,src/lib.rs#item,partial,source_reviewed,not_run,,"one, two"\n'
+        )
+
+        rows = parity.read_rows(source)
+        self.assertEqual(rows[0]["next_step"], "one, two")
 
 
 if __name__ == '__main__':

@@ -8,6 +8,7 @@ import csv
 import json
 from pathlib import Path
 import sys
+from typing import TextIO
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -48,12 +49,25 @@ def validate_dolphin_evidence(path: Path, case: str) -> None:
         raise ValueError(f"{path}: invalid Dolphin evidence: {error}") from error
 
 
+def read_rows(stream: TextIO, ledger: Path = LEDGER) -> list[dict[str, str]]:
+    reader = csv.DictReader(stream, restkey="_extra_fields", strict=True)
+    if tuple(reader.fieldnames or ()) != FIELDS:
+        raise ValueError(f"{ledger}: expected columns {','.join(FIELDS)}")
+    try:
+        rows = list(reader)
+    except csv.Error as error:
+        raise ValueError(f"{ledger}: invalid CSV: {error}") from error
+    for line, row in enumerate(rows, 2):
+        if row.pop("_extra_fields", None) is not None:
+            raise ValueError(f"{ledger}:{line}: extra columns; quote commas in field values")
+        if any(row[field] is None for field in FIELDS):
+            raise ValueError(f"{ledger}:{line}: incomplete row")
+    return rows
+
+
 def load_rows() -> list[dict[str, str]]:
     with LEDGER.open(newline="", encoding="utf-8") as stream:
-        reader = csv.DictReader(stream)
-        if tuple(reader.fieldnames or ()) != FIELDS:
-            raise ValueError(f"{LEDGER}: expected columns {','.join(FIELDS)}")
-        rows = list(reader)
+        rows = read_rows(stream)
     seen: set[str] = set()
     for line, row in enumerate(rows, 2):
         for field in FIELDS:
