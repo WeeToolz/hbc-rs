@@ -1329,7 +1329,11 @@ impl WiiStartup {
                     u32::from_be_bytes(word)
                 ));
             }
-            StartupError::Loader(error)
+            StartupError::ExecutableParse {
+                error,
+                length: info.length,
+                crc32: info.crc32,
+            }
         })?;
         Ok(Some(LaunchImage {
             bytes: pending.bytes,
@@ -1526,9 +1530,17 @@ pub enum StartupError {
     StorageScanPending,
     ExecutableLoadPending,
     Loader(ParseError),
+    ExecutableParse {
+        error: ParseError,
+        length: usize,
+        crc32: u32,
+    },
     Theme(crate::theme::ThemePackageError),
     ThemeStorage(super::settings::SettingsIoError),
-    StorageMount { volume: Volume, error: StorageError },
+    StorageMount {
+        volume: Volume,
+        error: StorageError,
+    },
     Recovery(ZipInstallError),
 }
 

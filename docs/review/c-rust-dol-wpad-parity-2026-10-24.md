@@ -43,6 +43,21 @@ header. The DOL failure remains open. Capture the file size, hash, and first
 `0xe4` bytes immediately before `parse_dol` on the Wii, then compare them with
 the same file on the card.
 
+## 2026-11-25 follow-up
+
+The user confirmed that the new report is the same offset error recorded in
+the earlier history. The exact DOL and HBC build for this report are not yet
+identified. HBC now includes the file length and CRC32 in the parse-error
+notice. It still logs the header bytes and retains the overlap check. Compare
+the displayed size and CRC32 with the exact file on the SD card; a CRC match
+helps identify the bytes but is not a cryptographic proof of identity.
+
+The FAT-backed Dolphin acceptance case passed with a valid file and a malformed
+file. It independently checks the malformed file's length of 256 bytes,
+CRC32 `4daf058b`, and the offset-48 error. The [run result](evidence/sd-load-error-details-dolphin-2026-11-25/result.json)
+does not establish physical Wii SD or cache behavior. The cause of the Wii
+report remains open.
+
 ## Wii Remote player lights
 
 C HBC calls `WPAD_Init` and configures WPAD channels in

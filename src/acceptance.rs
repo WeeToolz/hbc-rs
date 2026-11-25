@@ -2595,11 +2595,15 @@ fn wii_startup_dol_load_api() -> i32 {
     }
     if !matches!(
         malformed_error,
-        Some(StartupError::Loader(ParseError::DolHeaderOverlap {
-            section: 0,
-            offset: 48,
-            size: 48,
-        }))
+        Some(StartupError::ExecutableParse {
+            error: ParseError::DolHeaderOverlap {
+                section: 0,
+                offset: 48,
+                size: 48,
+            },
+            length: 256,
+            crc32: 0x4daf_058b,
+        })
     ) || startup.executable_load_pending()
     {
         ogc_system::report(format_args!("FAIL malformed DOL read result\n"));

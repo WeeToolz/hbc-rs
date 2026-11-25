@@ -1,0 +1,76 @@
+44:04:213 Core/Boot/DolReader.cpp:67 W[BOOT]: DolReader: Text section 0 size is not aligned to 32 bytes and can cause issues when loaded
+44:04:213 Core/Boot/DolReader.cpp:102 W[BOOT]: DolReader: Data section 0 size is not aligned to 32 bytes and can cause issues when loaded
+44:04:213 Core/Boot/DolReader.cpp:102 W[BOOT]: DolReader: Data section 1 size is not aligned to 32 bytes and can cause issues when loaded
+44:04:446 Core/ConfigManager.cpp:279 N[CORE]: Active title: 
+44:04:448 Core/Core.cpp:237 I[BOOT]: Starting core = Wii mode
+44:04:448 Core/Core.cpp:238 I[BOOT]: CPU Thread separate = No
+44:05:697 Core/IOS/Network/MACUtils.cpp:47 I[IOS_NET]: Using MAC address: 00:17:ab:ac:bf:44
+44:05:794 Core/Boot/Boot.cpp:546 N[BOOT]: Booting from executable: /Volumes/SSD/WiiDev/WeeToolz/hbc-rs/target/hbc-sd-load-acceptance.dol
+44:05:796 Core/IOS/ES/Formats.cpp:688 I[IOS_ES]: Title 0000000100000002 already exists in uid.sys
+44:05:796 Core/Boot/Boot_BS2Emu.cpp:431 I[BOOT]: No previous serial number found, generated one instead: 795581845
+44:05:796 Core/Boot/Boot_BS2Emu.cpp:463 I[BOOT]: Setup Wii Memory...
+44:05:798 Core/IOS/Network/MACUtils.cpp:47 I[IOS_NET]: Using MAC address: 00:17:ab:ac:bf:44
+44:05:885 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: ES could not resolve direct-DOL title ID; using /title/00010001/48424345/data
+44:06:440 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: storage scan applied: volume=Some(Sd), apps=2
+44:06:445 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable parse failure: DolHeaderOverlap { section: 0, offset: 48, size: 48 }; bytes=256 crc32=4daf058b
+44:06:445 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=000 bytes=4 word=00000030
+44:06:445 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=004 bytes=4 word=00000000
+44:06:445 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=008 bytes=4 word=00000000
+44:06:445 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=00c bytes=4 word=00000000
+44:06:445 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=010 bytes=4 word=00000000
+44:06:445 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=014 bytes=4 word=00000000
+44:06:445 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=018 bytes=4 word=00000000
+44:06:446 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=01c bytes=4 word=00000000
+44:06:446 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=020 bytes=4 word=00000000
+44:06:446 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=024 bytes=4 word=00000000
+44:06:446 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=028 bytes=4 word=00000000
+44:06:446 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=02c bytes=4 word=00000000
+44:06:446 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=030 bytes=4 word=00000000
+44:06:446 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=034 bytes=4 word=00000000
+44:06:446 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=038 bytes=4 word=00000000
+44:06:446 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=03c bytes=4 word=00000000
+44:06:446 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=040 bytes=4 word=00000000
+44:06:446 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=044 bytes=4 word=00000000
+44:06:446 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=048 bytes=4 word=80004000
+44:06:446 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=04c bytes=4 word=00000000
+44:06:446 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=050 bytes=4 word=00000000
+44:06:446 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=054 bytes=4 word=00000000
+44:06:446 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=058 bytes=4 word=00000000
+44:06:446 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=05c bytes=4 word=00000000
+44:06:447 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=060 bytes=4 word=00000000
+44:06:447 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=064 bytes=4 word=00000000
+44:06:447 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=068 bytes=4 word=00000000
+44:06:447 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=06c bytes=4 word=00000000
+44:06:447 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=070 bytes=4 word=00000000
+44:06:447 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=074 bytes=4 word=00000000
+44:06:447 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=078 bytes=4 word=00000000
+44:06:447 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=07c bytes=4 word=00000000
+44:06:447 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=080 bytes=4 word=00000000
+44:06:447 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=084 bytes=4 word=00000000
+44:06:447 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=088 bytes=4 word=00000000
+44:06:447 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=08c bytes=4 word=00000000
+44:06:447 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=090 bytes=4 word=00000030
+44:06:447 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=094 bytes=4 word=00000000
+44:06:447 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=098 bytes=4 word=00000000
+44:06:447 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=09c bytes=4 word=00000000
+44:06:447 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=0a0 bytes=4 word=00000000
+44:06:448 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=0a4 bytes=4 word=00000000
+44:06:448 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=0a8 bytes=4 word=00000000
+44:06:448 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=0ac bytes=4 word=00000000
+44:06:448 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=0b0 bytes=4 word=00000000
+44:06:448 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=0b4 bytes=4 word=00000000
+44:06:448 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=0b8 bytes=4 word=00000000
+44:06:448 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=0bc bytes=4 word=00000000
+44:06:448 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=0c0 bytes=4 word=00000000
+44:06:448 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=0c4 bytes=4 word=00000000
+44:06:448 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=0c8 bytes=4 word=00000000
+44:06:448 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=0cc bytes=4 word=00000000
+44:06:448 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=0d0 bytes=4 word=00000000
+44:06:448 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=0d4 bytes=4 word=00000000
+44:06:448 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=0d8 bytes=4 word=00000000
+44:06:448 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=0dc bytes=4 word=00000000
+44:06:448 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: HBC: executable header offset=0e0 bytes=4 word=80004000
+44:06:449 Core/HW/EXI/EXI_DeviceIPL.cpp:306 N[OSREPORT]: PASS FAT-backed valid and malformed DOL loading
+
+A signal was received. A second signal will force Dolphin to stop.
+ 44:06:460 Core/WiiRoot.cpp:385 I[CORE]: Wii FS Cleanup: cleanup_required = false (wii_root_is_temporary = false, is netplay = false, is_netplay_write = false, is_netplay_host = false)

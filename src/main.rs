@@ -14,6 +14,20 @@ fn main() {
     // platform port. This binary currently provides the package entry point.
 }
 
+#[cfg(target_arch = "powerpc")]
+fn executable_load_notice(error: &hbc_rs::platform::startup::StartupError) -> String {
+    match error {
+        hbc_rs::platform::startup::StartupError::ExecutableParse {
+            error,
+            length,
+            crc32,
+        } => format!(
+            "Could not load this application: {error:?}. File size: {length} bytes. CRC32: {crc32:08x}."
+        ),
+        _ => format!("Could not load this application: {error:?}."),
+    }
+}
+
 /// # Safety
 /// The Wii runtime must supply a valid argc/argv vector for the whole entry call.
 #[cfg(target_arch = "powerpc")]
@@ -297,7 +311,7 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                     ));
                     startup.runtime_mut().finish_executable_loading();
                     startup.runtime_mut().show_notice_with_kind(
-                        &format!("Could not load this application: {error:?}."),
+                        &executable_load_notice(&error),
                         hbc_rs::app::NoticeKind::Error,
                     );
                 }
@@ -1388,7 +1402,7 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                         "HBC: selected executable load failed: {error:?}\n"
                     ));
                     startup.runtime_mut().show_notice_with_kind(
-                        &format!("Could not load this application: {error:?}."),
+                        &executable_load_notice(&error),
                         hbc_rs::app::NoticeKind::Error,
                     );
                 }

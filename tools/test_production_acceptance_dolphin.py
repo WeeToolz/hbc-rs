@@ -17,7 +17,7 @@ from dolphin_test_support import Debugger, verified_artifact, write_dolphin_conf
 
 ROOT = Path(__file__).resolve().parents[3]
 REPO = Path(__file__).resolve().parents[1]
-TEMP_ROOT = Path('/private/tmp/hbc-rs')
+TEMP_ROOT = Path('/Volumes/SSD/WiiDev/tmp/hbc-production-acceptance')
 EXPECTED_XML = (b'<?xml version="1.0" encoding="UTF-8"?><hbc><device>1</device>'
                 b'<sort_order>2</sort_order><browse_mode>1</browse_mode>'
                 b'<app_sel>sd:/apps/acceptance/boot.dol</app_sel></hbc>')
