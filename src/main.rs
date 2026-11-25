@@ -175,6 +175,7 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                 return -2;
             }
         };
+    hbc_rs::platform::input::initialize_pad();
     video.publish_for_network_screenshot();
     ogc_system::report(format_args!("HBC: video initialized\n"));
     #[cfg(feature = "startup-diagnostics")]

@@ -1,0 +1,76 @@
+{
+  "image": "/Volumes/SSD/WiiDev/C-sources/hbc-reborn/channel/channelapp/channelapp-channel.dol",
+  "sha256": "a32c35c20e2a18ba3004aefbcea9ac10af555f0d068241e9332d6840b28fe5f6",
+  "temp_root": "/private/tmp",
+  "dolphin_arch": "x86_64",
+  "physical_wii_tested": false,
+  "capture_complete": true,
+  "input_verification": "requires screenshot review",
+  "stages": [
+    {
+      "name": "pointer-center",
+      "screenshot": "/private/tmp/hbc-c-pad-order-dolphin-r1/dolphin-20261125-143211-158032111255250.png"
+    },
+    {
+      "name": "pointer-upper-left",
+      "screenshot": "/private/tmp/hbc-c-pad-order-dolphin-r1/dolphin-20261125-143213-158034096459666.png"
+    },
+    {
+      "name": "pointer-lower-right",
+      "screenshot": "/private/tmp/hbc-c-pad-order-dolphin-r1/dolphin-20261125-143215-158036088750125.png"
+    },
+    {
+      "name": "button-1",
+      "screenshot": "/private/tmp/hbc-c-pad-order-dolphin-r1/dolphin-20261125-143218-158038467874500.png"
+    },
+    {
+      "name": "pointer-click-app-details",
+      "screenshot": "/private/tmp/hbc-c-pad-order-dolphin-r1/dolphin-20261125-143221-158042301479583.png"
+    },
+    {
+      "name": "button-2",
+      "screenshot": "/private/tmp/hbc-c-pad-order-dolphin-r1/dolphin-20261125-143225-158045920325875.png"
+    }
+  ],
+  "fixture": {
+    "name_order": [
+      "Amber",
+      "Birch",
+      "Cedar"
+    ],
+    "date_order": [
+      "Cedar",
+      "Birch",
+      "Amber"
+    ],
+    "apps": [
+      {
+        "directory": "cedar",
+        "title": "Cedar",
+        "release_date": "20250304120000"
+      },
+      {
+        "directory": "amber",
+        "title": "Amber",
+        "release_date": "20240102120000"
+      },
+      {
+        "directory": "birch",
+        "title": "Birch",
+        "release_date": "20241203120000"
+      }
+    ]
+  },
+  "command": [
+    "/usr/bin/arch",
+    "-x86_64",
+    "/Applications/Dolphin.app/Contents/MacOS/Dolphin",
+    "-b",
+    "-u",
+    "/private/tmp/hbc-c-input-vqtsw593",
+    "-e",
+    "/Volumes/SSD/WiiDev/C-sources/hbc-reborn/channel/channelapp/channelapp-channel.dol"
+  ],
+  "load_focus_left": false,
+  "dolphin_exit_code": 0
+}

@@ -23,6 +23,23 @@ verify the result on a Wii.
 The startup delay also needs measurement. Do not treat the setup change as a
 confirmed fix for either reported symptom.
 
+## PAD and WPAD startup ordering follow-up
+
+Reborn calls `PAD_Init` directly after video mode setup. HBC-RS previously
+waited until after settings, theme, and BootMii reads to initialize both PAD
+and WPAD. The PowerPC entry point now initializes PAD after its video setup,
+before those synchronous reads. A one-time guard keeps the later controller
+setup from calling PAD initialization again.
+
+WPAD still starts after the NAND reads, matching Reborn's `controls_init`
+placement. Rust now starts WPAD before enabling its USB HID ownership path,
+which preserves the C order of WPAD before keyboard setup. Host tests check
+the one-time PAD call and the WPAD-then-USB order, including that USB setup
+still runs if WPAD returns an error. The PowerPC release build checks the
+production call path. These checks do not show whether the order changes
+startup time or restores physical Remote input; both require a matched Wii
+measurement.
+
 ## Physical Wii report for the updated debug DOL
 
 On 2026-11-25, the user reported that the updated DOL ran on the Wii, but the

@@ -6,6 +6,8 @@
 use alloc::vec::Vec;
 #[cfg(target_arch = "powerpc")]
 use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, Ordering};
+#[cfg(test)]
+use core::sync::atomic::{AtomicBool, Ordering};
 use ogc_controller::{Buttons as ControllerButtons, ControllerKind, project_stick_directions};
 
 const RIGHT_STICK_THRESHOLD: i16 = 8192;
@@ -23,6 +25,8 @@ use ogc_controller::ControllerManager;
 
 #[cfg(target_arch = "powerpc")]
 static WPAD_STARTED: AtomicBool = AtomicBool::new(false);
+#[cfg(target_arch = "powerpc")]
+static PAD_INITIALIZED: AtomicBool = AtomicBool::new(false);
 #[cfg(target_arch = "powerpc")]
 static WPAD_VIEW_WIDTH: AtomicU32 = AtomicU32::new(0);
 #[cfg(target_arch = "powerpc")]
@@ -582,6 +586,38 @@ fn configure_wpad_channels(
     first_error.map_or(Ok(()), Err)
 }
 
+#[cfg(any(target_arch = "powerpc", test))]
+fn initialize_once(initialized: &AtomicBool, initialize: impl FnOnce()) -> bool {
+    if initialized
+        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+        .is_err()
+    {
+        return false;
+    }
+    initialize();
+    true
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+fn initialize_wpad_before_usb(
+    initialize_wpad: impl FnOnce() -> i32,
+    enable_usb_hid: impl FnOnce(),
+) -> i32 {
+    let result = initialize_wpad();
+    enable_usb_hid();
+    result
+}
+
+/// Initialize GameCube PAD early, before synchronous NAND startup work.
+#[cfg(target_arch = "powerpc")]
+pub fn initialize_pad() {
+    initialize_once(&PAD_INITIALIZED, || {
+        // SAFETY: HBC initializes its process-wide controller manager on the
+        // main thread before any controller scan.
+        unsafe { (&mut *core::ptr::addr_of_mut!(CONTROLLER_MANAGER)).init() };
+    });
+}
+
 #[cfg(target_arch = "powerpc")]
 fn configure_wpad(view_width: u32, view_height: u32) -> Result<(), i32> {
     #[cfg(feature = "startup-diagnostics")]
@@ -615,8 +651,7 @@ pub fn initialize(view_width: u16, view_height: u16) -> Result<(), i32> {
     manager.set_input_scan_hook(Some(diagnostic_scan_mark));
     #[cfg(feature = "startup-diagnostics")]
     manager.set_usb_startup_hook(Some(diagnostic_scan_mark));
-    manager.init();
-    manager.enable_usb_hid();
+    initialize_pad();
     POINTER_OWNER.store(-1, Ordering::Release);
     WPAD_VIEW_WIDTH.store(u32::from(view_width), Ordering::Release);
     WPAD_VIEW_HEIGHT.store(u32::from(view_height), Ordering::Release);
@@ -627,8 +662,17 @@ pub fn initialize(view_width: u16, view_height: u16) -> Result<(), i32> {
 
     #[cfg(feature = "startup-diagnostics")]
     super::diagnostics::mark("WPAD INIT");
-    // SAFETY: the same main-thread-owned manager is used for every scan.
-    let wpad_result = unsafe { (&mut *core::ptr::addr_of_mut!(CONTROLLER_MANAGER)).enable_wpad() };
+    // Start WPAD before reserving USB HID, as C starts WPAD before keyboard.
+    let wpad_result = initialize_wpad_before_usb(
+        || {
+            // SAFETY: initialization and scans use the same main-thread-owned manager.
+            unsafe { (&mut *core::ptr::addr_of_mut!(CONTROLLER_MANAGER)).enable_wpad() }
+        },
+        || {
+            // SAFETY: the manager remains main-thread-owned during startup.
+            unsafe { (&mut *core::ptr::addr_of_mut!(CONTROLLER_MANAGER)).enable_usb_hid() }
+        },
+    );
     if wpad_result == wpad_sys::WPAD_ERR_NONE as i32 {
         return configure_wpad(u32::from(view_width), u32::from(view_height));
     }
@@ -871,6 +915,35 @@ fn extension_from_raw_type(expansion: i32) -> Option<Extension> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn early_pad_initialization_runs_once() {
+        let initialized = AtomicBool::new(false);
+        let mut calls = Vec::new();
+
+        assert!(initialize_once(&initialized, || calls.push("PAD")));
+        assert!(!initialize_once(&initialized, || calls.push("PAD")));
+
+        assert_eq!(calls, ["PAD"]);
+    }
+
+    #[test]
+    fn wpad_starts_before_usb_hid_and_usb_still_starts_on_wpad_error() {
+        use core::cell::RefCell;
+
+        let calls = RefCell::new(Vec::new());
+
+        let result = initialize_wpad_before_usb(
+            || {
+                calls.borrow_mut().push("WPAD");
+                -7
+            },
+            || calls.borrow_mut().push("USB HID"),
+        );
+
+        assert_eq!(result, -7);
+        assert_eq!(*calls.borrow(), ["WPAD", "USB HID"]);
+    }
 
     #[test]
     fn wpad_configuration_attempts_every_channel_before_timeout() {
