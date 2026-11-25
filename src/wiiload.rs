@@ -87,6 +87,9 @@ pub(crate) fn decode_zlib_stream<E>(
 }
 
 pub const WIILOAD_HEADER_LEN: usize = 16;
+pub const REBORN_UPLOAD_NAME_CAPACITY: usize = 63;
+pub const REBORN_UPLOAD_METADATA_TTL_MS: u64 = 120_000;
+pub const REBORN_UPLOAD_INSTALL_YES: u16 = 1;
 pub const WIILOAD_TCP_PORT: u16 = 4299;
 /// The network-debugger release worker and compressed-upload call chain require
 /// at least 36,320 bytes on PowerPC. Use 64 KiB in that mode, leaving more than
@@ -482,9 +485,109 @@ pub struct WiiloadPayload {
     pub args: Vec<u8>,
 }
 
+/// One-shot metadata sent before a Reborn Wiiload transfer.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RebornUploadMetadata {
+    pub name: [u8; REBORN_UPLOAD_NAME_CAPACITY],
+    pub name_len: u8,
+    pub flags: u16,
+    pub set_at_ms: u64,
+}
+
+impl RebornUploadMetadata {
+    pub fn name(&self) -> &[u8] {
+        &self.name[..usize::from(self.name_len)]
+    }
+
+    pub fn is_current(self, now_ms: u64) -> bool {
+        self.set_at_ms != 0 && now_ms.saturating_sub(self.set_at_ms) < REBORN_UPLOAD_METADATA_TTL_MS
+    }
+
+    pub fn install_without_asking(self) -> bool {
+        self.flags & REBORN_UPLOAD_INSTALL_YES != 0
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RebornUploadMetadataError {
+    InvalidHeader,
+    InvalidLength,
+}
+
+/// Decode the protocol 6 HBCA name and flags body.
+pub fn decode_reborn_upload_metadata(
+    header: &[u8; WIILOAD_HEADER_LEN],
+    body: &[u8],
+    set_at_ms: u64,
+) -> Result<RebornUploadMetadata, RebornUploadMetadataError> {
+    if &header[..4] != b"HBCA" {
+        return Err(RebornUploadMetadataError::InvalidHeader);
+    }
+    let name_len = usize::from(u16::from_be_bytes([header[4], header[5]]));
+    let flags = u16::from_be_bytes([header[6], header[7]]);
+    if name_len > REBORN_UPLOAD_NAME_CAPACITY || body.len() != name_len {
+        return Err(RebornUploadMetadataError::InvalidLength);
+    }
+    if name_len == 0 && flags == 0 {
+        return Err(RebornUploadMetadataError::InvalidLength);
+    }
+    let mut name = [0; REBORN_UPLOAD_NAME_CAPACITY];
+    name[..name_len.min(REBORN_UPLOAD_NAME_CAPACITY)].copy_from_slice(body);
+    // Reborn stores this field as a C string. Keep flags even when the name
+    // contains an embedded NUL, but expose only the prefix before that byte.
+    let name_len = name[..name_len]
+        .iter()
+        .position(|byte| *byte == 0)
+        .unwrap_or(name_len);
+    Ok(RebornUploadMetadata {
+        name,
+        name_len: name_len as u8,
+        flags,
+        set_at_ms,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reborn_upload_metadata_checks_length_flags_and_expiry() {
+        let mut header = [0; WIILOAD_HEADER_LEN];
+        header[..4].copy_from_slice(b"HBCA");
+        header[5] = 4;
+        header[7] = REBORN_UPLOAD_INSTALL_YES as u8;
+        let metadata = decode_reborn_upload_metadata(&header, b"game", 100).unwrap();
+        assert_eq!(metadata.name(), b"game");
+        assert!(metadata.install_without_asking());
+        assert!(metadata.is_current(100 + REBORN_UPLOAD_METADATA_TTL_MS - 1));
+        assert!(!metadata.is_current(100 + REBORN_UPLOAD_METADATA_TTL_MS));
+
+        let metadata =
+            decode_reborn_upload_metadata(&header_with_name(b"ab\0cd"), b"ab\0cd", 100).unwrap();
+        assert_eq!(metadata.name(), b"ab");
+        assert!(metadata.install_without_asking());
+
+        header[5] = (REBORN_UPLOAD_NAME_CAPACITY + 1) as u8;
+        assert_eq!(
+            decode_reborn_upload_metadata(&header, &[0; 64], 100),
+            Err(RebornUploadMetadataError::InvalidLength)
+        );
+        header[5] = 0;
+        header[7] = 0;
+        assert_eq!(
+            decode_reborn_upload_metadata(&header, &[], 100),
+            Err(RebornUploadMetadataError::InvalidLength)
+        );
+    }
+
+    fn header_with_name(name: &[u8]) -> [u8; WIILOAD_HEADER_LEN] {
+        let mut header = [0; WIILOAD_HEADER_LEN];
+        header[..4].copy_from_slice(b"HBCA");
+        header[4..6].copy_from_slice(&(name.len() as u16).to_be_bytes());
+        header[7] = REBORN_UPLOAD_INSTALL_YES as u8;
+        header
+    }
 
     #[test]
     fn reborn_status_json_reports_live_receiver_fields_and_zero_ip_when_unavailable() {

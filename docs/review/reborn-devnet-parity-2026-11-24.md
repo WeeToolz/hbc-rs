@@ -14,7 +14,7 @@ following Reborn commands need further work:
 | HBCS | Return HBC status as JSON | Rust now returns version, protocol, IOS version and revision, AHBPROT state, free system arenas, free bytes in its managed MEM2 heap, measured TCP stack use and size, measured initialization and app-scan times, local IP as a dotted-quad string (including `0.0.0.0` when unavailable), successful network starts, app count, active and inserted devices, live receiver state, receive progress, and system time. The response remains partial until detailed startup marks, transfer, crash, upload, and retained-log state are available and checked against the client. |
 | HBCT | Select a transfer display style | Implement the supported style names and view update. |
 | HBCF | Serve developer file operations | Implement the request protocol and bounded storage operations. |
-| HBCA | Record the next upload name and flags | Implement the one-shot name, flags, expiry, and install policy. |
+| HBCA | Record the next upload name and flags | Rust accepts names up to 63 bytes, stores flags for 120 seconds, and consumes the metadata once for the next valid Wiiload payload. `DEVNET_UPLOAD_YES` skips the app-ZIP confirmation while retaining ZIP validation and staged installation. The name is not yet used for Message Board playtime because Rust has no matching writer. Upload-result reporting and C/Rust Dolphin wire comparison remain open. |
 | HBCL | Return a retained application log | Implement retained log validation and response. |
 | HBCN | Set the network log target | Implement the target and the launch/return handoff contract. |
 | HBCC | Clear retained crash state | Resolve its wire-format collision with Rust's existing HBCC extension and implement compatible crash clearing. |

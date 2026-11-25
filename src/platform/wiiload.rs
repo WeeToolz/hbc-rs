@@ -10,9 +10,10 @@ use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU8, AtomicU32, Ordering};
 
 pub use crate::wiiload::ReceiverStatus;
 use crate::wiiload::{
-    IndicatorState, WIILOAD_CLIENT_TIMEOUT_TICKS, WIILOAD_HEADER_LEN, WIILOAD_TCP_PORT,
-    WiiloadError, WiiloadHeader, WiiloadPayload, client_deadline_expired,
-    indicator_state as map_indicator_state, same_local_subnet_16, socket_would_block,
+    IndicatorState, RebornUploadMetadata, WIILOAD_CLIENT_TIMEOUT_TICKS, WIILOAD_HEADER_LEN,
+    WIILOAD_TCP_PORT, WiiloadError, WiiloadHeader, WiiloadPayload, client_deadline_expired,
+    decode_reborn_upload_metadata, indicator_state as map_indicator_state, same_local_subnet_16,
+    socket_would_block,
 };
 #[cfg(feature = "debugger-network")]
 use libdb_sys::wii_network::CooperativeControl;
@@ -33,6 +34,26 @@ const USBGECKO_CHANNEL: i32 = 1;
 const USBGECKO_RETRIES: i32 = 1000;
 const GECKO_IDLE_POLLS: usize = 6;
 
+fn devnet_status_reply(status: i32) -> [u8; 8] {
+    let mut reply = [0; 8];
+    reply[..4].copy_from_slice(&status.to_be_bytes());
+    reply
+}
+
+#[cfg(test)]
+mod devnet_reply_tests {
+    use super::devnet_status_reply;
+
+    #[test]
+    fn devnet_reply_uses_signed_status_and_empty_body_length() {
+        assert_eq!(devnet_status_reply(0), [0; 8]);
+        assert_eq!(
+            devnet_status_reply(-22),
+            [0xff, 0xff, 0xff, 0xea, 0, 0, 0, 0]
+        );
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ReceiverError {
     AlreadyStarted,
@@ -49,10 +70,14 @@ struct Shared {
     receive_total: AtomicU32,
     cleanup_error: AtomicI32,
     payload_lock: AtomicBool,
-    payload: UnsafeCell<Option<WiiloadPayload>>,
+    payload: UnsafeCell<Option<ReceivedUpload>>,
+    // The network worker owns pending metadata. The main thread only sees it
+    // after the worker publishes the completed upload under payload_lock.
+    pending_upload_metadata: UnsafeCell<Option<RebornUploadMetadata>>,
 }
 
-// `payload` is accessed only while `payload_lock` is held.
+// `payload` is accessed only while `payload_lock` is held. The pending upload
+// metadata is accessed only by the single network worker.
 unsafe impl Sync for Shared {}
 
 impl Shared {
@@ -66,6 +91,7 @@ impl Shared {
             cleanup_error: AtomicI32::new(0),
             payload_lock: AtomicBool::new(false),
             payload: UnsafeCell::new(None),
+            pending_upload_metadata: UnsafeCell::new(None),
         }
     }
 
@@ -83,6 +109,17 @@ impl Shared {
     fn is_stopped(&self) -> bool {
         self.stopped.load(Ordering::Acquire)
     }
+
+    fn set_upload_metadata(&self, metadata: RebornUploadMetadata) {
+        // SAFETY: Only the network worker sets or takes this pending value.
+        unsafe { *self.pending_upload_metadata.get() = Some(metadata) };
+    }
+
+    fn take_upload_metadata(&self, now_ms: u64) -> Option<RebornUploadMetadata> {
+        // SAFETY: Only the network worker sets or takes this pending value.
+        unsafe { (&mut *self.pending_upload_metadata.get()).take() }
+            .filter(|metadata| metadata.is_current(now_ms))
+    }
 }
 
 struct PayloadGuard<'a> {
@@ -96,6 +133,12 @@ impl Drop for PayloadGuard<'_> {
 }
 
 static SHARED: Shared = Shared::new();
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ReceivedUpload {
+    pub payload: WiiloadPayload,
+    pub metadata: Option<RebornUploadMetadata>,
+}
 static MENU_APP_COUNT: AtomicU32 = AtomicU32::new(0);
 static MENU_DEVICE: AtomicU8 = AtomicU8::new(u8::MAX);
 static MENU_INSERTED: AtomicU8 = AtomicU8::new(0);
@@ -309,8 +352,8 @@ pub fn local_ip() -> Option<[u8; 4]> {
     ])
 }
 
-/// Take ownership of one completed payload. The worker can publish another after this call.
-pub fn take_payload() -> Option<WiiloadPayload> {
+/// Take ownership of one completed upload. The worker can publish another after this call.
+pub fn take_payload() -> Option<ReceivedUpload> {
     // A busy producer runs at lower priority. Return to the frame loop so it
     // can finish publishing instead of spinning and preventing it from running.
     crate::wiiload::try_with_payload(&SHARED.payload_lock, || {
@@ -430,7 +473,10 @@ fn worker_main(shared: &Shared) -> ReceiverStatus {
                 let _guard = shared.lock_payload();
                 let slot = unsafe { &mut *shared.payload.get() };
                 if slot.is_none() {
-                    *slot = Some(payload);
+                    *slot = Some(ReceivedUpload {
+                        payload,
+                        metadata: None,
+                    });
                     shared.set_status(ReceiverStatus::PayloadReady);
                     continue;
                 }
@@ -487,6 +533,10 @@ fn worker_main(shared: &Shared) -> ReceiverStatus {
         match received {
             Ok(None) => {}
             Ok(Some(payload)) => {
+                let payload = ReceivedUpload {
+                    payload,
+                    metadata: shared.take_upload_metadata(remote_now_ms()),
+                };
                 let _guard = shared.lock_payload();
                 // SAFETY: PayloadGuard provides exclusive access to the slot.
                 let slot = unsafe { &mut *shared.payload.get() };
@@ -927,6 +977,38 @@ fn receive_client(
         )?;
         receive_remote_input(shared, client, &packet, started_at)?;
         return Ok(None);
+    }
+    if &header_bytes[..4] == b"HBCA" {
+        let name_len = usize::from(u16::from_be_bytes([header_bytes[4], header_bytes[5]]));
+        let flags = u16::from_be_bytes([header_bytes[6], header_bytes[7]]);
+        if name_len > crate::wiiload::REBORN_UPLOAD_NAME_CAPACITY || (name_len == 0 && flags == 0) {
+            let reply = devnet_status_reply(-22);
+            return write_response(shared, client, &reply, started_at).map(|()| None);
+        }
+        let mut name = [0; crate::wiiload::REBORN_UPLOAD_NAME_CAPACITY];
+        if name_len != 0 {
+            match read_exact(shared, client, &mut name[..name_len], false, started_at) {
+                Ok(()) => {}
+                Err(ReceiveError::Stopped) => return Err(ReceiveError::Stopped),
+                Err(_) => {
+                    let reply = devnet_status_reply(-22);
+                    return write_response(shared, client, &reply, started_at).map(|()| None);
+                }
+            }
+        }
+        let metadata = match decode_reborn_upload_metadata(
+            &header_bytes,
+            &name[..name_len],
+            remote_now_ms(),
+        ) {
+            Ok(metadata) => metadata,
+            Err(_) => {
+                let reply = devnet_status_reply(-22);
+                return write_response(shared, client, &reply, started_at).map(|()| None);
+            }
+        };
+        shared.set_upload_metadata(metadata);
+        return write_response(shared, client, &[0; 8], started_at).map(|()| None);
     }
     if &header_bytes[..4] == b"HBCS" {
         let body = status_json(shared);

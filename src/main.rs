@@ -491,8 +491,9 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             && pending_zip.is_none()
             && !startup.executable_load_pending()
             && !startup.received_zip_install_pending()
-            && let Some(payload) = hbc_rs::platform::wiiload::take_payload()
+            && let Some(upload) = hbc_rs::platform::wiiload::take_payload()
         {
+            let hbc_rs::platform::wiiload::ReceivedUpload { payload, metadata } = upload;
             ogc_system::report(format_args!(
                 "HBC: received payload ready: {} bytes\n",
                 payload.data.len()
@@ -503,27 +504,49 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
                         directory,
                         extraction,
                         ..
-                    }) => match startup.received_zip_destination_exists(&directory) {
-                        Ok(overwrite) => {
-                            let language = hbc_rs::localization::Language::from_console(
-                                ogc_conf::get_language(),
-                                startup.runtime().theme(),
-                            );
-                            let confirmation = language.received_zip_confirmation(
-                                &directory,
-                                extraction.total_bytes(),
-                                overwrite,
-                            );
-                            pending_zip = Some(payload.data);
-                            startup.runtime_mut().request_wiiload_zip_confirmation();
-                            startup
-                                .runtime_mut()
-                                .set_wiiload_confirmation_text(confirmation);
+                    }) => {
+                        if metadata.is_some_and(|metadata| {
+                            metadata.is_current(hbc_rs::platform::network_restart::now_ms())
+                                && metadata.install_without_asking()
+                        }) {
+                            match startup.start_received_zip(payload.data) {
+                                Ok(()) => ogc_system::report(format_args!(
+                                    "HBC: received app ZIP install accepted by sender flag\n"
+                                )),
+                                Err(error) => {
+                                    ogc_system::report(format_args!(
+                                        "HBC: received app ZIP failed: {error:?}\n"
+                                    ));
+                                    startup.runtime_mut().show_notice_with_kind(
+                                        "Could not install the received app ZIP.",
+                                        hbc_rs::app::NoticeKind::Error,
+                                    );
+                                }
+                            }
+                        } else {
+                            match startup.received_zip_destination_exists(&directory) {
+                                Ok(overwrite) => {
+                                    let language = hbc_rs::localization::Language::from_console(
+                                        ogc_conf::get_language(),
+                                        startup.runtime().theme(),
+                                    );
+                                    let confirmation = language.received_zip_confirmation(
+                                        &directory,
+                                        extraction.total_bytes(),
+                                        overwrite,
+                                    );
+                                    pending_zip = Some(payload.data);
+                                    startup.runtime_mut().request_wiiload_zip_confirmation();
+                                    startup
+                                        .runtime_mut()
+                                        .set_wiiload_confirmation_text(confirmation);
+                                }
+                                Err(_) => startup
+                                    .runtime_mut()
+                                    .show_notice("Could not check the target storage folder."),
+                            }
                         }
-                        Err(_) => startup
-                            .runtime_mut()
-                            .show_notice("Could not check the target storage folder."),
-                    },
+                    }
                     Ok(hbc_rs::wiiload_zip::WiiloadZipClassification::Theme { .. }) => {
                         match startup.start_received_zip(payload.data) {
                             Ok(()) => {
