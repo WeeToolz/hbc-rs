@@ -1019,6 +1019,44 @@ fn receive_client(
         TRANSFER_STYLE.store(style as u8, Ordering::Release);
         return write_response(shared, client, &[0; 8], started_at).map(|()| None);
     }
+    if &header_bytes[..4] == b"HBCF" {
+        let header = match crate::devfile::RequestHeader::decode(&header_bytes) {
+            Ok(header) => header,
+            Err(_) => {
+                return write_devfile_reply(
+                    shared,
+                    client,
+                    -crate::devfile::errno::EINVAL,
+                    &[],
+                    started_at,
+                )
+                .map(|()| None);
+            }
+        };
+        let mut path = Vec::new();
+        if path.try_reserve_exact(header.path_len).is_err() {
+            return write_devfile_reply(
+                shared,
+                client,
+                -crate::devfile::errno::ENOMEM,
+                &[],
+                started_at,
+            )
+            .map(|()| None);
+        }
+        path.resize(header.path_len, 0);
+        if read_exact(shared, client, &mut path, false, started_at).is_err() {
+            return write_devfile_reply(
+                shared,
+                client,
+                -crate::devfile::errno::EINVAL,
+                &[],
+                started_at,
+            )
+            .map(|()| None);
+        }
+        return handle_devfile(shared, client, &header, &path, started_at).map(|()| None);
+    }
     if &header_bytes[..4] == b"HBCS" {
         let body = status_json(shared);
         let mut response = Vec::with_capacity(8 + body.len());
@@ -1078,6 +1116,500 @@ fn receive_client(
         args.len()
     ));
     Ok(Some(WiiloadPayload { data, args }))
+}
+
+fn write_devfile_reply(
+    shared: &Shared,
+    client: i32,
+    status: i32,
+    payload: &[u8],
+    started_at: u64,
+) -> Result<(), ReceiveError> {
+    let Ok(length) = u32::try_from(payload.len()) else {
+        return write_response(
+            shared,
+            client,
+            &devnet_status_reply(-crate::devfile::errno::EFBIG),
+            started_at,
+        );
+    };
+    write_devfile_header(shared, client, status, length, started_at)?;
+    write_response(shared, client, payload, started_at)
+}
+
+fn write_devfile_header(
+    shared: &Shared,
+    client: i32,
+    status: i32,
+    length: u32,
+    started_at: u64,
+) -> Result<(), ReceiveError> {
+    let mut header = [0; 8];
+    header[..4].copy_from_slice(&status.to_be_bytes());
+    header[4..].copy_from_slice(&length.to_be_bytes());
+    write_response(shared, client, &header, started_at)
+}
+
+fn devfile_errno(error: ogc_fat::FatError) -> i32 {
+    -ogc_fat::fat_errno(error)
+}
+
+struct DevfileProgressGuard<'a>(&'a Shared);
+
+impl Drop for DevfileProgressGuard<'_> {
+    fn drop(&mut self) {
+        self.0.receive_completed.store(0, Ordering::Release);
+        self.0.receive_total.store(0, Ordering::Release);
+    }
+}
+
+fn devfile_volume(device: &[u8]) -> Option<crate::platform::storage::Volume> {
+    match device {
+        b"sd" => Some(crate::platform::storage::Volume::Sd),
+        b"usb" => Some(crate::platform::storage::Volume::Usb),
+        b"usb2" => Some(crate::platform::storage::Volume::Usb2),
+        b"carda" => Some(crate::platform::storage::Volume::CardA),
+        b"cardb" => Some(crate::platform::storage::Volume::CardB),
+        _ => None,
+    }
+}
+
+fn devfile_c_path(path: &[u8]) -> Result<alloc::ffi::CString, i32> {
+    let mut bytes = Vec::new();
+    bytes
+        .try_reserve_exact(path.len())
+        .map_err(|_| -crate::devfile::errno::ENOMEM)?;
+    bytes.extend_from_slice(path);
+    alloc::ffi::CString::new(bytes).map_err(|_| -crate::devfile::errno::EINVAL)
+}
+
+fn devfile_entry_line(metadata: ogc_fat::FatMetadata, modified: u64, name: &[u8]) -> Vec<u8> {
+    let kind = if metadata.is_directory { 'd' } else { 'f' };
+    let size = if metadata.is_directory {
+        0
+    } else {
+        metadata.size
+    };
+    let readonly = if metadata.readonly { "r" } else { "-" };
+    let mut line = alloc::format!("{kind} {size} {modified} {readonly} ").into_bytes();
+    line.extend_from_slice(name);
+    line.push(b'\n');
+    line
+}
+
+fn handle_devfile(
+    shared: &Shared,
+    client: i32,
+    header: &crate::devfile::RequestHeader,
+    raw_path: &[u8],
+    started_at: u64,
+) -> Result<(), ReceiveError> {
+    use crate::devfile::Operation;
+
+    let validated = match crate::devfile::validate_path(raw_path) {
+        Ok(path) => path,
+        Err(_) => {
+            return write_devfile_reply(
+                shared,
+                client,
+                -crate::devfile::errno::EINVAL,
+                &[],
+                started_at,
+            );
+        }
+    };
+    let Some(volume) = devfile_volume(validated.device) else {
+        return write_devfile_reply(
+            shared,
+            client,
+            -crate::devfile::errno::EINVAL,
+            &[],
+            started_at,
+        );
+    };
+    if let Err(error) = crate::platform::storage::FatStorage::mount(volume) {
+        let errno = match error {
+            crate::platform::storage::StorageError::Fat(error)
+            | crate::platform::storage::StorageError::UsbMount { error, .. } => {
+                devfile_errno(error)
+            }
+            _ => -crate::devfile::errno::EIO,
+        };
+        return write_devfile_reply(shared, client, errno, &[], started_at);
+    }
+
+    let path = crate::devfile::strip_directory_slash(validated.bytes);
+    let c_path = match devfile_c_path(path) {
+        Ok(path) => path,
+        Err(errno) => return write_devfile_reply(shared, client, errno, &[], started_at),
+    };
+    let response = match header.operation {
+        Some(Operation::Stat) => devfile_stat(path, &c_path),
+        Some(Operation::List) => devfile_list(path, &c_path),
+        Some(Operation::Checksum) => devfile_checksum(&c_path),
+        Some(Operation::Delete) => devfile_delete(&c_path),
+        Some(Operation::MakeDirectory) => devfile_mkdir(path),
+        Some(Operation::PutFramed | Operation::PutRaw)
+            if validated.trailing_slash || header.size > crate::devfile::MAX_UPLOAD_SIZE =>
+        {
+            Err(if validated.trailing_slash {
+                -crate::devfile::errno::EISDIR
+            } else {
+                -crate::devfile::errno::EFBIG
+            })
+        }
+        Some(Operation::PutFramed | Operation::PutRaw) => {
+            devfile_put(shared, client, path, header, started_at).map(|()| Vec::new())
+        }
+        Some(Operation::GetRaw | Operation::GetFramed) => {
+            return devfile_get(shared, client, &c_path, header, started_at);
+        }
+        None => Err(-crate::devfile::errno::ENOSYS),
+    };
+    match response {
+        Ok(payload) => write_devfile_reply(shared, client, 0, &payload, started_at),
+        Err(errno) => write_devfile_reply(shared, client, errno, &[], started_at),
+    }
+}
+
+fn devfile_put(
+    shared: &Shared,
+    client: i32,
+    path: &[u8],
+    header: &crate::devfile::RequestHeader,
+    started_at: u64,
+) -> Result<(), i32> {
+    let mut part_path = Vec::new();
+    let _progress = DevfileProgressGuard(shared);
+    part_path
+        .try_reserve_exact(path.len() + 5)
+        .map_err(|_| -crate::devfile::errno::ENOMEM)?;
+    part_path.extend_from_slice(path);
+    part_path.extend_from_slice(b".part");
+    devfile_mkdir_parents(path);
+    let target = devfile_c_path(path)?;
+    let part = devfile_c_path(&part_path)?;
+    let framed = header.operation == Some(crate::devfile::Operation::PutFramed);
+    let write_result = (|| {
+        let mut file = ogc_fat::FatFile::create_truncate(&part).map_err(devfile_errno)?;
+        let mut remaining = header.size;
+        let mut completed = 0u32;
+        shared.receive_completed.store(0, Ordering::Release);
+        shared.receive_total.store(header.size, Ordering::Release);
+        while remaining != 0 {
+            let raw = if framed {
+                let mut frame_header = [0; 12];
+                read_exact(shared, client, &mut frame_header, false, started_at)
+                    .map_err(receive_devfile_errno)?;
+                let raw_len = u32::from_be_bytes(frame_header[..4].try_into().unwrap()) as usize;
+                let wire_len = u32::from_be_bytes(frame_header[4..8].try_into().unwrap()) as usize;
+                let expected_crc = u32::from_be_bytes(frame_header[8..12].try_into().unwrap());
+                if raw_len == 0
+                    || raw_len > crate::devfile::MAX_FRAME_SIZE
+                    || raw_len > remaining as usize
+                    || wire_len == 0
+                    || wire_len > raw_len
+                {
+                    return Err(-crate::devfile::errno::EPROTO);
+                }
+                let mut wire = Vec::new();
+                wire.try_reserve_exact(wire_len)
+                    .map_err(|_| -crate::devfile::errno::ENOMEM)?;
+                wire.resize(wire_len, 0);
+                read_exact(shared, client, &mut wire, false, started_at)
+                    .map_err(receive_devfile_errno)?;
+                let raw = if wire_len < raw_len {
+                    let mut offset = 0;
+                    crate::wiiload::decode_zlib_stream(raw_len, wire_len, |chunk| {
+                        let end = offset + chunk.len();
+                        chunk.copy_from_slice(&wire[offset..end]);
+                        offset = end;
+                        Ok::<(), ()>(())
+                    })
+                    .map_err(|error| match error {
+                        crate::wiiload::StreamDecodeError::Allocation => {
+                            -crate::devfile::errno::ENOMEM
+                        }
+                        _ => -crate::devfile::errno::EBADMSG,
+                    })?
+                } else {
+                    wire
+                };
+                if crc32fast::hash(&raw) != expected_crc {
+                    return Err(-crate::devfile::errno::EBADMSG);
+                }
+                remaining -= raw_len as u32;
+                completed = completed.saturating_add(raw_len as u32);
+                raw
+            } else {
+                let count = (remaining as usize).min(32 * 1024);
+                let mut bytes = Vec::new();
+                bytes
+                    .try_reserve_exact(count)
+                    .map_err(|_| -crate::devfile::errno::ENOMEM)?;
+                bytes.resize(count, 0);
+                read_exact(shared, client, &mut bytes, false, started_at)
+                    .map_err(receive_devfile_errno)?;
+                remaining -= count as u32;
+                completed = completed.saturating_add(count as u32);
+                bytes
+            };
+            write_devfile_file(&mut file, &raw)?;
+            shared.receive_completed.store(completed, Ordering::Release);
+        }
+        file.flush().map_err(devfile_errno)?;
+        file.close().map_err(devfile_errno)
+    })();
+    shared.receive_completed.store(0, Ordering::Release);
+    shared.receive_total.store(0, Ordering::Release);
+    if let Err(errno) = write_result {
+        let _ = ogc_fat::remove_file(&part);
+        return Err(errno);
+    }
+    ogc_fat::rename_replace(&part, &target).map_err(devfile_errno)
+}
+
+fn write_devfile_file(file: &mut ogc_fat::FatFile, mut bytes: &[u8]) -> Result<(), i32> {
+    while !bytes.is_empty() {
+        let written = file.write(bytes).map_err(devfile_errno)?;
+        if written == 0 {
+            return Err(-ogc_fat::fat_errno(ogc_fat::FatError::NoSpace));
+        }
+        bytes = &bytes[written..];
+    }
+    Ok(())
+}
+
+fn receive_devfile_errno(error: ReceiveError) -> i32 {
+    match error {
+        ReceiveError::Stopped => -crate::devfile::errno::EINTR,
+        ReceiveError::Memory => -crate::devfile::errno::ENOMEM,
+        ReceiveError::Invalid => -crate::devfile::errno::EIO,
+    }
+}
+
+fn devfile_mkdir_parents(path: &[u8]) {
+    let Some(colon) = path.iter().position(|byte| *byte == b':') else {
+        return;
+    };
+    let mut at = colon + 2;
+    while at < path.len() {
+        let Some(relative) = path[at..].iter().position(|byte| *byte == b'/') else {
+            break;
+        };
+        at += relative;
+        if at > colon + 1
+            && let Ok(parent) = devfile_c_path(&path[..at])
+        {
+            let _ = ogc_fat::create_directory(&parent);
+        }
+        at += 1;
+    }
+}
+
+fn devfile_get(
+    shared: &Shared,
+    client: i32,
+    c_path: &core::ffi::CStr,
+    header: &crate::devfile::RequestHeader,
+    started_at: u64,
+) -> Result<(), ReceiveError> {
+    let metadata = match ogc_fat::stat(c_path) {
+        Ok(metadata) if !metadata.is_directory => metadata,
+        _ => {
+            return write_devfile_reply(
+                shared,
+                client,
+                -crate::devfile::errno::ENOENT,
+                &[],
+                started_at,
+            );
+        }
+    };
+    let mut file = match ogc_fat::FatFile::open(c_path) {
+        Ok(file) => file,
+        Err(error) => {
+            return write_devfile_reply(shared, client, devfile_errno(error), &[], started_at);
+        }
+    };
+    let framed = header.operation == Some(crate::devfile::Operation::GetFramed);
+    let compress = framed && header.flags & crate::devfile::FLAG_COMPRESS != 0;
+    write_devfile_header(shared, client, 0, metadata.size, started_at)?;
+    let _progress = DevfileProgressGuard(shared);
+    let mut remaining = metadata.size;
+    shared.receive_completed.store(0, Ordering::Release);
+    shared.receive_total.store(metadata.size, Ordering::Release);
+    while remaining != 0 {
+        let count = (remaining as usize).min(if framed {
+            crate::devfile::MAX_FRAME_SIZE
+        } else {
+            32 * 1024
+        });
+        let mut bytes = Vec::new();
+        if bytes.try_reserve_exact(count).is_err() {
+            if framed {
+                write_devfile_terminal(shared, client, -crate::devfile::errno::ENOMEM, started_at)?;
+            }
+            return Err(ReceiveError::Memory);
+        }
+        bytes.resize(count, 0);
+        let mut read = 0;
+        while read < count {
+            match file.read(&mut bytes[read..]) {
+                Ok(0) => break,
+                Ok(length) => read += length,
+                Err(_) => {
+                    if framed {
+                        write_devfile_terminal(
+                            shared,
+                            client,
+                            -crate::devfile::errno::EIO,
+                            started_at,
+                        )?;
+                    }
+                    return Err(ReceiveError::Invalid);
+                }
+            }
+        }
+        if framed {
+            let checksum = crc32fast::hash(&bytes);
+            let compressed = if compress {
+                miniz_oxide::deflate::compress_to_vec_zlib(&bytes, 6)
+            } else {
+                Vec::new()
+            };
+            let wire = if compress && compressed.len() < bytes.len() {
+                compressed.as_slice()
+            } else {
+                bytes.as_slice()
+            };
+            let mut frame = Vec::new();
+            if frame.try_reserve_exact(12 + wire.len()).is_err() {
+                write_devfile_terminal(shared, client, -crate::devfile::errno::ENOMEM, started_at)?;
+                return Err(ReceiveError::Memory);
+            }
+            frame.extend_from_slice(&(count as u32).to_be_bytes());
+            frame.extend_from_slice(&(wire.len() as u32).to_be_bytes());
+            frame.extend_from_slice(&checksum.to_be_bytes());
+            frame.extend_from_slice(wire);
+            write_response(shared, client, &frame, started_at)?;
+        } else {
+            write_response(shared, client, &bytes, started_at)?;
+        }
+        remaining -= count as u32;
+        shared
+            .receive_completed
+            .store(metadata.size - remaining, Ordering::Release);
+    }
+    if framed {
+        write_devfile_terminal(shared, client, 0, started_at)?;
+    }
+    shared.receive_completed.store(0, Ordering::Release);
+    shared.receive_total.store(0, Ordering::Release);
+    Ok(())
+}
+
+fn write_devfile_terminal(
+    shared: &Shared,
+    client: i32,
+    status: i32,
+    started_at: u64,
+) -> Result<(), ReceiveError> {
+    let mut frame = [0; 12];
+    frame[8..12].copy_from_slice(&status.to_be_bytes());
+    write_response(shared, client, &frame, started_at)
+}
+
+fn devfile_stat(path: &[u8], c_path: &core::ffi::CStr) -> Result<Vec<u8>, i32> {
+    let metadata = ogc_fat::stat(c_path).map_err(devfile_errno)?;
+    let modified = ogc_fat::get_times(c_path)
+        .map_err(devfile_errno)?
+        .modified
+        .unwrap_or(0);
+    let basename = path.rsplit(|byte| *byte == b'/').next().unwrap_or(path);
+    Ok(devfile_entry_line(metadata, modified, basename))
+}
+
+fn devfile_list(path: &[u8], c_path: &core::ffi::CStr) -> Result<Vec<u8>, i32> {
+    let mut directory = ogc_fat::FatDirectory::open(c_path).map_err(devfile_errno)?;
+    let mut listing = Vec::new();
+    listing
+        .try_reserve_exact(crate::devfile::MAX_LIST_SIZE.min(4096))
+        .map_err(|_| -crate::devfile::errno::ENOMEM)?;
+    listing.extend_from_slice(b"#list 2\n");
+    while let Some(entry) = directory.next_entry().map_err(devfile_errno)? {
+        if entry.name == b"." || entry.name == b".." {
+            continue;
+        }
+        if listing.len() >= crate::devfile::MAX_LIST_SIZE - crate::devfile::PATH_CAPACITY - 64 {
+            listing.extend_from_slice(b"! truncated\n");
+            break;
+        }
+        let mut child = Vec::new();
+        child
+            .try_reserve_exact(path.len() + 1 + entry.name.len())
+            .map_err(|_| -crate::devfile::errno::ENOMEM)?;
+        child.extend_from_slice(path);
+        if child.last() != Some(&b'/') {
+            child.push(b'/');
+        }
+        child.extend_from_slice(&entry.name);
+        let Ok(child_path) = devfile_c_path(&child) else {
+            continue;
+        };
+        let Ok(metadata) = ogc_fat::stat(&child_path) else {
+            continue;
+        };
+        let modified = ogc_fat::get_times(&child_path)
+            .ok()
+            .and_then(|times| times.modified)
+            .unwrap_or(0);
+        listing.extend_from_slice(&devfile_entry_line(metadata, modified, &entry.name));
+    }
+    Ok(listing)
+}
+
+fn devfile_checksum(c_path: &core::ffi::CStr) -> Result<Vec<u8>, i32> {
+    let metadata = ogc_fat::stat(c_path).map_err(devfile_errno)?;
+    if metadata.is_directory {
+        return Err(-crate::devfile::errno::EISDIR);
+    }
+    let mut file = ogc_fat::FatFile::open(c_path).map_err(devfile_errno)?;
+    let mut buffer = [0; 32 * 1024];
+    let mut checksum = crc32fast::Hasher::new();
+    loop {
+        let length = file.read(&mut buffer).map_err(devfile_errno)?;
+        if length == 0 {
+            break;
+        }
+        checksum.update(&buffer[..length]);
+    }
+    let mut result = Vec::new();
+    result
+        .try_reserve_exact(8)
+        .map_err(|_| -crate::devfile::errno::ENOMEM)?;
+    result.extend_from_slice(&metadata.size.to_be_bytes());
+    result.extend_from_slice(&checksum.finalize().to_be_bytes());
+    Ok(result)
+}
+
+fn devfile_delete(c_path: &core::ffi::CStr) -> Result<Vec<u8>, i32> {
+    let metadata = ogc_fat::stat(c_path).map_err(|_| -crate::devfile::errno::ENOENT)?;
+    if metadata.is_directory {
+        ogc_fat::remove_directory(c_path).map_err(devfile_errno)?;
+    } else {
+        ogc_fat::remove_file(c_path).map_err(devfile_errno)?;
+    }
+    Ok(Vec::new())
+}
+
+fn devfile_mkdir(path: &[u8]) -> Result<Vec<u8>, i32> {
+    devfile_mkdir_parents(path);
+    let target = devfile_c_path(path)?;
+    match ogc_fat::create_directory(&target) {
+        Ok(()) | Err(ogc_fat::FatError::AlreadyExists) => Ok(Vec::new()),
+        Err(error) => Err(devfile_errno(error)),
+    }
 }
 
 fn status_json(shared: &Shared) -> alloc::string::String {
