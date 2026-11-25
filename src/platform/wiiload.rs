@@ -651,9 +651,12 @@ fn initialize_network(shared: &Shared) -> bool {
             return false;
         }
         // No callback is needed. The status wait checks cancellation each poll.
-        if unsafe { network::init_async(None, core::ptr::null_mut()) } != 0 {
-            sleep_poll();
-            continue;
+        let submitted = unsafe { network::init_async(None, core::ptr::null_mut()) };
+        if submitted != 0 {
+            ogc_system::report(format_args!(
+                "HBC: Wiiload IOS network startup submission failed: {submitted}\n"
+            ));
+            return false;
         }
         let Some(result) = crate::wiiload::wait_network_initialization(
             network::get_status,
