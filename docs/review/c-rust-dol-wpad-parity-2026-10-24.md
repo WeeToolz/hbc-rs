@@ -122,3 +122,32 @@ A matched Dolphin smoke capture also sends pointer and button input to both the
 Reborn C DOL and Rust DOL through an emulated Wii Remote. The screenshots show
 input reaching both applications; they do not prove physical Bluetooth or
 GameCube behavior. See the [input smoke evidence](evidence/hbc-wpad-ui-smoke-c-rust-dolphin-2026-11-25/README.md).
+
+## 2026-11-25 matched user-SD follow-up
+
+The Tetris DOL in the user's Dolphin SD folder is not the file identified in
+the earlier Wii report. The current folder-sync DOL is 5,155,488 bytes with
+SHA-256 `f7b51ee24af743117d932173749d37bc8f3ee3da52de92342ab69103542f3b21`;
+its first text section has file offset `0x100`, address `0x80004000`, and size
+651,724 bytes. The earlier local DOL identity was 5,153,056 bytes with SHA-256
+`b5792032f947f4529bfcf934e75be82d328394f136b69e6db663b24cb5e9e1ba`. That
+file is no longer present at its recorded path, and its Wii card bytes were
+not independently hashed.
+
+I ran the same private folder-sync app fixture through both current HBC DOLs.
+The Reborn C control DOL has SHA-256
+`a32c35c20e2a18ba3004aefbcea9ac10af555f0d068241e9332d6840b28fe5f6`; the
+Rust DOL has SHA-256
+`db07edb6aee77475cec552b864b75ca025eef3262481098e559ee38f37073938`. Both
+Dolphin processes exited with code `-11` before the first app-browser capture;
+both results have no captured stages. The C control also fails in this test
+setup, so this run does not compare the two DOL-loading paths. Run results are
+retained locally in
+`docs/review/evidence/hbc-user-sd-tetris-c-dolphin-2026-11-25-r11/` and
+`docs/review/evidence/hbc-user-sd-tetris-rust-dolphin-2026-11-25-r4/`.
+
+The current Dolphin Tetris DOL passes the host DOL parser with its recorded
+header. The old Wii error remains unresolved because the exact card file and
+bytes seen immediately before parsing are not available. Keep the overlap
+check. A Dolphin SD failure before the browser is not evidence for or against
+that Wii-only byte difference.
