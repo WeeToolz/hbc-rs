@@ -36,3 +36,22 @@ fix is established by this run.
 Next, identify why the connection closed. Compare the current and earlier
 working Bluetooth paths with controlled builds, then repeat the same Dolphin
 input test. Physical Wii input and startup timing remain open.
+
+## Disconnect trace
+
+A controlled run with HBC `36c435f` and the library before the data-format
+change (`b25827a6`) also disconnected the emulated Remote. A temporary
+instrumented copy recorded the caller of the Bluetooth disconnect request:
+the guest-search branch in `hid_host.rs`. The controller manager started that
+search automatically after the Remote connected. Guest search disconnects
+existing Wii Remotes before inquiry. The trace source changes are saved with
+the [caller trace](evidence/wpad-caller-trace-rust-ui-dolphin-2026-11-24/result.json).
+
+The manager now starts only general HID discovery automatically. An explicit
+guest search is still available. In the [follow-up run](evidence/wpad-no-auto-guest-rust-ui-dolphin-2026-11-24/result.json),
+the emulated Remote stayed connected, reached pointer readiness, moved the
+pointer, and produced a pointer press. The full UI test failed later: it did
+not observe the expected Options target for a click at the requested position.
+Its screenshot shows the Options screen. Investigate that failure separately;
+do not mark the full UI test or the physical Wii test as passed. The follow-up
+WAD reached the network-ready check in 2.832 seconds in this single Dolphin run.

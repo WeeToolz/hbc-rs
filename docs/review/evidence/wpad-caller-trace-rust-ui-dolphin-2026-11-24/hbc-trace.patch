@@ -1,0 +1,26 @@
+diff --git a/src/platform/input.rs b/src/platform/input.rs
+index 0e852d5..3a14a75 100644
+--- a/src/platform/input.rs
++++ b/src/platform/input.rs
+@@ -32,6 +32,13 @@ static mut CONTROLLER_MANAGER: ControllerManager = ControllerManager::new();
+ #[cfg(target_arch = "powerpc")]
+ static mut RIGHT_STICK_MAPPER: DigitalStickMapper<MAX_CONTROLLERS> = DigitalStickMapper::new();
+ 
++#[cfg(target_arch = "powerpc")]
++fn trace_disconnect(stage: &'static str) {
++    if stage.starts_with("TRACE ") {
++        ogc_system::report(format_args!("HBC: {stage}\n"));
++    }
++}
++
+ #[cfg(target_arch = "powerpc")]
+ fn report_bluetooth_startup(stage: &'static str) {
+     ogc_system::report(format_args!("HBC: Bluetooth startup: {stage}\n"));
+@@ -613,6 +620,7 @@ pub fn initialize(view_width: u16, view_height: u16) -> Result<(), i32> {
+     manager.set_bluetooth_startup_hook(Some(report_bluetooth_startup));
+     manager.set_bluetooth_event_hook(Some(report_bluetooth_event));
+     manager.set_bluetooth_diagnostics_hook(Some(report_bluetooth_diagnostics));
++    wpad_sys::set_bluetooth_poll_hook(Some(trace_disconnect));
+     #[cfg(feature = "startup-diagnostics")]
+     manager.set_input_scan_hook(Some(diagnostic_scan_mark));
+     #[cfg(feature = "startup-diagnostics")]

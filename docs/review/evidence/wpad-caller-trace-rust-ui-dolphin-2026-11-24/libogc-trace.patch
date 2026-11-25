@@ -1,0 +1,73 @@
+diff --git a/crates/services/ogc-bt-sync/src/hid_host.rs b/crates/services/ogc-bt-sync/src/hid_host.rs
+index c66b1b42..754fbbca 100644
+--- a/crates/services/ogc-bt-sync/src/hid_host.rs
++++ b/crates/services/ogc-bt-sync/src/hid_host.rs
+@@ -110,6 +110,9 @@ pub struct HostDiagnostics {
+     pub stage: HostStage,
+     pub failed_stage: Option<HostStage>,
+     pub failure: Option<Failure>,
++    pub last_link_failure: Option<Failure>,
++    pub trace_disconnect_requests: u32,
++    pub trace_disconnect_caller: Option<&'static core::panic::Location<'static>>,
+     pub events: u32,
+     pub acl_packets: u32,
+     pub reports: u32,
+@@ -272,6 +275,9 @@ impl HidHost {
+                 stage: HostStage::Disabled,
+                 failed_stage: None,
+                 failure: None,
++                last_link_failure: None,
++                trace_disconnect_requests: 0,
++                trace_disconnect_caller: None,
+                 events: 0,
+                 acl_packets: 0,
+                 reports: 0,
+@@ -362,6 +368,9 @@ impl HidHost {
+         }
+     }
+     fn emit(&mut self, event: HidEvent) {
++        if let HidEvent::Failed { slot: Some(_), failure } = &event {
++            self.diagnostic.last_link_failure = Some(*failure);
++        }
+         self.events.push_back(event);
+     }
+     pub fn adapter_opening(&mut self) {
+@@ -677,7 +686,10 @@ impl HidHost {
+     }
+     /// Submit a disconnect command. The link remains present until the adapter
+     /// reports disconnection. `Ok` means submission, not completed cleanup.
++    #[track_caller]
+     pub fn request_disconnect(&mut self, slot: usize) -> core::result::Result<(), Failure> {
++        self.diagnostic.trace_disconnect_requests += 1;
++        self.diagnostic.trace_disconnect_caller = Some(core::panic::Location::caller());
+         if self.diagnostic.stage == HostStage::Failed {
+             return Err(self.diagnostic.failure.unwrap_or(Failure::Protocol));
+         }
+@@ -695,6 +707,7 @@ impl HidHost {
+         self.queue_hci(HciOpcode::DISCONNECT, &params);
+         Ok(())
+     }
++    #[track_caller]
+     pub fn disconnect(&mut self, slot: usize) {
+         if slot >= HID_SLOTS {
+             return;
+diff --git a/crates/services/wpad-sys/src/powerpc_backend.rs b/crates/services/wpad-sys/src/powerpc_backend.rs
+index a068d213..0f714cdd 100644
+--- a/crates/services/wpad-sys/src/powerpc_backend.rs
++++ b/crates/services/wpad-sys/src/powerpc_backend.rs
+@@ -1261,6 +1261,7 @@ fn disconnect_slot(slot_idx: usize) -> i32 {
+     if !connected {
+         return WPAD_ERR_NONE as i32;
+     }
++    bluetooth_poll_mark("TRACE DISCONNECT SLOT REQUEST");
+     let Some(result) = with_host(|host| host.request_disconnect(slot_idx)) else {
+         return WPAD_ERR_NOT_READY as i32;
+     };
+@@ -2345,6 +2346,7 @@ pub(crate) fn scan_pads() -> i32 {
+     ipc_poll();
+     bluetooth_poll_mark("WPAD IPC completion poll completed");
+     let requested = DISCONNECT_REQUESTS.swap(0, Ordering::AcqRel);
++    if requested != 0 { bluetooth_poll_mark("TRACE IDLE DISCONNECT REQUEST"); }
+     let mut pending_disconnects = requested;
+     for slot in 0..MAX_POWERPC_SLOTS {
+         if requested & (1 << slot) != 0 {

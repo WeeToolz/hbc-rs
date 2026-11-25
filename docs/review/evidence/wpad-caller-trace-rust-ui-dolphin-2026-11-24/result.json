@@ -1,0 +1,113 @@
+{
+  "success": false,
+  "wad_sha256": "539c384e46a7c10f437fa2a18085039c32ec922acea37826229bf7b0b55f3165",
+  "elf_sha256": "44a13a0f5abd5597f3ea52d8c8a4b3372f2d537d5960e97dc541af5706b53475",
+  "physical_wii_tested": false,
+  "milestones": [],
+  "dol_sha256": "a90da345d8de95eacfcb1782ac8b58aad1c3321a895de570833a028a21af0a43",
+  "build_manifest": {
+    "format": 1,
+    "title_id": "000100014f484243",
+    "channel": "OHBC",
+    "ios": 58,
+    "signature_policy": "legacy-fakesign",
+    "certificate_root_trust": "unchecked",
+    "debug_profile": "release with debug=2",
+    "features": [
+      "debugger-network"
+    ],
+    "feature_evidence": "ELF source debug sections and WiiNetworkTransport symbol checked by packager",
+    "hbc_revision": "36c435fe8a7d32671c8d68e4adb80b1029b12786",
+    "hbc_changes": [
+      " M src/platform/input.rs"
+    ],
+    "libogc_revision": "b25827a6c49b8dbe2d6c2f901aadaaec670f86c3",
+    "libogc_changes": [
+      " M crates/services/ogc-bt-sync/src/hid_host.rs",
+      " M crates/services/wpad-sys/src/powerpc_backend.rs"
+    ],
+    "files": {
+      "hbc-rs-debug.elf": {
+        "size": 27470968,
+        "sha256": "44a13a0f5abd5597f3ea52d8c8a4b3372f2d537d5960e97dc541af5706b53475"
+      },
+      "hbc-rs-debug.dol": {
+        "size": 2490816,
+        "sha256": "a90da345d8de95eacfcb1782ac8b58aad1c3321a895de570833a028a21af0a43"
+      },
+      "hbc-rs-debug-channel.dol": {
+        "size": 2491136,
+        "sha256": "f9eb80b8e0962f825dcda42cb5606c7c10740d9cecddcb8e0c526a409112c527"
+      },
+      "hbc-rs-debug-OHBC.wad": {
+        "size": 3133504,
+        "sha256": "539c384e46a7c10f437fa2a18085039c32ec922acea37826229bf7b0b55f3165"
+      }
+    },
+    "return_stub": {
+      "size": 5216,
+      "sha256": "04e983c708c0b972692f82b08fc5c24c73d7a2cdcff058ef8432486644e0ddf5"
+    },
+    "physical_wii_tested": false,
+    "limitations": [
+      "No physical return fix is claimed",
+      "No private-key signing or EC verification",
+      "No certificate root trust check",
+      "No automatic recovery qualification",
+      "Installation would use the existing OHBC title ID"
+    ]
+  },
+  "ui_fixture": {
+    "name_order": [
+      "Amber",
+      "Birch",
+      "Cedar"
+    ],
+    "date_order": [
+      "Cedar",
+      "Birch",
+      "Amber"
+    ],
+    "apps": [
+      {
+        "directory": "cedar",
+        "title": "Cedar",
+        "release_date": "20250304120000"
+      },
+      {
+        "directory": "amber",
+        "title": "Amber",
+        "release_date": "20240102120000"
+      },
+      {
+        "directory": "birch",
+        "title": "Birch",
+        "release_date": "20241203120000"
+      }
+    ]
+  },
+  "screenshots": [
+    {
+      "stage": "wad_startup-ready",
+      "path": "docs/review/evidence/wpad-caller-trace-rust-ui-dolphin-2026-11-24/dolphin-20261124-230438-4670226666.png",
+      "seconds_since_launch": 3.607
+    }
+  ],
+  "wad_startup": {
+    "seconds": 2.831,
+    "reply": {
+      "state": "unknown",
+      "operation": 0,
+      "id": 0,
+      "session": 972,
+      "message": "No retained result for this request"
+    }
+  },
+  "viewport": {
+    "width": 852,
+    "height": 480
+  },
+  "error": "guest Wii Remote pointer readiness was not observed; recent events=[{'name': 'bubble_target', 'x': '234', 'y': '383'}, {'name': 'bubble_target', 'x': '229', 'y': '352'}, {'name': 'bubble_target', 'x': '231', 'y': '321'}, {'name': 'bubble_target', 'x': '783', 'y': '420'}, {'name': 'bubble_target', 'x': '177', 'y': '437'}, {'name': 'bubble_target', 'x': '173', 'y': '387'}, {'name': 'bubble_target', 'x': '169', 'y': '338'}, {'name': 'bubble_target', 'x': '167', 'y': '289'}]",
+  "screenshot": "docs/review/evidence/wpad-caller-trace-rust-ui-dolphin-2026-11-24/dolphin-20261124-230509-35847344250.png",
+  "dolphin_exit_code": 0
+}
