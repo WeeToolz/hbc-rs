@@ -177,23 +177,40 @@ pub enum ReceiverStatus {
     CleanupError = 9,
 }
 
-/// Build the Reborn HBCS JSON fields that the Rust receiver can report live.
-/// System, storage, startup, and retained-log fields need separate production
-/// state before this response can be complete.
+/// Live HBCS fields that the Rust receiver and system APIs can report.
+/// Storage, startup, and retained-log fields need more production state.
+pub(crate) struct RebornStatusSnapshot<'a> {
+    pub version: &'a str,
+    pub network: &'a str,
+    pub ios: i32,
+    pub ios_revision: i32,
+    pub arena1_free: u32,
+    pub arena2_free: u32,
+    pub ip: Option<[u8; 4]>,
+    pub completed: u32,
+    pub total: u32,
+}
+
+/// Build the Reborn HBCS JSON from a production status snapshot.
 #[cfg_attr(not(target_arch = "powerpc"), allow(dead_code))]
-pub(crate) fn reborn_status_json(
-    version: &str,
-    network: &str,
-    ip: Option<[u8; 4]>,
-    completed: u32,
-    total: u32,
-) -> alloc::string::String {
+pub(crate) fn reborn_status_json(snapshot: RebornStatusSnapshot<'_>) -> alloc::string::String {
+    let RebornStatusSnapshot {
+        version,
+        network,
+        ios,
+        ios_revision,
+        arena1_free,
+        arena2_free,
+        ip,
+        completed,
+        total,
+    } = snapshot;
     let ip = ip.map_or_else(
         || alloc::string::String::from("null"),
         |[a, b, c, d]| alloc::format!("\"{a}.{b}.{c}.{d}\""),
     );
     alloc::format!(
-        "{{\"version\":\"{version}\",\"proto\":6,\"ip\":{ip},\"network\":\"{network}\",\"receive\":{{\"completed\":{completed},\"total\":{total}}}}}"
+        "{{\"version\":\"{version}\",\"proto\":6,\"ios\":{ios},\"ios_revision\":{ios_revision},\"arena1_free\":{arena1_free},\"arena2_free\":{arena2_free},\"ip\":{ip},\"network\":\"{network}\",\"receive\":{{\"completed\":{completed},\"total\":{total}}}}}"
     )
 }
 
@@ -395,12 +412,32 @@ mod tests {
     #[test]
     fn reborn_status_json_reports_live_receiver_fields_and_null_ip() {
         assert_eq!(
-            reborn_status_json("1.2.3", "receiving", Some([192, 168, 1, 20]), 31, 64),
-            r#"{"version":"1.2.3","proto":6,"ip":"192.168.1.20","network":"receiving","receive":{"completed":31,"total":64}}"#
+            reborn_status_json(RebornStatusSnapshot {
+                version: "1.2.3",
+                network: "receiving",
+                ios: 58,
+                ios_revision: 6432,
+                arena1_free: 4096,
+                arena2_free: 8192,
+                ip: Some([192, 168, 1, 20]),
+                completed: 31,
+                total: 64,
+            }),
+            r#"{"version":"1.2.3","proto":6,"ios":58,"ios_revision":6432,"arena1_free":4096,"arena2_free":8192,"ip":"192.168.1.20","network":"receiving","receive":{"completed":31,"total":64}}"#
         );
         assert_eq!(
-            reborn_status_json("1.2.3", "network_unavailable", None, 0, 0),
-            r#"{"version":"1.2.3","proto":6,"ip":null,"network":"network_unavailable","receive":{"completed":0,"total":0}}"#
+            reborn_status_json(RebornStatusSnapshot {
+                version: "1.2.3",
+                network: "network_unavailable",
+                ios: 0,
+                ios_revision: 0,
+                arena1_free: 0,
+                arena2_free: 0,
+                ip: None,
+                completed: 0,
+                total: 0,
+            }),
+            r#"{"version":"1.2.3","proto":6,"ios":0,"ios_revision":0,"arena1_free":0,"arena2_free":0,"ip":null,"network":"network_unavailable","receive":{"completed":0,"total":0}}"#
         );
     }
 

@@ -968,7 +968,17 @@ fn status_json(shared: &Shared) -> alloc::string::String {
             network::ip4_addr4(address) as u8,
         ]
     });
-    crate::wiiload::reborn_status_json(env!("CARGO_PKG_VERSION"), status, ip, completed, total)
+    crate::wiiload::reborn_status_json(crate::wiiload::RebornStatusSnapshot {
+        version: env!("CARGO_PKG_VERSION"),
+        network: status,
+        ios: ogc_ios::get_version(),
+        ios_revision: ogc_ios::get_revision(),
+        arena1_free: ogc_system::get_arena1_size(),
+        arena2_free: ogc_system::get_arena2_size(),
+        ip,
+        completed,
+        total,
+    })
 }
 
 fn read_exact(
