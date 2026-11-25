@@ -130,6 +130,27 @@ mod tests {
     }
 
     #[test]
+    fn queue_preserves_order_when_writes_wrap_around_the_buffer() {
+        let mut queue = KeyQueue::new();
+        let first = [b'u'; CAPACITY - 8];
+        let wrapped = [b'd'; CAPACITY - 4];
+
+        queue.push(&first);
+        for _ in 0..CAPACITY - 12 {
+            assert_eq!(queue.pop(), Some(b'u'));
+        }
+        queue.push(&wrapped);
+
+        for _ in 0..4 {
+            assert_eq!(queue.pop(), Some(b'u'));
+        }
+        for _ in 0..CAPACITY - 4 {
+            assert_eq!(queue.pop(), Some(b'd'));
+        }
+        assert_eq!(queue.pop(), None);
+    }
+
+    #[test]
     fn closed_overlay_discards_keys_until_one_home() {
         let mut queue = KeyQueue::new();
         queue.push(b"udhhb");
