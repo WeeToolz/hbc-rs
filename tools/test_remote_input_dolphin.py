@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import shutil
 import socket
+import struct
 import subprocess
 import time
 import uuid
@@ -78,6 +79,76 @@ def reborn_screen(host):
     if not any(payload[8:]):
         raise RuntimeError("Reborn screenshot framebuffer is all zero")
     return {"width": width, "height": height, "framebuffer_bytes": expected}
+
+
+def reborn_netlog(host):
+    for port, expected in ((4407, f"{host}:4407"), (0, None)):
+        if exchange(host, (b"HBCN" + port.to_bytes(2, "big")).ljust(16, b"\0")) != bytes(8):
+            raise RuntimeError(f"HBCN rejected port {port}")
+        actual = reborn_status(host).get("log")
+        if actual != expected:
+            raise RuntimeError(f"HBCS log target for port {port} was {actual!r}")
+    return {"set": f"{host}:4407", "cleared": True}
+
+
+def reborn_netlog_app(host, dol, log, process):
+    port = 4407
+    with socket.socket() as listener:
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        listener.bind((host, port))
+        listener.listen(1)
+        listener.settimeout(35)
+        if exchange(host, (b"HBCN" + port.to_bytes(2, "big")).ljust(16, b"\0")) != bytes(8):
+            raise RuntimeError("HBCN did not accept the log target")
+        if reborn_status(host).get("log") != f"{host}:{port}":
+            raise RuntimeError("HBCS did not report the HBCN target before launch")
+        image = dol.read_bytes()
+        header = b"HAXX\0\x05\0\0" + len(image).to_bytes(4, "big") + bytes(4)
+        with socket.create_connection((host, 4299), timeout=5) as sender:
+            sender.sendall(header + image)
+
+        confirmed = False
+        deadline = time.monotonic() + 25
+        while time.monotonic() < deadline and not confirmed:
+            if process.poll() is not None:
+                raise RuntimeError("Dolphin exited while the HBC received the log probe")
+            if "to=WiiloadConfirm" in log.read_text(errors="replace"):
+                packet = b"HBCI" + bytes([1, 0, 0, 0]) + struct.pack(">IH", 16, 500) + bytes(18)
+                if len(packet) != 32 or exchange(host, packet) != b"HBCI\x01\0\0\0":
+                    raise RuntimeError("could not accept the HBC Wiiload app confirmation")
+                confirmed = True
+                break
+            time.sleep(.1)
+
+        with listener.accept()[0] as connection:
+            connection.settimeout(10)
+            output = bytearray()
+            while True:
+                try:
+                    chunk = connection.recv(4096)
+                except socket.timeout:
+                    break
+                if not chunk:
+                    break
+                output.extend(chunk)
+                if b"HBCN_HANDOFF_OK" in output:
+                    break
+        if b"HBCN_HANDOFF_OK" not in output:
+            raise RuntimeError(f"app did not log the HBCN marker: {bytes(output)!r}")
+
+    deadline = time.monotonic() + 25
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            raise RuntimeError("Dolphin exited before HBC returned after the log probe")
+        try:
+            status = reborn_status(host)
+        except (OSError, RuntimeError):
+            time.sleep(.2)
+            continue
+        if status.get("log") == f"{host}:{port}":
+            return {"target": status["log"], "marker": "HBCN_HANDOFF_OK", "returned_to_hbc": True}
+        time.sleep(.2)
+    raise RuntimeError("HBC did not restore the HBCN log target after the app returned")
 
 
 def read_exact(connection, length):
@@ -259,6 +330,9 @@ def main():
     parser.add_argument("--reborn-theme-control", action="store_true", help="check Reborn C theme upload status")
     parser.add_argument("--reborn-transfer-style", action="store_true", help="check HBCT style replies and HBCS state")
     parser.add_argument("--reborn-screen", action="store_true", help="check HBCP dimensions and live YUYV framebuffer reply")
+    parser.add_argument("--reborn-netlog", action="store_true", help="check HBCN target set, HBCS state, and clear")
+    parser.add_argument("--reborn-netlog-app", action="store_true", help="check HBCN memory handoff to a log probe app and back")
+    parser.add_argument("--app-dol", type=Path, help="small probe DOL used by --reborn-netlog-app")
     parser.add_argument("--reborn-file", action="store_true", help="check HBCF operations against an isolated SD image")
     parser.add_argument("--nand", type=Path, required=True, help="Source NAND; only a private copy is used")
     parser.add_argument("--sd-image", type=Path, help="Clone an existing private SD image into the test profile")
@@ -267,6 +341,8 @@ def main():
     args = parser.parse_args()
     if args.reborn_file and not args.sd_image:
         parser.error("--reborn-file requires --sd-image")
+    if args.reborn_netlog_app and not args.app_dol:
+        parser.error("--reborn-netlog-app requires --app-dol")
     addresses = subprocess.check_output(["/sbin/ifconfig"], text=True)
     if f"inet {args.host} " not in addresses:
         parser.error("--host must be an address assigned to this Mac")
@@ -281,6 +357,8 @@ def main():
               "reborn_keys": args.reborn_keys,
               "reborn_transfer_style": args.reborn_transfer_style,
               "reborn_screen": args.reborn_screen,
+              "reborn_netlog": args.reborn_netlog,
+              "reborn_netlog_app": args.reborn_netlog_app,
               "reborn_file": args.reborn_file}
     log = profile/"Logs/dolphin.log"
 
@@ -314,7 +392,7 @@ def main():
         while time.monotonic()<deadline:
             if process.poll() is not None:
                 raise RuntimeError("Dolphin exited before the HBC listener became ready")
-            if args.reborn_theme_control or args.reborn_transfer_style or args.reborn_file or args.reborn_screen:
+            if args.reborn_theme_control or args.reborn_transfer_style or args.reborn_file or args.reborn_screen or args.reborn_netlog or args.reborn_netlog_app:
                 try:
                     with socket.create_connection((args.host, 4299), timeout=.5) as probe:
                         probe.sendall(b"HBCS".ljust(16, b"\0"))
@@ -383,6 +461,24 @@ def main():
             )
             result["success"] = True
             print(f"HBCP framebuffer passed: {result['reborn_screen_result']}", flush=True)
+            raise ReferenceComplete
+        if args.reborn_netlog:
+            result["reborn_netlog_result"] = reborn_netlog(args.host)
+            result.setdefault("cases", []).append(
+                {"case": "reborn-netlog", "success": True, "result": 0}
+            )
+            result["success"] = True
+            print("HBCN set, HBCS target report, and clear passed", flush=True)
+            raise ReferenceComplete
+        if args.reborn_netlog_app:
+            result["reborn_netlog_app_result"] = reborn_netlog_app(
+                args.host, args.app_dol.resolve(strict=True), log, process
+            )
+            result.setdefault("cases", []).append(
+                {"case": "reborn-netlog-app", "success": True, "result": 0}
+            )
+            result["success"] = True
+            print("HBCN app handoff, log connection, and return passed", flush=True)
             raise ReferenceComplete
         if args.reborn_file:
             result["reborn_file_result"] = test_reborn_devfile(args.host)

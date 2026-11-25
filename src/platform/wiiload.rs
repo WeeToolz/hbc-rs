@@ -159,6 +159,8 @@ static SCREEN_FRAMEBUFFER: AtomicUsize = AtomicUsize::new(0);
 static SCREEN_WIDTH: AtomicU16 = AtomicU16::new(0);
 static SCREEN_HEIGHT: AtomicU16 = AtomicU16::new(0);
 static SCREEN_BYTE_LEN: AtomicU32 = AtomicU32::new(0);
+static LOG_TARGET_IP: AtomicU32 = AtomicU32::new(0);
+static LOG_TARGET_PORT: AtomicU16 = AtomicU16::new(0);
 
 static REMOTE_INPUT: crate::remote_input::Mailbox = crate::remote_input::Mailbox::new();
 
@@ -168,6 +170,63 @@ pub fn publish_screenshot_framebuffer(pointer: usize, width: u16, height: u16, b
     SCREEN_WIDTH.store(width, Ordering::Relaxed);
     SCREEN_HEIGHT.store(height, Ordering::Relaxed);
     SCREEN_BYTE_LEN.store(byte_len, Ordering::Release);
+}
+
+/// Restore the previous app log target before the MEM2 heap can use its slot.
+pub fn initialize_log_target() {
+    let target = read_log_target(crate::netlog::LOW_MEMORY_ADDRESS)
+        .or_else(|| read_log_target(crate::netlog::KEEP_ADDRESS));
+    set_log_target(target);
+}
+
+fn log_target() -> Option<crate::netlog::Target> {
+    let port = LOG_TARGET_PORT.load(Ordering::Acquire);
+    (port != 0).then(|| crate::netlog::Target {
+        address: LOG_TARGET_IP.load(Ordering::Relaxed).to_be_bytes(),
+        port,
+    })
+}
+
+fn set_log_target(target: Option<crate::netlog::Target>) {
+    let block = target.map_or([0; crate::netlog::BLOCK_LEN], crate::netlog::Target::encode);
+    write_log_target(crate::netlog::LOW_MEMORY_ADDRESS, &block);
+    write_log_target(crate::netlog::KEEP_ADDRESS, &block);
+    match target {
+        Some(target) => {
+            LOG_TARGET_IP.store(u32::from_be_bytes(target.address), Ordering::Relaxed);
+            LOG_TARGET_PORT.store(target.port, Ordering::Release);
+        }
+        None => {
+            LOG_TARGET_IP.store(0, Ordering::Relaxed);
+            LOG_TARGET_PORT.store(0, Ordering::Release);
+        }
+    }
+}
+
+fn read_log_target(address: usize) -> Option<crate::netlog::Target> {
+    let pointer = address as *const u8;
+    let mut block = [0; crate::netlog::BLOCK_LEN];
+    // SAFETY: Reborn reserves both fixed addresses for this 32-byte shared
+    // record. Cache invalidation makes the previous title's bytes visible.
+    unsafe {
+        ogc_cache::dc_invalidate_range(pointer.cast(), block.len() as u32);
+        for (offset, byte) in block.iter_mut().enumerate() {
+            *byte = core::ptr::read_volatile(pointer.add(offset));
+        }
+    }
+    crate::netlog::Target::decode(&block)
+}
+
+fn write_log_target(address: usize, block: &[u8; crate::netlog::BLOCK_LEN]) {
+    let pointer = address as *mut u8;
+    // SAFETY: The shared record is reserved by Reborn. The Rust heap is kept
+    // below the MEM2 copy, and low memory is reserved by the loader ABI.
+    unsafe {
+        for (offset, byte) in block.iter().copied().enumerate() {
+            core::ptr::write_volatile(pointer.add(offset), byte);
+        }
+        ogc_cache::dc_flush_range(pointer.cast(), block.len() as u32);
+    }
 }
 
 /// Publish the current app and storage view for nonblocking HBCS requests.
@@ -593,6 +652,7 @@ fn worker_main(shared: &Shared) -> ReceiverStatus {
         let received = receive_client(
             shared,
             client,
+            peer.sin_addr.s_addr,
             #[cfg(feature = "debugger-network")]
             &debugger_diagnostics,
         );
@@ -1000,6 +1060,7 @@ impl GeckoReceive {
 fn receive_client(
     shared: &Shared,
     client: i32,
+    peer_ip: u32,
     #[cfg(feature = "debugger-network")]
     debugger_diagnostics: &libdb_sys::wii_network::ListenerDiagnostics,
 ) -> Result<Option<WiiloadPayload>, ReceiveError> {
@@ -1028,6 +1089,15 @@ fn receive_client(
     }
     if &header_bytes[..4] == b"HBCP" {
         return send_screenshot(shared, client, started_at).map(|()| None);
+    }
+    if &header_bytes[..4] == b"HBCN" {
+        let port = u16::from_be_bytes([header_bytes[4], header_bytes[5]]);
+        let target = (port != 0).then_some(crate::netlog::Target {
+            address: peer_ip.to_be_bytes(),
+            port,
+        });
+        set_log_target(target);
+        return write_response(shared, client, &[0; 8], started_at).map(|()| None);
     }
     #[cfg(feature = "debugger-network")]
     if &header_bytes[..4] == b"HBCD" {
@@ -1847,6 +1917,7 @@ fn status_json(shared: &Shared) -> alloc::string::String {
         completed,
         total,
         transfer_style: transfer_style().as_str(),
+        log: log_target(),
     })
 }
 

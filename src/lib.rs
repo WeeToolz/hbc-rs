@@ -19,6 +19,7 @@ pub mod loader;
 pub mod localization;
 pub mod management;
 pub mod metadata;
+pub mod netlog;
 pub mod network_config;
 #[cfg(any(target_arch = "powerpc", test))]
 mod network_scan;
