@@ -694,10 +694,9 @@ pub fn scan() -> Result<InputFrame, InputScanError> {
 
     let mut pointer = None;
     let mut pointer_pressed = false;
-    let pad_sample_valid = raw
-        .pad_status
-        .iter()
-        .any(|status| status.err == ogc_input::PAD_ERR_NONE as i8);
+    let pad_sample_valid = gamecube_sample_valid(core::array::from_fn(|channel| {
+        raw.pad_status[channel].err == ogc_input::PAD_ERR_NONE as i8
+    }));
     let mut stick_scroll = gamecube_stick_scroll(
         core::array::from_fn(|channel| raw.pad_status[channel].stick_y),
         core::array::from_fn(|channel| {
@@ -720,10 +719,15 @@ pub fn scan() -> Result<InputFrame, InputScanError> {
         transitions.held = raw.wpad_buttons_held[channel];
         transitions.up = raw.wpad_buttons_up[channel];
     }
+    let (pad_down, pad_held, pad_up) = gamecube_pad_input(
+        raw.pad_buttons_down,
+        raw.pad_buttons_held,
+        raw.pad_buttons_up,
+    );
     let mut mapped = map_input_masks(
-        combine_pad_masks(raw.pad_buttons_down),
-        combine_pad_masks(raw.pad_buttons_held),
-        combine_pad_masks(raw.pad_buttons_up),
+        pad_down,
+        pad_held,
+        pad_up,
         wpad_transitions,
         owner,
         pad_sample_valid,
@@ -784,8 +788,12 @@ fn deadzone(value: i32) -> i32 {
 }
 
 #[cfg(any(target_arch = "powerpc", test))]
-fn combine_pad_masks(masks: [u16; MAX_GAMECUBE_CONTROLLERS]) -> u16 {
-    masks.into_iter().fold(0, |combined, mask| combined | mask)
+fn gamecube_pad_input(
+    down: [u16; MAX_GAMECUBE_CONTROLLERS],
+    held: [u16; MAX_GAMECUBE_CONTROLLERS],
+    up: [u16; MAX_GAMECUBE_CONTROLLERS],
+) -> (u16, u16, u16) {
+    (down[0], held[0], up[0])
 }
 
 #[cfg(any(target_arch = "powerpc", test))]
@@ -793,12 +801,16 @@ fn gamecube_stick_scroll(
     stick_y: [i8; MAX_GAMECUBE_CONTROLLERS],
     valid: [bool; MAX_GAMECUBE_CONTROLLERS],
 ) -> i32 {
-    stick_y
-        .into_iter()
-        .zip(valid)
-        .filter(|(_, valid)| *valid)
-        .map(|(value, _)| deadzone(i32::from(value)))
-        .sum()
+    if valid[0] {
+        deadzone(i32::from(stick_y[0]))
+    } else {
+        0
+    }
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+fn gamecube_sample_valid(valid: [bool; MAX_GAMECUBE_CONTROLLERS]) -> bool {
+    valid[0]
 }
 
 #[cfg(target_arch = "powerpc")]
@@ -1161,35 +1173,38 @@ mod tests {
     }
 
     #[test]
-    fn gamecube_button_masks_combine_edges_from_all_four_ports() {
+    fn gamecube_input_uses_only_port_zero_as_reborn_does() {
         let down = [0x0100, 0x0200, 0x0800, 0x0001];
         let held = [0x0100, 0x0200, 0x0800, 0x0001];
         let up = [0x0100, 0x0200, 0x0800, 0x0001];
+        let (down, held, up) = gamecube_pad_input(down, held, up);
         let mapped = map_input_masks(
-            combine_pad_masks(down),
-            combine_pad_masks(held),
-            combine_pad_masks(up),
+            down,
+            held,
+            up,
             [RawWpadTransitions::default(); 4],
             None,
             true,
         );
 
-        assert_eq!(
-            mapped.down.0,
-            Buttons::CONFIRM | Buttons::BACK | Buttons::BROWSE_MODE | Buttons::LEFT
-        );
+        assert_eq!(mapped.down.0, Buttons::CONFIRM);
         assert_eq!(mapped.held, mapped.down);
         assert_eq!(mapped.up, mapped.down);
     }
 
     #[test]
-    fn gamecube_stick_scroll_sums_deadzone_adjusted_values_per_valid_port() {
-        assert_eq!(gamecube_stick_scroll([20, -20, 10, 11], [true; 4]), 1);
-        assert_eq!(gamecube_stick_scroll([20, -20, 40, -40], [true; 4]), 0);
+    fn gamecube_stick_scroll_uses_only_port_zero_as_reborn_does() {
+        assert_eq!(gamecube_stick_scroll([20, 80, -20, 40], [true; 4]), 10);
         assert_eq!(
-            gamecube_stick_scroll([20, 80, -20, 40], [true, false, true, true]),
-            30
+            gamecube_stick_scroll([80, 20, -20, 40], [false, true, true, true]),
+            0
         );
+    }
+
+    #[test]
+    fn gamecube_sample_validity_uses_only_port_zero_as_reborn_does() {
+        assert!(gamecube_sample_valid([true, false, false, false]));
+        assert!(!gamecube_sample_valid([false, true, true, true]));
     }
 
     #[test]

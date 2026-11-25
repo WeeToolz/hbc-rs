@@ -1,0 +1,76 @@
+{
+  "image": "/Volumes/SSD/WiiDev/WeeToolz/hbc-rs/target/hbc-rs.dol",
+  "sha256": "519fd7b006a37184ac98154625bac1e83bfe62885bf3c621baeeadd37231103f",
+  "temp_root": "/private/tmp",
+  "dolphin_arch": "x86_64",
+  "physical_wii_tested": false,
+  "capture_complete": true,
+  "input_verification": "requires screenshot review",
+  "stages": [
+    {
+      "name": "pointer-center",
+      "screenshot": "/private/tmp/hbc-rs-input-corrected-r7/dolphin-20261125-142002-157302404011583.png"
+    },
+    {
+      "name": "pointer-upper-left",
+      "screenshot": "/private/tmp/hbc-rs-input-corrected-r7/dolphin-20261125-142004-157304373036583.png"
+    },
+    {
+      "name": "pointer-lower-right",
+      "screenshot": "/private/tmp/hbc-rs-input-corrected-r7/dolphin-20261125-142005-157306339251416.png"
+    },
+    {
+      "name": "button-1",
+      "screenshot": "/private/tmp/hbc-rs-input-corrected-r7/dolphin-20261125-142008-157308714688500.png"
+    },
+    {
+      "name": "pointer-click-app-details",
+      "screenshot": "/private/tmp/hbc-rs-input-corrected-r7/dolphin-20261125-142012-157312517192333.png"
+    },
+    {
+      "name": "button-2",
+      "screenshot": "/private/tmp/hbc-rs-input-corrected-r7/dolphin-20261125-142015-157316126111041.png"
+    }
+  ],
+  "fixture": {
+    "name_order": [
+      "Amber",
+      "Birch",
+      "Cedar"
+    ],
+    "date_order": [
+      "Cedar",
+      "Birch",
+      "Amber"
+    ],
+    "apps": [
+      {
+        "directory": "cedar",
+        "title": "Cedar",
+        "release_date": "20250304120000"
+      },
+      {
+        "directory": "amber",
+        "title": "Amber",
+        "release_date": "20240102120000"
+      },
+      {
+        "directory": "birch",
+        "title": "Birch",
+        "release_date": "20241203120000"
+      }
+    ]
+  },
+  "command": [
+    "/usr/bin/arch",
+    "-x86_64",
+    "/Applications/Dolphin.app/Contents/MacOS/Dolphin",
+    "-b",
+    "-u",
+    "/private/tmp/hbc-c-input-ajem1ekq",
+    "-e",
+    "/Volumes/SSD/WiiDev/WeeToolz/hbc-rs/target/hbc-rs.dol"
+  ],
+  "load_focus_left": false,
+  "dolphin_exit_code": 0
+}

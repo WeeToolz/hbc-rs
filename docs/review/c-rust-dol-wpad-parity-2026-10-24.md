@@ -99,20 +99,26 @@ timeout's effect on a connected physical Remote; that check remains pending.
 - Physical Wii checks are still required for DOL byte integrity and player
   lights. Dolphin does not prove SD controller DMA or physical Remote LEDs.
 
-## 2026-11-25 follow-up: native GameCube ports
+## 2026-11-25 follow-up: GameCube port scope correction
 
-The current HBC scan now combines the raw Down, Held, and Up masks from all
-four native GameCube ports returned by the single `ControllerManager` scan.
-It also sums each valid port's deadzone-adjusted vertical stick value before
-the existing scroll conversion. It does not poll the PAD device a second time.
+The initial follow-up incorrectly attributed the HBC agent overlay's
+four-port polling to HBC's normal controller scan. Direct inspection of
+`channel/channelapp/source/controls.c#controls_scan` and
+`controls_sticky` confirms that Reborn HBC reads GameCube port 0 only. Rust
+now uses port 0 for button edges, stick input, and sample validity. Host
+regressions verify that data from ports 1 through 3 does not change HBC input.
+The four-port behavior in `sdk/hbc_agent/overlay.c#read_input` belongs to the
+separate app overlay and is outside this HBC scan contract.
 
-Host regressions check button edges on each port and analog threshold,
-cancellation, and invalid-port behavior against the C aggregation rules in
-`source/controls.c#controls_scan` and `source/controls.c#controls_sticky`.
-These checks prove the HBC mapping logic only. Physical simultaneous input,
-disconnect behavior, and WaveBird behavior on ports 0 through 3 remain open.
+The corrected release DOL was rebuilt from this source and completed the
+six-stage emulated Remote input capture in Dolphin 2609a. Its SHA-256 is
+`519fd7b006a37184ac98154625bac1e83bfe62885bf3c621baeeadd37231103f`.
+The final capture and raw logs are in
+`evidence/hbc-rust-current-dol-input-dolphin-2026-11-25-r2/`. This confirms
+the capture path, pointer movement, and app selection only; it does not test
+GameCube input or physical Wii behavior.
 
 A matched Dolphin smoke capture also sends pointer and button input to both the
 Reborn C DOL and Rust DOL through an emulated Wii Remote. The screenshots show
-input reaching both applications; they do not cover native GameCube ports or
-physical Bluetooth. See the [input smoke evidence](evidence/hbc-wpad-ui-smoke-c-rust-dolphin-2026-11-25/README.md).
+input reaching both applications; they do not prove physical Bluetooth or
+GameCube behavior. See the [input smoke evidence](evidence/hbc-wpad-ui-smoke-c-rust-dolphin-2026-11-25/README.md).
