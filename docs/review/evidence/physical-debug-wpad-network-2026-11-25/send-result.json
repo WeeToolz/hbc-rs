@@ -1,0 +1,16 @@
+{
+  "completed_unix_ms": 1795584265020,
+  "compressed": true,
+  "destination": "tcp:192.168.2.4",
+  "elapsed_ms": 2629,
+  "error": null,
+  "host_written_bytes": 1345763,
+  "input": "/Volumes/SSD/WiiDev/WeeToolz/hbc-rs/target/hbc-debug-current.dol",
+  "input_bytes": 2491104,
+  "input_sha256": "45be2cc4b15f6ff923a5bcad431bcf5afe07bf6028f4b0abc034a56612450307",
+  "port": 4299,
+  "result": "host_write_complete",
+  "schema_version": 1,
+  "status": "written",
+  "transfer_bytes": 1345724
+}

@@ -22,3 +22,20 @@ verify the result on a Wii.
 
 The startup delay also needs measurement. Do not treat the setup change as a
 confirmed fix for either reported symptom.
+
+## Physical Wii report for the updated debug DOL
+
+On 2026-11-25, the user reported that the updated DOL ran on the Wii, but the
+Wii Remote did not work and the app did not connect to the network. The sent
+DOL SHA-256 was
+`45be2cc4b15f6ff923a5bcad431bcf5afe07bf6028f4b0abc034a56612450307`.
+Its build manifest records HBC `50908712672227da30d0dba3def4fd6369ae1824`,
+libogc-rs `e28e6af5fd9992ce822c200fab8ae4c26b71a5eb`, and the
+`debugger-network` feature. Wiiload reported that the host wrote the complete
+transfer; the user's observation establishes the subsequent behavior.
+
+The Bluetooth and network causes are not yet known. Dolphin's successful
+emulated Remote test does not establish physical adapter, pairing, or network
+startup behavior. Preserve the Wii state and obtain the Remote light behavior,
+controller availability, network indicator, and startup diagnostics before
+attributing either failure to a specific code path.
