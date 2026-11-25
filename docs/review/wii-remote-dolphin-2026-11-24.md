@@ -55,3 +55,18 @@ not observe the expected Options target for a click at the requested position.
 Its screenshot shows the Options screen. Investigate that failure separately;
 do not mark the full UI test or the physical Wii test as passed. The follow-up
 WAD reached the network-ready check in 2.832 seconds in this single Dolphin run.
+
+## Options test correction
+
+The failed Options click used positions and target numbers from an older
+layout. The current layout includes USB 2 and a Custom sort button. The test
+now selects the current Date, Name, and OK controls and still checks their
+observed target numbers and resulting app order.
+
+The [corrected Dolphin run](evidence/wpad-options-fixed-rust-ui-dolphin-2026-11-24/result.json)
+passed. The emulated Remote stayed connected, moved the pointer, popped
+bubbles, selected Date and Name sorting, and opened Network setup. The
+network scan returned an error notice and the receiver returned to Listening;
+this does not prove a successful wireless scan. The network-ready check took
+3.096 seconds in this run. The C control above used the same Pipe input setup,
+but booted a DOL rather than the Rust WAD. Physical Wii behavior remains open.

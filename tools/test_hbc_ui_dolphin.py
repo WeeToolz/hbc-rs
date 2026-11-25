@@ -103,7 +103,7 @@ def validate_events(log_text):
     pointer = [event for event in events if event['name'] == 'pointer_press']
     targets = {(event.get('target'), event.get('index')) for event in pointer
                if event.get('valid') == '1'}
-    required_targets = {('option', '4'), ('option', '5'), ('option', '6'),
+    required_targets = {('option', '5'), ('option', '6'), ('option', '9'),
                         ('option', '8'), ('network_option', '6')}
     if not required_targets.issubset(targets):
         raise RuntimeError(f'Wii Remote did not hit required UI targets: {targets}')
@@ -382,16 +382,16 @@ def run_acceptance(args, result, profile, remote_fd, process, screenshot):
 
     # Date then Name ensures both settings transitions produce actual orders.
     remote.button('1')
-    click_at(remote, pointer, log_path, 400, 265, 'option', 5, 10)
-    click_at(remote, pointer, log_path, 180, 360, 'option', 6, 10)
+    click_at(remote, pointer, log_path, 320, 265, 'option', 6, 10)
+    click_at(remote, pointer, log_path, 180, 360, 'option', 9, 10)
     wait_for_events(log_path,
                     lambda item: item['name'] == 'sort_changed' and item.get('key') == 'date'
                     and _titles(item) == DATE_ORDER,
                     10, 'Date sort and visible order')
     screenshot('ui-date-sort')
     remote.button('1')
-    click_at(remote, pointer, log_path, 180, 265, 'option', 4, 10)
-    click_at(remote, pointer, log_path, 180, 360, 'option', 6, 10)
+    click_at(remote, pointer, log_path, 180, 265, 'option', 5, 10)
+    click_at(remote, pointer, log_path, 180, 360, 'option', 9, 10)
     wait_for_events(log_path,
                     lambda item: item['name'] == 'sort_changed' and item.get('key') == 'name'
                     and _titles(item) == NAME_ORDER,
