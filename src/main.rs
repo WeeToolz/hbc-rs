@@ -33,6 +33,7 @@ fn executable_load_notice(error: &hbc_rs::platform::startup::StartupError) -> St
 #[cfg(target_arch = "powerpc")]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
+    let init_started_at = ogc_lwp::sys::now_ticks();
     // Seed the libogc-rs arena bounds and initialize runtime services before
     // reserving the Rust heap from MEM2 or registering hardware callbacks.
     ogc_system::init();
@@ -198,6 +199,7 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
         );
     }
     let mut display_ready = false;
+    let mut init_duration_ms = None;
     let mut frames_since_storage_scan = 0u8;
     let mut pending_zip: Option<Vec<u8>> = None;
     let mut deferred_exit: Option<hbc_rs::platform::lifecycle::ExitRequest> = None;
@@ -351,6 +353,14 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             startup.runtime().catalog().len(),
             active_device,
             inserted_mask,
+            init_duration_ms.unwrap_or_else(|| {
+                hbc_rs::wiiload::elapsed_ticks_to_milliseconds(
+                    init_started_at,
+                    ogc_lwp::sys::now_ticks(),
+                    ogc_lwp::sys::TICKS_PER_SECOND,
+                )
+            }),
+            hbc_rs::platform::startup::last_app_scan_duration_ms(),
         );
         #[cfg(feature = "startup-diagnostics")]
         hbc_rs::platform::diagnostics::runtime_stage(4, "DEVICE AVAILABILITY POLL DONE");
@@ -1054,6 +1064,11 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             }
             video.show();
             display_ready = true;
+            init_duration_ms = Some(hbc_rs::wiiload::elapsed_ticks_to_milliseconds(
+                init_started_at,
+                ogc_lwp::sys::now_ticks(),
+                ogc_lwp::sys::TICKS_PER_SECOND,
+            ));
             ogc_system::report(format_args!(
                 "HBC: display enabled after first rendered frame\n"
             ));

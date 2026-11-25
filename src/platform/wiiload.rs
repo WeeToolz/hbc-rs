@@ -99,6 +99,8 @@ static SHARED: Shared = Shared::new();
 static MENU_APP_COUNT: AtomicU32 = AtomicU32::new(0);
 static MENU_DEVICE: AtomicU8 = AtomicU8::new(u8::MAX);
 static MENU_INSERTED: AtomicU8 = AtomicU8::new(0);
+static MENU_INIT_MS: AtomicU32 = AtomicU32::new(0);
+static MENU_SCAN_MS: AtomicU32 = AtomicU32::new(0);
 pub static REMOTE_CONTROL: crate::remote_control::Mailbox = crate::remote_control::Mailbox::new();
 static CONTROL_SESSION: AtomicU32 = AtomicU32::new(0);
 
@@ -109,6 +111,8 @@ pub fn publish_menu_status(
     app_count: usize,
     active_device: Option<crate::platform::storage::Volume>,
     inserted_mask: u8,
+    init_ms: u32,
+    scan_ms: u32,
 ) {
     MENU_APP_COUNT.store(app_count.min(u32::MAX as usize) as u32, Ordering::Release);
     MENU_DEVICE.store(
@@ -119,6 +123,8 @@ pub fn publish_menu_status(
         inserted_mask & ((1 << crate::platform::storage::DEVICE_COUNT) - 1),
         Ordering::Release,
     );
+    MENU_INIT_MS.store(init_ms, Ordering::Release);
+    MENU_SCAN_MS.store(scan_ms, Ordering::Release);
 }
 
 struct RebornKeys {
@@ -1004,6 +1010,8 @@ fn status_json(shared: &Shared) -> alloc::string::String {
         apps: MENU_APP_COUNT.load(Ordering::Acquire),
         device,
         inserted_mask: MENU_INSERTED.load(Ordering::Acquire),
+        init_ms: MENU_INIT_MS.load(Ordering::Acquire),
+        scan_ms: MENU_SCAN_MS.load(Ordering::Acquire),
         ip,
         completed,
         total,

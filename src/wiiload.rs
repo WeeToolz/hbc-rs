@@ -177,6 +177,21 @@ pub enum ReceiverStatus {
     CleanupError = 9,
 }
 
+pub fn elapsed_ticks_to_milliseconds(
+    started_at: u64,
+    finished_at: u64,
+    ticks_per_second: u64,
+) -> u32 {
+    if ticks_per_second == 0 {
+        return 0;
+    }
+    let elapsed = finished_at.wrapping_sub(started_at);
+    let milliseconds = (elapsed / ticks_per_second)
+        .saturating_mul(1000)
+        .saturating_add((elapsed % ticks_per_second).saturating_mul(1000) / ticks_per_second);
+    milliseconds.min(u32::MAX as u64) as u32
+}
+
 /// Live HBCS fields that the Rust receiver and system APIs can report.
 /// Storage, startup, and retained-log fields need more production state.
 pub(crate) struct RebornStatusSnapshot<'a> {
@@ -190,6 +205,8 @@ pub(crate) struct RebornStatusSnapshot<'a> {
     pub apps: u32,
     pub device: Option<crate::platform::storage::Volume>,
     pub inserted_mask: u8,
+    pub init_ms: u32,
+    pub scan_ms: u32,
     pub ip: Option<[u8; 4]>,
     pub completed: u32,
     pub total: u32,
@@ -209,6 +226,8 @@ pub(crate) fn reborn_status_json(snapshot: RebornStatusSnapshot<'_>) -> alloc::s
         apps,
         device,
         inserted_mask,
+        init_ms,
+        scan_ms,
         ip,
         completed,
         total,
@@ -237,7 +256,7 @@ pub(crate) fn reborn_status_json(snapshot: RebornStatusSnapshot<'_>) -> alloc::s
     }
     inserted.push(']');
     alloc::format!(
-        "{{\"version\":\"{version}\",\"proto\":6,\"ios\":{ios},\"ios_revision\":{ios_revision},\"arena1_free\":{arena1_free},\"arena2_free\":{arena2_free},\"heap_free\":{heap_free},\"apps\":{apps},\"device\":{device},\"inserted\":{inserted},\"ip\":{ip},\"network\":\"{network}\",\"receive\":{{\"completed\":{completed},\"total\":{total}}}}}"
+        "{{\"version\":\"{version}\",\"proto\":6,\"ios\":{ios},\"ios_revision\":{ios_revision},\"arena1_free\":{arena1_free},\"arena2_free\":{arena2_free},\"heap_free\":{heap_free},\"init_ms\":{init_ms},\"scan_ms\":{scan_ms},\"apps\":{apps},\"device\":{device},\"inserted\":{inserted},\"ip\":{ip},\"network\":\"{network}\",\"receive\":{{\"completed\":{completed},\"total\":{total}}}}}"
     )
 }
 
@@ -461,11 +480,13 @@ mod tests {
                 apps: 17,
                 device: Some(crate::platform::storage::Volume::Usb2),
                 inserted_mask: 0b10001,
+                init_ms: 2510,
+                scan_ms: 82,
                 ip: Some([192, 168, 1, 20]),
                 completed: 31,
                 total: 64,
             }),
-            r#"{"version":"1.2.3","proto":6,"ios":58,"ios_revision":6432,"arena1_free":4096,"arena2_free":8192,"heap_free":1024,"apps":17,"device":"usb2","inserted":["sd","usb2"],"ip":"192.168.1.20","network":"receiving","receive":{"completed":31,"total":64}}"#
+            r#"{"version":"1.2.3","proto":6,"ios":58,"ios_revision":6432,"arena1_free":4096,"arena2_free":8192,"heap_free":1024,"init_ms":2510,"scan_ms":82,"apps":17,"device":"usb2","inserted":["sd","usb2"],"ip":"192.168.1.20","network":"receiving","receive":{"completed":31,"total":64}}"#
         );
         assert_eq!(
             reborn_status_json(RebornStatusSnapshot {
@@ -479,12 +500,22 @@ mod tests {
                 apps: 0,
                 device: None,
                 inserted_mask: 0,
+                init_ms: 0,
+                scan_ms: 0,
                 ip: None,
                 completed: 0,
                 total: 0,
             }),
-            r#"{"version":"1.2.3","proto":6,"ios":0,"ios_revision":0,"arena1_free":0,"arena2_free":0,"heap_free":0,"apps":0,"device":null,"inserted":[],"ip":null,"network":"network_unavailable","receive":{"completed":0,"total":0}}"#
+            r#"{"version":"1.2.3","proto":6,"ios":0,"ios_revision":0,"arena1_free":0,"arena2_free":0,"heap_free":0,"init_ms":0,"scan_ms":0,"apps":0,"device":null,"inserted":[],"ip":null,"network":"network_unavailable","receive":{"completed":0,"total":0}}"#
         );
+    }
+
+    #[test]
+    fn elapsed_ticks_to_milliseconds_handles_fraction_and_wrap() {
+        assert_eq!(elapsed_ticks_to_milliseconds(10, 110, 100), 1000);
+        assert_eq!(elapsed_ticks_to_milliseconds(10, 35, 100), 250);
+        assert_eq!(elapsed_ticks_to_milliseconds(u64::MAX - 49, 50, 100), 1000);
+        assert_eq!(elapsed_ticks_to_milliseconds(10, 20, 0), 0);
     }
 
     #[test]

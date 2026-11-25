@@ -92,6 +92,27 @@ fn load_default_theme_textures(widescreen: bool) -> super::theme::ThemeTextures 
     textures
 }
 
+fn scan_apps_and_record_duration(
+    storage: &mut FatStorage,
+    root: &str,
+    max_executable_size: u64,
+    max_theme_size: u64,
+) -> Result<Vec<AppEntry>, crate::catalog::ScanError<StorageError>> {
+    let started_at = ogc_lwp::sys::now_ticks();
+    let result = scan_apps(storage, root, max_executable_size, max_theme_size);
+    let duration = crate::wiiload::elapsed_ticks_to_milliseconds(
+        started_at,
+        ogc_lwp::sys::now_ticks(),
+        ogc_lwp::sys::TICKS_PER_SECOND,
+    );
+    LAST_APP_SCAN_MS.store(duration, Ordering::Release);
+    result
+}
+
+pub fn last_app_scan_duration_ms() -> u32 {
+    LAST_APP_SCAN_MS.load(Ordering::Acquire)
+}
+
 #[repr(align(32))]
 struct StorageScanStack([u8; STORAGE_SCAN_STACK_SIZE]);
 
@@ -104,6 +125,7 @@ static mut STORAGE_SCAN_STACK: StorageScanStack = StorageScanStack([0; STORAGE_S
 static DEVICE_PROBE_STATE: AtomicU8 = AtomicU8::new(DEVICE_PROBE_IDLE);
 static mut DEVICE_PROBE_RESULT: MaybeUninit<DeviceProbeResult> = MaybeUninit::uninit();
 static mut DEVICE_PROBE_STACK: StorageScanStack = StorageScanStack([0; STORAGE_SCAN_STACK_SIZE]);
+static LAST_APP_SCAN_MS: AtomicU32 = AtomicU32::new(0);
 
 struct ZipInstallRequest {
     storage: FatStorage,
@@ -305,7 +327,12 @@ fn install_received_app(
         }
     }
 
-    let catalog = match scan_apps(storage, "apps", EXECUTABLE_SIZE_LIMIT, THEME_SIZE_LIMIT) {
+    let catalog = match scan_apps_and_record_duration(
+        storage,
+        "apps",
+        EXECUTABLE_SIZE_LIMIT,
+        THEME_SIZE_LIMIT,
+    ) {
         Ok(catalog) => catalog,
         Err(operation) => {
             let rollback = crate::management::rollback_staged_directory(
@@ -370,8 +397,9 @@ fn recover_app_install(
             .rename_path(backup, target)
             .map_err(ZipInstallError::Storage)?;
     } else if backup_exists {
-        let catalog = scan_apps(storage, "apps", EXECUTABLE_SIZE_LIMIT, THEME_SIZE_LIMIT)
-            .map_err(ZipInstallError::CatalogRefresh)?;
+        let catalog =
+            scan_apps_and_record_duration(storage, "apps", EXECUTABLE_SIZE_LIMIT, THEME_SIZE_LIMIT)
+                .map_err(ZipInstallError::CatalogRefresh)?;
         if catalog
             .iter()
             .any(|entry| entry.directory == target.rsplit('/').next().unwrap_or(""))
@@ -1578,7 +1606,7 @@ fn mount_preferred_volume(preference: i32) -> MountScanResult {
         STORAGE_SCAN_STAGE.store(STORAGE_STAGE_SCAN_APPS, Ordering::Release);
         // A missing apps directory is a valid empty catalog. Keep the mounted
         // volume so later install, refresh, and delete actions can use it.
-        let (catalog, scan_error) = match scan_apps(
+        let (catalog, scan_error) = match scan_apps_and_record_duration(
             &mut storage,
             "apps",
             EXECUTABLE_SIZE_LIMIT,
