@@ -6,7 +6,6 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import shutil
 import socket
 import struct
 import subprocess
@@ -298,6 +297,8 @@ def test_reborn_devfile(host):
     raw_path = folder + "/raw.bin"
     framed_path = folder + "/framed.bin"
     app_path = folder + "/boot.dol"
+    app_data_dir = folder + "/data"
+    app_data_path = app_data_dir + "/save.bin"
     raw = bytes(range(256)) * 3
     framed = b"HBCF framed transfer test\n" * 173
     app_data = b"Catalog refresh evidence from HBCF."
@@ -313,6 +314,9 @@ def test_reborn_devfile(host):
         status, _ = devfile_request(host, b"M", folder)
         if status:
             raise RuntimeError(f"HBCF mkdir failed with {status}")
+        status, _ = devfile_request(host, b"M", app_data_dir)
+        if status:
+            raise RuntimeError(f"HBCF app-data mkdir failed with {status}")
         status, stat = devfile_request(host, b"S", folder)
         if status or not stat.startswith(b"d 0 "):
             raise RuntimeError(f"HBCF stat directory mismatch: {status}, {stat!r}")
@@ -327,6 +331,13 @@ def test_reborn_devfile(host):
         status, _ = devfile_request(host, b"P", app_path, app_data)
         if status:
             raise RuntimeError(f"HBCF app upload failed with {status}")
+        time.sleep(.7)
+        status, _ = devfile_request(host, b"P", app_data_path, b"private save data")
+        if status:
+            raise RuntimeError(f"HBCF app-data upload failed with {status}")
+        time.sleep(.4)
+        if reborn_status(host).get("apps") != initial_app_count:
+            raise RuntimeError("HBCF refreshed the app catalog before the last app-folder change was quiet")
         deadline = time.monotonic() + 10
         while time.monotonic() < deadline:
             if reborn_status(host).get("apps") == initial_app_count + 1:
@@ -348,7 +359,7 @@ def test_reborn_devfile(host):
         if (status or b"raw.bin" not in listing or b"framed.bin" not in listing
                 or b"boot.dol" not in listing):
             raise RuntimeError(f"HBCF list mismatch: {status}, {listing!r}")
-        for path in (raw_path, framed_path, app_path):
+        for path in (raw_path, framed_path, app_path, app_data_path):
             status, _ = devfile_request(host, b"D", path)
             if status:
                 raise RuntimeError(f"HBCF delete failed with {status}: {path}")
@@ -359,16 +370,20 @@ def test_reborn_devfile(host):
             time.sleep(.1)
         else:
             raise RuntimeError("HBCF app delete did not refresh the active catalog")
+        status, _ = devfile_request(host, b"D", app_data_dir)
+        if status:
+            raise RuntimeError(f"HBCF app-data directory delete failed with {status}")
         status, _ = devfile_request(host, b"D", folder)
         if status:
             raise RuntimeError(f"HBCF directory delete failed with {status}")
         if devfile_request(host, b"S", raw_path)[0] != -2:
             raise RuntimeError("HBCF stat did not report ENOENT after delete")
         return {"operations": ["M", "S", "P", "p", "C", "G", "g", "L", "D"],
-                "bytes_checked": len(raw) + len(framed) + len(app_data),
-                "catalog_refresh": "upload and delete passed", "cleanup": "complete"}
+                "bytes_checked": len(raw) + len(framed) + len(app_data) + len(b"private save data"),
+                "catalog_refresh": "upload/delete passed; app data restarted the quiet timer",
+                "cleanup": "complete"}
     finally:
-        for path in (raw_path, framed_path, app_path, folder):
+        for path in (raw_path, framed_path, app_path, app_data_path, app_data_dir, folder):
             try:
                 devfile_request(host, b"D", path)
             except OSError:
@@ -438,7 +453,7 @@ def main():
     if not (nand / "shared2/sys/net/02/config.dat").is_file():
         raise RuntimeError("Source NAND network configuration not found")
 
-    shutil.copytree(nand, profile / "Wii")
+    subprocess.run(["/bin/cp", "-c", "-R", str(nand), str(profile / "Wii")], check=True)
     if args.sd_image:
         (profile / "Load").mkdir()
         subprocess.run(["/bin/cp", "-c", str(args.sd_image.resolve(strict=True)),

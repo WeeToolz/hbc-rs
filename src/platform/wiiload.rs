@@ -1539,13 +1539,13 @@ fn note_devfile_app_change(device: &[u8], path: &[u8]) {
         _ => return,
     };
     let active_device_name = &active_device[..active_device.len() - 1];
-    if device != active_device_name
-        || crate::devfile::app_change_name(active_device_name, path).is_none()
-    {
+    if !crate::devfile::active_apps_path(active_device_name, device, path) {
         return;
     }
     DEVFILE_CHANGE_TICKS.store(ogc_lwp::sys::now_ticks() as u32, Ordering::Release);
-    DEVFILE_CHANGE_GENERATION.fetch_add(1, Ordering::AcqRel);
+    if crate::devfile::app_change_name(active_device_name, path).is_some() {
+        DEVFILE_CHANGE_GENERATION.fetch_add(1, Ordering::AcqRel);
+    }
 }
 
 fn devfile_put(

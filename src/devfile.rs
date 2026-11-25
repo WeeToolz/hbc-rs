@@ -133,6 +133,17 @@ pub fn strip_directory_slash(path: &[u8]) -> &[u8] {
     }
 }
 
+/// Match Reborn's active-device `:/apps/` prefix for its quiet refresh timer.
+pub(crate) fn active_apps_path(active_device: &[u8], device: &[u8], path: &[u8]) -> bool {
+    device.eq_ignore_ascii_case(active_device)
+        && path
+            .get(..active_device.len())
+            .is_some_and(|prefix| prefix.eq_ignore_ascii_case(active_device))
+        && path
+            .get(active_device.len()..active_device.len() + 7)
+            .is_some_and(|prefix| prefix.eq_ignore_ascii_case(b":/apps/"))
+}
+
 /// Return an app folder changed by Reborn's catalog-visible HBCF operations.
 pub fn app_change_name<'a>(active_device: &[u8], path: &'a [u8]) -> Option<&'a [u8]> {
     if !path
@@ -269,5 +280,27 @@ mod tests {
         ] {
             assert_eq!(app_change_name(b"sd", path), None);
         }
+    }
+
+    #[test]
+    fn active_app_folder_change_timer_includes_non_catalog_files() {
+        let data_path = b"sd:/apps/demo/data/save.bin";
+        assert!(active_apps_path(b"sd", b"sd", data_path));
+        assert_eq!(app_change_name(b"sd", data_path), None);
+
+        let executable_path = b"sd:/apps/demo/boot.dol";
+        assert!(active_apps_path(b"sd", b"sd", executable_path));
+        assert_eq!(
+            app_change_name(b"sd", executable_path),
+            Some(b"demo".as_slice())
+        );
+
+        assert!(!active_apps_path(b"sd", b"usb", b"usb:/apps/demo/boot.dol"));
+        assert!(!active_apps_path(
+            b"sd",
+            b"sd",
+            b"sd:/data/apps/demo/boot.dol"
+        ));
+        assert!(active_apps_path(b"sd", b"sd", b"sd:/apps/"));
     }
 }
