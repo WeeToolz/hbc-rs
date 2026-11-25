@@ -59,6 +59,43 @@ def reborn_status(host):
         return json.loads(read_exact(length))
 
 
+def reborn_hardware(host, mask):
+    with socket.create_connection((host, 4299), timeout=30) as connection:
+        connection.settimeout(30)
+        connection.sendall(b"HBCH" + struct.pack(">H", mask) + bytes(10))
+        header = read_exact(connection, 8)
+        status = int.from_bytes(header[:4], "big", signed=True)
+        length = int.from_bytes(header[4:], "big")
+        if status != 0 or length > 8192:
+            raise RuntimeError(f"invalid HBCH reply: status={status}, length={length}")
+        return json.loads(read_exact(connection, length))
+
+
+def reborn_hardware_info(host):
+    names = ("System", "Video", "Storage", "USB", "Network")
+    all_pages = reborn_hardware(host, 0)
+    if tuple(all_pages) != names:
+        raise RuntimeError(f"HBCH zero mask returned pages {tuple(all_pages)!r}")
+    if any(not isinstance(page, dict) for page in all_pages.values()):
+        raise RuntimeError("HBCH page values must be JSON objects")
+    if not all_pages["System"].get("IOS", "").startswith("IOS"):
+        raise RuntimeError(f"HBCH System page omitted IOS: {all_pages['System']!r}")
+    selected = {}
+    for index, name in enumerate(names):
+        page = reborn_hardware(host, 1 << index)
+        if tuple(page) != (name,):
+            raise RuntimeError(f"HBCH mask for {name} returned pages {tuple(page)!r}")
+        selected[name] = page[name]
+    combined = reborn_hardware(host, (1 << 1) | (1 << 4))
+    if tuple(combined) != ("Video", "Network"):
+        raise RuntimeError(f"HBCH combined mask returned pages {tuple(combined)!r}")
+    unknown = reborn_hardware(host, 1 << 7)
+    if unknown != {}:
+        raise RuntimeError(f"HBCH unknown page mask returned {unknown!r}")
+    return {"all_pages": all_pages, "selected_pages": selected,
+            "combined_pages": list(combined), "unknown_mask": unknown}
+
+
 def reborn_screen(host):
     with socket.create_connection((host, 4299), timeout=30) as connection:
         connection.settimeout(30)
@@ -357,6 +394,7 @@ def main():
     parser.add_argument("--reborn-theme-control", action="store_true", help="check Reborn C theme upload status")
     parser.add_argument("--reborn-transfer-style", action="store_true", help="check HBCT style replies and HBCS state")
     parser.add_argument("--reborn-screen", action="store_true", help="check HBCP dimensions and live YUYV framebuffer reply")
+    parser.add_argument("--reborn-hardware-info", action="store_true", help="check HBCH page masks and JSON replies")
     parser.add_argument("--reborn-netlog", action="store_true", help="check HBCN target set, HBCS state, and clear")
     parser.add_argument("--reborn-lastlog-empty", action="store_true", help="check HBCS and HBCL when no retained log exists")
     parser.add_argument("--reborn-crash-empty", action="store_true", help="check HBCS and HBCC clear when no crash exists")
@@ -386,6 +424,7 @@ def main():
               "reborn_keys": args.reborn_keys,
               "reborn_transfer_style": args.reborn_transfer_style,
               "reborn_screen": args.reborn_screen,
+              "reborn_hardware_info": args.reborn_hardware_info,
               "reborn_netlog": args.reborn_netlog,
               "reborn_lastlog_empty": args.reborn_lastlog_empty,
               "reborn_crash_empty": args.reborn_crash_empty,
@@ -423,7 +462,7 @@ def main():
         while time.monotonic()<deadline:
             if process.poll() is not None:
                 raise RuntimeError("Dolphin exited before the HBC listener became ready")
-            if args.reborn_theme_control or args.reborn_transfer_style or args.reborn_file or args.reborn_screen or args.reborn_netlog or args.reborn_lastlog_empty or args.reborn_crash_empty or args.reborn_netlog_app:
+            if args.reborn_theme_control or args.reborn_transfer_style or args.reborn_file or args.reborn_screen or args.reborn_hardware_info or args.reborn_netlog or args.reborn_lastlog_empty or args.reborn_crash_empty or args.reborn_netlog_app:
                 try:
                     with socket.create_connection((args.host, 4299), timeout=.5) as probe:
                         probe.sendall(b"HBCS".ljust(16, b"\0"))
@@ -492,6 +531,14 @@ def main():
             )
             result["success"] = True
             print(f"HBCP framebuffer passed: {result['reborn_screen_result']}", flush=True)
+            raise ReferenceComplete
+        if args.reborn_hardware_info:
+            result["reborn_hardware_info_result"] = reborn_hardware_info(args.host)
+            result.setdefault("cases", []).append(
+                {"case": "reborn-hardware-info", "success": True, "result": 0}
+            )
+            result["success"] = True
+            print("HBCH page masks and JSON replies passed", flush=True)
             raise ReferenceComplete
         if args.reborn_netlog:
             result["reborn_netlog_result"] = reborn_netlog(args.host)

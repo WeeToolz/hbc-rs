@@ -55,6 +55,7 @@ ogc-system = { path = "../libogc-rs/crates/core/ogc-system" }
 ogc-video = { path = "../libogc-rs/crates/hardware/ogc-video" }
 ogc-wd = { path = "../libogc-rs/crates/services/ogc-wd" }
 ogc-usbgecko = { path = "../libogc-rs/crates/services/ogc-usbgecko" }
+ogc-usb = { path = "../libogc-rs/crates/services/ogc-usb" }
 libdb-sys = { path = "../libogc-rs/crates/compatibility/libdb-sys", optional = true }
 ogc-usbstorage-sys = { path = "../libogc-rs/crates/services/ogc-usbstorage-sys" }
 ogc-wiilaunch = { path = "../libogc-rs/crates/core/ogc-wiilaunch" }

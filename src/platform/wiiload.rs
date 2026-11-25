@@ -1090,6 +1090,19 @@ fn receive_client(
     if &header_bytes[..4] == b"HBCP" {
         return send_screenshot(shared, client, started_at).map(|()| None);
     }
+    if &header_bytes[..4] == b"HBCH" {
+        let mask = u16::from_be_bytes([header_bytes[4], header_bytes[5]]);
+        let (status, body) = match crate::hardware_info::hardware_response(mask) {
+            Ok(body) => (0, body),
+            Err(crate::hardware_info::BuildError::NoMemory) => {
+                (-crate::devfile::errno::ENOMEM, Vec::new())
+            }
+            Err(crate::hardware_info::BuildError::TooLarge) => {
+                (-crate::devfile::errno::EFBIG, Vec::new())
+            }
+        };
+        return write_devfile_reply(shared, client, status, &body, started_at).map(|()| None);
+    }
     if &header_bytes[..4] == b"HBCN" {
         let port = u16::from_be_bytes([header_bytes[4], header_bytes[5]]);
         let target = (port != 0).then_some(crate::netlog::Target {

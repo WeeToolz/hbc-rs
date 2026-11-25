@@ -105,6 +105,7 @@ dependencies = [
  "ogc-report-protocol",
  "ogc-system",
  "ogc-ui",
+ "ogc-usb",
  "ogc-usbgecko",
  "ogc-usbstorage-sys",
  "ogc-video",

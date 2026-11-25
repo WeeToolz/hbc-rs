@@ -13,6 +13,7 @@ pub mod catalog;
 pub mod crash_report;
 pub mod devfile;
 pub mod font;
+pub mod hardware_info;
 pub mod home_overlay;
 pub mod home_overlay_app;
 pub mod home_overlay_host;
