@@ -13,7 +13,7 @@ import struct
 import subprocess
 import tempfile
 import time
-from dolphin_test_support import Debugger, verified_artifact, write_dolphin_config
+from dolphin_test_support import Debugger, copy_private_tree, verified_artifact, write_dolphin_config
 
 ROOT = Path(__file__).resolve().parents[3]
 REPO = Path(__file__).resolve().parents[1]
@@ -143,7 +143,7 @@ def main():
         raise RuntimeError('Use the normal emulator-acceptance test binary')
     profile = Path(tempfile.mkdtemp(prefix='hbc-production-acceptance-', dir=TEMP_ROOT))
     if any(case in ('settings', 'theme-storage-api', 'playtime-reset-api') for case in args.cases):
-        shutil.copytree(Path.home() / 'Library/Application Support/Dolphin/Wii', profile / 'Wii')
+        copy_private_tree(Path.home() / 'Library/Application Support/Dolphin/Wii', profile / 'Wii')
     else:
         (profile / 'Wii').mkdir()
     config = profile / 'Config'

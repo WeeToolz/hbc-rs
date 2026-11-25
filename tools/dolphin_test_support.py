@@ -1,6 +1,9 @@
 """Shared Dolphin debugger transport for emulator acceptance tests."""
 import configparser
+import shutil
 import socket
+import subprocess
+import sys
 import time
 
 
@@ -41,6 +44,18 @@ def installed_title(profile, title):
                         'boot_sha256': hashlib.sha256(dol).hexdigest()}
         raise ValueError('Installed DOL entry is outside a valid text section')
     raise ValueError('Installed-title boot content is absent')
+
+
+def copy_private_tree(source, destination):
+    """Copy a disposable test tree, using APFS clones on macOS when available."""
+    from pathlib import Path
+
+    destination = Path(destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if sys.platform == 'darwin':
+        subprocess.run(['/bin/cp', '-cR', str(source), str(destination)], check=True)
+    else:
+        shutil.copytree(source, destination)
 
 
 def write_dolphin_config(directory, contents):

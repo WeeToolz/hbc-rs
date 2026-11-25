@@ -12,10 +12,22 @@ import subprocess
 import tempfile
 import time
 
-from dolphin_test_support import Debugger, write_dolphin_config
+from dolphin_test_support import (
+    Debugger,
+    copy_private_tree,
+    write_dolphin_config,
+)
 from dolphin_capture_config import configure_capture_profile
 from test_channel_wad_dolphin import capture_screenshot
 from test_hbc_ui_dolphin import RemotePipe, configure_profile, make_sd_fixture, set_initial_sort
+
+
+def sha256_file(path):
+    digest = hashlib.sha256()
+    with path.open('rb') as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b''):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def main():
@@ -29,6 +41,8 @@ def main():
                         help='Architecture for the Dolphin executable')
     parser.add_argument('--app-dir', type=Path,
                         help='Load this real app directory from emulated SD instead of the three-app input fixture')
+    parser.add_argument('--sd-image', type=Path,
+                        help='Read-only SD image for --app-dir; defaults to Dolphin’s configured image')
     parser.add_argument('--post-launch-seconds', type=int, default=30,
                         help='Seconds to allow the selected app to draw its first frame (5..180)')
     parser.add_argument('--load-focus-left', action='store_true',
@@ -47,6 +61,11 @@ def main():
     temp_root = args.temp_root.resolve()
     temp_root.mkdir(parents=True, exist_ok=True)
     app_dir = args.app_dir.resolve(strict=True) if args.app_dir else None
+    sd_image = args.sd_image
+    if app_dir is not None and sd_image is None:
+        sd_image = Path.home() / 'Library/Application Support/Dolphin/Load/WiiSD.raw'
+    if sd_image is not None:
+        sd_image = sd_image.resolve(strict=True)
     if args.verify_app_entry and app_dir is None:
         parser.error('--verify-app-entry requires --app-dir')
     if args.load_focus_left and app_dir is None:
@@ -84,7 +103,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix='hbc-c-input-', dir=temp_root) as temporary:
         profile = Path(temporary)
         try:
-            shutil.copytree(Path.home() / 'Library/Application Support/Dolphin/Wii', profile / 'Wii')
+            copy_private_tree(Path.home() / 'Library/Application Support/Dolphin/Wii', profile / 'Wii')
             config = profile / 'Config'
             config.mkdir()
             write_dolphin_config(config,
@@ -94,12 +113,19 @@ def main():
             if app_dir is None:
                 result['fixture'] = make_sd_fixture(profile)
             else:
-                shutil.copytree(app_dir, profile / 'Load/WiiSDSync/apps' / app_dir.name)
+                copy_private_tree(app_dir, profile / 'Load/WiiSDSync/apps' / app_dir.name)
                 configure_capture_profile(profile)
                 result['fixture'] = {'application': app_identity}
+                result['sd_image'] = {
+                    'path': str(sd_image),
+                    'bytes': sd_image.stat().st_size,
+                    'sha256': sha256_file(sd_image),
+                    'writes_enabled': False,
+                }
                 result['expected_visible_result'] = 'The selected application starts and draws its screen'
             set_initial_sort(profile)
-            remote_fd = configure_profile(profile, config / 'Dolphin.ini')
+            remote_fd = configure_profile(
+                profile, config / 'Dolphin.ini', sd_image if app_dir is not None else None)
             if app_dir is not None:
                 with (config / 'WiimoteNew.ini').open('a') as mapping:
                     mapping.write('IR/Hide = `Pipe/0/hbc-ui-remote:Button Z`\n')

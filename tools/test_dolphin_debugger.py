@@ -1,9 +1,11 @@
 """Deterministic tests for the production Dolphin debugger packet parser."""
 import unittest
 import socket
+from pathlib import Path
+import tempfile
 from unittest.mock import patch
 
-from dolphin_test_support import Debugger
+from dolphin_test_support import Debugger, copy_private_tree
 
 
 class ScriptedSocket:
@@ -113,6 +115,23 @@ class DebuggerTests(unittest.TestCase):
         self.assertEqual(receive_limits[0], 1)
         self.assertLess(receive_limits[1], receive_limits[0])
         self.assertEqual(connection.current_timeout, 17)
+
+
+class PrivateTreeCopyTests(unittest.TestCase):
+    def test_copy_is_independent_of_its_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'source'
+            source.mkdir()
+            source_file = source / 'data.bin'
+            source_file.write_bytes(b'original data')
+            destination = root / 'nested' / 'private-copy'
+
+            copy_private_tree(source, destination)
+            (destination / 'data.bin').write_bytes(b'changed data')
+
+            self.assertEqual(source_file.read_bytes(), b'original data')
+            self.assertEqual((destination / 'data.bin').read_bytes(), b'changed data')
 
 
 if __name__ == '__main__':

@@ -299,6 +299,41 @@ class RemotePipeTests(unittest.TestCase):
                 wait_for_events(log_path, lambda event: False, 1, 'pointer click')
 
 
+class DolphinProfileTests(unittest.TestCase):
+    def configure(self, profile, sd_image=None):
+        config_dir = profile / 'Config'
+        config_dir.mkdir(parents=True)
+        config_path = config_dir / 'Dolphin.ini'
+        config_path.write_text('[Core]\n')
+        fd = configure_profile(profile, config_path, sd_image)
+        os.close(fd)
+        settings = configparser.ConfigParser(interpolation=None)
+        settings.read(config_path)
+        return settings['Core']
+
+    def test_default_fixture_uses_its_sd_sync_folder(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            profile = Path(temporary)
+            core = self.configure(profile)
+
+            self.assertEqual(core['WiiSDCardSyncFolder'], str(profile / 'Load/WiiSDSync'))
+            self.assertEqual(core['WiiSDCardAllowWrites'], 'True')
+
+    def test_reference_sd_image_is_read_only(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            profile = Path(temporary) / 'profile'
+            profile.mkdir()
+            sd_image = Path(temporary) / 'reference-sd.raw'
+            sd_image.write_bytes(b'private test')
+
+            core = self.configure(profile, sd_image)
+
+            self.assertEqual(core['WiiSDCardPath'], str(sd_image))
+            self.assertEqual(core['WiiSDCardFilesize'], '0')
+            self.assertEqual(core['WiiSDCardAllowWrites'], 'False')
+            self.assertEqual(sd_image.read_bytes(), b'private test')
+
+
 def click_at(remote, pointer, log_path, x, y, target, index, timeout):
     x += (pointer.width - 640) // 2
     before = len(parse_events(log_path.read_text(errors='replace')))
@@ -426,7 +461,7 @@ def run_acceptance(args, result, profile, remote_fd, process, screenshot):
     }
 
 
-def configure_profile(profile, config_path):
+def configure_profile(profile, config_path, sd_image=None):
     """Enable one emulated Remote and bind it to a private Dolphin Pipe."""
     settings = configparser.ConfigParser(interpolation=None)
     settings.optionxform = str
@@ -435,6 +470,11 @@ def configure_profile(profile, config_path):
     settings['Core']['WiiSDCard'] = 'True'
     settings['Core']['WiiSDCardAllowWrites'] = 'True'
     settings['Core']['WiiSDCardEnableFolderSync'] = 'True'
+    settings['Core']['WiiSDCardSyncFolder'] = str(profile / 'Load/WiiSDSync')
+    if sd_image is not None:
+        settings['Core']['WiiSDCardAllowWrites'] = 'False'
+        settings['Core']['WiiSDCardFilesize'] = '0'
+        settings['Core']['WiiSDCardPath'] = str(sd_image)
     with config_path.open('w') as output:
         settings.write(output)
 
