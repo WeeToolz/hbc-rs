@@ -13,12 +13,12 @@ this change remain open.
 
 There is a separate library difference that needs a controlled test. The local
 C libogc allocates Wii Remote slots during initialization and stores a requested
-data format for a slot before a remote connects. The Rust PowerPC backend
-currently returns without storing the format when a channel is disconnected.
-This can affect the reports requested after connection. It does not establish
-why button input failed on the user's Wii. Test both implementations with the
-same Dolphin input setup before changing the library contract, then verify the
-result on a Wii.
+data format for a slot before a remote connects. The Rust PowerPC backend had
+discarded the format while disconnected. The library now stores it for the
+later connection. A Dolphin probe checked format API results without a remote;
+it did not check connected reports. This difference does not establish why
+button input failed on the user's Wii. Check a later connection in Dolphin and
+verify the result on a Wii.
 
 The startup delay also needs measurement. Do not treat the setup change as a
 confirmed fix for either reported symptom.
