@@ -138,6 +138,113 @@ impl RebornTransferStyle {
         }
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RebornTransferLine {
+    pub message: alloc::string::String,
+    pub percent: alloc::string::String,
+    pub split_percent: bool,
+}
+
+pub struct RebornTransferProgress<'a> {
+    pub operation: u8,
+    pub name: &'a str,
+    pub completed: u32,
+    pub total: u32,
+    pub style: RebornTransferStyle,
+    pub elapsed_ms: u32,
+    pub max_chars: usize,
+    pub receiving: &'a str,
+    pub sending: &'a str,
+}
+
+/// Format Reborn's transfer footer with a bounded name window.
+pub fn reborn_transfer_line(progress: RebornTransferProgress<'_>) -> Option<RebornTransferLine> {
+    use alloc::format;
+    use alloc::string::String;
+
+    let RebornTransferProgress {
+        operation,
+        name,
+        completed,
+        total,
+        style,
+        elapsed_ms,
+        max_chars,
+        receiving,
+        sending,
+    } = progress;
+    let verb = match operation {
+        b'p' | b'P' => receiving,
+        b'g' | b'G' => sending,
+        _ => return None,
+    };
+    let name: String = name.chars().take(63).collect();
+    let percent = if total == 0 {
+        String::new()
+    } else {
+        format!(
+            "  {}%",
+            (u64::from(completed) * 100 / u64::from(total)).min(100)
+        )
+    };
+    let chars: Vec<char> = name.chars().collect();
+    let room = max_chars
+        .saturating_sub(verb.chars().count() + 1 + percent.chars().count())
+        .max(1);
+    if chars.len() <= room {
+        return Some(RebornTransferLine {
+            message: format!("{verb} {name}{percent}"),
+            percent: String::new(),
+            split_percent: false,
+        });
+    }
+    let window = match style {
+        RebornTransferStyle::Truncate => {
+            let visible = room.saturating_sub(3);
+            let mut text: String = chars.iter().take(visible).collect();
+            text.push_str("...");
+            text
+        }
+        RebornTransferStyle::Scroll => {
+            let offset = if elapsed_ms < 1000 {
+                0
+            } else {
+                ((elapsed_ms - 1000) / 133) as usize % (chars.len() + 3)
+            };
+            (0..room)
+                .map(|index| {
+                    let index = (offset + index) % (chars.len() + 3);
+                    if index < chars.len() {
+                        chars[index]
+                    } else {
+                        ' '
+                    }
+                })
+                .collect()
+        }
+        RebornTransferStyle::Bounce | RebornTransferStyle::None => {
+            let span = chars.len().saturating_sub(room);
+            let period = 2 * (1000 + span as u32 * 133);
+            let phase = if period == 0 { 0 } else { elapsed_ms % period };
+            let offset = if phase < 1000 {
+                0
+            } else if phase < 1000 + span as u32 * 133 {
+                ((phase - 1000) / 133) as usize
+            } else if phase < 2000 + span as u32 * 133 {
+                span
+            } else {
+                span.saturating_sub(((phase - 2000 - span as u32 * 133) / 133) as usize)
+            };
+            chars.iter().skip(offset).take(room).collect()
+        }
+    };
+    Some(RebornTransferLine {
+        message: format!("{verb} {window}"),
+        percent,
+        split_percent: total != 0,
+    })
+}
 /// The network-debugger release worker and compressed-upload call chain require
 /// at least 36,320 bytes on PowerPC. Use 64 KiB in that mode, leaving more than
 /// 27 KiB for deeper calls, thread entry, and interrupt frames. The other modes
@@ -599,6 +706,82 @@ pub fn decode_reborn_upload_metadata(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reborn_transfer_line_shows_direction_name_and_bounded_percentage() {
+        let line = reborn_transfer_line(RebornTransferProgress {
+            operation: b'p',
+            name: "boot.dol",
+            completed: 42,
+            total: 100,
+            style: RebornTransferStyle::Scroll,
+            elapsed_ms: 0,
+            max_chars: 44,
+            receiving: "Receiving",
+            sending: "Sending",
+        })
+        .unwrap();
+        assert_eq!(line.message, "Receiving boot.dol  42%");
+        assert!(!line.split_percent);
+        assert_eq!(
+            reborn_transfer_line(RebornTransferProgress {
+                operation: b'G',
+                name: "save.bin",
+                completed: 0,
+                total: 0,
+                style: RebornTransferStyle::None,
+                elapsed_ms: 0,
+                max_chars: 44,
+                receiving: "Receiving",
+                sending: "Sending",
+            },)
+            .unwrap()
+            .message,
+            "Sending save.bin"
+        );
+        assert!(
+            reborn_transfer_line(RebornTransferProgress {
+                operation: b'?',
+                name: "x",
+                completed: 0,
+                total: 0,
+                style: RebornTransferStyle::Scroll,
+                elapsed_ms: 0,
+                max_chars: 44,
+                receiving: "Receiving",
+                sending: "Sending",
+            })
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn reborn_transfer_line_applies_scroll_bounce_and_truncate_styles() {
+        let line = |style, elapsed| {
+            reborn_transfer_line(RebornTransferProgress {
+                operation: b'g',
+                name: "0123456789ABCDEFGHIJ",
+                completed: 50,
+                total: 100,
+                style,
+                elapsed_ms: elapsed,
+                max_chars: 21,
+                receiving: "Receiving",
+                sending: "Sending",
+            })
+            .unwrap()
+        };
+        let scroll_start = line(RebornTransferStyle::Scroll, 0);
+        let scroll_moved = line(RebornTransferStyle::Scroll, 1133);
+        assert_ne!(scroll_start.message, scroll_moved.message);
+        let bounce_start = line(RebornTransferStyle::Bounce, 0);
+        let bounce_end = line(RebornTransferStyle::Bounce, 1000 + 8 * 133);
+        assert_ne!(bounce_start.message, bounce_end.message);
+        let truncated = line(RebornTransferStyle::Truncate, 5000);
+        assert!(truncated.message.ends_with("..."));
+        assert!(truncated.split_percent);
+        assert_eq!(truncated.percent, "  50%");
+    }
 
     #[test]
     fn reborn_upload_metadata_checks_length_flags_and_expiry() {

@@ -1,0 +1,38 @@
+{
+  "stack_bytes": 65536,
+  "alignment": 32,
+  "direct_call_lower_bound_bytes": 27344,
+  "remaining_bytes": 38192,
+  "required_margin_bytes": 16384,
+  "frames": [
+    {
+      "function": "hbc_rs::platform::wiiload::worker",
+      "bytes": 25360
+    },
+    {
+      "function": "hbc_rs::platform::wiiload::handle_devfile",
+      "bytes": 128
+    },
+    {
+      "function": "hbc_rs::platform::wiiload::devfile_put",
+      "bytes": 240
+    },
+    {
+      "function": "hbc_rs::wiiload::decode_zlib_stream::<(), hbc_rs::platform::wiiload::devfile_put::{closure#1}::{closure#1}>",
+      "bytes": 1136
+    },
+    {
+      "function": "miniz_oxide::inflate::core::decompress",
+      "bytes": 240
+    },
+    {
+      "function": "miniz_oxide::inflate::core::init_tree",
+      "bytes": 224
+    },
+    {
+      "function": "memset",
+      "bytes": 16
+    }
+  ],
+  "success": true
+}

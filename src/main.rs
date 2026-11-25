@@ -190,6 +190,7 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     let mut bubble_minute_cycle = minute_cycle;
     let mut background_animation =
         hbc_rs::render::BackgroundAnimation::new(view_width, now as u32, minute_cycle);
+    hbc_rs::platform::wiiload::initialize_transfer_style(ogc_lwp::sys::now_ticks() as u32);
     #[cfg(feature = "startup-diagnostics")]
     hbc_rs::platform::diagnostics::mark("NETWORK WORKER START");
     if hbc_rs::platform::wiiload::start().is_err() {
@@ -218,6 +219,9 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
     let mut reborn_keys = hbc_rs::reborn_keys::KeyPacer::default();
     let mut remote_operation: Option<(u32, u64, hbc_rs::platform::control::Operation)> = None;
     let mut remote_result: Option<(u32, Result<String, String>)> = None;
+    let mut devfile_transfer_identity: Option<(u8, String)> = None;
+    let mut devfile_transfer_started_at = 0;
+    let mut devfile_catalog_generation = 0;
     ogc_system::report(format_args!(
         "HBC: startup complete; entering render loop\n"
     ));
@@ -335,6 +339,28 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             startup
                 .runtime_mut()
                 .show_notice_with_kind(&notice, hbc_rs::app::NoticeKind::Error);
+        }
+        let devfile_now = ogc_lwp::sys::now_ticks();
+        if let Some((generation, changed_at)) = hbc_rs::platform::wiiload::devfile_app_change()
+            && generation != devfile_catalog_generation
+            && !hbc_rs::platform::wiiload::devfile_request_active()
+            && (devfile_now as u32).wrapping_sub(changed_at)
+                >= ogc_lwp::sys::TICKS_PER_SECOND as u32
+        {
+            match startup.refresh_devfile_catalog() {
+                Ok(true) => devfile_catalog_generation = generation,
+                Ok(false) => {}
+                Err(error) => {
+                    ogc_system::report(format_args!(
+                        "HBC: app catalog refresh after Wiiload file change failed: {error:?}\n"
+                    ));
+                    startup.runtime_mut().show_notice_with_kind(
+                        "Could not refresh the app list after a network file change.",
+                        hbc_rs::app::NoticeKind::Warning,
+                    );
+                    devfile_catalog_generation = generation;
+                }
+            }
         }
         let active_device = startup.mounted_volume();
         let inserted_mask = hbc_rs::platform::storage::VOLUMES.iter().enumerate().fold(
@@ -755,6 +781,37 @@ pub unsafe extern "C" fn main(_argc: i32, _argv: *mut *mut u8) -> i32 {
             startup.logical_width(),
             language,
         );
+        if let Some((operation, name, completed, total)) =
+            hbc_rs::platform::wiiload::devfile_transfer_progress()
+        {
+            let identity = (operation, name.clone());
+            if devfile_transfer_identity.as_ref() != Some(&identity) {
+                devfile_transfer_identity = Some(identity);
+                devfile_transfer_started_at = ogc_lwp::sys::now_ticks();
+            }
+            let elapsed_ms = hbc_rs::wiiload::elapsed_ticks_to_milliseconds(
+                devfile_transfer_started_at,
+                ogc_lwp::sys::now_ticks(),
+                ogc_lwp::sys::TICKS_PER_SECOND,
+            );
+            if let Some(transfer) =
+                hbc_rs::wiiload::reborn_transfer_line(hbc_rs::wiiload::RebornTransferProgress {
+                    operation,
+                    name: &name,
+                    completed,
+                    total,
+                    style: hbc_rs::platform::wiiload::transfer_style(),
+                    elapsed_ms,
+                    max_chars: 45,
+                    receiving: language.text("Receiving"),
+                    sending: language.text("Sending"),
+                })
+            {
+                scene.devfile_transfer_status(&transfer, startup.runtime().theme());
+            }
+        } else {
+            devfile_transfer_identity = None;
+        }
         if first_frame {
             ogc_system::report(format_args!("HBC: first scene construction complete\n"));
         }

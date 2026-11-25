@@ -633,6 +633,27 @@ impl Frame {
         });
     }
 
+    /// Draw Reborn's active file transfer beside the connection indicators.
+    pub fn devfile_transfer_status(
+        &mut self,
+        transfer: &crate::wiiload::RebornTransferLine,
+        theme: Option<&ThemeMetadata>,
+    ) {
+        let color = theme
+            .and_then(|theme| theme.default_font.color)
+            .map(color_from_rgba)
+            .unwrap_or(Color::rgb(213, 224, 233));
+        self.set_text_style(theme_text_style(theme, "label", color));
+        let right = f32::from(self.logical_width()) - 104.0;
+        let y = 420.0;
+        if transfer.split_percent {
+            self.text(right - 360.0, y, &transfer.message, 1.0, color, 64);
+            self.text_right(right, y, &transfer.percent, color, 8);
+        } else {
+            self.text_right(right, y, &transfer.message, color, 96);
+        }
+    }
+
     /// Add rising bubbles before foreground UI elements.
     pub fn set_background_bubbles(&mut self, bubbles: &[BackgroundBubble]) {
         self.bubbles.clear();
@@ -2082,6 +2103,26 @@ mod tests {
                 },
             }
         ));
+    }
+
+    #[test]
+    fn devfile_transfer_status_uses_footer_line_and_separate_percent() {
+        let transfer = crate::wiiload::RebornTransferLine {
+            message: String::from("Receiving a-long-file-name.dol"),
+            percent: String::from("  42%"),
+            split_percent: true,
+        };
+        let mut frame = Frame {
+            logical_width: LOGICAL_WIDTH,
+            ..Frame::default()
+        };
+        frame.devfile_transfer_status(&transfer, None);
+        assert_eq!(frame.text_runs.len(), 2);
+        assert_eq!(frame.text_runs[0].value, transfer.message);
+        assert_eq!(frame.text_runs[0].x, 176.0);
+        assert_eq!(frame.text_runs[1].value, transfer.percent);
+        assert_eq!(frame.text_runs[1].x, 536.0);
+        assert!(frame.text_runs[1].right_align);
     }
 
     #[test]

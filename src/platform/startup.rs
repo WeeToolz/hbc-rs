@@ -1213,6 +1213,26 @@ impl WiiStartup {
         Ok(true)
     }
 
+    /// Rescan the active app catalog after a quiet HBCF app-file change.
+    pub fn refresh_devfile_catalog(&mut self) -> Result<bool, StartupError> {
+        if self.storage_scan_pending()
+            || self.received_zip_install_pending()
+            || self.device_probe_pending()
+        {
+            return Ok(false);
+        }
+        let Some(storage) = self.storage.as_mut() else {
+            return Ok(false);
+        };
+        let catalog =
+            scan_apps_and_record_duration(storage, "apps", EXECUTABLE_SIZE_LIMIT, THEME_SIZE_LIMIT)
+                .map_err(StartupError::CatalogScan)?;
+        self.runtime.replace_catalog(catalog);
+        self.icon_textures.clear();
+        self.attempted_icon_indices.clear();
+        Ok(true)
+    }
+
     /// Delete the selected app folder and remove it from the live catalog.
     pub fn delete_selected_app(&mut self) -> Result<(), StartupError> {
         let directory = self

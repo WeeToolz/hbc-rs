@@ -10,6 +10,7 @@ import shutil
 import socket
 import subprocess
 import time
+import uuid
 import zlib
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -57,6 +58,166 @@ def reborn_status(host):
         return json.loads(read_exact(length))
 
 
+def read_exact(connection, length):
+    data = bytearray()
+    while len(data) < length:
+        chunk = connection.recv(length - len(data))
+        if not chunk:
+            raise RuntimeError("truncated HBCF reply")
+        data.extend(chunk)
+    return bytes(data)
+
+
+def devfile_packet(operation, path, size=0, flags=0):
+    path_bytes = path.encode("ascii")
+    if not 0 < len(path_bytes) < 256:
+        raise ValueError("HBCF path length is outside the protocol bounds")
+    return (b"HBCF" + operation + bytes([flags]) + len(path_bytes).to_bytes(2, "big")
+            + size.to_bytes(4, "big") + bytes(4) + path_bytes)
+
+
+def devfile_request(host, operation, path, body=b"", size=None, flags=0):
+    if size is None:
+        size = len(body)
+    with socket.create_connection((host, 4299), timeout=5) as connection:
+        connection.settimeout(5)
+        connection.sendall(devfile_packet(operation, path, size, flags) + body)
+        reply = read_exact(connection, 8)
+        status = int.from_bytes(reply[:4], "big", signed=True)
+        length = int.from_bytes(reply[4:], "big")
+        if length > 256 * 1024:
+            raise RuntimeError(f"HBCF reply is too large: {length}")
+        return status, read_exact(connection, length)
+
+
+def devfile_put_frame(raw):
+    compressor = zlib.compressobj(level=1)
+    compressed = compressor.compress(raw) + compressor.flush()
+    wire = compressed if len(compressed) < len(raw) else raw
+    return (len(raw).to_bytes(4, "big") + len(wire).to_bytes(4, "big")
+            + (zlib.crc32(raw) & 0xffffffff).to_bytes(4, "big") + wire)
+
+
+def devfile_get_framed(host, path, compress):
+    flags = 1 if compress else 0
+    with socket.create_connection((host, 4299), timeout=5) as connection:
+        connection.settimeout(5)
+        connection.sendall(devfile_packet(b"g", path, flags=flags))
+        reply = read_exact(connection, 8)
+        status = int.from_bytes(reply[:4], "big", signed=True)
+        total = int.from_bytes(reply[4:], "big")
+        if status:
+            return status, b""
+        output = bytearray()
+        while True:
+            frame = read_exact(connection, 12)
+            raw_length = int.from_bytes(frame[:4], "big")
+            wire_length = int.from_bytes(frame[4:8], "big")
+            checksum = int.from_bytes(frame[8:], "big")
+            if raw_length == 0:
+                terminal_status = int.from_bytes(frame[8:], "big", signed=True)
+                if terminal_status:
+                    raise RuntimeError(f"HBCF framed download ended with {terminal_status}")
+                break
+            if raw_length > 64 * 1024 or wire_length > raw_length:
+                raise RuntimeError("HBCF returned an invalid download frame size")
+            wire = read_exact(connection, wire_length)
+            raw = zlib.decompress(wire) if wire_length < raw_length else wire
+            actual_crc = zlib.crc32(raw) & 0xffffffff
+            if len(raw) != raw_length or actual_crc != checksum:
+                raise RuntimeError(
+                    "HBCF download frame failed size or CRC verification "
+                    f"(raw={len(raw)}/{raw_length}, wire={wire_length}, "
+                    f"crc={actual_crc:08x}/{checksum:08x})"
+                )
+            output.extend(raw)
+        if len(output) != total:
+            raise RuntimeError(f"HBCF download size was {len(output)}, expected {total}")
+        return 0, bytes(output)
+
+
+def test_reborn_devfile(host):
+    folder = f"sd:/apps/__hbc_rs_parity_{uuid.uuid4().hex[:10]}"
+    raw_path = folder + "/raw.bin"
+    framed_path = folder + "/framed.bin"
+    app_path = folder + "/boot.dol"
+    raw = bytes(range(256)) * 3
+    framed = b"HBCF framed transfer test\n" * 173
+    app_data = b"Catalog refresh evidence from HBCF."
+    deadline = time.monotonic() + 30
+    initial_status = reborn_status(host)
+    while initial_status.get("device") != "sd" and time.monotonic() < deadline:
+        time.sleep(.1)
+        initial_status = reborn_status(host)
+    if initial_status.get("device") != "sd":
+        raise RuntimeError(f"HBCF Dolphin test did not mount its SD image: {initial_status}")
+    initial_app_count = initial_status["apps"]
+    try:
+        status, _ = devfile_request(host, b"M", folder)
+        if status:
+            raise RuntimeError(f"HBCF mkdir failed with {status}")
+        status, stat = devfile_request(host, b"S", folder)
+        if status or not stat.startswith(b"d 0 "):
+            raise RuntimeError(f"HBCF stat directory mismatch: {status}, {stat!r}")
+        status, _ = devfile_request(host, b"P", raw_path, raw)
+        if status:
+            raise RuntimeError(f"HBCF raw upload failed with {status}")
+        encoded = b"".join(devfile_put_frame(framed[i:i + 64 * 1024])
+                            for i in range(0, len(framed), 64 * 1024))
+        status, _ = devfile_request(host, b"p", framed_path, encoded, len(framed))
+        if status:
+            raise RuntimeError(f"HBCF framed upload failed with {status}")
+        status, _ = devfile_request(host, b"P", app_path, app_data)
+        if status:
+            raise RuntimeError(f"HBCF app upload failed with {status}")
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            if reborn_status(host).get("apps") == initial_app_count + 1:
+                break
+            time.sleep(.1)
+        else:
+            raise RuntimeError("HBCF app upload did not refresh the active catalog after one quiet second")
+        status, checksum = devfile_request(host, b"C", raw_path)
+        expected_checksum = len(raw).to_bytes(4, "big") + (zlib.crc32(raw) & 0xffffffff).to_bytes(4, "big")
+        if status or checksum != expected_checksum:
+            raise RuntimeError(f"HBCF checksum mismatch: {status}, {checksum!r}")
+        status, downloaded = devfile_request(host, b"G", raw_path)
+        if status or downloaded != raw:
+            raise RuntimeError(f"HBCF raw download mismatch: {status}")
+        status, downloaded = devfile_get_framed(host, framed_path, compress=True)
+        if status or downloaded != framed:
+            raise RuntimeError(f"HBCF framed download mismatch: {status}")
+        status, listing = devfile_request(host, b"L", folder)
+        if (status or b"raw.bin" not in listing or b"framed.bin" not in listing
+                or b"boot.dol" not in listing):
+            raise RuntimeError(f"HBCF list mismatch: {status}, {listing!r}")
+        for path in (raw_path, framed_path, app_path):
+            status, _ = devfile_request(host, b"D", path)
+            if status:
+                raise RuntimeError(f"HBCF delete failed with {status}: {path}")
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            if reborn_status(host).get("apps") == initial_app_count:
+                break
+            time.sleep(.1)
+        else:
+            raise RuntimeError("HBCF app delete did not refresh the active catalog")
+        status, _ = devfile_request(host, b"D", folder)
+        if status:
+            raise RuntimeError(f"HBCF directory delete failed with {status}")
+        if devfile_request(host, b"S", raw_path)[0] != -2:
+            raise RuntimeError("HBCF stat did not report ENOENT after delete")
+        return {"operations": ["M", "S", "P", "p", "C", "G", "g", "L", "D"],
+                "bytes_checked": len(raw) + len(framed) + len(app_data),
+                "catalog_refresh": "upload and delete passed", "cleanup": "complete"}
+    finally:
+        for path in (raw_path, framed_path, app_path, folder):
+            try:
+                devfile_request(host, b"D", path)
+            except OSError:
+                pass
+
+
 def own_processes(profile):
     result = subprocess.check_output(["/bin/ps","-axo","pid=,command="],text=True)
     return [int(line.strip().split(None,1)[0]) for line in result.splitlines()
@@ -75,15 +236,19 @@ def main():
     parser.add_argument("--wiiload-theme", action="store_true", help="check received theme application")
     parser.add_argument("--reborn-theme-control", action="store_true", help="check Reborn C theme upload status")
     parser.add_argument("--reborn-transfer-style", action="store_true", help="check HBCT style replies and HBCS state")
+    parser.add_argument("--reborn-file", action="store_true", help="check HBCF operations against an isolated SD image")
     parser.add_argument("--nand", type=Path, required=True, help="Source NAND; only a private copy is used")
     parser.add_argument("--sd-image", type=Path, help="Clone an existing private SD image into the test profile")
     parser.add_argument("--dolphin", type=Path, required=True, help="Dolphin executable")
     parser.add_argument("--output", type=Path, required=True, help="New result directory, including its private profile")
     args = parser.parse_args()
+    if args.reborn_file and not args.sd_image:
+        parser.error("--reborn-file requires --sd-image")
     addresses = subprocess.check_output(["/sbin/ifconfig"], text=True)
     if f"inet {args.host} " not in addresses:
         parser.error("--host must be an address assigned to this Mac")
     with socket.socket() as port_check:
+        port_check.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         port_check.bind((args.host, 4299))
     args.output.mkdir(parents=True, exist_ok=False)
     profile = args.output / "profile"
@@ -91,7 +256,8 @@ def main():
     result = {"dol_sha256": hashlib.sha256(args.dol.read_bytes()).hexdigest(),
               "success": False, "transport": "HBC TCP input protocol", "control": args.control,
               "reborn_keys": args.reborn_keys,
-              "reborn_transfer_style": args.reborn_transfer_style}
+              "reborn_transfer_style": args.reborn_transfer_style,
+              "reborn_file": args.reborn_file}
     log = profile/"Logs/dolphin.log"
 
     nand = args.nand.resolve(strict=True)
@@ -117,13 +283,14 @@ def main():
                     "-C","Dolphin.Interface.ConfirmStop=False",
                     "-C","Dolphin.Analytics.PermissionAsked=True",
                     "-C","Dolphin.Analytics.Enabled=False",
-                    "-C","Dolphin.Core.WiiSDCard=False"], stdout=output_log, stderr=subprocess.STDOUT)
+                    "-C",f"Dolphin.Core.WiiSDCard={'True' if args.sd_image else 'False'}"],
+                    stdout=output_log, stderr=subprocess.STDOUT)
     try:
         deadline = time.monotonic()+40
         while time.monotonic()<deadline:
             if process.poll() is not None:
                 raise RuntimeError("Dolphin exited before the HBC listener became ready")
-            if args.reborn_theme_control or args.reborn_transfer_style:
+            if args.reborn_theme_control or args.reborn_transfer_style or args.reborn_file:
                 try:
                     with socket.create_connection((args.host, 4299), timeout=.5) as probe:
                         probe.sendall(b"HBCS".ljust(16, b"\0"))
@@ -178,8 +345,20 @@ def main():
                 raise RuntimeError(f"HBCT invalid-style reply was {invalid!r}")
             result["transfer_styles"] = selected
             result["invalid_style_reply"] = "EINVAL"
+            result.setdefault("cases", []).append(
+                {"case": "reborn-transfer-style", "success": True, "result": 0}
+            )
             result["success"] = True
             print(f"HBCT accepted {', '.join(selected)} and rejected an invalid style", flush=True)
+            if not args.reborn_file:
+                raise ReferenceComplete
+        if args.reborn_file:
+            result["reborn_file_result"] = test_reborn_devfile(args.host)
+            result.setdefault("cases", []).append(
+                {"case": "reborn-file", "success": True, "result": 0}
+            )
+            result["success"] = True
+            print("HBCF stat/list/checksum/delete and raw/framed transfers passed", flush=True)
             raise ReferenceComplete
         if args.wiiload_theme:
             theme = (ROOT / "tests/fixtures/theme-valid.zip").read_bytes()

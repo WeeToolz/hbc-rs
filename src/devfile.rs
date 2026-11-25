@@ -133,6 +133,42 @@ pub fn strip_directory_slash(path: &[u8]) -> &[u8] {
     }
 }
 
+/// Return an app folder changed by Reborn's catalog-visible HBCF operations.
+pub fn app_change_name<'a>(active_device: &[u8], path: &'a [u8]) -> Option<&'a [u8]> {
+    if !path
+        .get(..active_device.len())
+        .is_some_and(|prefix| prefix.eq_ignore_ascii_case(active_device))
+        || !path
+            .get(active_device.len()..active_device.len() + 7)
+            .is_some_and(|prefix| prefix.eq_ignore_ascii_case(b":/apps/"))
+    {
+        return None;
+    }
+    let remainder = &path[active_device.len() + 7..];
+    let separator = remainder.iter().position(|byte| *byte == b'/');
+    let name = separator.map_or(remainder, |index| &remainder[..index]);
+    if name.is_empty() || name.len() >= 64 {
+        return None;
+    }
+    if let Some(index) = separator {
+        let child = &remainder[index + 1..];
+        if child.contains(&b'/')
+            || ![
+                b"boot.dol".as_slice(),
+                b"boot.elf",
+                b"meta.xml",
+                b"icon.png",
+                b"theme.zip",
+            ]
+            .iter()
+            .any(|expected| child.eq_ignore_ascii_case(expected))
+        {
+            return None;
+        }
+    }
+    Some(name)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -212,5 +248,26 @@ mod tests {
         assert_eq!(strip_directory_slash(b"sd:/apps/x/"), b"sd:/apps/x");
         assert_eq!(strip_directory_slash(b"sd:/"), b"sd:/");
         assert_eq!(strip_directory_slash(b"sd:/apps/x"), b"sd:/apps/x");
+    }
+
+    #[test]
+    fn app_change_name_matches_only_active_catalog_paths() {
+        assert_eq!(
+            app_change_name(b"sd", b"sd:/apps/demo"),
+            Some(b"demo".as_slice())
+        );
+        assert_eq!(
+            app_change_name(b"sd", b"sd:/apps/demo/BOOT.DOL"),
+            Some(b"demo".as_slice())
+        );
+        for path in [
+            b"usb:/apps/demo/boot.dol".as_slice(),
+            b"sd:/apps/demo/data/save.bin",
+            b"sd:/apps/demo/metadata.txt",
+            b"sd:/apps/",
+            b"sd:/apps/a-very-long-app-name-that-is-far-too-long-for-the-reborn-buffer-limit/boot.dol",
+        ] {
+            assert_eq!(app_change_name(b"sd", path), None);
+        }
     }
 }

@@ -1,0 +1,43 @@
+{
+  "dol_sha256": "088d65fcc3cdcf23a522e86446a595fb2cc693420f888767c0bc411458882c1f",
+  "success": true,
+  "transport": "HBC TCP input protocol",
+  "control": false,
+  "reborn_keys": false,
+  "reborn_transfer_style": true,
+  "reborn_file": true,
+  "transfer_styles": [
+    "scroll",
+    "bounce",
+    "truncate"
+  ],
+  "invalid_style_reply": "EINVAL",
+  "cases": [
+    {
+      "case": "reborn-transfer-style",
+      "success": true,
+      "result": 0
+    },
+    {
+      "case": "reborn-file",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "reborn_file_result": {
+    "operations": [
+      "M",
+      "S",
+      "P",
+      "p",
+      "C",
+      "G",
+      "g",
+      "L",
+      "D"
+    ],
+    "bytes_checked": 5301,
+    "catalog_refresh": "upload and delete passed",
+    "cleanup": "complete"
+  }
+}

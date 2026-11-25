@@ -143,6 +143,11 @@ static MENU_APP_COUNT: AtomicU32 = AtomicU32::new(0);
 static MENU_DEVICE: AtomicU8 = AtomicU8::new(u8::MAX);
 static MENU_INSERTED: AtomicU8 = AtomicU8::new(0);
 static TRANSFER_STYLE: AtomicU8 = AtomicU8::new(crate::wiiload::RebornTransferStyle::None as u8);
+static DEVFILE_TRANSFER_OP: AtomicU8 = AtomicU8::new(0);
+static DEVFILE_TRANSFER_NAME: [AtomicU8; 64] = [const { AtomicU8::new(0) }; 64];
+static DEVFILE_REQUEST_ACTIVE: AtomicBool = AtomicBool::new(false);
+static DEVFILE_CHANGE_GENERATION: AtomicU32 = AtomicU32::new(0);
+static DEVFILE_CHANGE_TICKS: AtomicU32 = AtomicU32::new(0);
 static MENU_INIT_MS: AtomicU32 = AtomicU32::new(0);
 static MENU_SCAN_MS: AtomicU32 = AtomicU32::new(0);
 static NETWORK_STARTS: AtomicU32 = AtomicU32::new(0);
@@ -326,6 +331,59 @@ pub fn receive_progress() -> (u32, u32) {
         SHARED.receive_completed.load(Ordering::Acquire),
         SHARED.receive_total.load(Ordering::Acquire),
     )
+}
+
+/// Return the active Reborn developer file transfer for the footer line.
+pub fn devfile_transfer_progress() -> Option<(u8, alloc::string::String, u32, u32)> {
+    let operation = DEVFILE_TRANSFER_OP.load(Ordering::Acquire);
+    if !matches!(operation, b'p' | b'P' | b'g' | b'G') {
+        return None;
+    }
+    let mut name = alloc::vec::Vec::new();
+    for byte in &DEVFILE_TRANSFER_NAME {
+        let byte = byte.load(Ordering::Acquire);
+        if byte == 0 {
+            break;
+        }
+        name.push(byte);
+    }
+    Some((
+        operation,
+        alloc::string::String::from_utf8_lossy(&name).into_owned(),
+        SHARED.receive_completed.load(Ordering::Acquire),
+        SHARED.receive_total.load(Ordering::Acquire),
+    ))
+}
+
+pub fn transfer_style() -> crate::wiiload::RebornTransferStyle {
+    crate::wiiload::RebornTransferStyle::from_u8(TRANSFER_STYLE.load(Ordering::Acquire))
+}
+
+pub fn initialize_transfer_style(seed: u32) {
+    let selected = (seed % 3 + 1) as u8;
+    let _ = TRANSFER_STYLE.compare_exchange(
+        crate::wiiload::RebornTransferStyle::None as u8,
+        selected,
+        Ordering::AcqRel,
+        Ordering::Acquire,
+    );
+}
+
+pub fn devfile_request_active() -> bool {
+    DEVFILE_REQUEST_ACTIVE.load(Ordering::Acquire)
+}
+
+pub fn devfile_app_change() -> Option<(u32, u32)> {
+    let generation = DEVFILE_CHANGE_GENERATION.load(Ordering::Acquire);
+    (generation != 0).then(|| (generation, DEVFILE_CHANGE_TICKS.load(Ordering::Acquire)))
+}
+
+fn publish_devfile_transfer(operation: u8, path: &[u8]) {
+    let name = path.rsplit(|byte| *byte == b'/').next().unwrap_or(path);
+    for (index, slot) in DEVFILE_TRANSFER_NAME.iter().enumerate() {
+        slot.store(name.get(index).copied().unwrap_or(0), Ordering::Relaxed);
+    }
+    DEVFILE_TRANSFER_OP.store(operation, Ordering::Release);
 }
 
 pub fn cleanup_error() -> Option<i32> {
@@ -1160,6 +1218,15 @@ impl Drop for DevfileProgressGuard<'_> {
     fn drop(&mut self) {
         self.0.receive_completed.store(0, Ordering::Release);
         self.0.receive_total.store(0, Ordering::Release);
+        DEVFILE_TRANSFER_OP.store(0, Ordering::Release);
+    }
+}
+
+struct DevfileRequestGuard;
+
+impl Drop for DevfileRequestGuard {
+    fn drop(&mut self) {
+        DEVFILE_REQUEST_ACTIVE.store(false, Ordering::Release);
     }
 }
 
@@ -1183,7 +1250,11 @@ fn devfile_c_path(path: &[u8]) -> Result<alloc::ffi::CString, i32> {
     alloc::ffi::CString::new(bytes).map_err(|_| -crate::devfile::errno::EINVAL)
 }
 
-fn devfile_entry_line(metadata: ogc_fat::FatMetadata, modified: u64, name: &[u8]) -> Vec<u8> {
+fn devfile_entry_line(
+    metadata: ogc_fat::FatMetadata,
+    modified: u64,
+    name: &[u8],
+) -> Result<Vec<u8>, i32> {
     let kind = if metadata.is_directory { 'd' } else { 'f' };
     let size = if metadata.is_directory {
         0
@@ -1191,10 +1262,15 @@ fn devfile_entry_line(metadata: ogc_fat::FatMetadata, modified: u64, name: &[u8]
         metadata.size
     };
     let readonly = if metadata.readonly { "r" } else { "-" };
-    let mut line = alloc::format!("{kind} {size} {modified} {readonly} ").into_bytes();
-    line.extend_from_slice(name);
-    line.push(b'\n');
-    line
+    let mut line = alloc::string::String::new();
+    line.try_reserve_exact(40 + name.len())
+        .map_err(|_| -crate::devfile::errno::ENOMEM)?;
+    use core::fmt::Write as _;
+    let _ = write!(line, "{kind} {size} {modified} {readonly} ");
+    let mut bytes = line.into_bytes();
+    bytes.extend_from_slice(name);
+    bytes.push(b'\n');
+    Ok(bytes)
 }
 
 fn handle_devfile(
@@ -1205,6 +1281,9 @@ fn handle_devfile(
     started_at: u64,
 ) -> Result<(), ReceiveError> {
     use crate::devfile::Operation;
+
+    DEVFILE_REQUEST_ACTIVE.store(true, Ordering::Release);
+    let _request = DevfileRequestGuard;
 
     let validated = match crate::devfile::validate_path(raw_path) {
         Ok(path) => path,
@@ -1218,6 +1297,22 @@ fn handle_devfile(
             );
         }
     };
+    if let Some(operation @ (b'p' | b'P' | b'g' | b'G')) =
+        header.operation.map(|operation| match operation {
+            Operation::PutFramed => b'p',
+            Operation::PutRaw => b'P',
+            Operation::GetFramed => b'g',
+            Operation::GetRaw => b'G',
+            _ => 0,
+        })
+    {
+        publish_devfile_transfer(operation, validated.bytes);
+    }
+    let _transfer_progress = matches!(
+        header.operation,
+        Some(Operation::PutFramed | Operation::PutRaw | Operation::GetFramed | Operation::GetRaw)
+    )
+    .then(|| DevfileProgressGuard(shared));
     let Some(volume) = devfile_volume(validated.device) else {
         return write_devfile_reply(
             shared,
@@ -1267,9 +1362,40 @@ fn handle_devfile(
         None => Err(-crate::devfile::errno::ENOSYS),
     };
     match response {
-        Ok(payload) => write_devfile_reply(shared, client, 0, &payload, started_at),
+        Ok(payload) => {
+            if matches!(
+                header.operation,
+                Some(Operation::PutFramed | Operation::PutRaw)
+            ) {
+                note_devfile_app_change(validated.device, path);
+            }
+            if matches!(header.operation, Some(Operation::Delete)) {
+                note_devfile_app_change(validated.device, path);
+            }
+            write_devfile_reply(shared, client, 0, &payload, started_at)
+        }
         Err(errno) => write_devfile_reply(shared, client, errno, &[], started_at),
     }
+}
+
+fn note_devfile_app_change(device: &[u8], path: &[u8]) {
+    let device_index = MENU_DEVICE.load(Ordering::Acquire);
+    let active_device = match device_index {
+        0 => b"sd:".as_slice(),
+        1 => b"usb:",
+        2 => b"carda:",
+        3 => b"cardb:",
+        4 => b"usb2:",
+        _ => return,
+    };
+    let active_device_name = &active_device[..active_device.len() - 1];
+    if device != active_device_name
+        || crate::devfile::app_change_name(active_device_name, path).is_none()
+    {
+        return;
+    }
+    DEVFILE_CHANGE_TICKS.store(ogc_lwp::sys::now_ticks() as u32, Ordering::Release);
+    DEVFILE_CHANGE_GENERATION.fetch_add(1, Ordering::AcqRel);
 }
 
 fn devfile_put(
@@ -1280,7 +1406,6 @@ fn devfile_put(
     started_at: u64,
 ) -> Result<(), i32> {
     let mut part_path = Vec::new();
-    let _progress = DevfileProgressGuard(shared);
     part_path
         .try_reserve_exact(path.len() + 5)
         .map_err(|_| -crate::devfile::errno::ENOMEM)?;
@@ -1435,7 +1560,6 @@ fn devfile_get(
     let framed = header.operation == Some(crate::devfile::Operation::GetFramed);
     let compress = framed && header.flags & crate::devfile::FLAG_COMPRESS != 0;
     write_devfile_header(shared, client, 0, metadata.size, started_at)?;
-    let _progress = DevfileProgressGuard(shared);
     let mut remaining = metadata.size;
     shared.receive_completed.store(0, Ordering::Release);
     shared.receive_total.store(metadata.size, Ordering::Release);
@@ -1474,7 +1598,7 @@ fn devfile_get(
         if framed {
             let checksum = crc32fast::hash(&bytes);
             let compressed = if compress {
-                miniz_oxide::deflate::compress_to_vec_zlib(&bytes, 6)
+                miniz_oxide::deflate::compress_to_vec_zlib(&bytes, 1)
             } else {
                 Vec::new()
             };
@@ -1527,14 +1651,14 @@ fn devfile_stat(path: &[u8], c_path: &core::ffi::CStr) -> Result<Vec<u8>, i32> {
         .modified
         .unwrap_or(0);
     let basename = path.rsplit(|byte| *byte == b'/').next().unwrap_or(path);
-    Ok(devfile_entry_line(metadata, modified, basename))
+    devfile_entry_line(metadata, modified, basename)
 }
 
 fn devfile_list(path: &[u8], c_path: &core::ffi::CStr) -> Result<Vec<u8>, i32> {
     let mut directory = ogc_fat::FatDirectory::open(c_path).map_err(devfile_errno)?;
     let mut listing = Vec::new();
     listing
-        .try_reserve_exact(crate::devfile::MAX_LIST_SIZE.min(4096))
+        .try_reserve_exact(crate::devfile::MAX_LIST_SIZE)
         .map_err(|_| -crate::devfile::errno::ENOMEM)?;
     listing.extend_from_slice(b"#list 2\n");
     while let Some(entry) = directory.next_entry().map_err(devfile_errno)? {
@@ -1564,7 +1688,8 @@ fn devfile_list(path: &[u8], c_path: &core::ffi::CStr) -> Result<Vec<u8>, i32> {
             .ok()
             .and_then(|times| times.modified)
             .unwrap_or(0);
-        listing.extend_from_slice(&devfile_entry_line(metadata, modified, &entry.name));
+        let line = devfile_entry_line(metadata, modified, &entry.name)?;
+        listing.extend_from_slice(&line);
     }
     Ok(listing)
 }
@@ -1575,7 +1700,11 @@ fn devfile_checksum(c_path: &core::ffi::CStr) -> Result<Vec<u8>, i32> {
         return Err(-crate::devfile::errno::EISDIR);
     }
     let mut file = ogc_fat::FatFile::open(c_path).map_err(devfile_errno)?;
-    let mut buffer = [0; 32 * 1024];
+    let mut buffer = Vec::new();
+    buffer
+        .try_reserve_exact(32 * 1024)
+        .map_err(|_| -crate::devfile::errno::ENOMEM)?;
+    buffer.resize(32 * 1024, 0);
     let mut checksum = crc32fast::Hasher::new();
     loop {
         let length = file.read(&mut buffer).map_err(devfile_errno)?;
@@ -1662,10 +1791,7 @@ fn status_json(shared: &Shared) -> alloc::string::String {
         ip,
         completed,
         total,
-        transfer_style: crate::wiiload::RebornTransferStyle::from_u8(
-            TRANSFER_STYLE.load(Ordering::Acquire),
-        )
-        .as_str(),
+        transfer_style: transfer_style().as_str(),
     })
 }
 
