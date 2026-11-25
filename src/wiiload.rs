@@ -192,6 +192,18 @@ pub fn elapsed_ticks_to_milliseconds(
     milliseconds.min(u32::MAX as u64) as u32
 }
 
+pub fn stack_high_water_used_bytes(
+    low: usize,
+    high: usize,
+    mut read_byte: impl FnMut(usize) -> u8,
+) -> usize {
+    let mut untouched = low;
+    while untouched < high && read_byte(untouched) == 0 {
+        untouched += 1;
+    }
+    high.saturating_sub(untouched)
+}
+
 /// Live HBCS fields that the Rust receiver and system APIs can report.
 /// Storage, startup, and retained-log fields need more production state.
 pub(crate) struct RebornStatusSnapshot<'a> {
@@ -208,6 +220,7 @@ pub(crate) struct RebornStatusSnapshot<'a> {
     pub init_ms: u32,
     pub scan_ms: u32,
     pub tcp_stack_size: u32,
+    pub tcp_stack_used: u32,
     pub net_starts: u32,
     pub time: u64,
     pub ip: Option<[u8; 4]>,
@@ -232,6 +245,7 @@ pub(crate) fn reborn_status_json(snapshot: RebornStatusSnapshot<'_>) -> alloc::s
         init_ms,
         scan_ms,
         tcp_stack_size,
+        tcp_stack_used,
         net_starts,
         time,
         ip,
@@ -262,7 +276,7 @@ pub(crate) fn reborn_status_json(snapshot: RebornStatusSnapshot<'_>) -> alloc::s
     }
     inserted.push(']');
     alloc::format!(
-        "{{\"version\":\"{version}\",\"proto\":6,\"ios\":{ios},\"ios_revision\":{ios_revision},\"arena1_free\":{arena1_free},\"arena2_free\":{arena2_free},\"heap_free\":{heap_free},\"tcp_stack_size\":{tcp_stack_size},\"init_ms\":{init_ms},\"scan_ms\":{scan_ms},\"ip\":{ip},\"net_starts\":{net_starts},\"apps\":{apps},\"device\":{device},\"inserted\":{inserted},\"network\":\"{network}\",\"receive\":{{\"completed\":{completed},\"total\":{total}}},\"time\":{time}}}"
+        "{{\"version\":\"{version}\",\"proto\":6,\"ios\":{ios},\"ios_revision\":{ios_revision},\"arena1_free\":{arena1_free},\"arena2_free\":{arena2_free},\"heap_free\":{heap_free},\"tcp_stack_used\":{tcp_stack_used},\"tcp_stack_size\":{tcp_stack_size},\"init_ms\":{init_ms},\"scan_ms\":{scan_ms},\"ip\":{ip},\"net_starts\":{net_starts},\"apps\":{apps},\"device\":{device},\"inserted\":{inserted},\"network\":\"{network}\",\"receive\":{{\"completed\":{completed},\"total\":{total}}},\"time\":{time}}}"
     )
 }
 
@@ -489,13 +503,14 @@ mod tests {
                 init_ms: 2510,
                 scan_ms: 82,
                 tcp_stack_size: 32768,
+                tcp_stack_used: 736,
                 net_starts: 2,
                 time: 1790100000,
                 ip: Some([192, 168, 1, 20]),
                 completed: 31,
                 total: 64,
             }),
-            r#"{"version":"1.2.3","proto":6,"ios":58,"ios_revision":6432,"arena1_free":4096,"arena2_free":8192,"heap_free":1024,"tcp_stack_size":32768,"init_ms":2510,"scan_ms":82,"ip":"192.168.1.20","net_starts":2,"apps":17,"device":"usb2","inserted":["sd","usb2"],"network":"receiving","receive":{"completed":31,"total":64},"time":1790100000}"#
+            r#"{"version":"1.2.3","proto":6,"ios":58,"ios_revision":6432,"arena1_free":4096,"arena2_free":8192,"heap_free":1024,"tcp_stack_used":736,"tcp_stack_size":32768,"init_ms":2510,"scan_ms":82,"ip":"192.168.1.20","net_starts":2,"apps":17,"device":"usb2","inserted":["sd","usb2"],"network":"receiving","receive":{"completed":31,"total":64},"time":1790100000}"#
         );
         assert_eq!(
             reborn_status_json(RebornStatusSnapshot {
@@ -512,13 +527,14 @@ mod tests {
                 init_ms: 0,
                 scan_ms: 0,
                 tcp_stack_size: 0,
+                tcp_stack_used: 0,
                 net_starts: 0,
                 time: 0,
                 ip: None,
                 completed: 0,
                 total: 0,
             }),
-            r#"{"version":"1.2.3","proto":6,"ios":0,"ios_revision":0,"arena1_free":0,"arena2_free":0,"heap_free":0,"tcp_stack_size":0,"init_ms":0,"scan_ms":0,"ip":null,"net_starts":0,"apps":0,"device":null,"inserted":[],"network":"network_unavailable","receive":{"completed":0,"total":0},"time":0}"#
+            r#"{"version":"1.2.3","proto":6,"ios":0,"ios_revision":0,"arena1_free":0,"arena2_free":0,"heap_free":0,"tcp_stack_used":0,"tcp_stack_size":0,"init_ms":0,"scan_ms":0,"ip":null,"net_starts":0,"apps":0,"device":null,"inserted":[],"network":"network_unavailable","receive":{"completed":0,"total":0},"time":0}"#
         );
     }
 
@@ -528,6 +544,17 @@ mod tests {
         assert_eq!(elapsed_ticks_to_milliseconds(10, 35, 100), 250);
         assert_eq!(elapsed_ticks_to_milliseconds(u64::MAX - 49, 50, 100), 1000);
         assert_eq!(elapsed_ticks_to_milliseconds(10, 20, 0), 0);
+    }
+
+    #[test]
+    fn stack_high_water_counts_from_the_first_touched_byte() {
+        let stack = [0, 0, 0, 4, 0, 8, 0, 0];
+        assert_eq!(
+            stack_high_water_used_bytes(0, stack.len(), |index| stack[index]),
+            5
+        );
+        assert_eq!(stack_high_water_used_bytes(0, 4, |_| 0), 0);
+        assert_eq!(stack_high_water_used_bytes(3, 3, |_| 1), 0);
     }
 
     #[test]

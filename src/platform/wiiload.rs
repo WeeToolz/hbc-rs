@@ -224,6 +224,15 @@ pub fn start() -> Result<(), ReceiverError> {
     SHARED.set_status(ReceiverStatus::Starting);
     SHARED.gecko_ready.store(false, Ordering::Release);
     SHARED.cleanup_error.store(0, Ordering::Release);
+    // The previous worker is joined before STARTED is cleared. Reset its
+    // high-water area before giving the stack to a new worker.
+    unsafe {
+        core::ptr::write_bytes(
+            core::ptr::addr_of_mut!(THREAD_STACK.0).cast::<u8>(),
+            0,
+            THREAD_STACK_SIZE,
+        )
+    };
     // SAFETY: SHARED and the aligned static stack have process lifetime.
     let result = unsafe {
         ThreadHandle::create(
@@ -1022,12 +1031,25 @@ fn status_json(shared: &Shared) -> alloc::string::String {
         init_ms: MENU_INIT_MS.load(Ordering::Acquire),
         scan_ms: MENU_SCAN_MS.load(Ordering::Acquire),
         tcp_stack_size: THREAD_STACK_SIZE.min(u32::MAX as usize) as u32,
+        tcp_stack_used: tcp_stack_used(),
         net_starts: successful_network_starts(),
         time: ogc_system::time(),
         ip,
         completed,
         total,
     })
+}
+
+fn tcp_stack_used() -> u32 {
+    // SAFETY: This worker owns its static stack until it exits. It reads the
+    // stack as raw bytes and does not create references to active stack data.
+    let stack = unsafe { core::ptr::addr_of!(THREAD_STACK.0).cast::<u8>() };
+    let low = 32usize;
+    let high = THREAD_STACK_SIZE.saturating_sub(8);
+    crate::wiiload::stack_high_water_used_bytes(low, high, |offset| unsafe {
+        stack.add(offset).read_volatile()
+    })
+    .min(u32::MAX as usize) as u32
 }
 
 fn read_exact(
