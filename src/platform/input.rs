@@ -670,15 +670,8 @@ pub fn scan() -> Result<InputFrame, InputScanError> {
     report_controller_input_error(&raw.snapshot);
     diagnostic_scan_mark("ERROR REPORT DONE");
 
-    diagnostic_scan_mark("WPAD ERROR START");
-    if let Some(error) = raw
-        .snapshot
-        .errors()
-        .find(|error| error.operation == "WPAD poll")
-        && let ogc_controller::InputFailure::Source(code) = error.failure
-    {
-        return Err(InputScanError::Wpad(code));
-    }
+    // Keep valid PAD and USB input when one Wii Remote poll fails. The
+    // controller manager records the source error, as C HBC does.
     diagnostic_scan_mark("WPAD ERROR DONE");
 
     let mut ir_valid = [false; 4];
