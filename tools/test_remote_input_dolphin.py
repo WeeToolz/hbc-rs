@@ -35,6 +35,28 @@ def exchange(host, packet):
         return bytes(reply)
 
 
+def reborn_status(host):
+    with socket.create_connection((host, 4299), timeout=5) as connection:
+        connection.settimeout(5)
+        connection.sendall(b"HBCS".ljust(16, b"\0"))
+
+        def read_exact(length):
+            data = bytearray()
+            while len(data) < length:
+                chunk = connection.recv(length - len(data))
+                if not chunk:
+                    raise RuntimeError("truncated Reborn status reply")
+                data.extend(chunk)
+            return bytes(data)
+
+        reply = read_exact(8)
+        status = int.from_bytes(reply[:4], "big", signed=True)
+        length = int.from_bytes(reply[4:], "big")
+        if status != 0 or length > 8192:
+            raise RuntimeError(f"invalid Reborn status: {status}, {length}")
+        return json.loads(read_exact(length))
+
+
 def own_processes(profile):
     result = subprocess.check_output(["/bin/ps","-axo","pid=,command="],text=True)
     return [int(line.strip().split(None,1)[0]) for line in result.splitlines()
@@ -52,6 +74,7 @@ def main():
     parser.add_argument("--wiiload-eof", action="store_true", help="check interrupted Wiiload reads")
     parser.add_argument("--wiiload-theme", action="store_true", help="check received theme application")
     parser.add_argument("--reborn-theme-control", action="store_true", help="check Reborn C theme upload status")
+    parser.add_argument("--reborn-transfer-style", action="store_true", help="check HBCT style replies and HBCS state")
     parser.add_argument("--nand", type=Path, required=True, help="Source NAND; only a private copy is used")
     parser.add_argument("--sd-image", type=Path, help="Clone an existing private SD image into the test profile")
     parser.add_argument("--dolphin", type=Path, required=True, help="Dolphin executable")
@@ -67,7 +90,8 @@ def main():
     profile.mkdir()
     result = {"dol_sha256": hashlib.sha256(args.dol.read_bytes()).hexdigest(),
               "success": False, "transport": "HBC TCP input protocol", "control": args.control,
-              "reborn_keys": args.reborn_keys}
+              "reborn_keys": args.reborn_keys,
+              "reborn_transfer_style": args.reborn_transfer_style}
     log = profile/"Logs/dolphin.log"
 
     nand = args.nand.resolve(strict=True)
@@ -99,7 +123,7 @@ def main():
         while time.monotonic()<deadline:
             if process.poll() is not None:
                 raise RuntimeError("Dolphin exited before the HBC listener became ready")
-            if args.reborn_theme_control:
+            if args.reborn_theme_control or args.reborn_transfer_style:
                 try:
                     with socket.create_connection((args.host, 4299), timeout=.5) as probe:
                         probe.sendall(b"HBCS".ljust(16, b"\0"))
@@ -117,26 +141,7 @@ def main():
             time.sleep(.25)
         else: raise RuntimeError("guest listener did not become ready")
         if args.reborn_theme_control:
-            def reborn_status():
-                with socket.create_connection((args.host, 4299), timeout=5) as connection:
-                    connection.settimeout(5)
-                    connection.sendall(b"HBCS".ljust(16, b"\0"))
-                    def read_exact(length):
-                        data = bytearray()
-                        while len(data) < length:
-                            chunk = connection.recv(length - len(data))
-                            if not chunk:
-                                raise RuntimeError("truncated Reborn status reply")
-                            data.extend(chunk)
-                        return bytes(data)
-                    reply = read_exact(8)
-                    status = int.from_bytes(reply[:4], "big", signed=True)
-                    length = int.from_bytes(reply[4:], "big")
-                    if status != 0 or length > 8192:
-                        raise RuntimeError(f"invalid Reborn status: {status}, {length}")
-                    return json.loads(read_exact(length))
-
-            initial = reborn_status()
+            initial = reborn_status(args.host)
             initial_seq = (initial.get("upload") or {}).get("seq", 0)
             theme = (ROOT / "tests/fixtures/theme-valid.zip").read_bytes()
             header = b"HAXX\0\x05\0\0" + len(theme).to_bytes(4, "big") + bytes(4)
@@ -144,7 +149,7 @@ def main():
                 connection.sendall(header + theme)
             deadline = time.monotonic() + 30
             while time.monotonic() < deadline:
-                current = reborn_status()
+                current = reborn_status(args.host)
                 upload = current.get("upload") or {}
                 if upload.get("seq", 0) > initial_seq:
                     if upload.get("result") != "theme":
@@ -157,6 +162,25 @@ def main():
                     raise RuntimeError("Reborn exited while applying theme")
                 time.sleep(.2)
             raise RuntimeError("Reborn did not report theme upload completion")
+        if args.reborn_transfer_style:
+            selected = []
+            for style in (b"scroll", b"bounce", b"truncate"):
+                packet = b"HBCT" + style.ljust(12, b"\0")
+                if exchange(args.host, packet) != bytes(8):
+                    raise RuntimeError(f"HBCT rejected valid style {style.decode()}")
+                current = reborn_status(args.host)
+                if current.get("transfer_style") != style.decode():
+                    raise RuntimeError(f"HBCS did not retain {style.decode()}: {current}")
+                selected.append(style.decode())
+            invalid = exchange(args.host, b"HBCT" + b"invalid".ljust(12, b"\0"))
+            expected_error = (-22).to_bytes(4, "big", signed=True) + bytes(4)
+            if invalid != expected_error:
+                raise RuntimeError(f"HBCT invalid-style reply was {invalid!r}")
+            result["transfer_styles"] = selected
+            result["invalid_style_reply"] = "EINVAL"
+            result["success"] = True
+            print(f"HBCT accepted {', '.join(selected)} and rejected an invalid style", flush=True)
+            raise ReferenceComplete
         if args.wiiload_theme:
             theme = (ROOT / "tests/fixtures/theme-valid.zip").read_bytes()
             header = b"HAXX\0\x05\0\0" + len(theme).to_bytes(4, "big") + bytes(4)

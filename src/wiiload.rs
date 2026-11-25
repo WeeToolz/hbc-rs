@@ -91,6 +91,53 @@ pub const REBORN_UPLOAD_NAME_CAPACITY: usize = 63;
 pub const REBORN_UPLOAD_METADATA_TTL_MS: u64 = 120_000;
 pub const REBORN_UPLOAD_INSTALL_YES: u16 = 1;
 pub const WIILOAD_TCP_PORT: u16 = 4299;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(u8)]
+pub enum RebornTransferStyle {
+    None = 0,
+    Scroll = 1,
+    Bounce = 2,
+    Truncate = 3,
+}
+
+impl RebornTransferStyle {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::Scroll => "scroll",
+            Self::Bounce => "bounce",
+            Self::Truncate => "truncate",
+        }
+    }
+
+    pub const fn from_u8(value: u8) -> Self {
+        match value {
+            1 => Self::Scroll,
+            2 => Self::Bounce,
+            3 => Self::Truncate,
+            _ => Self::None,
+        }
+    }
+
+    /// Decode the twelve style bytes in an HBCT header as Reborn's C string.
+    pub fn decode_hbct(header: &[u8; WIILOAD_HEADER_LEN]) -> Option<Self> {
+        if &header[..4] != b"HBCT" {
+            return None;
+        }
+        let bytes = &header[4..];
+        let end = bytes
+            .iter()
+            .position(|byte| *byte == 0)
+            .unwrap_or(bytes.len());
+        match &bytes[..end] {
+            b"scroll" => Some(Self::Scroll),
+            b"bounce" => Some(Self::Bounce),
+            b"truncate" => Some(Self::Truncate),
+            _ => None,
+        }
+    }
+}
 /// The network-debugger release worker and compressed-upload call chain require
 /// at least 36,320 bytes on PowerPC. Use 64 KiB in that mode, leaving more than
 /// 27 KiB for deeper calls, thread entry, and interrupt frames. The other modes
@@ -230,6 +277,7 @@ pub(crate) struct RebornStatusSnapshot<'a> {
     pub ip: [u8; 4],
     pub completed: u32,
     pub total: u32,
+    pub transfer_style: &'a str,
 }
 
 /// Build the Reborn HBCS JSON from a production status snapshot.
@@ -256,6 +304,7 @@ pub(crate) fn reborn_status_json(snapshot: RebornStatusSnapshot<'_>) -> alloc::s
         ip,
         completed,
         total,
+        transfer_style,
     } = snapshot;
     let [ip_a, ip_b, ip_c, ip_d] = ip;
     let ip = alloc::format!("\"{ip_a}.{ip_b}.{ip_c}.{ip_d}\"");
@@ -279,7 +328,7 @@ pub(crate) fn reborn_status_json(snapshot: RebornStatusSnapshot<'_>) -> alloc::s
     }
     inserted.push(']');
     alloc::format!(
-        "{{\"version\":\"{version}\",\"proto\":6,\"ios\":{ios},\"ios_revision\":{ios_revision},\"ahbprot\":{ahbprot},\"arena1_free\":{arena1_free},\"arena2_free\":{arena2_free},\"heap_free\":{heap_free},\"tcp_stack_used\":{tcp_stack_used},\"tcp_stack_size\":{tcp_stack_size},\"init_ms\":{init_ms},\"scan_ms\":{scan_ms},\"ip\":{ip},\"net_starts\":{net_starts},\"apps\":{apps},\"device\":{device},\"inserted\":{inserted},\"network\":\"{network}\",\"receive\":{{\"completed\":{completed},\"total\":{total}}},\"time\":{time}}}"
+        "{{\"version\":\"{version}\",\"proto\":6,\"ios\":{ios},\"ios_revision\":{ios_revision},\"ahbprot\":{ahbprot},\"arena1_free\":{arena1_free},\"arena2_free\":{arena2_free},\"heap_free\":{heap_free},\"tcp_stack_used\":{tcp_stack_used},\"tcp_stack_size\":{tcp_stack_size},\"init_ms\":{init_ms},\"scan_ms\":{scan_ms},\"ip\":{ip},\"net_starts\":{net_starts},\"apps\":{apps},\"device\":{device},\"inserted\":{inserted},\"network\":\"{network}\",\"receive\":{{\"completed\":{completed},\"total\":{total}}},\"transfer_style\":\"{transfer_style}\",\"time\":{time}}}"
     )
 }
 
@@ -581,6 +630,32 @@ mod tests {
         );
     }
 
+    #[test]
+    fn hbct_accepts_only_reborn_style_names_from_c_string_field() {
+        for (name, expected) in [
+            (b"scroll".as_slice(), RebornTransferStyle::Scroll),
+            (b"bounce".as_slice(), RebornTransferStyle::Bounce),
+            (b"truncate".as_slice(), RebornTransferStyle::Truncate),
+        ] {
+            let mut header = [0; WIILOAD_HEADER_LEN];
+            header[..4].copy_from_slice(b"HBCT");
+            header[4..4 + name.len()].copy_from_slice(name);
+            assert_eq!(RebornTransferStyle::decode_hbct(&header), Some(expected));
+        }
+        let mut header = [0; WIILOAD_HEADER_LEN];
+        header[..4].copy_from_slice(b"HBCT");
+        header[4..10].copy_from_slice(b"scroll");
+        header[11] = b'x';
+        assert_eq!(
+            RebornTransferStyle::decode_hbct(&header),
+            Some(RebornTransferStyle::Scroll)
+        );
+        header[4..10].copy_from_slice(b"SCROLL");
+        assert_eq!(RebornTransferStyle::decode_hbct(&header), None);
+        header[..4].copy_from_slice(b"HBCX");
+        assert_eq!(RebornTransferStyle::decode_hbct(&header), None);
+    }
+
     fn header_with_name(name: &[u8]) -> [u8; WIILOAD_HEADER_LEN] {
         let mut header = [0; WIILOAD_HEADER_LEN];
         header[..4].copy_from_slice(b"HBCA");
@@ -613,8 +688,9 @@ mod tests {
                 ip: [192, 168, 1, 20],
                 completed: 31,
                 total: 64,
+                transfer_style: "scroll",
             }),
-            r#"{"version":"1.2.3","proto":6,"ios":58,"ios_revision":6432,"ahbprot":true,"arena1_free":4096,"arena2_free":8192,"heap_free":1024,"tcp_stack_used":736,"tcp_stack_size":32768,"init_ms":2510,"scan_ms":82,"ip":"192.168.1.20","net_starts":2,"apps":17,"device":"usb2","inserted":["sd","usb2"],"network":"receiving","receive":{"completed":31,"total":64},"time":1790100000}"#
+            r#"{"version":"1.2.3","proto":6,"ios":58,"ios_revision":6432,"ahbprot":true,"arena1_free":4096,"arena2_free":8192,"heap_free":1024,"tcp_stack_used":736,"tcp_stack_size":32768,"init_ms":2510,"scan_ms":82,"ip":"192.168.1.20","net_starts":2,"apps":17,"device":"usb2","inserted":["sd","usb2"],"network":"receiving","receive":{"completed":31,"total":64},"transfer_style":"scroll","time":1790100000}"#
         );
         assert_eq!(
             reborn_status_json(RebornStatusSnapshot {
@@ -638,8 +714,9 @@ mod tests {
                 ip: [0, 0, 0, 0],
                 completed: 0,
                 total: 0,
+                transfer_style: "none",
             }),
-            r#"{"version":"1.2.3","proto":6,"ios":0,"ios_revision":0,"ahbprot":false,"arena1_free":0,"arena2_free":0,"heap_free":0,"tcp_stack_used":0,"tcp_stack_size":0,"init_ms":0,"scan_ms":0,"ip":"0.0.0.0","net_starts":0,"apps":0,"device":null,"inserted":[],"network":"network_unavailable","receive":{"completed":0,"total":0},"time":0}"#
+            r#"{"version":"1.2.3","proto":6,"ios":0,"ios_revision":0,"ahbprot":false,"arena1_free":0,"arena2_free":0,"heap_free":0,"tcp_stack_used":0,"tcp_stack_size":0,"init_ms":0,"scan_ms":0,"ip":"0.0.0.0","net_starts":0,"apps":0,"device":null,"inserted":[],"network":"network_unavailable","receive":{"completed":0,"total":0},"transfer_style":"none","time":0}"#
         );
     }
 

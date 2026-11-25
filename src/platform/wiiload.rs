@@ -142,6 +142,7 @@ pub struct ReceivedUpload {
 static MENU_APP_COUNT: AtomicU32 = AtomicU32::new(0);
 static MENU_DEVICE: AtomicU8 = AtomicU8::new(u8::MAX);
 static MENU_INSERTED: AtomicU8 = AtomicU8::new(0);
+static TRANSFER_STYLE: AtomicU8 = AtomicU8::new(crate::wiiload::RebornTransferStyle::None as u8);
 static MENU_INIT_MS: AtomicU32 = AtomicU32::new(0);
 static MENU_SCAN_MS: AtomicU32 = AtomicU32::new(0);
 static NETWORK_STARTS: AtomicU32 = AtomicU32::new(0);
@@ -1010,6 +1011,14 @@ fn receive_client(
         shared.set_upload_metadata(metadata);
         return write_response(shared, client, &[0; 8], started_at).map(|()| None);
     }
+    if &header_bytes[..4] == b"HBCT" {
+        let Some(style) = crate::wiiload::RebornTransferStyle::decode_hbct(&header_bytes) else {
+            let reply = devnet_status_reply(-22);
+            return write_response(shared, client, &reply, started_at).map(|()| None);
+        };
+        TRANSFER_STYLE.store(style as u8, Ordering::Release);
+        return write_response(shared, client, &[0; 8], started_at).map(|()| None);
+    }
     if &header_bytes[..4] == b"HBCS" {
         let body = status_json(shared);
         let mut response = Vec::with_capacity(8 + body.len());
@@ -1121,6 +1130,10 @@ fn status_json(shared: &Shared) -> alloc::string::String {
         ip,
         completed,
         total,
+        transfer_style: crate::wiiload::RebornTransferStyle::from_u8(
+            TRANSFER_STYLE.load(Ordering::Acquire),
+        )
+        .as_str(),
     })
 }
 
