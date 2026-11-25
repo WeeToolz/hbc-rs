@@ -186,6 +186,7 @@ pub(crate) struct RebornStatusSnapshot<'a> {
     pub ios_revision: i32,
     pub arena1_free: u32,
     pub arena2_free: u32,
+    pub heap_free: u32,
     pub ip: Option<[u8; 4]>,
     pub completed: u32,
     pub total: u32,
@@ -201,6 +202,7 @@ pub(crate) fn reborn_status_json(snapshot: RebornStatusSnapshot<'_>) -> alloc::s
         ios_revision,
         arena1_free,
         arena2_free,
+        heap_free,
         ip,
         completed,
         total,
@@ -210,7 +212,7 @@ pub(crate) fn reborn_status_json(snapshot: RebornStatusSnapshot<'_>) -> alloc::s
         |[a, b, c, d]| alloc::format!("\"{a}.{b}.{c}.{d}\""),
     );
     alloc::format!(
-        "{{\"version\":\"{version}\",\"proto\":6,\"ios\":{ios},\"ios_revision\":{ios_revision},\"arena1_free\":{arena1_free},\"arena2_free\":{arena2_free},\"ip\":{ip},\"network\":\"{network}\",\"receive\":{{\"completed\":{completed},\"total\":{total}}}}}"
+        "{{\"version\":\"{version}\",\"proto\":6,\"ios\":{ios},\"ios_revision\":{ios_revision},\"arena1_free\":{arena1_free},\"arena2_free\":{arena2_free},\"heap_free\":{heap_free},\"ip\":{ip},\"network\":\"{network}\",\"receive\":{{\"completed\":{completed},\"total\":{total}}}}}"
     )
 }
 
@@ -419,11 +421,12 @@ mod tests {
                 ios_revision: 6432,
                 arena1_free: 4096,
                 arena2_free: 8192,
+                heap_free: 1024,
                 ip: Some([192, 168, 1, 20]),
                 completed: 31,
                 total: 64,
             }),
-            r#"{"version":"1.2.3","proto":6,"ios":58,"ios_revision":6432,"arena1_free":4096,"arena2_free":8192,"ip":"192.168.1.20","network":"receiving","receive":{"completed":31,"total":64}}"#
+            r#"{"version":"1.2.3","proto":6,"ios":58,"ios_revision":6432,"arena1_free":4096,"arena2_free":8192,"heap_free":1024,"ip":"192.168.1.20","network":"receiving","receive":{"completed":31,"total":64}}"#
         );
         assert_eq!(
             reborn_status_json(RebornStatusSnapshot {
@@ -433,11 +436,12 @@ mod tests {
                 ios_revision: 0,
                 arena1_free: 0,
                 arena2_free: 0,
+                heap_free: 0,
                 ip: None,
                 completed: 0,
                 total: 0,
             }),
-            r#"{"version":"1.2.3","proto":6,"ios":0,"ios_revision":0,"arena1_free":0,"arena2_free":0,"ip":null,"network":"network_unavailable","receive":{"completed":0,"total":0}}"#
+            r#"{"version":"1.2.3","proto":6,"ios":0,"ios_revision":0,"arena1_free":0,"arena2_free":0,"heap_free":0,"ip":null,"network":"network_unavailable","receive":{"completed":0,"total":0}}"#
         );
     }
 

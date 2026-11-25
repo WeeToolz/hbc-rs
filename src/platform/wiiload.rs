@@ -975,6 +975,9 @@ fn status_json(shared: &Shared) -> alloc::string::String {
         ios_revision: ogc_ios::get_revision(),
         arena1_free: ogc_system::get_arena1_size(),
         arena2_free: ogc_system::get_arena2_size(),
+        heap_free: crate::platform::allocator::WII_ALLOCATOR
+            .free_bytes()
+            .min(u32::MAX as usize) as u32,
         ip,
         completed,
         total,
