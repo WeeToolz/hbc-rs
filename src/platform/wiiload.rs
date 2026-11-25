@@ -1020,6 +1020,7 @@ fn status_json(shared: &Shared) -> alloc::string::String {
         network: status,
         ios: ogc_ios::get_version(),
         ios_revision: ogc_ios::get_revision(),
+        ahbprot: ogc_system::has_ahbprot(),
         arena1_free: ogc_system::get_arena1_size(),
         arena2_free: ogc_system::get_arena2_size(),
         heap_free: crate::platform::allocator::WII_ALLOCATOR
