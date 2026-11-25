@@ -1,0 +1,117 @@
+{
+  "dol_sha256": "cab969db6ce9777be817ba9e73e2f380fa1fcf6221ca809d8a726a02715eb867",
+  "success": true,
+  "transport": "HBC TCP input protocol",
+  "control": false,
+  "reborn_keys": false,
+  "reborn_transfer_style": false,
+  "reborn_screen": false,
+  "reborn_hardware_info": true,
+  "reborn_netlog": false,
+  "reborn_lastlog_empty": false,
+  "reborn_crash_empty": false,
+  "reborn_netlog_app": false,
+  "reborn_file": false,
+  "reborn_hardware_info_result": {
+    "all_pages": {
+      "System": {
+        "Console": "Wii RVL-001(USA)",
+        "Serial": "LU372730284",
+        "Region": "USA",
+        "IOS": "IOS58 v6176, AHBPROT closed",
+        "Console ID": "116321605 (06eeed45)",
+        "Wii Menu": "4.3U (v513)",
+        "boot2": "v4",
+        "CPU": "Broadway, 486 MHz (PVR 00087102)",
+        "Hollywood": "revision 00000011",
+        "Language": "English"
+      },
+      "Video": {
+        "Mode": "640x480, interlaced, 60 Hz (NTSC)",
+        "Cable": "Composite (or none)",
+        "TV type": "NTSC",
+        "Screen": "16:9",
+        "480p": "Off",
+        "Sound": "Stereo",
+        "Sensor bar": "Above the TV, sensitivity 4 of 5",
+        "Paired remotes": "5"
+      },
+      "Storage": {
+        "SD card": "Not mounted by the app",
+        "USB drive": "Not mounted by the app",
+        "NAND": "84.2 MB free of 495.0 MB",
+        "NAND blocks": "673 free (the Wii Menu's 128 KiB)",
+        "NAND files": "5271 free of 6143"
+      },
+      "USB": {
+        "USB": "Nothing plugged in"
+      },
+      "Network": {
+        "IP": "192.168.1.52 / 255.255.255.0",
+        "Gateway": "192.168.1.255",
+        "DNS": "192.168.1.1, 8.8.4.4",
+        "MAC": "00:17:ab:b0:7f:90",
+        "Connection": "1 of 3, Wi-Fi",
+        "Wi-Fi network": "Mac",
+        "Security": "WPA2 AES",
+        "Settings": "IP by DHCP, DNS by DHCP"
+      }
+    },
+    "selected_pages": {
+      "System": {
+        "Console": "Wii RVL-001(USA)",
+        "Serial": "LU372730284",
+        "Region": "USA",
+        "IOS": "IOS58 v6176, AHBPROT closed",
+        "Console ID": "116321605 (06eeed45)",
+        "Wii Menu": "4.3U (v513)",
+        "boot2": "v4",
+        "CPU": "Broadway, 486 MHz (PVR 00087102)",
+        "Hollywood": "revision 00000011",
+        "Language": "English"
+      },
+      "Video": {
+        "Mode": "640x480, interlaced, 60 Hz (NTSC)",
+        "Cable": "Composite (or none)",
+        "TV type": "NTSC",
+        "Screen": "16:9",
+        "480p": "Off",
+        "Sound": "Stereo",
+        "Sensor bar": "Above the TV, sensitivity 4 of 5",
+        "Paired remotes": "5"
+      },
+      "Storage": {
+        "SD card": "Not mounted by the app",
+        "USB drive": "Not mounted by the app",
+        "NAND": "84.2 MB free of 495.0 MB",
+        "NAND blocks": "673 free (the Wii Menu's 128 KiB)",
+        "NAND files": "5271 free of 6143"
+      },
+      "USB": {
+        "USB": "Nothing plugged in"
+      },
+      "Network": {
+        "IP": "192.168.1.52 / 255.255.255.0",
+        "Gateway": "192.168.1.255",
+        "DNS": "192.168.1.1, 8.8.4.4",
+        "MAC": "00:17:ab:b0:7f:90",
+        "Connection": "1 of 3, Wi-Fi",
+        "Wi-Fi network": "Mac",
+        "Security": "WPA2 AES",
+        "Settings": "IP by DHCP, DNS by DHCP"
+      }
+    },
+    "combined_pages": [
+      "Video",
+      "Network"
+    ],
+    "unknown_mask": {}
+  },
+  "cases": [
+    {
+      "case": "reborn-hardware-info",
+      "success": true,
+      "result": 0
+    }
+  ]
+}

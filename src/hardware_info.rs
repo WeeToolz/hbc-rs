@@ -30,6 +30,9 @@ static USB_INFO_STARTED: core::sync::atomic::AtomicBool =
     core::sync::atomic::AtomicBool::new(false);
 
 #[cfg(target_arch = "powerpc")]
+static NETWORK_TOP_FD: core::sync::atomic::AtomicI32 = core::sync::atomic::AtomicI32::new(-1);
+
+#[cfg(target_arch = "powerpc")]
 #[repr(align(32))]
 struct AlignedMac([u8; 6]);
 
@@ -477,16 +480,72 @@ fn network_page(page: &mut JsonObject<'_>) {
     let status = ogc_network::get_status();
     if status == 0 {
         let ip = ogc_network::get_host_ip();
-        page.formatted(
-            "IP",
-            format_args!(
-                "{}.{}.{}.{}",
-                ogc_network::ip4_addr1(ip),
-                ogc_network::ip4_addr2(ip),
-                ogc_network::ip4_addr3(ip),
-                ogc_network::ip4_addr4(ip)
-            ),
-        );
+        let mut buffer = AlignedNetworkBuffer([0; 192]);
+        let mask = network_ioctl(0x4003, &mut buffer.0[..12])
+            .filter(|length| *length >= 12)
+            .map(|_| u32::from_be_bytes(buffer.0[4..8].try_into().unwrap()));
+        if let Some(mask) = mask {
+            page.formatted(
+                "IP",
+                format_args!(
+                    "{}.{}.{}.{} / {}.{}.{}.{}",
+                    ogc_network::ip4_addr1(ip),
+                    ogc_network::ip4_addr2(ip),
+                    ogc_network::ip4_addr3(ip),
+                    ogc_network::ip4_addr4(ip),
+                    ogc_network::ip4_addr1(mask),
+                    ogc_network::ip4_addr2(mask),
+                    ogc_network::ip4_addr3(mask),
+                    ogc_network::ip4_addr4(mask)
+                ),
+            );
+        } else {
+            page.formatted(
+                "IP",
+                format_args!(
+                    "{}.{}.{}.{}",
+                    ogc_network::ip4_addr1(ip),
+                    ogc_network::ip4_addr2(ip),
+                    ogc_network::ip4_addr3(ip),
+                    ogc_network::ip4_addr4(ip)
+                ),
+            );
+        }
+        if let Some(gateway) = network_ioctl(0x4006, &mut buffer.0)
+            .and_then(|length| default_gateway(&buffer.0[..length]))
+        {
+            page.formatted(
+                "Gateway",
+                format_args!(
+                    "{}.{}.{}.{}",
+                    ogc_network::ip4_addr1(gateway),
+                    ogc_network::ip4_addr2(gateway),
+                    ogc_network::ip4_addr3(gateway),
+                    ogc_network::ip4_addr4(gateway)
+                ),
+            );
+        }
+        if let Some(length) = network_ioctl(0xb003, &mut buffer.0[..8]) {
+            if let Some((first, second)) = dns_servers(&buffer.0[..length]) {
+                page.formatted(
+                    "DNS",
+                    format_args!(
+                        "{}.{}.{}.{}{}",
+                        ogc_network::ip4_addr1(first),
+                        ogc_network::ip4_addr2(first),
+                        ogc_network::ip4_addr3(first),
+                        ogc_network::ip4_addr4(first),
+                        second.map_or_else(String::new, |address| alloc::format!(
+                            ", {}.{}.{}.{}",
+                            ogc_network::ip4_addr1(address),
+                            ogc_network::ip4_addr2(address),
+                            ogc_network::ip4_addr3(address),
+                            ogc_network::ip4_addr4(address)
+                        ))
+                    ),
+                );
+            }
+        }
     } else {
         page.string("IP", "Not connected");
     }
@@ -501,6 +560,165 @@ fn network_page(page: &mut JsonObject<'_>) {
             ),
         );
     }
+    if let Some(info) = read_selected_network_config() {
+        if info.wired {
+            page.formatted(
+                "Connection",
+                format_args!("{} of 3, wired LAN adapter", info.index),
+            );
+        } else {
+            page.formatted("Connection", format_args!("{} of 3, Wi-Fi", info.index));
+            page.string("Wi-Fi network", &info.ssid);
+            page.string("Security", info.security);
+        }
+        page.string("Settings", &info.settings);
+    }
+}
+
+#[cfg(target_arch = "powerpc")]
+#[repr(align(32))]
+struct AlignedNetworkBuffer([u8; 192]);
+
+#[cfg(target_arch = "powerpc")]
+#[repr(align(32))]
+struct AlignedNetworkLength([u8; 4]);
+
+#[cfg(target_arch = "powerpc")]
+fn network_ioctl(option: u32, output: &mut [u8]) -> Option<usize> {
+    use core::sync::atomic::Ordering;
+
+    let fd = NETWORK_TOP_FD.load(Ordering::Acquire);
+    let fd = if fd < 0 {
+        let opened = ogc_ipc::open_file(c"/dev/net/ip/top", ogc_ipc::IPC_OPEN_NONE).ok()?;
+        NETWORK_TOP_FD.store(opened.raw(), Ordering::Release);
+        opened.raw()
+    } else {
+        fd
+    };
+    let input = interface_option_request(option);
+    let mut length = AlignedNetworkLength((output.len() as u32).to_ne_bytes());
+    output.fill(0);
+    let result = ogc_ipc::FileDescriptor::new(fd).ioctlv(
+        0x1c,
+        1,
+        [
+            ogc_ipc::IoctlvEntry::In(&input),
+            ogc_ipc::IoctlvEntry::Out(output),
+            ogc_ipc::IoctlvEntry::Out(&mut length.0),
+        ],
+    );
+    if result < 0 {
+        return None;
+    }
+    let written = u32::from_ne_bytes(length.0) as usize;
+    (written <= output.len()).then_some(written)
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+fn interface_option_request(option: u32) -> [u8; 8] {
+    let option = option.to_be_bytes();
+    [0, 0, 0xff, 0xfe, option[0], option[1], option[2], option[3]]
+}
+
+#[cfg(target_arch = "powerpc")]
+#[repr(align(32))]
+struct AlignedNetworkConfig([u8; 0x1b60]);
+
+#[cfg(target_arch = "powerpc")]
+fn read_selected_network_config() -> Option<NetworkConfigInfo> {
+    if ogc_filesystem::initialize() < 0 {
+        return None;
+    }
+    let file = ogc_filesystem::open(
+        c"/shared2/sys/net/02/config.dat",
+        ogc_filesystem::ISFS_OPEN_READ,
+    )
+    .ok()?;
+    let mut data = AlignedNetworkConfig([0; 0x1b60]);
+    let read_result = file.read(&mut data.0);
+    if file.close() < 0 {
+        return None;
+    }
+    let length = read_result.ok()?;
+    selected_network_config(data.0.get(..length)?)
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+#[derive(Debug, Eq, PartialEq)]
+struct NetworkConfigInfo {
+    index: usize,
+    wired: bool,
+    ssid: String,
+    security: &'static str,
+    settings: String,
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+fn default_gateway(routes: &[u8]) -> Option<u32> {
+    routes.chunks_exact(24).find_map(|route| {
+        let network = u32::from_be_bytes(route.get(..4)?.try_into().ok()?);
+        let gateway = u32::from_be_bytes(route.get(8..12)?.try_into().ok()?);
+        (network == 0 && gateway != 0).then_some(gateway)
+    })
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+fn dns_servers(data: &[u8]) -> Option<(u32, Option<u32>)> {
+    let first = u32::from_be_bytes(data.get(..4)?.try_into().ok()?);
+    if first == 0 || first == u32::MAX {
+        return None;
+    }
+    let second = data
+        .get(4..8)
+        .and_then(|bytes| <[u8; 4]>::try_from(bytes).ok())
+        .map(u32::from_be_bytes)
+        .filter(|address| *address != 0 && *address != u32::MAX);
+    Some((first, second))
+}
+
+#[cfg(any(target_arch = "powerpc", test))]
+fn selected_network_config(data: &[u8]) -> Option<NetworkConfigInfo> {
+    const RECORD_SIZE: usize = 0x91c;
+    const CONFIG_OFFSET: usize = 8;
+    const CRYPT: [&str; 7] = [
+        "open", "WEP64", "WEP128", "?", "WPA TKIP", "WPA2 AES", "WPA AES",
+    ];
+    if data.len() < CONFIG_OFFSET + 3 * RECORD_SIZE {
+        return None;
+    }
+    for index in 0..3 {
+        let start = CONFIG_OFFSET + index * RECORD_SIZE;
+        let record = &data[start..start + RECORD_SIZE];
+        if record[0] & 0x80 == 0 {
+            continue;
+        }
+        let wired = record[0] & 1 != 0;
+        let ssid_len = usize::from(record[0x7e5].min(32));
+        let ssid_bytes = &record[0x7c4..0x7c4 + ssid_len];
+        let ssid_end = ssid_bytes
+            .iter()
+            .position(|byte| *byte == 0)
+            .unwrap_or(ssid_len);
+        let ssid = String::from_utf8_lossy(&ssid_bytes[..ssid_end]).into_owned();
+        let security = CRYPT
+            .get(usize::from(record[0x7e9]))
+            .copied()
+            .unwrap_or("?");
+        let settings = alloc::format!(
+            "IP by {}, DNS by {}{}",
+            if record[0] & 4 != 0 { "DHCP" } else { "hand" },
+            if record[0] & 2 != 0 { "DHCP" } else { "hand" },
+            if record[0] & 0x10 != 0 { ", proxy" } else { "" }
+        );
+        return Some(NetworkConfigInfo {
+            index: index + 1,
+            wired,
+            ssid,
+            security,
+            settings,
+        });
+    }
+    None
 }
 
 /// Build the JSON reply while the caller supplies page contents in Reborn order.
@@ -600,6 +818,39 @@ fn push_quoted(json: &mut String, value: &str) {
 #[cfg(test)]
 mod tests {
     use super::{BuildError, PAGE_NAMES, build_response, selected_pages};
+
+    #[test]
+    fn network_routes_select_default_gateway_and_valid_dns_servers() {
+        let mut routes = [0u8; 48];
+        routes[32..36].copy_from_slice(&0xc0a8_0101u32.to_be_bytes());
+        let dns = [1u32.to_be_bytes(), 0u32.to_be_bytes()].concat();
+        assert_eq!(super::default_gateway(&routes), Some(0xc0a8_0101));
+        assert_eq!(super::dns_servers(&dns), Some((1, None)));
+    }
+
+    #[test]
+    fn interface_option_request_matches_reborn_u32_word_layout() {
+        assert_eq!(
+            super::interface_option_request(0x4003),
+            [0, 0, 0xff, 0xfe, 0, 0, 0x40, 3]
+        );
+    }
+
+    #[test]
+    fn selected_network_config_uses_reborn_offsets_and_flags() {
+        let mut config = [0u8; 8 + 3 * 0x91c];
+        let selected = &mut config[8 + 0x91c..8 + 2 * 0x91c];
+        selected[0] = 0x80 | 0x02 | 0x10;
+        selected[0x7c4..0x7c9].copy_from_slice(b"WIFI!");
+        selected[0x7e5] = 5;
+        selected[0x7e9] = 5;
+        let info = super::selected_network_config(&config).unwrap();
+        assert_eq!(info.index, 2);
+        assert!(!info.wired);
+        assert_eq!(info.ssid, "WIFI!");
+        assert_eq!(info.security, "WPA2 AES");
+        assert_eq!(info.settings, "IP by hand, DNS by DHCP, proxy");
+    }
 
     #[test]
     fn zero_mask_selects_all_reborn_pages_in_order() {
