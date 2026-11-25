@@ -238,4 +238,12 @@ mod tests {
         let bytes = [0x00, 0x01, 0x00, 0x40, 0xff, 0xff];
         assert_eq!(parse_scan_results(&bytes), Err(InvalidDescriptor));
     }
+
+    #[test]
+    fn rejects_short_dolphin_record_without_reading_beyond_its_length() {
+        let mut bytes = [0u8; 2 + 60];
+        bytes[0..2].copy_from_slice(&[0, 1]);
+        bytes[2..4].copy_from_slice(&[0, 60]);
+        assert_eq!(parse_scan_results(&bytes), Err(InvalidDescriptor));
+    }
 }

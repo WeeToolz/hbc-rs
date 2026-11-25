@@ -48,7 +48,16 @@ pub fn scan() -> Result<ScannedNetworks, ScanError> {
     let mut params = ogc_wd::default_scan_parameters();
     let mut bytes = alloc::vec![0; SCAN_BUFFER_SIZE];
     ogc_wd::scan_once_detailed_result(&mut params, &mut bytes).map_err(ScanError::Driver)?;
-    parse_scan_results(&bytes).map_err(|_| ScanError::InvalidDescriptor)
+    parse_scan_results(&bytes).map_err(|_| {
+        let count = u16::from_be_bytes([bytes[0], bytes[1]]);
+        let length = u16::from_be_bytes([bytes[2], bytes[3]]);
+        let ssid_length = u16::from_be_bytes([bytes[12], bytes[13]]);
+        let ies_length = u16::from_be_bytes([bytes[62], bytes[63]]);
+        ogc_system::report(format_args!(
+            "HBC: invalid wireless scan: count={count} first_length={length} ssid_length={ssid_length} ies_length={ies_length}\n"
+        ));
+        ScanError::InvalidDescriptor
+    })
 }
 
 #[cfg(test)]
