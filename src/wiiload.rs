@@ -224,7 +224,7 @@ pub(crate) struct RebornStatusSnapshot<'a> {
     pub tcp_stack_used: u32,
     pub net_starts: u32,
     pub time: u64,
-    pub ip: Option<[u8; 4]>,
+    pub ip: [u8; 4],
     pub completed: u32,
     pub total: u32,
 }
@@ -254,10 +254,8 @@ pub(crate) fn reborn_status_json(snapshot: RebornStatusSnapshot<'_>) -> alloc::s
         completed,
         total,
     } = snapshot;
-    let ip = ip.map_or_else(
-        || alloc::string::String::from("null"),
-        |[a, b, c, d]| alloc::format!("\"{a}.{b}.{c}.{d}\""),
-    );
+    let [ip_a, ip_b, ip_c, ip_d] = ip;
+    let ip = alloc::format!("\"{ip_a}.{ip_b}.{ip_c}.{ip_d}\"");
     let device = device.map_or_else(
         || alloc::string::String::from("null"),
         |volume| alloc::format!("\"{}\"", status_device_name(volume)),
@@ -489,7 +487,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn reborn_status_json_reports_live_receiver_fields_and_null_ip() {
+    fn reborn_status_json_reports_live_receiver_fields_and_zero_ip_when_unavailable() {
         assert_eq!(
             reborn_status_json(RebornStatusSnapshot {
                 version: "1.2.3",
@@ -509,7 +507,7 @@ mod tests {
                 tcp_stack_used: 736,
                 net_starts: 2,
                 time: 1790100000,
-                ip: Some([192, 168, 1, 20]),
+                ip: [192, 168, 1, 20],
                 completed: 31,
                 total: 64,
             }),
@@ -534,11 +532,11 @@ mod tests {
                 tcp_stack_used: 0,
                 net_starts: 0,
                 time: 0,
-                ip: None,
+                ip: [0, 0, 0, 0],
                 completed: 0,
                 total: 0,
             }),
-            r#"{"version":"1.2.3","proto":6,"ios":0,"ios_revision":0,"ahbprot":false,"arena1_free":0,"arena2_free":0,"heap_free":0,"tcp_stack_used":0,"tcp_stack_size":0,"init_ms":0,"scan_ms":0,"ip":null,"net_starts":0,"apps":0,"device":null,"inserted":[],"network":"network_unavailable","receive":{"completed":0,"total":0},"time":0}"#
+            r#"{"version":"1.2.3","proto":6,"ios":0,"ios_revision":0,"ahbprot":false,"arena1_free":0,"arena2_free":0,"heap_free":0,"tcp_stack_used":0,"tcp_stack_size":0,"init_ms":0,"scan_ms":0,"ip":"0.0.0.0","net_starts":0,"apps":0,"device":null,"inserted":[],"network":"network_unavailable","receive":{"completed":0,"total":0},"time":0}"#
         );
     }
 

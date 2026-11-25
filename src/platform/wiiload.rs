@@ -1004,14 +1004,12 @@ fn status_json(shared: &Shared) -> alloc::string::String {
         shared.receive_total.load(Ordering::Acquire),
     );
     let address = network::get_host_ip();
-    let ip = (address != 0).then(|| {
-        [
-            network::ip4_addr1(address) as u8,
-            network::ip4_addr2(address) as u8,
-            network::ip4_addr3(address) as u8,
-            network::ip4_addr4(address) as u8,
-        ]
-    });
+    let ip = [
+        network::ip4_addr1(address) as u8,
+        network::ip4_addr2(address) as u8,
+        network::ip4_addr3(address) as u8,
+        network::ip4_addr4(address) as u8,
+    ];
     let device = crate::platform::storage::Volume::from_settings_index(
         MENU_DEVICE.load(Ordering::Acquire) as i32,
     );
