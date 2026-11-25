@@ -15,6 +15,7 @@ pub mod font;
 pub mod home_overlay;
 pub mod home_overlay_app;
 pub mod home_overlay_host;
+pub mod lastlog;
 pub mod loader;
 pub mod localization;
 pub mod management;

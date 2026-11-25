@@ -386,6 +386,7 @@ pub(crate) struct RebornStatusSnapshot<'a> {
     pub total: u32,
     pub transfer_style: &'a str,
     pub log: Option<crate::netlog::Target>,
+    pub lastlog: Option<crate::lastlog::Status>,
 }
 
 /// Build the Reborn HBCS JSON from a production status snapshot.
@@ -414,6 +415,7 @@ pub(crate) fn reborn_status_json(snapshot: RebornStatusSnapshot<'_>) -> alloc::s
         total,
         transfer_style,
         log,
+        lastlog,
     } = snapshot;
     let [ip_a, ip_b, ip_c, ip_d] = ip;
     let ip = alloc::format!("\"{ip_a}.{ip_b}.{ip_c}.{ip_d}\"");
@@ -427,6 +429,10 @@ pub(crate) fn reborn_status_json(snapshot: RebornStatusSnapshot<'_>) -> alloc::s
             let [a, b, c, d] = target.address;
             alloc::format!("\"{a}.{b}.{c}.{d}:{}\"", target.port)
         },
+    );
+    let lastlog = lastlog.map_or_else(
+        || alloc::string::String::from("null"),
+        |entry| alloc::format!("{{\"why\":\"{}\",\"bytes\":{}}}", entry.why, entry.bytes),
     );
     let mut inserted = alloc::string::String::from("[");
     let mut first_inserted = true;
@@ -444,7 +450,7 @@ pub(crate) fn reborn_status_json(snapshot: RebornStatusSnapshot<'_>) -> alloc::s
     }
     inserted.push(']');
     alloc::format!(
-        "{{\"version\":\"{version}\",\"proto\":6,\"ios\":{ios},\"ios_revision\":{ios_revision},\"ahbprot\":{ahbprot},\"arena1_free\":{arena1_free},\"arena2_free\":{arena2_free},\"heap_free\":{heap_free},\"tcp_stack_used\":{tcp_stack_used},\"tcp_stack_size\":{tcp_stack_size},\"init_ms\":{init_ms},\"scan_ms\":{scan_ms},\"ip\":{ip},\"net_starts\":{net_starts},\"apps\":{apps},\"device\":{device},\"inserted\":{inserted},\"log\":{log},\"network\":\"{network}\",\"receive\":{{\"completed\":{completed},\"total\":{total}}},\"transfer_style\":\"{transfer_style}\",\"time\":{time}}}"
+        "{{\"version\":\"{version}\",\"proto\":6,\"ios\":{ios},\"ios_revision\":{ios_revision},\"ahbprot\":{ahbprot},\"arena1_free\":{arena1_free},\"arena2_free\":{arena2_free},\"heap_free\":{heap_free},\"tcp_stack_used\":{tcp_stack_used},\"tcp_stack_size\":{tcp_stack_size},\"init_ms\":{init_ms},\"scan_ms\":{scan_ms},\"ip\":{ip},\"net_starts\":{net_starts},\"apps\":{apps},\"device\":{device},\"inserted\":{inserted},\"log\":{log},\"lastlog\":{lastlog},\"network\":\"{network}\",\"receive\":{{\"completed\":{completed},\"total\":{total}}},\"transfer_style\":\"{transfer_style}\",\"time\":{time}}}"
     )
 }
 
@@ -885,8 +891,12 @@ mod tests {
                     address: [192, 168, 1, 82],
                     port: 4405,
                 }),
+                lastlog: Some(crate::lastlog::Status {
+                    why: "fatal",
+                    bytes: 5,
+                }),
             }),
-            r#"{"version":"1.2.3","proto":6,"ios":58,"ios_revision":6432,"ahbprot":true,"arena1_free":4096,"arena2_free":8192,"heap_free":1024,"tcp_stack_used":736,"tcp_stack_size":32768,"init_ms":2510,"scan_ms":82,"ip":"192.168.1.20","net_starts":2,"apps":17,"device":"usb2","inserted":["sd","usb2"],"log":"192.168.1.82:4405","network":"receiving","receive":{"completed":31,"total":64},"transfer_style":"scroll","time":1790100000}"#
+            r#"{"version":"1.2.3","proto":6,"ios":58,"ios_revision":6432,"ahbprot":true,"arena1_free":4096,"arena2_free":8192,"heap_free":1024,"tcp_stack_used":736,"tcp_stack_size":32768,"init_ms":2510,"scan_ms":82,"ip":"192.168.1.20","net_starts":2,"apps":17,"device":"usb2","inserted":["sd","usb2"],"log":"192.168.1.82:4405","lastlog":{"why":"fatal","bytes":5},"network":"receiving","receive":{"completed":31,"total":64},"transfer_style":"scroll","time":1790100000}"#
         );
         assert_eq!(
             reborn_status_json(RebornStatusSnapshot {
@@ -912,8 +922,9 @@ mod tests {
                 total: 0,
                 transfer_style: "none",
                 log: None,
+                lastlog: None,
             }),
-            r#"{"version":"1.2.3","proto":6,"ios":0,"ios_revision":0,"ahbprot":false,"arena1_free":0,"arena2_free":0,"heap_free":0,"tcp_stack_used":0,"tcp_stack_size":0,"init_ms":0,"scan_ms":0,"ip":"0.0.0.0","net_starts":0,"apps":0,"device":null,"inserted":[],"log":null,"network":"network_unavailable","receive":{"completed":0,"total":0},"transfer_style":"none","time":0}"#
+            r#"{"version":"1.2.3","proto":6,"ios":0,"ios_revision":0,"ahbprot":false,"arena1_free":0,"arena2_free":0,"heap_free":0,"tcp_stack_used":0,"tcp_stack_size":0,"init_ms":0,"scan_ms":0,"ip":"0.0.0.0","net_starts":0,"apps":0,"device":null,"inserted":[],"log":null,"lastlog":null,"network":"network_unavailable","receive":{"completed":0,"total":0},"transfer_style":"none","time":0}"#
         );
     }
 

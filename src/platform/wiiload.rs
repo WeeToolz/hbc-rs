@@ -1099,6 +1099,14 @@ fn receive_client(
         set_log_target(target);
         return write_response(shared, client, &[0; 8], started_at).map(|()| None);
     }
+    if &header_bytes[..4] == b"HBCL" {
+        let (status, body) = match crate::lastlog::response_body() {
+            Ok(Some(body)) => (0, body),
+            Ok(None) => (-crate::devfile::errno::ENOENT, Vec::new()),
+            Err(_) => (-crate::devfile::errno::ENOMEM, Vec::new()),
+        };
+        return write_devfile_reply(shared, client, status, &body, started_at).map(|()| None);
+    }
     #[cfg(feature = "debugger-network")]
     if &header_bytes[..4] == b"HBCD" {
         let reply = debugger_diagnostics.reply(&header_bytes);
@@ -1918,6 +1926,7 @@ fn status_json(shared: &Shared) -> alloc::string::String {
         total,
         transfer_style: transfer_style().as_str(),
         log: log_target(),
+        lastlog: crate::lastlog::status(),
     })
 }
 

@@ -1,0 +1,24 @@
+{
+  "dol_sha256": "07acc1cdf10bd118b9b03b5591573aee2db93c2fc92e7eaf5b547122f47335a0",
+  "success": true,
+  "transport": "HBC TCP input protocol",
+  "control": false,
+  "reborn_keys": false,
+  "reborn_transfer_style": false,
+  "reborn_screen": false,
+  "reborn_netlog": true,
+  "reborn_lastlog_empty": false,
+  "reborn_netlog_app": false,
+  "reborn_file": false,
+  "reborn_netlog_result": {
+    "set": "192.168.1.52:4407",
+    "cleared": true
+  },
+  "cases": [
+    {
+      "case": "reborn-netlog",
+      "success": true,
+      "result": 0
+    }
+  ]
+}
