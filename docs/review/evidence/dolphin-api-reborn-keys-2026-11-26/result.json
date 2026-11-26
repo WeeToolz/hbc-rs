@@ -1,0 +1,15 @@
+{
+  "sha256": "932ba264c99ca59535b4f44426c5d49f2bec825e30dd791a29737f4df58bbb34",
+  "dolphin_arch": "native",
+  "profile": "/Volumes/SSD/WiiDev/tmp/hbc-production-acceptance/hbc-production-acceptance-vzd4r8f9",
+  "sd_fixture": null,
+  "theme_fixture": null,
+  "cases": [
+    {
+      "case": "reborn-keys-api",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

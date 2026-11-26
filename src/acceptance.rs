@@ -43,6 +43,15 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"wiiload-policy" {
         return wiiload_policy();
     }
+    if case == b"protocol-primitives-api" {
+        return protocol_primitives_api();
+    }
+    if case == b"reborn-keys-api" {
+        return reborn_keys_api();
+    }
+    if case == b"wiiload-publication-api" {
+        return wiiload_publication_api();
+    }
     if case == b"wiiload-zip" {
         return wiiload_zip();
     }
@@ -391,6 +400,380 @@ fn wiiload_state_api() -> i32 {
     ogc_system::report(format_args!(
         "PASS stopped Wiiload status, indicators, progress and stop\n"
     ));
+    0
+}
+
+fn protocol_primitives_api() -> i32 {
+    use crate::{devfile, hardware_info, netlog, wiiload};
+
+    let operations = [
+        (b'p', devfile::Operation::PutFramed),
+        (b'P', devfile::Operation::PutRaw),
+        (b'C', devfile::Operation::Checksum),
+        (b'G', devfile::Operation::GetRaw),
+        (b'g', devfile::Operation::GetFramed),
+        (b'L', devfile::Operation::List),
+        (b'S', devfile::Operation::Stat),
+        (b'D', devfile::Operation::Delete),
+        (b'M', devfile::Operation::MakeDirectory),
+    ];
+    if operations
+        .iter()
+        .any(|(byte, operation)| devfile::Operation::from_byte(*byte) != Some(*operation))
+        || devfile::Operation::from_byte(b'?').is_some()
+    {
+        return -1;
+    }
+
+    let mut header = [0; devfile::HEADER_LEN];
+    header[..4].copy_from_slice(b"HBCF");
+    header[4] = b'g';
+    header[6..8].copy_from_slice(&21u16.to_be_bytes());
+    header[8..12].copy_from_slice(&0x1234_5678u32.to_be_bytes());
+    let decoded = match devfile::RequestHeader::decode(&header) {
+        Ok(decoded) => decoded,
+        Err(_) => return -2,
+    };
+    if decoded.operation != Some(devfile::Operation::GetFramed)
+        || decoded.path_len != 21
+        || decoded.size != 0x1234_5678
+        || devfile::RequestHeader::decode(&[0; devfile::HEADER_LEN]).is_ok()
+    {
+        return -3;
+    }
+    let path = b"sd:/apps/Probe/boot.dol";
+    let validated = match devfile::validate_path(path) {
+        Ok(validated) => validated,
+        Err(_) => return -4,
+    };
+    if validated.device != b"sd"
+        || validated.bytes != path
+        || validated.trailing_slash
+        || devfile::validate_path(b"sd:/../escape").is_ok()
+        || devfile::strip_directory_slash(b"sd:/apps/Probe/") != b"sd:/apps/Probe"
+        || devfile::strip_directory_slash(b"sd:/") != b"sd:/"
+        || devfile::app_change_name(b"sd", path) != Some(&b"Probe"[..])
+        || devfile::app_change_name(b"usb", path).is_some()
+    {
+        return -5;
+    }
+
+    let target = netlog::Target {
+        address: [192, 168, 1, 82],
+        port: 4405,
+    };
+    let target_bytes = target.encode();
+    if netlog::Target::decode(&target_bytes) != Some(target)
+        || netlog::Target::decode(&[0; netlog::BLOCK_LEN]).is_some()
+        || netlog::heap_limit_before_reserved(0x917f_0000, 0x20_0000) != 0x1_0000
+    {
+        return -6;
+    }
+
+    if hardware_info::selected_pages(0) != [true; hardware_info::PAGE_NAMES.len()]
+        || hardware_info::selected_pages(0b0_0101) != [true, false, true, false, false]
+    {
+        return -7;
+    }
+    let json = match hardware_info::build_response(1, |index, object| {
+        if index == 0 {
+            object.string("Name", "HBC");
+            object.formatted("Value", format_args!("{:08x}", 42));
+        }
+    }) {
+        Ok(json) => json,
+        Err(_) => return -8,
+    };
+    if json != br#"{"System":{"Name":"HBC","Value":"0000002a"}}"# {
+        return -9;
+    }
+    let hardware = match hardware_info::hardware_response(1) {
+        Ok(hardware) => hardware,
+        Err(_) => return -18,
+    };
+    if !hardware.starts_with(b"{\"System\":{") || hardware.contains(&b'\n') {
+        return -19;
+    }
+    if !retained_record_apis() {
+        return -20;
+    }
+
+    use wiiload::{RebornTransferProgress, RebornTransferStyle, RebornUploadMetadataError};
+    if RebornTransferStyle::from_u8(2) != RebornTransferStyle::Bounce
+        || RebornTransferStyle::from_u8(255) != RebornTransferStyle::None
+        || RebornTransferStyle::Bounce.as_str() != "bounce"
+    {
+        return -10;
+    }
+    let mut style_header = [0; wiiload::WIILOAD_HEADER_LEN];
+    style_header[..4].copy_from_slice(b"HBCT");
+    style_header[4..10].copy_from_slice(b"scroll");
+    if RebornTransferStyle::decode_hbct(&style_header) != Some(RebornTransferStyle::Scroll) {
+        return -11;
+    }
+
+    let mut metadata_header = [0; wiiload::WIILOAD_HEADER_LEN];
+    metadata_header[..4].copy_from_slice(b"HBCA");
+    metadata_header[4..6].copy_from_slice(&5u16.to_be_bytes());
+    metadata_header[6..8].copy_from_slice(&wiiload::REBORN_UPLOAD_INSTALL_YES.to_be_bytes());
+    let metadata = match wiiload::decode_reborn_upload_metadata(&metadata_header, b"Probe", 100) {
+        Ok(metadata) => metadata,
+        Err(_) => return -12,
+    };
+    if metadata.name() != b"Probe"
+        || !metadata.is_current(100 + wiiload::REBORN_UPLOAD_METADATA_TTL_MS - 1)
+        || metadata.is_current(100 + wiiload::REBORN_UPLOAD_METADATA_TTL_MS)
+        || !metadata.install_without_asking()
+        || wiiload::decode_reborn_upload_metadata(&[0; wiiload::WIILOAD_HEADER_LEN], b"Probe", 100)
+            != Err(RebornUploadMetadataError::InvalidHeader)
+    {
+        return -13;
+    }
+
+    if wiiload::elapsed_ticks_to_milliseconds(10, 1010, 1000) != 1000
+        || wiiload::elapsed_ticks_to_milliseconds(0, u64::MAX, 0) != 0
+    {
+        return -14;
+    }
+    let line = match wiiload::reborn_transfer_line(RebornTransferProgress {
+        operation: b'p',
+        name: "Probe.dol",
+        completed: 50,
+        total: 100,
+        style: RebornTransferStyle::Truncate,
+        elapsed_ms: 1000,
+        max_chars: 16,
+        receiving: "Receiving",
+        sending: "Sending",
+    }) {
+        Some(line) => line,
+        None => return -15,
+    };
+    if !line.message.starts_with("Receiving ")
+        || !line.message.contains("...")
+        || line.percent != "  50%"
+        || !line.split_percent
+    {
+        return -16;
+    }
+    let stack = [0, 0, 0, 1, 1, 1];
+    if wiiload::stack_high_water_used_bytes(0, stack.len(), |index| stack[index]) != 3 {
+        return -17;
+    }
+
+    ogc_system::report(format_args!(
+        "PASS HBCF, HBCH, HBCN and Reborn Wiiload primitive APIs\n"
+    ));
+    0
+}
+
+fn retained_record_apis() -> bool {
+    use alloc::vec;
+
+    crate::crash_report::clear();
+    if crate::crash_report::json().is_some() {
+        return false;
+    }
+    let mut crash = vec![0; crate::crash_report::RECORD_LEN];
+    crash[..4].copy_from_slice(b"HBCC");
+    crash[4..8].copy_from_slice(&2u32.to_be_bytes());
+    crash[8..12].copy_from_slice(&3u32.to_be_bytes());
+    crash[12..16].copy_from_slice(&0x8000_1234u32.to_be_bytes());
+    crash[20..24].copy_from_slice(&0x8000_5678u32.to_be_bytes());
+    crash[44..48].copy_from_slice(&1234u32.to_be_bytes());
+    crash[48..52].copy_from_slice(&0x8000_beefu32.to_be_bytes());
+    crash[96..102].copy_from_slice(b"Probe\0");
+    crash[116..120].copy_from_slice(&1u32.to_be_bytes());
+    crash[120..124].copy_from_slice(&7u32.to_be_bytes());
+    crash[124..136].copy_from_slice(b"test reason\0");
+    let check = acceptance_checksum(&crash[..188]);
+    crash[188..192].copy_from_slice(&check.to_be_bytes());
+    write_reserved_record(crate::netlog::CRASH_BLOCK_ADDRESS, &crash);
+    crate::crash_report::initialize();
+    let Some(json) = crate::crash_report::json() else {
+        return false;
+    };
+    if !json.contains("\"kind\":\"fatal\"")
+        || !json.contains("\"name\":\"DSI\"")
+        || !json.contains("\"app\":\"Probe\"")
+        || !json.contains("\"reason\":\"test reason\"")
+    {
+        return false;
+    }
+    crate::crash_report::clear();
+    if crate::crash_report::json().is_some() {
+        return false;
+    }
+
+    let mut lastlog = vec![0; crate::lastlog::RECORD_LEN];
+    lastlog[..4].copy_from_slice(b"HBCL");
+    lastlog[4..8].copy_from_slice(&1u32.to_be_bytes());
+    lastlog[8..12].copy_from_slice(&2u32.to_be_bytes());
+    lastlog[12..16].copy_from_slice(&5u32.to_be_bytes());
+    lastlog[16..20].copy_from_slice(&1234u32.to_be_bytes());
+    lastlog[20..26].copy_from_slice(b"Probe\0");
+    lastlog[40..45].copy_from_slice(b"hello");
+    let check = acceptance_checksum(&lastlog[..lastlog.len() - 4]);
+    let check_offset = lastlog.len() - 4;
+    lastlog[check_offset..].copy_from_slice(&check.to_be_bytes());
+    write_reserved_record(crate::netlog::LAST_LOG_ADDRESS, &lastlog);
+    crate::lastlog::initialize();
+    if crate::lastlog::status()
+        != Some(crate::lastlog::Status {
+            why: "fatal",
+            bytes: 5,
+        })
+    {
+        return false;
+    }
+    crate::lastlog::response_body()
+        .is_ok_and(|body| body.as_deref() == Some(b"HBCL 1 fatal 1234 Probe\nhello".as_slice()))
+}
+
+fn acceptance_checksum(bytes: &[u8]) -> u32 {
+    bytes.chunks_exact(4).fold(0x5a17_c0de, |value, word| {
+        value.rotate_left(5) ^ u32::from_be_bytes([word[0], word[1], word[2], word[3]])
+    })
+}
+
+fn write_reserved_record(address: usize, bytes: &[u8]) {
+    // SAFETY: The acceptance build runs in a private Dolphin NAND. These two
+    // reserved MEM2 ranges are the exact blocks consumed by the production APIs.
+    unsafe {
+        core::ptr::copy_nonoverlapping(bytes.as_ptr(), address as *mut u8, bytes.len());
+        ogc_cache::dc_flush_range(address as *const core::ffi::c_void, bytes.len() as u32);
+    }
+}
+
+fn reborn_keys_api() -> i32 {
+    use crate::{
+        app::Input,
+        reborn_keys::{self, KeyPacer, KeyQueue},
+    };
+
+    let mut header = [0; 16];
+    header[..4].copy_from_slice(b"HBCK");
+    header[4..6].copy_from_slice(&64u16.to_be_bytes());
+    if reborn_keys::body_length(&header) != Some(64) {
+        return -1;
+    }
+    header[4..6].copy_from_slice(&65u16.to_be_bytes());
+    if reborn_keys::body_length(&header).is_some() {
+        return -2;
+    }
+    header[..4].copy_from_slice(b"NOPE");
+    if reborn_keys::body_length(&header).is_some() {
+        return -3;
+    }
+
+    let expected = [
+        (b'u', Some(Input::Up)),
+        (b'd', Some(Input::Down)),
+        (b'l', Some(Input::Left)),
+        (b'r', Some(Input::Right)),
+        (b'a', Some(Input::Confirm)),
+        (b'b', Some(Input::Back)),
+        (b'h', Some(Input::Home)),
+        (b'1', None),
+        (b'2', None),
+        (b'w', None),
+        (b'?', None),
+    ];
+    if expected
+        .iter()
+        .any(|(key, input)| reborn_keys::input_for_key(*key) != *input)
+    {
+        return -4;
+    }
+
+    let mut queue = KeyQueue::new();
+    if queue.pop().is_some() {
+        return -5;
+    }
+    queue.push(b"xudah1?2w");
+    let accepted = [b'u', b'd', b'a', b'h', b'1', b'2', b'w'];
+    if accepted.iter().any(|key| queue.pop() != Some(*key)) || queue.pop().is_some() {
+        return -6;
+    }
+    let first = [b'u'; reborn_keys::CAPACITY];
+    queue.push(&first);
+    for _ in 0..reborn_keys::CAPACITY - 8 {
+        if queue.pop() != Some(b'u') {
+            return -7;
+        }
+    }
+    queue.push(&[b'd'; 12]);
+    for _ in 0..8 {
+        if queue.pop() != Some(b'u') {
+            return -8;
+        }
+    }
+    for _ in 0..12 {
+        if queue.pop() != Some(b'd') {
+            return -9;
+        }
+    }
+
+    let mut queue = KeyQueue::new();
+    let mut pacer = KeyPacer::default();
+    queue.push(b"hahb");
+    if pacer.next(&mut queue, false) != Some(b'h')
+        || pacer.next(&mut queue, true) != Some(b'a')
+        || (0..12).any(|_| pacer.next(&mut queue, true).is_some())
+        || pacer.next(&mut queue, true) != Some(b'h')
+        || pacer.next(&mut queue, false).is_some()
+    {
+        return -10;
+    }
+    let mut frame = crate::platform::input::InputFrame::default();
+    crate::platform::wiiload::merge_reborn_keys(&mut KeyPacer::default(), true, &mut frame);
+    if frame != crate::platform::input::InputFrame::default() {
+        return -11;
+    }
+
+    ogc_system::report(format_args!("PASS Reborn HBCK key APIs\n"));
+    0
+}
+
+fn wiiload_publication_api() -> i32 {
+    use crate::{netlog::Target, platform::wiiload};
+
+    if wiiload::successful_network_starts() != 0
+        || wiiload::devfile_app_change().is_some()
+        || wiiload::devfile_request_active()
+        || wiiload::devfile_transfer_progress().is_some()
+    {
+        return -1;
+    }
+
+    let target = Target {
+        address: [192, 168, 1, 82],
+        port: 4405,
+    };
+    let block = target.encode();
+    write_reserved_record(crate::netlog::LOW_MEMORY_ADDRESS, &block);
+    write_reserved_record(crate::netlog::KEEP_ADDRESS, &block);
+    wiiload::initialize_log_target();
+    if wiiload::acceptance_log_target_snapshot() != Some(target) {
+        return -2;
+    }
+
+    wiiload::publish_menu_status(3, Some(crate::platform::storage::Volume::Sd), 1, 123, 456);
+    let expected_device = crate::platform::storage::Volume::Sd.settings_index() as u8;
+    if wiiload::acceptance_menu_status_snapshot() != (3, expected_device, 1, 123, 456) {
+        return -3;
+    }
+
+    wiiload::publish_screenshot_framebuffer(0x8123_4560, 640, 480, 640 * 480 * 2);
+    if wiiload::acceptance_screenshot_snapshot() != (0x8123_4560, 640, 480, 640 * 480 * 2) {
+        return -4;
+    }
+    wiiload::initialize_transfer_style(7);
+    if wiiload::transfer_style() != crate::wiiload::RebornTransferStyle::Bounce {
+        return -5;
+    }
+
+    ogc_system::report(format_args!("PASS Wiiload publication APIs\n"));
     0
 }
 
@@ -2014,6 +2397,29 @@ fn render_frame_api() -> i32 {
         return -6;
     }
 
+    let mut transfer_frame = Frame::default();
+    transfer_frame.devfile_transfer_status(
+        &crate::wiiload::RebornTransferLine {
+            message: String::from("Receiving Probe.dol"),
+            percent: String::from("  50%"),
+            split_percent: true,
+        },
+        Some(&theme),
+    );
+    if transfer_frame.text_runs.len() != 2
+        || !transfer_frame
+            .text_runs
+            .iter()
+            .any(|run| run.value == "Receiving Probe.dol")
+        || !transfer_frame
+            .text_runs
+            .iter()
+            .any(|run| run.value == "  50%")
+    {
+        ogc_system::report(format_args!("FAIL render devfile transfer status API\n"));
+        return -7;
+    }
+
     frame.pointer_cursor(100.0, 120.0, true);
     frame.storage_loading();
     if !frame.commands.iter().any(|command| {
@@ -2116,6 +2522,17 @@ fn video_platform_api() -> i32 {
     {
         video::shutdown();
         ogc_system::report(format_args!("FAIL video framebuffer info {info:?}\n"));
+        return -2;
+    }
+    video.publish_for_network_screenshot();
+    let published = crate::platform::wiiload::acceptance_screenshot_snapshot();
+    if published.0 == 0
+        || published.1 != info.width
+        || published.2 != info.height
+        || published.3 != info.byte_len
+    {
+        video::shutdown();
+        ogc_system::report(format_args!("FAIL video screenshot publication API\n"));
         return -2;
     }
 
@@ -2406,6 +2823,14 @@ fn wii_startup_state_api() -> i32 {
         || startup.storage_prefix().is_some()
     {
         ogc_system::report(format_args!("FAIL Wii startup storage scan completion\n"));
+        return -4;
+    }
+    if crate::platform::startup::last_app_scan_duration_ms() != 0
+        || startup.refresh_devfile_catalog() != Ok(false)
+    {
+        ogc_system::report(format_args!(
+            "FAIL Wii startup scan duration or devfile refresh API\n"
+        ));
         return -4;
     }
     startup.refresh_visible_icons();
@@ -4361,6 +4786,7 @@ fn network_restart_worker_api() -> i32 {
 fn input_platform_api() -> i32 {
     use crate::platform::input::{initialize, scan};
 
+    crate::platform::input::initialize_pad();
     if let Err(error) = initialize(640, 480) {
         ogc_system::report(format_args!("FAIL input platform initialization {error}\n"));
         return -1;

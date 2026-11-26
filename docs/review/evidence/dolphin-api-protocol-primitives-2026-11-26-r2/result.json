@@ -1,0 +1,16 @@
+{
+  "sha256": "43cab0abec37e1aa0073679c5c484f85518337e632e58a107692d08614d8ca09",
+  "dolphin_arch": "native",
+  "profile": "/Volumes/SSD/WiiDev/tmp/hbc-production-acceptance/hbc-production-acceptance-sbp5tdv1",
+  "sd_fixture": null,
+  "theme_fixture": null,
+  "cases": [
+    {
+      "case": "protocol-primitives-api",
+      "success": false,
+      "result": 4294967280,
+      "error": "Production acceptance failed: 0xfffffff0"
+    }
+  ],
+  "success": false
+}

@@ -254,6 +254,32 @@ pub fn successful_network_starts() -> u32 {
     NETWORK_STARTS.load(Ordering::Acquire)
 }
 
+#[cfg(feature = "emulator-acceptance")]
+pub(crate) fn acceptance_menu_status_snapshot() -> (u32, u8, u8, u32, u32) {
+    (
+        MENU_APP_COUNT.load(Ordering::Acquire),
+        MENU_DEVICE.load(Ordering::Acquire),
+        MENU_INSERTED.load(Ordering::Acquire),
+        MENU_INIT_MS.load(Ordering::Acquire),
+        MENU_SCAN_MS.load(Ordering::Acquire),
+    )
+}
+
+#[cfg(feature = "emulator-acceptance")]
+pub(crate) fn acceptance_screenshot_snapshot() -> (usize, u16, u16, u32) {
+    (
+        SCREEN_FRAMEBUFFER.load(Ordering::Acquire),
+        SCREEN_WIDTH.load(Ordering::Acquire),
+        SCREEN_HEIGHT.load(Ordering::Acquire),
+        SCREEN_BYTE_LEN.load(Ordering::Acquire),
+    )
+}
+
+#[cfg(feature = "emulator-acceptance")]
+pub(crate) fn acceptance_log_target_snapshot() -> Option<crate::netlog::Target> {
+    log_target()
+}
+
 struct RebornKeys {
     lock: AtomicBool,
     queue: UnsafeCell<crate::reborn_keys::KeyQueue>,
