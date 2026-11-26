@@ -6,6 +6,6 @@ Scope: default-feature library APIs for `powerpc-nintendo-none`, extracted from 
 
 Public functions and trait methods: **487** — verified: **0** | partial: **379** | blocked: **0** | extension: **108** | unverified: **0**.
 
-`partial` means at least one exact API-specific check passes; it does not mean the API contract is complete. `extension` means the parity ledger explicitly records that the API has no matching C HBC contract. `unverified` means the API has no linked exact passing check. A broad feature test may still cover it. No APIs are promoted to `verified` or `blocked` by inference. Physical Wii evidence is separate and remains pending where the parity ledger says so.
+`partial` means at least one exact API-specific check passes; it does not mean the API contract is complete. `extension` means the parity ledger records that the API has no matching C HBC contract; its verification field still reports Dolphin checks of the Rust API. `unverified` means the API has no linked exact passing check. A broad feature test may still cover it. No APIs are promoted to `verified` or `blocked` by inference. Physical Wii evidence is separate and remains pending where the parity ledger says so.
 
 The machine-readable API list is [api-inventory.csv](api-inventory.csv). See [API verification](../api-verification.md) for scope and commands.

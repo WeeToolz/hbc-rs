@@ -46,6 +46,24 @@ pub unsafe fn run(argc: i32, argv: *mut *mut u8) -> i32 {
     if case == b"protocol-primitives-api" {
         return protocol_primitives_api();
     }
+    if case == b"network-config-extensions-api" {
+        return network_config_extensions_api();
+    }
+    if case == b"rust-control-extensions-api" {
+        return rust_control_extensions_api();
+    }
+    if case == b"render-primitives-extensions-api" {
+        return render_primitives_extensions_api();
+    }
+    if case == b"home-overlay-host-extensions-api" {
+        return home_overlay_host_extensions_api();
+    }
+    if case == b"network-platform-extensions-api" {
+        return network_platform_extensions_api();
+    }
+    if case == b"allocator-init-api" {
+        return allocator_init_api();
+    }
     if case == b"reborn-keys-api" {
         return reborn_keys_api();
     }
@@ -636,6 +654,535 @@ fn acceptance_checksum(bytes: &[u8]) -> u32 {
     })
 }
 
+fn network_config_extensions_api() -> i32 {
+    use crate::network_config::{
+        CONFIG_LEN, IS_ACTIVE, NetworkConfig, NetworkSecurity, ScannedNetwork, ScannedNetworks,
+        USE_DHCP_ADDR, USE_DHCP_DNS, WifiConfig,
+    };
+
+    let mut config = NetworkConfig::from_bytes([0; CONFIG_LEN]);
+    config.set_interface_kind(3);
+    if config.interface_kind() != 3 || config.as_bytes()[4] != 3 {
+        return -1;
+    }
+    let mut profile = config.profile_mut(0).unwrap();
+    profile.set_flag(IS_ACTIVE, true);
+    profile.set_flag(USE_DHCP_ADDR | USE_DHCP_DNS, true);
+    profile.set_manual_ipv4(
+        crate::network_config::ManualIpv4Field::Address,
+        [192, 168, 1, 42],
+    );
+    if profile.flags() & (IS_ACTIVE | USE_DHCP_ADDR | USE_DHCP_DNS)
+        != IS_ACTIVE | USE_DHCP_ADDR | USE_DHCP_DNS
+        || profile.manual_ipv4(crate::network_config::ManualIpv4Field::Address) != [192, 168, 1, 42]
+    {
+        return -2;
+    }
+    profile.set_flag(USE_DHCP_ADDR, false);
+    if profile.flags() & USE_DHCP_ADDR != 0 {
+        return -3;
+    }
+    {
+        let mut wifi = profile.wifi_mut();
+        if !wifi.set_ssid(b"Dolphin")
+            || !wifi.set_encryption(5)
+            || !wifi.set_key(b"password123")
+            || wifi.encryption() != 5
+        {
+            return -4;
+        }
+    }
+    let profile = config.profile(0).unwrap();
+    let wifi: WifiConfig<'_> = profile.wifi();
+    if profile.flags() & IS_ACTIVE == 0
+        || profile.manual_ipv4(crate::network_config::ManualIpv4Field::Address) != [192, 168, 1, 42]
+        || wifi.ssid()[..7] != *b"Dolphin"
+        || wifi.ssid()[7..].iter().any(|byte| *byte != 0)
+        || wifi.ssid_len() != 7
+        || wifi.encryption() != 5
+        || wifi.key_len() != 11
+        || &wifi.key()[..11] != b"password123"
+        || crate::network_config::validate_wifi(wifi).is_err()
+        || config.active_profile() != Ok(0)
+        || config.active_wifi_profile() != Ok(0)
+        || config.validate_format().is_err()
+    {
+        return -5;
+    }
+    if config.profile(3).is_some() || config.profile_mut(3).is_some() {
+        return -6;
+    }
+    let bytes = *config.as_bytes();
+    let mut round_trip = NetworkConfig::from_bytes(bytes);
+    round_trip.as_bytes_mut()[0] = 0x5a;
+    if round_trip.as_bytes()[0] != 0x5a {
+        return -7;
+    }
+
+    let labels = [
+        (NetworkSecurity::Open, "Open", Some(0)),
+        (NetworkSecurity::Wep, "WEP", Some(1)),
+        (NetworkSecurity::WpaTkip, "WPA TKIP", Some(4)),
+        (NetworkSecurity::WpaAes, "WPA AES", Some(6)),
+        (NetworkSecurity::Wpa2, "WPA2 AES", Some(5)),
+        (NetworkSecurity::Unknown, "Unknown security", None),
+    ];
+    if labels.iter().any(|(security, label, encryption)| {
+        security.label() != *label || security.config_encryption() != *encryption
+    }) {
+        return -8;
+    }
+    let mut scanned = ScannedNetworks::default();
+    scanned.entries[0] = ScannedNetwork {
+        ssid: {
+            let mut ssid = [0; 32];
+            ssid[..5].copy_from_slice(b"Guest");
+            ssid
+        },
+        ssid_len: 5,
+        security: NetworkSecurity::Wpa2,
+        signal: 3,
+    };
+    scanned.len = 1;
+    if scanned.as_slice().len() != 1
+        || scanned.as_slice()[0].name_bytes() != b"Guest"
+        || scanned.as_slice()[0].signal_label() != "Strong"
+    {
+        return -9;
+    }
+
+    let mut controller = crate::app::AppController::new();
+    controller.set_network_config(config.clone());
+    if controller.network_config().is_none()
+        || controller.network_config_snapshot() != Some(&config)
+    {
+        return -10;
+    }
+    if controller.network_ssid() != b"Dolphin"
+        || controller.network_key() != b"password123"
+        || controller.network_encryption() != 5
+    {
+        return -11;
+    }
+    if controller.network_focus() != 0
+        || controller.keyboard_focus() != 0
+        || controller.keyboard_target_key()
+        || controller.network_key_visible()
+    {
+        return -12;
+    }
+    if controller.keyboard_char(10) != Some('q')
+        || controller.keyboard_char(40).is_some()
+        || controller.keyboard_command_label(40) != "123"
+        || controller.keyboard_command_label(41) != "SHIFT"
+        || controller.keyboard_command_label(42) != "SPACE"
+        || controller.keyboard_command_label(43) != "BACK"
+        || controller.keyboard_command_label(44) != "CLEAR"
+        || controller.keyboard_command_label(45) != "DONE"
+    {
+        return -13;
+    }
+    if controller.network_config_for_save().ok().as_ref() != Some(&config) {
+        return -14;
+    }
+    controller.set_scanned_networks(scanned);
+    if controller.scanned_networks().len() != 1 || controller.network_scan_focus() != 0 {
+        return -11;
+    }
+    controller.clear_network_config();
+    if controller.network_config().is_some() {
+        return -12;
+    }
+
+    let mut runtime = crate::runtime::AppRuntime::default();
+    runtime.set_network_config(config.clone());
+    if runtime.network_config_snapshot() != Some(&config)
+        || runtime.network_config_for_save().ok().as_ref() != Some(&config)
+    {
+        return -13;
+    }
+    runtime.set_scanned_networks(scanned);
+    runtime.clear_network_config();
+    if runtime.network_config_snapshot().is_some() {
+        return -14;
+    }
+
+    ogc_system::report(format_args!("PASS Rust-only network configuration APIs\n"));
+    0
+}
+
+fn rust_control_extensions_api() -> i32 {
+    use crate::remote_control::{Command, Mailbox, Reply, Request, State};
+
+    let commands = [
+        Command::Restart,
+        Command::Reset,
+        Command::PowerOff,
+        Command::Eject,
+        Command::Sync,
+        Command::Save,
+        Command::Screenshot,
+        Command::FindRemotes,
+        Command::DisconnectRemotes,
+        Command::StopSync,
+        Command::RestartNetwork,
+        Command::RestartApp,
+        Command::ReturnToHbc,
+    ];
+    if commands
+        .iter()
+        .enumerate()
+        .any(|(index, command)| Command::try_from((index + 1) as u8) != Ok(*command))
+        || Command::try_from(0).is_ok()
+    {
+        return -1;
+    }
+    let mut packet = [0; crate::remote_control::HEADER_LEN];
+    packet[..4].copy_from_slice(b"HBCC");
+    packet[4] = 1;
+    packet[5] = Command::Screenshot as u8;
+    packet[8..12].copy_from_slice(&9u32.to_be_bytes());
+    if Request::decode(&packet)
+        != Ok(Request {
+            id: 9,
+            command: Some(Command::Screenshot),
+        })
+    {
+        return -2;
+    }
+    if !crate::remote_control::is_reborn_crash_clear(&{
+        let mut header = [0; crate::remote_control::HEADER_LEN];
+        header[..4].copy_from_slice(b"HBCC");
+        header
+    }) {
+        return -3;
+    }
+    let reply = Reply {
+        id: 9,
+        command: Some(Command::Screenshot),
+        state: State::Completed,
+        message: String::from("saved"),
+    };
+    let encoded = reply.encode(77);
+    if &encoded[..4] != b"HBCC"
+        || u32::from_be_bytes(encoded[8..12].try_into().unwrap()) != 9
+        || u32::from_be_bytes(encoded[12..16].try_into().unwrap()) != 77
+    {
+        return -4;
+    }
+    if crate::remote_control::observe_eject(0, true).is_some()
+        || crate::remote_control::observe_eject(0, false).is_none()
+        || crate::remote_control::observe_eject(-5, false).is_none()
+        || crate::remote_control::observe_disconnect(0b11, 0b10).is_some()
+        || crate::remote_control::observe_disconnect(0b11, 0b01).is_some()
+        || crate::remote_control::observe_disconnect(0b11, 0).is_none()
+    {
+        return -5;
+    }
+    let mailbox = Mailbox::new();
+    let queued = mailbox.request(&packet, 100);
+    if queued.state != State::Queued || mailbox.take(101) != Some((9, Command::Screenshot)) {
+        return -6;
+    }
+    if !mailbox.finish(9, &Ok(String::from("done")))
+        || mailbox.request(&packet, 102).state != State::Completed
+    {
+        return -7;
+    }
+
+    let mut input_packet = [0; crate::remote_input::PACKET_LEN];
+    input_packet[..4].copy_from_slice(b"HBCI");
+    input_packet[4] = 1;
+    input_packet[5] = 0;
+    input_packet[7] = 0;
+    let command = match crate::remote_input::Command::decode(&input_packet) {
+        Ok(command) => command,
+        Err(error) => return -8 - i32::from(error),
+    };
+    if crate::platform::input::remote_frame(&command)
+        != crate::platform::input::InputFrame::default()
+    {
+        return -9;
+    }
+    let input_mailbox = crate::remote_input::Mailbox::new();
+    if input_mailbox.completion() != crate::remote_input::STOPPED
+        || input_mailbox.submit(command, 100).is_err()
+        || input_mailbox.completion() != crate::remote_input::PENDING
+    {
+        return -9;
+    }
+    let mut remote_state = crate::remote_input::RemoteState::default();
+    let mut frame = crate::platform::input::InputFrame::default();
+    input_mailbox.consume(&mut remote_state, 101, &mut frame);
+    if input_mailbox.completion() != crate::remote_input::APPLIED {
+        return -10;
+    }
+    crate::platform::wiiload::merge_remote_input(&mut remote_state, &mut frame);
+
+    let operation = crate::platform::control::Operation::Done(String::from("complete"));
+    if operation.poll() != Some(Ok(String::from("complete"))) {
+        return -11;
+    }
+    let mut startup = crate::platform::startup::WiiStartup::initialize(640, 480);
+    let video = match crate::platform::video::initialize(false) {
+        Ok(video) => video,
+        Err(_) => return -12,
+    };
+    let unsupported =
+        crate::platform::control::Operation::begin(Command::StopSync, &mut startup, &video);
+    crate::platform::video::shutdown();
+    if unsupported.is_ok() {
+        return -13;
+    }
+
+    ogc_system::report(format_args!(
+        "PASS Rust-only terminal and remote-input APIs\n"
+    ));
+    0
+}
+
+fn render_primitives_extensions_api() -> i32 {
+    let color = crate::render::Color::rgb(12, 34, 56);
+    let rect = crate::render::Rect {
+        x: 10.0,
+        y: 20.0,
+        width: 30.0,
+        height: 40.0,
+    };
+    let overlap = rect.intersect(crate::render::Rect {
+        x: 20.0,
+        y: 30.0,
+        width: 40.0,
+        height: 50.0,
+    });
+    if color
+        != (crate::render::Color {
+            red: 12,
+            green: 34,
+            blue: 56,
+            alpha: 255,
+        })
+        || !rect.is_valid()
+        || rect.right() != 40.0
+        || rect.bottom() != 60.0
+        || overlap
+            != Some(crate::render::Rect {
+                x: 20.0,
+                y: 30.0,
+                width: 20.0,
+                height: 30.0,
+            })
+        || rect
+            .intersect(crate::render::Rect {
+                x: 80.0,
+                y: 80.0,
+                width: 1.0,
+                height: 1.0,
+            })
+            .is_some()
+    {
+        return -1;
+    }
+    ogc_system::report(format_args!("PASS Rust drawing primitive APIs\n"));
+    0
+}
+
+fn home_overlay_host_extensions_api() -> i32 {
+    use crate::{
+        app::Input,
+        home_overlay::{OverlayError, Request},
+        home_overlay_app::{Capabilities, OverlayText, Slot},
+        home_overlay_host::{HomeOverlaySession, OverlayHost, OverlayLoopHost},
+        platform::input::InputFrame,
+    };
+
+    #[derive(Default)]
+    struct TextSink(usize);
+    impl OverlayText for TextSink {
+        fn draw_text(&mut self, _label: &str, _x: usize, _y: usize, _selected: bool) {
+            self.0 += 1;
+        }
+    }
+    struct Host {
+        input: usize,
+        frames: [InputFrame; 4],
+        pixels: Vec<u8>,
+        text: TextSink,
+        draw_calls: usize,
+        present_calls: usize,
+        execute_calls: Vec<Request>,
+        waits: usize,
+    }
+    impl OverlayHost for Host {
+        type Error = ();
+        fn with_frame<R>(
+            &mut self,
+            draw: impl FnOnce(&mut [u8], usize, usize, usize, &mut dyn OverlayText) -> R,
+        ) -> Result<R, Self::Error> {
+            self.draw_calls += 1;
+            Ok(draw(&mut self.pixels, 320, 240, 320 * 4, &mut self.text))
+        }
+        fn present(&mut self) -> Result<(), Self::Error> {
+            self.present_calls += 1;
+            Ok(())
+        }
+        fn execute(&mut self, request: Request) -> Result<(), Self::Error> {
+            self.execute_calls.push(request);
+            Ok(())
+        }
+    }
+    impl OverlayLoopHost for Host {
+        fn poll_overlay_input(&mut self) -> Result<InputFrame, Self::Error> {
+            let frame = self.frames[self.input].clone();
+            self.input += 1;
+            Ok(frame)
+        }
+        fn wait_overlay_frame(&mut self) -> Result<(), Self::Error> {
+            self.waits += 1;
+            Ok(())
+        }
+    }
+
+    let mut host = Host {
+        input: 0,
+        frames: [
+            InputFrame {
+                pressed: vec![Input::Right],
+                ..InputFrame::default()
+            },
+            InputFrame {
+                pressed: vec![Input::Confirm],
+                ..InputFrame::default()
+            },
+            InputFrame {
+                pressed: vec![Input::Confirm],
+                ..InputFrame::default()
+            },
+            InputFrame {
+                pressed: vec![Input::Home],
+                ..InputFrame::default()
+            },
+        ],
+        pixels: vec![0; 320 * 240 * 4],
+        text: TextSink::default(),
+        draw_calls: 0,
+        present_calls: 0,
+        execute_calls: Vec::new(),
+        waits: 0,
+    };
+    let mut session = HomeOverlaySession::default();
+    if session.is_open()
+        || !session.set_slot(
+            0,
+            Some(Slot {
+                label: "Save",
+                request: Request::Save,
+            }),
+        )
+        || session.set_slot(9, None)
+    {
+        return -1;
+    }
+    session.set_capabilities(Capabilities {
+        can_restart_app: true,
+        can_save: true,
+        can_find_remotes: true,
+        can_disconnect_remotes: true,
+    });
+    if session.open_programmatically() != Ok(())
+        || !session.is_open()
+        || session.open_programmatically() != Err(OverlayError::AlreadyOpen)
+    {
+        return -2;
+    }
+    // Close the first session, then exercise the synchronous host loop.
+    session
+        .frame(
+            &mut host,
+            &InputFrame {
+                pressed: vec![Input::Home],
+                ..InputFrame::default()
+            },
+        )
+        .ok();
+    if session.is_open() || session.run(&mut host).is_err() || session.is_open() {
+        return -3;
+    }
+    if host.execute_calls != [Request::FindRemotes]
+        || host.draw_calls != 3
+        || host.present_calls != 3
+        || host.waits != 3
+        || host.text.0 == 0
+        || host.input != 4
+    {
+        return -4;
+    }
+    ogc_system::report(format_args!(
+        "PASS HOME overlay host, session and loop APIs\n"
+    ));
+    0
+}
+
+fn network_platform_extensions_api() -> i32 {
+    use crate::network_config::{CONFIG_LEN, NetworkConfig};
+
+    let scan_error = crate::platform::network_scan::ScanError::Driver(ogc_wd::ScanFailure {
+        stage: ogc_wd::ScanStage::Platform,
+        code: ogc_ipc::IPC_ENOENT,
+    });
+    if !scan_error.user_message().contains("platform check") {
+        return -1;
+    }
+    match crate::platform::network_scan::scan() {
+        Ok(networks) if networks.len <= crate::network_config::SCANNED_NETWORK_LIMIT => {}
+        Ok(_) => return -2,
+        Err(error) if !error.user_message().is_empty() => {}
+        Err(_) => return -3,
+    }
+
+    let backup_error = crate::platform::network_config::NetworkConfigError::BackupUnavailable;
+    if !crate::platform::network_config::save_error_message(backup_error)
+        .contains("No verified recovery backup")
+    {
+        return -4;
+    }
+
+    // The test harness uses a private Dolphin NAND copy for this case. The
+    // candidate config has no active profile, so both save APIs must stop at
+    // validation and must not write the copied system config.
+    let expected = crate::platform::network_config::load(None).ok();
+    let invalid = NetworkConfig::from_bytes([0; CONFIG_LEN]);
+    let save = crate::platform::network_config::save(
+        &invalid,
+        expected.as_ref().unwrap_or(&invalid),
+        None,
+    );
+    let unbacked = crate::platform::network_config::save_without_backup(
+        &invalid,
+        expected.as_ref().unwrap_or(&invalid),
+    );
+    if save.is_ok() || unbacked.is_ok() {
+        return -5;
+    }
+
+    ogc_system::report(format_args!(
+        "PASS network scan and isolated network config APIs; scan result={:?}\n",
+        expected.as_ref().map(|config| config.active_profile())
+    ));
+    0
+}
+
+fn allocator_init_api() -> i32 {
+    let bytes = vec![0x5a; 4096];
+    if bytes.len() != 4096 || bytes.iter().any(|byte| *byte != 0x5a) {
+        return -1;
+    }
+    ogc_system::report(format_args!(
+        "PASS Wii arena allocator initialization and allocation\n"
+    ));
+    0
+}
+
 fn write_reserved_record(address: usize, bytes: &[u8]) {
     // SAFETY: The acceptance build runs in a private Dolphin NAND. These two
     // reserved MEM2 ranges are the exact blocks consumed by the production APIs.
@@ -798,9 +1345,11 @@ fn wiiload_start_api() -> i32 {
     let stop = wiiload::stop();
     let final_status = wiiload::status();
     let indicator = wiiload::indicator_state();
+    let cleanup_error = wiiload::cleanup_error();
+    let _local_ip = wiiload::local_ip();
     let stopped_cleanly = stop.is_ok() && final_status == ReceiverStatus::Stopped;
     let stopped_with_cleanup_error = matches!(stop, Err(ReceiverError::Cleanup(code))
-        if wiiload::cleanup_error() == Some(code)
+        if cleanup_error == Some(code)
             && final_status == ReceiverStatus::CleanupError);
     if (!stopped_cleanly && !stopped_with_cleanup_error)
         || indicator

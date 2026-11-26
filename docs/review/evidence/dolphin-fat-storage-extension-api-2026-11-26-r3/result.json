@@ -1,0 +1,15 @@
+{
+  "sha256": "4b299441bc523c282d4fb4a6983eaf71658fe0699b296cabfb77f023f3429111",
+  "dolphin_arch": "native",
+  "profile": "/Volumes/SSD/WiiDev/tmp/hbc-production-acceptance/hbc-production-acceptance-9o1fp_gg",
+  "sd_fixture": "/Volumes/SSD/WiiDev/tmp/hbc-production-acceptance/hbc-production-acceptance-9o1fp_gg/Load/WiiSDSync/acceptance",
+  "theme_fixture": "/Volumes/SSD/WiiDev/tmp/hbc-production-acceptance/hbc-production-acceptance-9o1fp_gg/Load/WiiSDSync/apps/ThemeProbe",
+  "cases": [
+    {
+      "case": "fat-storage-api",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

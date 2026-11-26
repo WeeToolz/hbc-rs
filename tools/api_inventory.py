@@ -136,9 +136,12 @@ def collect(document: dict, ledger: list[dict[str, str]]) -> list[dict[str, str]
         elif extension is not None:
             row, reason = extension
             status = "extension"
-            evidence = row["id"]
-            verification = "not_applicable"
-            limitations = reason
+            evidence = row["evidence"] or row["id"]
+            verification = row["verification"]
+            limitations = (
+                f"{reason}; Dolphin evidence checks the named Rust-only API case. "
+                "Full API behavior and physical Wii behavior are not established."
+            )
         else:
             status = "unverified"
             evidence = ";".join(row["id"] for row in evidence_rows)
@@ -200,7 +203,7 @@ def render_status(rows: list[dict[str, str]]) -> str:
         f"blocked: **{counts['blocked']}** | extension: **{counts['extension']}** | "
         f"unverified: **{counts['unverified']}**.", "",
         "`partial` means at least one exact API-specific check passes; it does not mean the API contract is complete. "
-        "`extension` means the parity ledger explicitly records that the API has no matching C HBC contract. "
+        "`extension` means the parity ledger records that the API has no matching C HBC contract; its verification field still reports Dolphin checks of the Rust API. "
         "`unverified` means the API has no linked exact passing check. A broad feature test may still cover it. "
         "No APIs are promoted to `verified` or `blocked` by inference. Physical Wii evidence is separate and remains pending where the parity ledger says so.", "",
         "The machine-readable API list is [api-inventory.csv](api-inventory.csv). See [API verification](../api-verification.md) for scope and commands.", "",
