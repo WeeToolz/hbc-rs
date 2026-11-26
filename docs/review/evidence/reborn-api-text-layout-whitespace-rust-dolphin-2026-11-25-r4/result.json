@@ -1,0 +1,15 @@
+{
+  "sha256": "a2a91700d69ef078017414b92bc482edc4e26d4bb6a0fc6ae76bc2c02657c3a5",
+  "dolphin_arch": "native",
+  "profile": "/Volumes/SSD/WiiDev/tmp/hbc-production-acceptance/hbc-production-acceptance-vth3ogfg",
+  "sd_fixture": null,
+  "theme_fixture": null,
+  "cases": [
+    {
+      "case": "text-layout-api",
+      "success": true,
+      "result": 0
+    }
+  ],
+  "success": true
+}

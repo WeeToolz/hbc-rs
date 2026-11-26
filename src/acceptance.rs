@@ -2790,7 +2790,7 @@ fn text_layout_api() -> i32 {
             return -1;
         }
     };
-    if memo.lines != ["WW", "ii"] || memo.max_scroll != 4 || memo.line_height != 10.0 {
+    if memo.lines != ["WW ", "ii "] || memo.max_scroll != 4 || memo.line_height != 10.0 {
         ogc_system::report(format_args!("FAIL text layout measured rows\n"));
         return -2;
     }
@@ -2833,7 +2833,7 @@ fn text_layout_api() -> i32 {
             return -5;
         }
     };
-    if edge.lines != ["a", "b", "c", "d"] {
+    if edge.lines != ["a", "b ", "c", "d"] {
         ogc_system::report(format_args!("FAIL text layout edge line break\n"));
         return -6;
     }
@@ -2859,6 +2859,92 @@ fn text_layout_api() -> i32 {
         ogc_system::report(format_args!("FAIL text layout full-width glyph result\n"));
         return -8;
     }
+    let over_width_glyph = match layout_memo(
+        "W",
+        MemoSpec {
+            width: 10.0,
+            height: 10.0,
+            scroll: 0,
+        },
+        10.0,
+        |_| 11.0,
+    ) {
+        Ok(memo) => memo,
+        Err(error) => {
+            ogc_system::report(format_args!(
+                "FAIL text layout over-width glyph {error:?}\n"
+            ));
+            return -9;
+        }
+    };
+    if over_width_glyph.lines != ["W"] || over_width_glyph.max_scroll != 1 {
+        ogc_system::report(format_args!("FAIL text layout over-width glyph result\n"));
+        return -10;
+    }
+    let whitespace = match layout_memo(
+        "A  B\tC",
+        MemoSpec {
+            width: 100.0,
+            height: 10.0,
+            scroll: 0,
+        },
+        10.0,
+        |value| value.chars().count() as f32,
+    ) {
+        Ok(memo) => memo,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL text layout whitespace {error:?}\n"));
+            return -11;
+        }
+    };
+    if whitespace.lines != ["A  B\tC"] {
+        ogc_system::report(format_args!("FAIL text layout whitespace preservation\n"));
+        return -12;
+    }
+    let space_wrap = match layout_memo(
+        "ab  cd",
+        MemoSpec {
+            width: 5.0,
+            height: 100.0,
+            scroll: 0,
+        },
+        10.0,
+        |value| value.chars().count() as f32,
+    ) {
+        Ok(memo) => memo,
+        Err(error) => {
+            ogc_system::report(format_args!(
+                "FAIL text layout repeated-space wrap {error:?}\n"
+            ));
+            return -13;
+        }
+    };
+    if space_wrap.lines != ["ab  ", "cd"] {
+        ogc_system::report(format_args!(
+            "FAIL text layout repeated-space wrap result\n"
+        ));
+        return -14;
+    }
+    let carriage_return = match layout_memo(
+        "A\rB",
+        MemoSpec {
+            width: 100.0,
+            height: 10.0,
+            scroll: 0,
+        },
+        10.0,
+        |value| value.chars().count() as f32,
+    ) {
+        Ok(memo) => memo,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL text layout carriage return {error:?}\n"));
+            return -15;
+        }
+    };
+    if carriage_return.lines != ["AB"] {
+        ogc_system::report(format_args!("FAIL text layout carriage return result\n"));
+        return -16;
+    }
 
     if wrap_lines("one two three", 7) != ["one two", "three"]
         || wrap_lines("abcdefgh", 3) != ["abc", "def", "gh"]
@@ -2868,7 +2954,7 @@ fn text_layout_api() -> i32 {
         || wrap_memo_lines("\n", 40) != ["", ""]
     {
         ogc_system::report(format_args!("FAIL text layout wrapping boundaries\n"));
-        return -9;
+        return -17;
     }
 
     ogc_system::report(format_args!(

@@ -1,0 +1,245 @@
+diff --git a/src/acceptance.rs b/src/acceptance.rs
+index 5460dd2..b4df429 100644
+--- a/src/acceptance.rs
++++ b/src/acceptance.rs
+@@ -2793 +2793 @@ fn text_layout_api() -> i32 {
+-    if memo.lines != ["WW", "ii"] || memo.max_scroll != 4 || memo.line_height != 10.0 {
++    if memo.lines != ["WW ", "ii "] || memo.max_scroll != 4 || memo.line_height != 10.0 {
+@@ -2836 +2836 @@ fn text_layout_api() -> i32 {
+-    if edge.lines != ["a", "b", "c", "d"] {
++    if edge.lines != ["a", "b ", "c", "d"] {
+@@ -2861,0 +2862,86 @@ fn text_layout_api() -> i32 {
++    let over_width_glyph = match layout_memo(
++        "W",
++        MemoSpec {
++            width: 10.0,
++            height: 10.0,
++            scroll: 0,
++        },
++        10.0,
++        |_| 11.0,
++    ) {
++        Ok(memo) => memo,
++        Err(error) => {
++            ogc_system::report(format_args!(
++                "FAIL text layout over-width glyph {error:?}\n"
++            ));
++            return -9;
++        }
++    };
++    if over_width_glyph.lines != ["W"] || over_width_glyph.max_scroll != 1 {
++        ogc_system::report(format_args!("FAIL text layout over-width glyph result\n"));
++        return -10;
++    }
++    let whitespace = match layout_memo(
++        "A  B\tC",
++        MemoSpec {
++            width: 100.0,
++            height: 10.0,
++            scroll: 0,
++        },
++        10.0,
++        |value| value.chars().count() as f32,
++    ) {
++        Ok(memo) => memo,
++        Err(error) => {
++            ogc_system::report(format_args!("FAIL text layout whitespace {error:?}\n"));
++            return -11;
++        }
++    };
++    if whitespace.lines != ["A  B\tC"] {
++        ogc_system::report(format_args!("FAIL text layout whitespace preservation\n"));
++        return -12;
++    }
++    let space_wrap = match layout_memo(
++        "ab  cd",
++        MemoSpec {
++            width: 5.0,
++            height: 100.0,
++            scroll: 0,
++        },
++        10.0,
++        |value| value.chars().count() as f32,
++    ) {
++        Ok(memo) => memo,
++        Err(error) => {
++            ogc_system::report(format_args!(
++                "FAIL text layout repeated-space wrap {error:?}\n"
++            ));
++            return -13;
++        }
++    };
++    if space_wrap.lines != ["ab  ", "cd"] {
++        ogc_system::report(format_args!(
++            "FAIL text layout repeated-space wrap result\n"
++        ));
++        return -14;
++    }
++    let carriage_return = match layout_memo(
++        "A\rB",
++        MemoSpec {
++            width: 100.0,
++            height: 10.0,
++            scroll: 0,
++        },
++        10.0,
++        |value| value.chars().count() as f32,
++    ) {
++        Ok(memo) => memo,
++        Err(error) => {
++            ogc_system::report(format_args!("FAIL text layout carriage return {error:?}\n"));
++            return -15;
++        }
++    };
++    if carriage_return.lines != ["AB"] {
++        ogc_system::report(format_args!("FAIL text layout carriage return result\n"));
++        return -16;
++    }
+@@ -2871 +2957 @@ fn text_layout_api() -> i32 {
+-        return -9;
++        return -17;
+diff --git a/src/text_layout.rs b/src/text_layout.rs
+index 0d0236e..0dfa5bb 100644
+--- a/src/text_layout.rs
++++ b/src/text_layout.rs
+@@ -39,14 +39,11 @@ pub fn layout_memo(
+-        for word in paragraph.split_whitespace() {
+-            let candidate = if line.is_empty() {
+-                String::from(word)
+-            } else {
+-                alloc::format!("{line} {word}")
+-            };
+-            let width = measure(&candidate);
+-            if !width.is_finite() || width < 0.0 {
+-                return Err(crate::font::FontError::InvalidFont);
+-            }
+-            // Reborn starts a new line when the current glyph reaches the
+-            // widget edge. Keep the same strict interior bound here.
+-            if width < spec.width {
+-                line = candidate;
++        let mut line_start = 0;
++        let mut last_space_next = None;
++        let mut offset = 0;
++        while offset < paragraph.len() {
++            let character = paragraph[offset..]
++                .chars()
++                .next()
++                .expect("offset is before the end of the paragraph");
++            let next_offset = offset + character.len_utf8();
++            if character == '\r' {
++                offset = next_offset;
+@@ -55,2 +52,4 @@ pub fn layout_memo(
+-            if !line.is_empty() {
+-                lines.push(core::mem::take(&mut line));
++
++            line.push(character);
++            if character == ' ' {
++                last_space_next = Some((next_offset, line.len()));
+@@ -58,7 +57,13 @@ pub fn layout_memo(
+-            for character in word.chars() {
+-                let glyph_width = measure(&String::from(character));
+-                if !glyph_width.is_finite() || glyph_width < 0.0 {
+-                    return Err(crate::font::FontError::InvalidFont);
+-                }
+-                if glyph_width > spec.width {
+-                    return Err(crate::font::FontError::GlyphTooLarge);
++            let width = measure(&line);
++            if !width.is_finite() || width < 0.0 {
++                return Err(crate::font::FontError::InvalidFont);
++            }
++            if width >= spec.width {
++                if character == ' ' {
++                    // Reborn ends this line after an ASCII space that reaches
++                    // the edge.
++                    lines.push(core::mem::take(&mut line));
++                    offset = next_offset;
++                    line_start = offset;
++                    last_space_next = None;
++                    continue;
+@@ -66,5 +71,11 @@ pub fn layout_memo(
+-                let mut candidate = line.clone();
+-                candidate.push(character);
+-                let width = measure(&candidate);
+-                if !width.is_finite() || width < 0.0 {
+-                    return Err(crate::font::FontError::InvalidFont);
++                if let Some((next, byte_end)) =
++                    last_space_next.filter(|(next, _)| *next > line_start)
++                {
++                    // Reborn keeps the space and retries all later glyphs on
++                    // the next line.
++                    line.truncate(byte_end);
++                    lines.push(core::mem::take(&mut line));
++                    offset = next;
++                    line_start = next;
++                    last_space_next = None;
++                    continue;
+@@ -72 +83,2 @@ pub fn layout_memo(
+-                if !line.is_empty() && width >= spec.width {
++                if line.chars().count() > 1 {
++                    line.pop();
+@@ -73,0 +86,3 @@ pub fn layout_memo(
++                    line_start = offset;
++                    last_space_next = None;
++                    continue;
+@@ -75 +90,7 @@ pub fn layout_memo(
+-                line.push(character);
++                // Keep one full-width glyph, as Reborn does when it cannot
++                // break before the first glyph on a line.
++                lines.push(core::mem::take(&mut line));
++                offset = next_offset;
++                line_start = offset;
++                last_space_next = None;
++                continue;
+@@ -76,0 +98 @@ pub fn layout_memo(
++            offset = next_offset;
+@@ -161 +183 @@ mod tests {
+-        assert_eq!(memo.lines, ["WW", "ii"]);
++        assert_eq!(memo.lines, ["WW ", "ii "]);
+@@ -190 +212 @@ mod tests {
+-        assert_eq!(memo.lines, ["a", "b", "c", "d"]);
++        assert_eq!(memo.lines, ["a", "b ", "c", "d"]);
+@@ -207,0 +230,24 @@ mod tests {
++    #[test]
++    fn measured_wrap_preserves_c_spaces_tabs_and_carriage_returns() {
++        let spec = super::MemoSpec {
++            width: 100.0,
++            height: 100.0,
++            scroll: 0,
++        };
++        let measure = |text: &str| text.chars().count() as f32;
++        let whitespace = super::layout_memo("A  B\tC", spec, 10.0, measure).unwrap();
++        assert_eq!(whitespace.lines, ["A  B\tC"]);
++
++        let carriage_return = super::layout_memo("A\rB", spec, 10.0, measure).unwrap();
++        assert_eq!(carriage_return.lines, ["AB"]);
++
++        let wrapped = super::layout_memo(
++            "ab  cd",
++            super::MemoSpec { width: 5.0, ..spec },
++            10.0,
++            measure,
++        )
++        .unwrap();
++        assert_eq!(wrapped.lines, ["ab  ", "cd"]);
++    }
++
+@@ -217 +263 @@ mod tests {
+-    fn measured_layout_rejects_invalid_bounds_and_oversized_glyphs() {
++    fn measured_layout_rejects_invalid_bounds_and_keeps_wide_glyphs() {
+@@ -231,4 +277,12 @@ mod tests {
+-        assert_eq!(
+-            super::layout_memo("W", spec, 10.0, |_| 11.0),
+-            Err(crate::font::FontError::GlyphTooLarge)
+-        );
++        let wide = super::layout_memo(
++            "W",
++            super::MemoSpec {
++                height: 10.0,
++                ..spec
++            },
++            10.0,
++            |_| 11.0,
++        )
++        .unwrap();
++        assert_eq!(wide.lines, ["W"]);
++        assert_eq!(wide.max_scroll, 1);
