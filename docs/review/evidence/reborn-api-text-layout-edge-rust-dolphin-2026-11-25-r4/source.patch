@@ -1,0 +1,104 @@
+diff --git a/src/acceptance.rs b/src/acceptance.rs
+index d6719b2..5460dd2 100644
+--- a/src/acceptance.rs
++++ b/src/acceptance.rs
+@@ -2793 +2793 @@ fn text_layout_api() -> i32 {
+-    if memo.lines != ["WW ii", "WW"] || memo.max_scroll != 3 || memo.line_height != 10.0 {
++    if memo.lines != ["WW", "ii"] || memo.max_scroll != 4 || memo.line_height != 10.0 {
+@@ -2819,0 +2820,43 @@ fn text_layout_api() -> i32 {
++    let edge = match layout_memo(
++        "ab cd",
++        MemoSpec {
++            width: 10.0,
++            height: 100.0,
++            scroll: 0,
++        },
++        10.0,
++        |value| value.chars().count() as f32 * 5.0,
++    ) {
++        Ok(memo) => memo,
++        Err(error) => {
++            ogc_system::report(format_args!("FAIL text layout widget edge {error:?}\n"));
++            return -5;
++        }
++    };
++    if edge.lines != ["a", "b", "c", "d"] {
++        ogc_system::report(format_args!("FAIL text layout edge line break\n"));
++        return -6;
++    }
++    let full_width_glyph = match layout_memo(
++        "W",
++        MemoSpec {
++            width: 10.0,
++            height: 10.0,
++            scroll: 0,
++        },
++        10.0,
++        |_| 10.0,
++    ) {
++        Ok(memo) => memo,
++        Err(error) => {
++            ogc_system::report(format_args!(
++                "FAIL text layout full-width glyph {error:?}\n"
++            ));
++            return -7;
++        }
++    };
++    if full_width_glyph.lines != ["W"] {
++        ogc_system::report(format_args!("FAIL text layout full-width glyph result\n"));
++        return -8;
++    }
++
+@@ -2828 +2871 @@ fn text_layout_api() -> i32 {
+-        return -5;
++        return -9;
+diff --git a/src/text_layout.rs b/src/text_layout.rs
+index 8e1de24..0d0236e 100644
+--- a/src/text_layout.rs
++++ b/src/text_layout.rs
+@@ -49 +49,3 @@ pub fn layout_memo(
+-            if width <= spec.width {
++            // Reborn starts a new line when the current glyph reaches the
++            // widget edge. Keep the same strict interior bound here.
++            if width < spec.width {
+@@ -70 +72 @@ pub fn layout_memo(
+-                if !line.is_empty() && width > spec.width {
++                if !line.is_empty() && width >= spec.width {
+@@ -159,2 +161,2 @@ mod tests {
+-        assert_eq!(memo.lines, ["WW ii", "WW"]);
+-        assert_eq!(memo.max_scroll, 3);
++        assert_eq!(memo.lines, ["WW", "ii"]);
++        assert_eq!(memo.max_scroll, 4);
+@@ -173,0 +176,32 @@ mod tests {
++    #[test]
++    fn measured_wrap_moves_text_that_reaches_the_widget_edge() {
++        let memo = super::layout_memo(
++            "ab cd",
++            super::MemoSpec {
++                width: 10.0,
++                height: 100.0,
++                scroll: 0,
++            },
++            10.0,
++            |text| text.chars().count() as f32 * 5.0,
++        )
++        .unwrap();
++
++        assert_eq!(memo.lines, ["a", "b", "c", "d"]);
++        assert_eq!(memo.max_scroll, 0);
++
++        // A single glyph that exactly fills the widget remains drawable.
++        let glyph = super::layout_memo(
++            "a",
++            super::MemoSpec {
++                width: 5.0,
++                height: 10.0,
++                scroll: 0,
++            },
++            10.0,
++            |_| 5.0,
++        )
++        .unwrap();
++        assert_eq!(glyph.lines, ["a"]);
++    }
++

@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "package": "hbc-rs",
+  "target_kind": "--bin",
+  "target": "emulator-acceptance",
+  "target_triple": "powerpc-nintendo-none",
+  "profile": "release",
+  "features": [
+    "emulator-acceptance"
+  ],
+  "standard_library": "core,alloc",
+  "dol_bytes": 3171488,
+  "dol_sha256": "64c0ba14fc223557ed29154deed3ef5d0c2eb1caa19c173d6e67a6d01abb2a37",
+  "development": false,
+  "elf_path": "/Volumes/SSD/WiiDev/libogc-rs/target/xtask/custom-dol-build/powerpc-nintendo-none/release/emulator-acceptance",
+  "source_revision": "fd6d543b32ecf23d60a942d91fd69a4f952480fe",
+  "source_changes": "M Cargo.lock\n M config/parity-ledger.csv\n M docs/generated/api-inventory.csv\n M docs/generated/parity-status.md\n M src/acceptance.rs\n M src/text_layout.rs\n?? docs/review/evidence/reborn-api-text-layout-edge-rust-dolphin-2026-11-25-r2/\n?? docs/review/evidence/reborn-api-text-layout-edge-rust-dolphin-2026-11-25-r3/",
+  "sdk_revision": "1f8f98fb5504826b810a50a67a0208ac633f0cfa",
+  "sdk_changes": ""
+}

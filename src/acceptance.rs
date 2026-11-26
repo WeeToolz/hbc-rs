@@ -2790,7 +2790,7 @@ fn text_layout_api() -> i32 {
             return -1;
         }
     };
-    if memo.lines != ["WW ii", "WW"] || memo.max_scroll != 3 || memo.line_height != 10.0 {
+    if memo.lines != ["WW", "ii"] || memo.max_scroll != 4 || memo.line_height != 10.0 {
         ogc_system::report(format_args!("FAIL text layout measured rows\n"));
         return -2;
     }
@@ -2817,6 +2817,49 @@ fn text_layout_api() -> i32 {
         return -4;
     }
 
+    let edge = match layout_memo(
+        "ab cd",
+        MemoSpec {
+            width: 10.0,
+            height: 100.0,
+            scroll: 0,
+        },
+        10.0,
+        |value| value.chars().count() as f32 * 5.0,
+    ) {
+        Ok(memo) => memo,
+        Err(error) => {
+            ogc_system::report(format_args!("FAIL text layout widget edge {error:?}\n"));
+            return -5;
+        }
+    };
+    if edge.lines != ["a", "b", "c", "d"] {
+        ogc_system::report(format_args!("FAIL text layout edge line break\n"));
+        return -6;
+    }
+    let full_width_glyph = match layout_memo(
+        "W",
+        MemoSpec {
+            width: 10.0,
+            height: 10.0,
+            scroll: 0,
+        },
+        10.0,
+        |_| 10.0,
+    ) {
+        Ok(memo) => memo,
+        Err(error) => {
+            ogc_system::report(format_args!(
+                "FAIL text layout full-width glyph {error:?}\n"
+            ));
+            return -7;
+        }
+    };
+    if full_width_glyph.lines != ["W"] {
+        ogc_system::report(format_args!("FAIL text layout full-width glyph result\n"));
+        return -8;
+    }
+
     if wrap_lines("one two three", 7) != ["one two", "three"]
         || wrap_lines("abcdefgh", 3) != ["abc", "def", "gh"]
         || !wrap_lines("text", 0).is_empty()
@@ -2825,7 +2868,7 @@ fn text_layout_api() -> i32 {
         || wrap_memo_lines("\n", 40) != ["", ""]
     {
         ogc_system::report(format_args!("FAIL text layout wrapping boundaries\n"));
-        return -5;
+        return -9;
     }
 
     ogc_system::report(format_args!(

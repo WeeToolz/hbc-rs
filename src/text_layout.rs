@@ -46,7 +46,9 @@ pub fn layout_memo(
             if !width.is_finite() || width < 0.0 {
                 return Err(crate::font::FontError::InvalidFont);
             }
-            if width <= spec.width {
+            // Reborn starts a new line when the current glyph reaches the
+            // widget edge. Keep the same strict interior bound here.
+            if width < spec.width {
                 line = candidate;
                 continue;
             }
@@ -67,7 +69,7 @@ pub fn layout_memo(
                 if !width.is_finite() || width < 0.0 {
                     return Err(crate::font::FontError::InvalidFont);
                 }
-                if !line.is_empty() && width > spec.width {
+                if !line.is_empty() && width >= spec.width {
                     lines.push(core::mem::take(&mut line));
                 }
                 line.push(character);
@@ -156,8 +158,8 @@ mod tests {
             scroll: 0,
         };
         let memo = super::layout_memo("WW ii WW\n\nWWWW", spec, 10.0, measure).unwrap();
-        assert_eq!(memo.lines, ["WW ii", "WW"]);
-        assert_eq!(memo.max_scroll, 3);
+        assert_eq!(memo.lines, ["WW", "ii"]);
+        assert_eq!(memo.max_scroll, 4);
         let end = super::layout_memo(
             "WW ii WW\n\nWWWW",
             super::MemoSpec {
@@ -169,6 +171,38 @@ mod tests {
         )
         .unwrap();
         assert_eq!(end.lines, ["WW", "WW"]);
+    }
+
+    #[test]
+    fn measured_wrap_moves_text_that_reaches_the_widget_edge() {
+        let memo = super::layout_memo(
+            "ab cd",
+            super::MemoSpec {
+                width: 10.0,
+                height: 100.0,
+                scroll: 0,
+            },
+            10.0,
+            |text| text.chars().count() as f32 * 5.0,
+        )
+        .unwrap();
+
+        assert_eq!(memo.lines, ["a", "b", "c", "d"]);
+        assert_eq!(memo.max_scroll, 0);
+
+        // A single glyph that exactly fills the widget remains drawable.
+        let glyph = super::layout_memo(
+            "a",
+            super::MemoSpec {
+                width: 5.0,
+                height: 10.0,
+                scroll: 0,
+            },
+            10.0,
+            |_| 5.0,
+        )
+        .unwrap();
+        assert_eq!(glyph.lines, ["a"]);
     }
 
     #[test]

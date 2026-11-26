@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "package": "hbc-rs",
+  "target_kind": "--bin",
+  "target": "emulator-acceptance",
+  "target_triple": "powerpc-nintendo-none",
+  "profile": "release",
+  "features": [
+    "emulator-acceptance"
+  ],
+  "standard_library": "core,alloc",
+  "dol_bytes": 3167904,
+  "dol_sha256": "eca7cca94b0aa8cbf053adb650311398613bd739e24f4caef143f25d22753df3",
+  "development": false,
+  "elf_path": "/Volumes/SSD/WiiDev/libogc-rs/target/xtask/custom-dol-build/powerpc-nintendo-none/release/emulator-acceptance",
+  "source_revision": "fd6d543b32ecf23d60a942d91fd69a4f952480fe",
+  "source_changes": "M Cargo.lock\n M config/parity-ledger.csv\n M docs/generated/api-inventory.csv\n M docs/generated/parity-status.md\n M src/acceptance.rs\n M src/text_layout.rs",
+  "sdk_revision": "1f8f98fb5504826b810a50a67a0208ac633f0cfa",
+  "sdk_changes": ""
+}
